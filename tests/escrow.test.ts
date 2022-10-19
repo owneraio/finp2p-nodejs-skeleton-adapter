@@ -6,12 +6,15 @@ import {
   ESCROW_MSPID
 } from "./configuration";
 import {CommonAPI, EscrowAPI, OperatorAPI, PaymentsAPI} from "./api";
+import Asset = Components.Schemas.Asset;
+import Source = Components.Schemas.Source;
+import Receipt = Components.Schemas.Receipt;
 
 
 describe(`escrow test flow`, () => {
 
   test(`Scenario: escrow hold / release`, async () => {
-    const asset = {type: "fiat", code: "USD"} as Components.Schemas.Asset;
+    const asset = {type: "fiat", code: "USD"} as Asset;
 
     const buyerCrypto = createCrypto();
     let buyerFinId = buyerCrypto.public.toString('hex');
@@ -22,7 +25,7 @@ describe(`escrow test flow`, () => {
         type: "escrow",
         escrowAccountId: buyerEscrowAccountId
       }
-    } as Components.Schemas.Source;
+    } as Source;
 
     let depositStatus = await PaymentsAPI.getDepositInstruction({
       owner: buyer,
@@ -59,7 +62,7 @@ describe(`escrow test flow`, () => {
         type: "escrow",
         escrowAccountId: sellerEscrowAccountId
       }
-    } as Components.Schemas.Source;
+    } as Source;
 
     depositStatus = await PaymentsAPI.getDepositInstruction({
       owner: seller,
@@ -121,7 +124,7 @@ describe(`escrow test flow`, () => {
     await expectBalance(seller, asset, transferQty);
   });
 
-  const expectReceipt = async (status: any): Promise<Components.Schemas.Receipt> => {
+  const expectReceipt = async (status: any): Promise<Receipt> => {
     if (status.isCompleted) {
       return status.response;
     } else {
@@ -129,7 +132,7 @@ describe(`escrow test flow`, () => {
     }
   }
 
-  const expectBalance = async (owner: Components.Schemas.Source, asset: Components.Schemas.Asset, amount: number) => {
+  const expectBalance = async (owner: Source, asset: Asset, amount: number) => {
     const balance = await CommonAPI.balance({asset: asset, owner: owner});
     expect(parseFloat(balance.balance)).toBeCloseTo(amount, 4);
   }
