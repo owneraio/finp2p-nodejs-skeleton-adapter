@@ -5,7 +5,8 @@
   "main": "lib/index.js",
   "homepage": "https://ownera.io/",
   "scripts": {
-    "generate": "dtsgen -o ./src/services/model.ts dlt-adapter-api.yaml ",
+    "generate": "dtsgen -o ./src/services/model.ts api/dlt-adapter-api.yaml",
+    "generate-finp2p": "dtsgen -c ./ops-gen-config.json -o ./src/finp2p/types.d.ts",
     "clean": "rm -rf lib",
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc",
@@ -17,6 +18,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
+    "axios": "^1.1.3",
     "express": "^4.17.1",
     "express-validator": "^6.14.0",
     "express-winston": "^4.2.0",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@babel/core": "^7.19.3",
     "@babel/preset-env": "^7.19.4",
+    "@dtsgenerator/replace-namespace": "^1.5.2",
     "@types/express": "^4.17.13",
     "@types/jest": "^29.2.0",
     "@types/node": "^16.11.12",
@@ -33,7 +36,6 @@
     "@types/uuid": "^8.3.4",
     "@typescript-eslint/eslint-plugin": "^5.6.0",
     "@typescript-eslint/parser": "^5.6.0",
-    "axios": "^1.1.3",
     "babel-jest": "^29.2.0",
     "dtsgenerator": "^3.15.0",
     "eslint": "^8.4.1",

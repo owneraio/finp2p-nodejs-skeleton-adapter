@@ -1,0 +1,273 @@
+openapi: 3.0.1
+info:
+  title: Operational API
+  description: This is the operational API reference for adapter development.
+  termsOfService: 'https://ownera.io/terms/'
+  contact:
+    email: support@ownera.io
+  version: x.x.x
+tags:
+  - name: ledger
+    description: Sync operations between ledger adapter and finp2p node
+
+paths:
+  /ledger/transaction/import:
+    post:
+      tags:
+        - ledger
+      summary: provide a details about external transfer
+      description: provide a details about external transfer
+      operationId: import transactions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - transactions
+              properties:
+                transactions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/transaction'
+      responses:
+        '200':
+          description: successful operation
+        '404':
+          description: Transaction not found
+          content: { }
+        '500':
+          description: System error
+          content: { }
+
+components:
+  schemas:
+    asset:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
+          fiat: '#/components/schemas/fiatAsset'
+          finp2p: '#/components/schemas/finp2pAsset'
+      oneOf:
+        - $ref: '#/components/schemas/cryptocurrencyAsset'
+        - $ref: '#/components/schemas/fiatAsset'
+        - $ref: '#/components/schemas/finp2pAsset'
+
+    cryptocurrencyAsset:
+      type: object
+      required:
+        - type
+        - code
+      properties:
+        type:
+          type: "string"
+          enum: [ "cryptocurrency" ]
+        code:
+          type: "string"
+          description: 'unique identifier symbol of the cryptocurrency'
+
+    fiatAsset:
+      type: object
+      required:
+        - type
+        - code
+      properties:
+        type:
+          type: "string"
+          enum: [ "fiat" ]
+        code:
+          type: "string"
+          description: 'unique identifier code of the fiat currency - based on ISO-4217'
+
+    finp2pAsset:
+      type: object
+      required:
+        - type
+        - resourceId
+      properties:
+        type:
+          type: "string"
+          enum: [ "finp2p" ]
+        resourceId:
+          type: "string"
+          description: 'unique resource ID of the FinP2P asset'
+
+    source:
+      type: object
+      required:
+        - finId
+        - account
+      properties:
+        finId:
+          type: string
+          description: FinID, public key of the user
+        account:
+          oneOf:
+            - $ref: '#/components/schemas/finIdAccount'
+            - $ref: '#/components/schemas/escrowAccount'
+          discriminator:
+            propertyName: type
+            mapping:
+              finId: '#/components/schemas/finIdAccount'
+              escrow: '#/components/schemas/escrowAccount'
+
+    destination:
+      description: 'describes destination for remote operations operations'
+      type: object
+      required:
+        - finId
+        - account
+      properties:
+        finId:
+          type: string
+          description: FinID, public key of the user
+        account:
+          oneOf:
+            - $ref: '#/components/schemas/finIdAccount'
+            - $ref: '#/components/schemas/escrowAccount'
+            - $ref: '#/components/schemas/cryptoWalletAccount'
+            - $ref: '#/components/schemas/fiatAccount'
+          discriminator:
+            propertyName: type
+            mapping:
+              finId: '#/components/schemas/finIdAccount'
+              escrow: '#/components/schemas/escrowAccount'
+              cryptoWallet: '#/components/schemas/cryptoWalletAccount'
+              fiatAccount: '#/components/schemas/fiatAccount'
+
+    finIdAccount:
+      type: object
+      required:
+        - finId
+        - type
+      properties:
+        type:
+          type: string
+          enum: [ "finId" ]
+        finId:
+          type: "string"
+
+    escrowAccount:
+      type: object
+      required:
+        - type
+        - escrowAccountId
+      properties:
+        type:
+          type: string
+          enum: [ "escrow" ]
+        escrowAccountId:
+          type: "string"
+          description: 'escrow account id'
+
+    cryptoWalletAccount:
+      type: object
+      required:
+        - type
+        - address
+      properties:
+        type:
+          type: string
+          enum: [ "cryptoWallet" ]
+        address:
+          type: "string"
+          description: 'address of the cryptocurrency wallet'
+
+    fiatAccount:
+      type: object
+      required:
+        - type
+        - code
+      properties:
+        type:
+          type: string
+          enum: [ "fiatAccount" ]
+        code:
+          type: "string"
+          description: 'IBAN or other code to represent a fiat account'
+
+    transaction:
+      type: object
+      required:
+        - id
+        - asset
+        - quantity
+        - timestamp
+      properties:
+        id:
+          type: string
+          description: the receipt id
+        asset:
+          $ref: '#/components/schemas/asset'
+        quantity:
+          type: string
+          description: quantity of the assets
+        timestamp:
+          type: integer
+          format: int64
+          description: transaction timestamp
+        source:
+          $ref: '#/components/schemas/source'
+        destination:
+          $ref: '#/components/schemas/destination'
+        settlementRef:
+          type: string
+          description: the id of related / counterpary operation
+        transactionDetails:
+          $ref: '#/components/schemas/transactionDetails'
+
+    transactionDetails:
+      description: Additional input and output details for UTXO supporting DLTs
+      type: object
+      required:
+        - transactionId
+        - inputs
+        - outputs
+      properties:
+        transactionId:
+          type: string
+          description: Transaction id
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/input'
+        outputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/output'
+
+    input:
+      type: object
+      required:
+        - transactionId
+        - quantity
+        - index
+      properties:
+        transactionId:
+          type: string
+          description: "transaction id of the input token"
+        quantity:
+          type: string
+          description: "token input quantity"
+        index:
+          type: integer
+          description: "index of the token in the transaction that created it"
+
+    output:
+      type: object
+      required:
+        - quantity
+        - publicKey
+        - index
+      properties:
+        quantity:
+          type: string
+          description: "token output quantity"
+        publicKey:
+          type: string
+          description: "toke destination hex representation of a secp256k1 public key 33 bytes compressed"
+        index:
+          type: integer
+          description: "index of the token in the transaction"

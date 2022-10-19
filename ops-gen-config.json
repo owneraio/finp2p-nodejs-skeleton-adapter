@@ -1,0 +1,18 @@
+{
+  "input": {
+    "files": ["./api/operational-api.yaml"]
+  },
+  "target": "es2020",
+  "outputAST": false,
+  "outputFile": "types.d.ts",
+  "plugins": {
+    "@dtsgenerator/replace-namespace": {
+      "map": [
+        {
+          "from": ["Components", "Schemas", "Paths"],
+          "to": ["OpComponents", "OpSchemas", "OpPaths"]
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,7 @@
 import { CommonService, Transaction } from './common';
 import { v4 as uuid } from 'uuid';
+import { OperationalAPI } from '../finp2p/operational-api';
+import { logger } from '../helpers/logger';
 
 let service: OperatorService;
 
@@ -51,6 +53,7 @@ export class OperatorService extends CommonService {
     } as Components.Schemas.Asset;
     this.accountService.credit(request.to.escrowAccountId, amount, asset);
 
+
     let tx = {
       id: uuid(),
       amount: amount,
@@ -64,6 +67,31 @@ export class OperatorService extends CommonService {
       },
     } as Transaction;
     this.transactions[tx.id] = tx;
+
+    try {
+      await OperationalAPI.importTransactions({
+        transactions: [{
+          id: tx.id,
+          asset: {
+            type: 'fiat',
+            code: request.asset.code.code,
+          },
+          quantity: request.balance,
+          destination: {
+            finId: account.finId,
+            account: {
+              escrowAccountId: request.to.escrowAccountId,
+            },
+          },
+          timestamp: Date.now(),
+          transactionDetails: {
+            transactionId: tx.id,
+          },
+        }],
+      } as Paths.ImportTransactions.RequestBody);
+    } catch (e) {
+      logger.error(e);
+    }
 
     return {
       isCompleted: true,
