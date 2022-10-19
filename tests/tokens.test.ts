@@ -2,7 +2,11 @@ import {ASSET, createCrypto, generateNonce, randomResourceId, transferSignature}
 import {TokensAPI, CommonAPI} from "./api";
 import {LEDGER_HASH_FUNCTION, ORG1_MSPID} from "./configuration";
 import {v4 as uuidv4} from 'uuid';
-
+import Asset = Components.Schemas.Asset;
+import Finp2pAsset = Components.Schemas.Finp2pAsset;
+import Source = Components.Schemas.Source;
+import FinIdAccount = Components.Schemas.FinIdAccount;
+import Receipt = Components.Schemas.Receipt;
 
 describe(`token service test`, () => {
 
@@ -13,7 +17,7 @@ describe(`token service test`, () => {
     const asset = {
       type: "finp2p",
       resourceId: randomResourceId(ORG1_MSPID, ASSET)
-    } as Components.Schemas.Asset;
+    } as Asset;
 
     const buyerCrypto = createCrypto();
     let buyer = {
@@ -22,7 +26,7 @@ describe(`token service test`, () => {
         type: "finId",
         finId: buyerCrypto.public.toString('hex')
       }
-    } as Components.Schemas.Source;
+    } as Source;
 
     const assetStatus = await TokensAPI.createAsset({asset: asset});
     if (!assetStatus.isCompleted) {
@@ -35,9 +39,9 @@ describe(`token service test`, () => {
     let settlementRef = `${uuidv4()}`;
     const issueReceipt = await expectReceipt(await TokensAPI.issue({
       nonce: generateNonce().toString('utf-8'),
-      destination: buyer.account as Components.Schemas.FinIdAccount,
+      destination: buyer.account as FinIdAccount,
       quantity: `${issueQuantity}`,
-      asset: asset as Components.Schemas.Finp2pAsset,
+      asset: asset as Finp2pAsset,
       settlementRef: settlementRef
     } as Paths.IssueAssets.RequestBody));
     expect(issueReceipt.asset).toStrictEqual(asset);
@@ -53,7 +57,7 @@ describe(`token service test`, () => {
         type: "finId",
         finId: sellerCrypto.public.toString('hex')
       }
-    } as Components.Schemas.Source;
+    } as Source;
 
     let transferQuantity = 600;
 
@@ -119,10 +123,10 @@ describe(`token service test`, () => {
     settlementRef = `${uuidv4()}`;
     const redeemReceipt = await expectReceipt(await TokensAPI.redeem({
       nonce: nonce.toString('hex'),
-      source: buyer.account as Components.Schemas.FinIdAccount,
+      source: buyer.account as FinIdAccount,
       quantity: `${redeemQuantity}`,
       settlementRef: settlementRef,
-      asset: asset as Components.Schemas.Finp2pAsset,
+      asset: asset as Finp2pAsset,
       signature: redeemSignature,
     }));
     expect(redeemReceipt.asset).toStrictEqual(asset);
@@ -133,7 +137,7 @@ describe(`token service test`, () => {
     await expectBalance(buyer, asset, issueQuantity - transferQuantity - redeemQuantity);
   });
 
-  const expectReceipt = async (status: any): Promise<Components.Schemas.Receipt> => {
+  const expectReceipt = async (status: any): Promise<Receipt> => {
     if (status.isCompleted) {
       return status.response;
     } else {
@@ -141,7 +145,7 @@ describe(`token service test`, () => {
     }
   }
 
-  const expectBalance = async (owner: Components.Schemas.Source, asset: Components.Schemas.Asset, amount: number) => {
+  const expectBalance = async (owner: Source, asset: Asset, amount: number) => {
     const balance = await CommonAPI.balance({asset: asset, owner: owner});
     expect(parseInt(balance.balance)).toBe(amount);
   }

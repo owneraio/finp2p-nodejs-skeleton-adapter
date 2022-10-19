@@ -1,9 +1,16 @@
 import { logger } from '../helpers/logger';
 import { AccountService } from './accounts';
+import Asset = Components.Schemas.Asset;
+import Source = Components.Schemas.Source;
+import Destination = Components.Schemas.Destination;
+import Receipt = Components.Schemas.Receipt;
+import OperationStatus = Components.Schemas.OperationStatus;
+import ReceiptOperation = Components.Schemas.ReceiptOperation;
+import Balance = Components.Schemas.Balance;
 
 export class Transaction {
 
-  constructor(id: string, amount: number, asset: Components.Schemas.Asset, timestamp: number, source?: Components.Schemas.Source, destination?: Components.Schemas.Destination) {
+  constructor(id: string, amount: number, asset: Asset, timestamp: number, source?: Source, destination?: Destination) {
     this.id = id;
     this.source = source;
     this.destination = destination;
@@ -14,17 +21,17 @@ export class Transaction {
 
   id: string;
 
-  source?: Components.Schemas.Source;
+  source?: Source;
 
-  destination?: Components.Schemas.Destination;
+  destination?: Destination;
 
   amount: number;
 
-  asset: Components.Schemas.Asset;
+  asset: Asset;
 
   timestamp: number;
 
-  public static toReceipt(tx: Transaction): Components.Schemas.Receipt {
+  public static toReceipt(tx: Transaction): Receipt {
     return {
       id: tx.id,
       asset: tx.asset,
@@ -49,7 +56,7 @@ export class CommonService {
     return {
       asset: request.asset,
       balance: `${balance}`,
-    } as Components.Schemas.Balance;
+    } as Balance;
   }
 
   public async getReceipt(id: Paths.GetReceipt.Parameters.TransactionId): Promise<Paths.GetReceipt.Responses.$200> {
@@ -60,7 +67,7 @@ export class CommonService {
     return {
       isCompleted: true,
       response: Transaction.toReceipt(tx),
-    } as Components.Schemas.ReceiptOperation;
+    } as ReceiptOperation;
   }
 
   public async operationStatus(cid: string): Promise<Paths.GetOperation.Responses.$200> {
@@ -72,8 +79,8 @@ export class CommonService {
       type: 'receipt', operation: {
         isCompleted: true,
         response: Transaction.toReceipt(tx),
-      } as Components.Schemas.ReceiptOperation,
-    } as Components.Schemas.OperationStatus;
+      } as ReceiptOperation,
+    } as OperationStatus;
   }
 }
 

@@ -678,10 +678,12 @@ components:
         account:
           oneOf:
             - $ref: '#/components/schemas/finIdAccount'
+            - $ref: '#/components/schemas/escrowAccount'
           discriminator:
             propertyName: type
             mapping:
               finId: '#/components/schemas/finIdAccount'
+              escrow: '#/components/schemas/escrowAccount'
 
     destination:
       description: 'describes destination for remote operations operations'
@@ -696,12 +698,14 @@ components:
         account:
           oneOf:
             - $ref: '#/components/schemas/finIdAccount'
+            - $ref: '#/components/schemas/escrowAccount'
             - $ref: '#/components/schemas/cryptoWalletAccount'
             - $ref: '#/components/schemas/fiatAccount'
           discriminator:
             propertyName: type
             mapping:
               finId: '#/components/schemas/finIdAccount'
+              escrow: '#/components/schemas/escrowAccount'
               cryptoWallet: '#/components/schemas/cryptoWalletAccount'
               fiatAccount: '#/components/schemas/fiatAccount'
 
@@ -717,6 +721,19 @@ components:
         finId:
           type: "string"
           description: FinID, public key of the user
+
+    escrowAccount:
+      type: object
+      required:
+        - type
+        - escrowAccountId
+      properties:
+        type:
+          type: string
+          enum: [ "escrow" ]
+        escrowAccountId:
+          type: "string"
+          description: 'Escrow account id'
 
     cryptoWalletAccount:
       type: object
