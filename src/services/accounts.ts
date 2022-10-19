@@ -1,9 +1,16 @@
 import Asset = Components.Schemas.Asset;
-
+import Source = Components.Schemas.Source;
+import Destination = Components.Schemas.Destination;
 
 export class Account {
 
+  finId: string;
+
   balances: Record<string, number> = {};
+
+  constructor(finId: string) {
+    this.finId = finId;
+  }
 
   balance(assetCode: string): number {
     return this.balances[assetCode] || 0;
@@ -31,8 +38,8 @@ export class AccountService {
 
   accounts: Record<string, Account> = {};
 
-  getBalance(finId: string, asset: Asset): number {
-    let account = this.accounts[finId];
+  getBalance(id: string, asset: Asset): number {
+    let account = this.accounts[id];
     if (account === undefined) {
       return 0;
     }
@@ -56,14 +63,33 @@ export class AccountService {
     this.getOrCreateAccount(to).credit(assetCode, amount);
   }
 
-  getOrCreateAccount(finId: string): Account {
-    let account = this.accounts[finId];
+  createEscrowAccount(finId: string, escrowAccountId: string) {
+    this.accounts[escrowAccountId] = new Account(finId);
+  }
+
+  getAccount(id: string): Account {
+    return this.accounts[id];
+  }
+
+  getOrCreateAccount(id: string): Account {
+    let account = this.accounts[id];
     if (account !== undefined) {
       return account;
     } else {
-      const newAccount = new Account();
-      this.accounts[finId] = newAccount;
+      const newAccount = new Account(id);
+      this.accounts[id] = newAccount;
       return newAccount;
+    }
+  }
+
+  static extractId(account: Source | Destination): string {
+    switch (account.account.type) {
+      case 'escrow':
+        return account.account.escrowAccountId;
+      case 'finId':
+        return account.account.finId;
+      default:
+        return account.finId;
     }
   }
 

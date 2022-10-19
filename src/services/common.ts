@@ -44,7 +44,8 @@ export class CommonService {
 
   public async balance(request: Paths.GetAssetBalance.RequestBody): Promise<Paths.GetAssetBalance.Responses.$200> {
     logger.debug('balance', { request });
-    const balance = this.accountService.getBalance(request.owner.finId, request.asset);
+    const id = AccountService.extractId(request.owner);
+    const balance = this.accountService.getBalance(id, request.asset);
     return {
       asset: request.asset,
       balance: `${balance}`,

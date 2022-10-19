@@ -1,7 +1,6 @@
 import { CommonService } from './common';
 import { v4 as uuid } from 'uuid';
 
-
 let service: PaymentsService;
 
 export class PaymentsService extends CommonService {
@@ -14,6 +13,10 @@ export class PaymentsService extends CommonService {
   }
 
   public async deposit(request: Paths.DepositInstruction.RequestBody): Promise<Paths.DepositInstruction.Responses.$200> {
+    if (request.owner.account.type === 'escrow') {
+      this.accountService.createEscrowAccount(request.owner.finId, request.owner.account.escrowAccountId);
+    }
+
     return {
       isCompleted: true,
       cid: uuid(),

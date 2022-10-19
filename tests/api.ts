@@ -99,7 +99,7 @@ export class OperatorAPI {
 }
 
 export interface Source {
-  finId: string,
+  escrowAccountId: string,
 }
 
 export interface CurrencyCode {

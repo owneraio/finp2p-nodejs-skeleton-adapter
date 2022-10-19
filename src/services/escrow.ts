@@ -1,6 +1,7 @@
 import { logger } from '../helpers/logger';
 import { v4 as uuid } from 'uuid';
 import { Transaction, CommonService } from './common';
+import { AccountService } from './accounts';
 
 let service: EscrowService;
 
@@ -26,7 +27,7 @@ export class EscrowService extends CommonService {
     logger.debug('hold', { request });
 
     const amount = parseInt(request.quantity);
-
+    const id = AccountService.extractId(request.source);
     this.holdOperations[request.operationId] = {
       id: request.operationId,
       source: request.source,
@@ -34,7 +35,7 @@ export class EscrowService extends CommonService {
       expiry: request.expiry,
     } as HoldOperation;
 
-    this.accountService.debit(request.source.finId, amount, request.asset);
+    this.accountService.debit(id, amount, request.asset);
 
     let tx = {
       id: uuid(),
@@ -61,7 +62,8 @@ export class EscrowService extends CommonService {
     }
 
     const amount = parseInt(request.quantity);
-    this.accountService.credit(request.destination.finId, amount, request.asset);
+    const id = AccountService.extractId(request.destination);
+    this.accountService.credit(id, amount, request.asset);
 
     let tx = {
       id: uuid(),
@@ -89,7 +91,8 @@ export class EscrowService extends CommonService {
     }
 
     const amount = parseInt(request.quantity);
-    this.accountService.credit(request.source.finId, amount, request.asset);
+    const id = AccountService.extractId(request.source);
+    this.accountService.credit(id, amount, request.asset);
 
     let tx = {
       id: uuid(),

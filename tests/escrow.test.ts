@@ -2,7 +2,8 @@ import {ACCOUNT, ASSET, createCrypto, generateNonce, randomResourceId, transferS
 import {v4 as uuidv4} from 'uuid';
 import {
   LEDGER_HASH_FUNCTION,
-  ORG1_MSPID
+  ORG1_MSPID,
+  ESCROW_MSPID
 } from "./configuration";
 import {CommonAPI, EscrowAPI, OperatorAPI, PaymentsAPI} from "./api";
 
@@ -14,11 +15,12 @@ describe(`escrow test flow`, () => {
 
     const buyerCrypto = createCrypto();
     let buyerFinId = buyerCrypto.public.toString('hex');
+    let buyerEscrowAccountId = randomResourceId(ESCROW_MSPID, ACCOUNT)
     let buyer = {
       finId: buyerFinId,
       account: {
-        type: "finId",
-        finId: buyerFinId
+        type: "escrow",
+        escrowAccountId: buyerEscrowAccountId
       }
     } as Components.Schemas.Source;
 
@@ -35,11 +37,11 @@ describe(`escrow test flow`, () => {
     initialBalance = 1000;
     let setBalanceStatus = await OperatorAPI.setBalance({
       to: {
-        finId: buyer.finId,
+        escrowAccountId: buyerEscrowAccountId,
       }, asset: {
         type: asset.type,
         code: {
-          code: (asset as Components.Schemas.FiatAsset).code
+          code: "USD"
         }
       }, balance: `${initialBalance}`
     });
@@ -50,11 +52,12 @@ describe(`escrow test flow`, () => {
 
     const sellerCrypto = createCrypto();
     const sellerFinId = sellerCrypto.public.toString('hex');
+    let sellerEscrowAccountId = randomResourceId(ESCROW_MSPID, ACCOUNT)
     const seller = {
       finId: sellerFinId,
       account: {
-        type: "finId",
-        finId: sellerFinId
+        type: "escrow",
+        escrowAccountId: sellerEscrowAccountId
       }
     } as Components.Schemas.Source;
 
