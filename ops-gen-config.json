@@ -4,7 +4,6 @@
   },
   "target": "es2020",
   "outputAST": false,
-  "outputFile": "types.d.ts",
   "plugins": {
     "@dtsgenerator/replace-namespace": {
       "map": [
