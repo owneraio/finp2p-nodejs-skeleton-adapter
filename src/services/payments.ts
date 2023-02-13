@@ -1,5 +1,8 @@
 import { CommonService } from './common';
 import { v4 as uuid } from 'uuid';
+import { issueAssets } from '../finp2p/operational';
+import { createAsset } from '../finp2p/assets';
+import { FinP2PIssuerFinId, FinP2PIssuerId } from '../finp2p/config';
 
 
 let service: PaymentsService;
@@ -14,6 +17,22 @@ export class PaymentsService extends CommonService {
   }
 
   public async deposit(request: Paths.DepositInstruction.RequestBody): Promise<Paths.DepositInstruction.Responses.$200> {
+    if (request.asset.type === 'custom' && request.details !== undefined) {
+
+      // TODO: parse request details
+
+      const asset = await createAsset(
+        request.details.name,
+        'collateral-basket',
+        FinP2PIssuerId,
+        [],
+        { type: 'fiat', code: 'USD' },
+        {},
+      );
+
+      await issueAssets(asset.id, 1, FinP2PIssuerFinId);
+
+    }
     return {
       isCompleted: true,
       cid: uuid(),
