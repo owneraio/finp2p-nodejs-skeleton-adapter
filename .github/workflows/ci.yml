@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - 'v0.**'
+  pull_request:
+
+jobs:
+  main:
+    uses: owneraio/ops/.github/workflows/ci.yaml@master
+    secrets: inherit
+    with:
+      docker_images: |
+        [
+          {"id":1,"name":"nodejs-skeleton-adapter","dockerfile":"./Dockerfile","build_args":""}
+        ]
+      localenv_environment: local1
+      target_name: nodejs-skeleton-adapter
+      application_language: js
