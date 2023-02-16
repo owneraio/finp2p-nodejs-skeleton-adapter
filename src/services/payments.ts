@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { issueAssets } from '../finp2p/operational';
 import { createAsset } from '../finp2p/assets';
 import { FinP2PIssuerFinId, FinP2PIssuerId } from '../finp2p/config';
+import { logger } from "../helpers/logger";
 
 
 let service: PaymentsService;
@@ -21,15 +22,18 @@ export class PaymentsService extends CommonService {
 
       // TODO: parse request details
 
+      logger.info('Creating asset', request.details.name);
       const asset = await createAsset(
         request.details.name,
         'collateral-basket',
         FinP2PIssuerId,
         [],
         { type: 'fiat', code: 'USD' },
-        {},
+        JSON.stringify({}),
       );
+      logger.info('Created asset', asset.id);
 
+      logger.info('Issuing asset', asset.id);
       await issueAssets(asset.id, 1, FinP2PIssuerFinId);
 
     }
