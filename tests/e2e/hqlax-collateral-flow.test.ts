@@ -1,13 +1,16 @@
-import { createOwnerProfile, depositRequest, hashValues, sign } from "./requestUtils";
-import { FINP2P_HOST, ORG_MSPID } from "./config";
-import { createCrypto } from "../utils";
-import { CollateralDetails, CollateralIssuanceResult } from "./collateral";
-import { DepositAccount, CreateDepositRequest, CreateOwnerProfileRequest } from "./models";
+import { createCrypto, createOwnerProfile, depositRequest, hashValues, initAuth, sign } from "./utils/requestUtils";
+import { FINP2P_HOST, ORG_MSPID, KEY_AND_SECRET } from "./configuration";
+import {
+  CollateralDetails,
+  CollateralIssuanceResult,
+  CreateDepositRequest,
+  CreateOwnerProfileRequest,
+  DepositAccount
+} from "./utils/models";
 
-jest.setTimeout(100000);
+initAuth(KEY_AND_SECRET, ORG_MSPID)
 
 describe(`JP Morgan + WeMatch + HQLAx Repo flows`, () => {
-
 
   test(`
         Scenario: HQLAx scenario
@@ -21,13 +24,13 @@ describe(`JP Morgan + WeMatch + HQLAx Repo flows`, () => {
     );
     const lender = await createOwnerProfile({
       publicKey: lenderCrypto.public.toString("hex"),
-      signature: createOwnerProfileSignature,
+      signature: createOwnerProfileSignature
     } as CreateOwnerProfileRequest, FINP2P_HOST);
 
     const lenderFinId = lenderCrypto.public.toString("hex");
     const lenderDepositAccount = {
-      asset: { type: 'custom'},
-      account: { type: 'finId', finId: lenderFinId, orgId: ORG_MSPID }
+      asset: { type: "custom" },
+      account: { type: "finId", finId: lenderFinId, orgId: ORG_MSPID }
     } as DepositAccount;
 
     const collateralDetails = {

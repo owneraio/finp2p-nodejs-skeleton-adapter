@@ -1,9 +1,15 @@
-import { Operation } from "../../src/finp2p/assets";
-
-
 export interface CreateOwnerProfileRequest {
   publicKey: string;
   signature: string;
+}
+
+export interface ProfileOperation extends Operation {
+  error?: any;
+  response?: IdResponse;
+}
+
+export interface IdResponse {
+  id: string;
 }
 
 export interface CreateDepositRequest {
@@ -12,9 +18,15 @@ export interface CreateDepositRequest {
   amount: string;
   details?: Record<string, any>;
 }
+
 export interface PaymentError {
   code: number;
   message: string;
+}
+
+export interface Operation {
+  cid: string;
+  isCompleted: boolean;
 }
 
 export interface CreateDepositResponse extends Operation {
@@ -63,4 +75,30 @@ export interface DepositInstruction {
 
 export interface DepositOperationResponse {
   depositInstruction?: DepositInstruction;
+}
+
+// -----------------------------------
+
+export interface Collateral {
+  isin: string;
+  securityName: string;
+  ccy: string;
+  compositeRating: string;
+  quantity: string;
+  accruedInterest: string;
+  priceApplied: string;
+  marginPercentage: string;
+  marginalValue: string;
+  exchangeRate: string;
+  collateralValue: string;
+}
+
+export interface CollateralDetails {
+  collaterals: Collateral[];
+}
+
+export interface CollateralIssuanceResult {
+  assetId: string;
+  assetName: string;
+  collateralValue: string;
 }
