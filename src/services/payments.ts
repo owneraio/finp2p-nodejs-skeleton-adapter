@@ -4,7 +4,8 @@ import { issueAssets } from '../finp2p/operational';
 import { createAsset } from '../finp2p/assets';
 import { FinP2PIssuerFinId, FinP2PIssuerId } from '../finp2p/config';
 import { logger } from "../helpers/logger";
-
+import { CollateralDetails, CollateralIssuanceResult } from "./collateral";
+import DepositOperationErrorInformation = Components.Schemas.DepositOperationErrorInformation;
 
 let service: PaymentsService;
 
@@ -20,31 +21,49 @@ export class PaymentsService extends CommonService {
   public async deposit(request: Paths.DepositInstruction.RequestBody): Promise<Paths.DepositInstruction.Responses.$200> {
     if (request.asset.type === 'custom' && request.details !== undefined) {
 
-      // TODO: parse request details
+      const details = request.details as CollateralDetails;
+      logger.debug("Got a set of collaterals:")
+      details.collaterals.forEach((collateral) => {
+        logger.debug(`Collateral: ${JSON.stringify(collateral)}`)
+      });
+      const assetName = `Collateral Basket #${uuid()}`;
 
-      logger.info('Creating asset', request.details.name);
+      logger.info(`Creating collateral asset ${request.details.name}`);
       const asset = await createAsset(
-        request.details.name,
+        assetName,
         'collateral-basket',
         FinP2PIssuerId,
         [],
         { type: 'fiat', code: 'USD' },
         JSON.stringify({}),
       );
-      logger.info('Created asset', asset.id);
+      logger.info(`Collateral asset created: ${asset.id}`);
 
-      logger.info('Issuing asset', asset.id);
+      logger.info(`Issuing 1 collateral asset: ${asset.id}`);
       await issueAssets(asset.id, 1, FinP2PIssuerFinId);
 
+      logger.info(`Collateral asset issued: ${asset.id}`);
+
+      const result = {
+        assetId: asset.id,
+        assetName: assetName,
+        collateralValue: '0',
+      } as CollateralIssuanceResult
+
+      return {
+        isCompleted: true,
+        cid: uuid(),
+        response: {
+          account: request.destination,
+          description: `Collateral ${assetName} issued`,
+          details: result,
+        },
+      } as Paths.DepositInstruction.Responses.$200;
     }
+
     return {
-      isCompleted: true,
-      cid: uuid(),
-      response: {
-        account: request.destination,
-        description: 'IBAN GB33BUKB20201555555555',
-        details: request.details,
-      },
+      isCompleted: false,
+      error: {  } as DepositOperationErrorInformation,
     } as Paths.DepositInstruction.Responses.$200;
   }
 

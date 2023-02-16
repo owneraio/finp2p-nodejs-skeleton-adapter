@@ -28,7 +28,7 @@ const handleErrors = (error: any) => {
   return errorMsg;
 };
 
-export const request = ({ type, data, headers, url, host }: { type: string, data?: any, headers?: any, url: string, host?: string }): { [key: string]: any } =>
+export const request = async ({ type, data, headers, url, host }: { type: string, data?: any, headers?: any, url: string, host?: string }): Promise<{ [key: string]: any }> =>
   new Promise((resolve, reject) => {
     const baseUri = `http://${host}`;
     // @ts-ignore
