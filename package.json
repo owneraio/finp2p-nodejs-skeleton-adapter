@@ -1,17 +1,17 @@
 {
-  "name": "ledger_adapter",
-  "version": "1.0.0",
-  "description": "",
+  "name": "nodejs-skeleton-adapter",
+  "version": "0.1.0",
+  "description": "Skeleton adapter for the DLT Adapter API",
   "main": "lib/index.js",
   "homepage": "https://ownera.io/",
   "scripts": {
-    "generate": "dtsgen -o ./src/services/model.ts dlt-adapter-api.yaml ",
-    "clean": "rm -rf lib",
-    "prebuild": "eslint ./src --ext .ts --fix",
-    "build": "tsc",
-    "prestart": "npm run build",
+    "generate": "dtsgen -o ./src/services/model.ts dlt-adapter-api.yaml",
+    "build": "yarn build:ts",
+    "build:ts": "tsc",
+    "clean": "rm -rf .cache node_modules dist lib yarn-error.log",
+    "lint": "eslint 'src/**/*.ts'",
     "start": "node .",
-    "test": "jest"
+    "test": "jest --coverage --runInBand"
   },
   "keywords": [],
   "author": "",
