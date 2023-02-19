@@ -1,14 +1,20 @@
 import crypto from "crypto";
 import * as secp256k1 from "secp256k1";
-import { CreateDepositRequest, CreateDepositResponse, CreateOwnerProfileRequest, ProfileOperation, Operation } from "./models";
+import {
+  CreateDepositRequest,
+  CreateDepositResponse,
+  CreateOwnerProfileRequest,
+  Operation,
+  ProfileOperation
+} from "./models";
 import * as axios from "axios";
 
 const handleErrors = (error: any) => {
-  let errorMsg = '';
+  let errorMsg = "";
   if (error.response) {
     const { status, data } = error.response;
     if (status === 422) {
-      errorMsg = data.errors.reduce((msg: string, err: any) => msg.concat(`${err.msg}, `), '');
+      errorMsg = data.errors.reduce((msg: string, err: any) => msg.concat(`${err.msg}, `), "");
     } else {
       if (data) {
         if (data.error) {
@@ -29,25 +35,30 @@ const handleErrors = (error: any) => {
   return errorMsg;
 };
 
-export const request = async ({ type, data, headers, url, host }: { type: string, data?: any, headers?: any, url: string, host?: string }): Promise<{ [key: string]: any }> =>
+export const request = async ({
+                                type,
+                                data,
+                                headers,
+                                url,
+                                host
+                              }: { type: string, data?: any, headers?: any, url: string, host?: string }): Promise<{ [key: string]: any }> =>
   new Promise((resolve, reject) => {
     const baseUri = `http://${host}`;
     // @ts-ignore
     axios[type](baseUri + url, data, {
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...headers,
-      },
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        ...headers
+      }
     }).then((response: any) => {
       resolve(response.data);
     }).catch((error: any) => {
-      console.log('error', error);
+      console.log("error", error);
       const errorMsg = handleErrors(error);
       reject(errorMsg);
     });
   });
-
 
 
 enum Secret {
@@ -55,32 +66,27 @@ enum Secret {
   RS256 = 2,
 }
 
-export const generateAuthorizationHeader = ({ keyAndSecret, organization }: { keyAndSecret: KeyAndSecret, organization: string })  => {
-  const nonce = crypto.randomBytes(16).toString('hex');
+export const generateAuthorizationHeader = (keyAndSecret: KeyAndSecret, organization: string) => {
+  const apiKey = keyAndSecret.key;
+  const nonce = crypto.randomBytes(16).toString("hex");
   const timestamp = Math.floor(new Date().getTime() / 1000);
-  const rawToken = `${keyAndSecret.key}${nonce}${timestamp}`;
+  const rawToken = `${apiKey}${nonce}${timestamp}`;
 
   let accessToken;
   switch (keyAndSecret.secret.type) {
     case Secret.HS256:
-      accessToken = crypto.createHmac('sha256', keyAndSecret.private.raw).update(rawToken).digest().toString('hex');
+      accessToken = crypto.createHmac("sha256", keyAndSecret.private.raw).update(rawToken).digest().toString("hex");
       break;
     case Secret.RS256:
-      const signed = crypto.createSign('SHA256').update(rawToken).sign(Buffer.from(keyAndSecret.private.raw));
-      accessToken = signed.toString('hex');
+      const signed = crypto.createSign("SHA256").update(rawToken).sign(Buffer.from(keyAndSecret.private.raw));
+      accessToken = signed.toString("hex");
       break;
     default:
       console.log(`unsupported secret type: ${keyAndSecret.secret.type}`);
   }
 
-  const authInfo = {
-    organization: organization,
-    apiKey: keyAndSecret.key,
-    nonce,
-    timestamp,
-    accessToken,
-  };
-  return Buffer.from(JSON.stringify(authInfo)).toString('base64');
+  const authInfo = { organization, apiKey, nonce, timestamp, accessToken };
+  return Buffer.from(JSON.stringify(authInfo)).toString("base64");
 };
 
 export interface KeyAndSecret {
@@ -94,15 +100,13 @@ export interface KeyAndSecret {
   }
 }
 
-
 export const initAuth = (keyAndSecret: KeyAndSecret, organization: string) => {
   axios.default.interceptors.request.use((config) => {
-    const headerValue = generateAuthorizationHeader({ keyAndSecret, organization });
+    const headerValue = generateAuthorizationHeader(keyAndSecret, organization);
     config.headers.Authorization = `Bearer ${headerValue}`;
     return config;
   });
-}
-
+};
 
 export const hashValues = (values: any[]) => {
   let hashFn = crypto.createHash("sha3-256");
@@ -190,11 +194,11 @@ export const createCrypto = (): { private: Buffer, public: Buffer } => {
   let privKey;
   do {
     privKey = crypto.randomBytes(32);
-  } while (!secp256k1.privateKeyVerify(privKey))
+  } while (!secp256k1.privateKeyVerify(privKey));
 
   // get the public key in a compressed format
   const pubKey = secp256k1.publicKeyCreate(privKey, true);
-  return {private: privKey, public: Buffer.from(pubKey)};
+  return { private: privKey, public: Buffer.from(pubKey) };
 };
 
 
@@ -207,4 +211,4 @@ export const generateNonce = () => {
   buffer.writeBigInt64BE(t, 24);
 
   return buffer;
-}
+};

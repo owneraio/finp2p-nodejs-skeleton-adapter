@@ -1,5 +1,6 @@
 export const FINP2P_HOST = "bank-us.api.local.ownera.io";
 export const ORG_MSPID = "bank-us";
+
 export const KEY_AND_SECRET = {
   key: 'a3921db3-6337-4f2f-8abd-31261b6aada8',
   secret: {
