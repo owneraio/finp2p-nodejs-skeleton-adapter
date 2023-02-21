@@ -37,6 +37,7 @@ export class PaymentsService extends CommonService {
         { type: 'fiat', code: 'USD' },
         JSON.stringify({}),
       );
+      // todo: add collateral details as asset certificate
       logger.info(`Collateral asset created: ${asset.id}`);
 
       logger.info(`Issuing 1 collateral asset: ${asset.id}`);
