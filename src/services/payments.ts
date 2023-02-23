@@ -2,7 +2,6 @@ import { CommonService } from './common';
 import { v4 as uuid } from 'uuid';
 import { issueAssets } from '../finp2p/operational';
 import { createAsset } from '../finp2p/assets';
-import { FinP2PIssuerFinId, FinP2PIssuerId } from '../finp2p/config';
 import { logger } from "../helpers/logger";
 import { CollateralDetails, CollateralIssuanceResult } from "./collateral";
 import DepositOperationErrorInformation = Components.Schemas.DepositOperationErrorInformation;
@@ -28,20 +27,20 @@ export class PaymentsService extends CommonService {
       });
       const assetName = `Collateral Basket #${uuid()}`;
 
-      logger.info(`Creating collateral asset ${request.details.name}`);
+      logger.info(`Creating collateral asset ${request.details.name} by ${details.issuer.profileId}`);
       const asset = await createAsset(
         assetName,
         'collateral-basket',
-        FinP2PIssuerId,
+        details.issuer.profileId,
         [],
-        { type: 'fiat', code: 'USD' },
+        details.denomination,
         JSON.stringify({}),
       );
       // todo: add collateral details as asset certificate
       logger.info(`Collateral asset created: ${asset.id}`);
 
-      logger.info(`Issuing 1 collateral asset: ${asset.id}`);
-      await issueAssets(asset.id, 1, FinP2PIssuerFinId);
+      logger.info(`Issuing 1 collateral asset: ${asset.id} by ${details.issuer.finId}`);
+      await issueAssets(asset.id, 1, details.issuer.finId);
 
       logger.info(`Collateral asset issued: ${asset.id}`);
 

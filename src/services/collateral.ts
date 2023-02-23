@@ -14,7 +14,16 @@ export interface Collateral {
 }
 
 export interface CollateralDetails {
+  issuer: {
+    profileId: string;
+    finId: string;
+  },
+  denomination: {
+    type: string;
+    code: string;
+  };
   collaterals: Collateral[];
+  exposureAmount: string;
 }
 
 export interface CollateralIssuanceResult {

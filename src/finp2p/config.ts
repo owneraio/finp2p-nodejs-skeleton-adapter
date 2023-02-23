@@ -1,6 +1,4 @@
 export const FinP2PHost = 'bank-us.api.local.ownera.io';
-export const FinP2PIssuerId = 'bank-us:101:dbe6a126-19e9-46bb-a9f0-658c4cd0292a';
-export const FinP2PIssuerFinId = '02ec9516ae41b61cda09b1a5db97536f1de528e8caeea614e1a6a8584c329dbf27';
 export const FINP2PAuthKeyAndSecret = {
   key: 'a3921db3-6337-4f2f-8abd-31261b6aada8',
   secret: {
