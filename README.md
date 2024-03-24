@@ -5,7 +5,8 @@ The goal is to show integration with FinP2P router, show the translation of FinP
 
 The project is built around generated models and handlers from the original OpenAPI document describing the FinP2P ledger operations: `dlt-adapter-api.yaml`.
 
-The project simulates the operation of a ledger by storing the state of accounts in memory, in the case of real integration, this part of the code should be replaced by interaction with a real ledger or tokenization platform
+The project simulates the operation of a ledger by storing the state of accounts in memory, 
+in the case of real integration, the part of the code in `src/services` should be replaced by interaction with a real ledger or tokenization platform
 
 
 ### Install dependencies
