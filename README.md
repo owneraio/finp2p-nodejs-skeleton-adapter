@@ -1,3 +1,5 @@
+© 2024 XCap Ecosystem Ltd trading as Ownera. All rights reserved. SPDX-License-Identifier: Apache-2.0
+
 # FinP2P Ledger Adapter Nodejs
 
 This is a sample project of a FinP2P ledger adapter on Nodejs.
