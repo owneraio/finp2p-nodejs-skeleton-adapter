@@ -1,13 +1,11 @@
-# FinP2P Adapter Nodejs
+# FinP2P Ledger Adapter Nodejs
 
-This is a sample project of FinP2P adapter on Nodejs.
-The goal is to show integration with FinP2P router, show the translation of FinP2P instructions into ledger operations and the ability to use this in the future as a skeleton for actual implementation
+This is a sample project of a FinP2P ledger adapter on Nodejs.
+The goal is to show how to integrate with a FinP2P router, translating FinP2P instructions into ledger operations and providing a foundational framework for implementations.
 
-The project is built around generated models and handlers from the original OpenAPI document describing the FinP2P ledger operations: `dlt-adapter-api.yaml`.
+The project is built around generated models and handlers derived from the FinP2P ledger operations as detailed in the "dlt-adapter-api.yaml" OpenAPI document.
 
-The project simulates the operation of a ledger by storing the state of accounts in memory, 
-in the case of real integration, the part of the code in `src/services` should be replaced by interaction with a real ledger or tokenization platform
-
+In its current form, the project emulates ledger functionality by maintaining account states within memory. For genuine deployments, the sections within src/services need to be adapted for actual ledger interactions or integration with a tokenization platform.
 
 ### Install dependencies
 
