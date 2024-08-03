@@ -2,13 +2,13 @@
   "name": "finp2p-nodejs-skeleton-adapter",
   "version": "0.1",
   "description": "",
-  "main": "dist/src/index.js",
+  "main": "dist/index.js",
   "homepage": "https://ownera.io/",
   "scripts": {
     "clean": "rm -rf dist",
     "api-generate": "dtsgen -o ./src/services/model-gen.ts dlt-adapter-api.yaml",
     "prebuild": "eslint ./src --ext .ts --fix",
-    "build": "tsc",
+    "build": "tsc -P tsconfig.build.json",
     "test": "jest",
     "start": "node ."
   },
