@@ -31,6 +31,7 @@ export class Transaction {
       quantity: `${tx.amount}`,
       source: tx.source,
       destination: tx.destination,
+      tradeDetails: {},
       timestamp: tx.timestamp,
     };
   }
