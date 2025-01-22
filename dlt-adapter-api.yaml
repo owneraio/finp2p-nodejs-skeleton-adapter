@@ -1148,3 +1148,282 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/regulationError'
+
+    ApproveExecutionPlanRequest:
+      type: object
+      required:
+        - executionPlan
+      properties:
+        executionPlan:
+          type: object
+          description: execution plan information
+          required: [ id ]
+          properties:
+            id:
+              type: string
+              description: execution plan id
+
+    ApproveExecutionPlanResponse:
+      allOf:
+        - $ref: '#/components/schemas/ExecutionPlanApprovalOperation'
+
+    ApiErrorClient4XX:
+      type: object
+      required: [ status, errors, type ]
+      properties:
+        type:
+          type: string
+          enum: [ "error" ]
+        status:
+          type: integer
+          enum: [ 400, 401, 403, 404, 409 ]
+          x-go-json-ignore: true
+          x-enumNames: [ 'value' ]
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneralClientError'
+
+    # 10xx General Client Errors
+    GeneralClientError:
+      type: object
+      required: [ code, message ]
+      properties:
+        code:
+          type: integer
+          enum: [ 1000 ]
+        message:
+          type: string
+          enum: [ 'General client error' ]
+
+    ApiErrorServer5XX:
+      type: object
+      required: [ status, errors, type ]
+      properties:
+        type:
+          type: string
+          enum: [ "error" ]
+        status:
+          type: integer
+          enum: [ 500, 502, 503, 504 ]
+          x-go-json-ignore: true
+          x-enumNames: [ 'value' ]
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneralServerError'
+
+    # 20xx General Server Errors
+    GeneralServerError:
+      type: object
+      required: [ code, message ]
+      properties:
+        code:
+          type: integer
+          enum: [ 2000 ]
+        message:
+          type: string
+          enum: [ 'General server error' ]
+
+    ApiAnyError:
+      oneOf:
+        - $ref: '#/components/schemas/ApiErrorClient4XX'
+        - $ref: '#/components/schemas/ApiErrorServer5XX'
+
+    ExecutionPlanApprovalOperation:
+      allOf:
+        - $ref: '#/components/schemas/OperationBase'
+        - $ref: '#/components/schemas/PlanApprovalResponse'
+
+    PlanApprovalResponse:
+      type: object
+      required: [ approval ]
+      properties:
+        approval:
+          oneOf:
+            - $ref: '#/components/schemas/PlanApproved'
+            - $ref: '#/components/schemas/PlanRejected'
+          discriminator:
+            propertyName: status
+            mapping:
+              approved: '#/components/schemas/PlanApproved'
+              rejected: '#/components/schemas/PlanRejected'
+
+    PlanApproved:
+      type: object
+      required: [ status ]
+      properties:
+        status:
+          type: string
+          enum: [ 'approved' ]
+
+    PlanRejected:
+      type: object
+      required: [ status, reason ]
+      properties:
+        status:
+          type: string
+          enum: [ 'rejected' ]
+        failure:
+          oneOf:
+            - $ref: '#/components/schemas/ValidationFailure'
+            - $ref: '#/components/schemas/RegulationFailure'
+          discriminator:
+            propertyName: failureType
+            mapping:
+              validationFailure: '#/components/schemas/ValidationFailure'
+              regulationFailure: '#/components/schemas/RegulationFailure'
+
+    ValidationFailure:
+      type: object
+      required:
+        - failureType
+        - code
+        - message
+      properties:
+        failureType:
+          type: string
+          enum: [ ValidationFailure ]
+        code:
+          type: integer
+          format: uint32
+          description: ledger error code for validation
+        message:
+          type: string
+
+    RegulationFailure:
+      type: object
+      required:
+        - failureType
+        - errors
+      properties:
+        failureType:
+          type: string
+          enum: [ RegulationFailure ]
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegulationError'
+
+    RegulationError:
+      type: object
+      required:
+        - regulationType
+        - details
+      properties:
+        regulationType:
+          type: string
+          description: the type of regulation
+        details:
+          type: string
+          description: actionable details of the error
+
+    OperationBase:
+      type: object
+      required:
+        - cid
+        - isCompleted
+      properties:
+        cid:
+          type: string
+          description: unique correlation id which identify the operation
+        isCompleted:
+          type: boolean
+          description: flag indicating if the operation completed, if true then error or response must be present (but not both)
+        operationMetadata:
+          $ref: '#/components/schemas/OperationMetadata'
+
+    OperationMetadata:
+      type: object
+      description: additional metadata regarding the operation
+      properties:
+        operationResponseStrategy:
+          description: |
+            denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled 
+            optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/pollingResultsStrategy'
+            - $ref: '#/components/schemas/callbackResultsStrategy'
+          discriminator:
+            propertyName: type
+            mapping:
+              poll: '#/components/schemas/pollingResultsStrategy'
+              callback: '#/components/schemas/callbackResultsStrategy'
+
+
+    callbackResultsStrategy:
+      type: object
+      required: [ type, callback ]
+      properties:
+        type:
+          type: string
+          enum: [ callback ]
+        callback:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/callbackEndpoint'
+          discriminator:
+            propertyName: type
+            mapping:
+              endpoint: '#/components/schemas/callbackEndpoint'
+
+    callbackEndpoint:
+      type: object
+      required: [ type ]
+      properties:
+        type:
+          type: string
+          enum: [ endpoint ]
+
+    pollingResultsStrategy:
+      type: object
+      required: [ type, polling ]
+      properties:
+        type:
+          type: string
+          enum: [ poll ]
+        polling:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/randomPollingInterval'
+            - $ref: '#/components/schemas/absolutePollingInterval'
+            - $ref: '#/components/schemas/relativePollingInterval'
+          discriminator:
+            propertyName: type
+            mapping:
+              random: '#/components/schemas/pollingResultsStrategy'
+              absolute: '#/components/schemas/absolutePollingInterval'
+              relative: '#/components/schemas/relativePollingInterval'
+
+    relativePollingInterval:
+      type: object
+      required: [ type, duration ]
+      properties:
+        type:
+          type: string
+          enum: [ relative ]
+        duration:
+          type: string
+          description: ISO-8601 duration format
+          example: PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
+
+
+    absolutePollingInterval:
+      type: object
+      required: [ type, time ]
+      properties:
+        type:
+          type: string
+          enum: [ absolute ]
+        time:
+          type: integer
+          description: absolute time as epoch time seconds
+
+    randomPollingInterval:
+      type: object
+      required: [ type ]
+      properties:
+        type:
+          type: string
+          enum: [ random ]
