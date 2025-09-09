@@ -6,7 +6,7 @@ import {
   PaymentService,
   PlanApprovalService,
   CommonService,
-  HealthService
+  HealthService,
 } from '../services/interfaces';
 
 export const register = (app: express.Application,

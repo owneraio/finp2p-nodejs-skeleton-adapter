@@ -2,7 +2,7 @@ import CreateAssetProfile = FinAPIPaths.CreateAssetProfile;
 import ShareProfile = FinAPIPaths.ShareProfile;
 import OperationBase = FinAPIComponents.Schemas.OperationBase;
 import IntentType = FinAPIComponents.Schemas.IntentType;
-import * as axios from "axios";
+import * as axios from 'axios';
 import ResourceIdResponse = FinAPIComponents.Schemas.ResourceIdResponse;
 import AssetMetadataAndConfigError = Components.Schemas.AssetMetadataAndConfigError;
 import GeneralClientError = Components.Schemas.GeneralClientError;
@@ -10,6 +10,7 @@ import GeneralClientError = Components.Schemas.GeneralClientError;
 export class FinAPIClient {
 
   finP2PUrl: string;
+
   authTokenResolver: (() => string) | undefined;
 
   constructor(finP2PUrl: string, authTokenResolver: (() => string) | undefined = undefined) {
@@ -18,8 +19,8 @@ export class FinAPIClient {
   }
 
   async createAsset(name: string, type: string, issuerId: string, currency: string, currencyType: 'fiat' | 'cryptocurrency', intentTypes: IntentType[], metadata: any) {
-    return await this.post<CreateAssetProfile.RequestBody, FinAPIComponents.Schemas.ResourceIdResponse | OperationBase | FinAPIComponents.Schemas.ApiAnyError>(
-      `/profiles/asset`, {
+    return this.post<CreateAssetProfile.RequestBody, FinAPIComponents.Schemas.ResourceIdResponse | OperationBase | FinAPIComponents.Schemas.ApiAnyError>(
+      '/profiles/asset', {
         metadata,
         intentTypes,
         name,
@@ -27,43 +28,43 @@ export class FinAPIClient {
         issuerId,
         denomination: {
           type: currencyType,
-          code: currency
+          code: currency,
         },
         // ledgerAssetBinding: {
         //   type: "tokenId",
         //   tokenId
         // },
         assetPolicies: {
-          proof: undefined // TBD
-        }
+          proof: undefined, // TBD
+        },
       });
   }
 
   async shareProfile(id: string, organizations: string[]) {
-    return await this.post<ShareProfile.RequestBody, ShareProfile.Responses.$200>(
+    return this.post<ShareProfile.RequestBody, ShareProfile.Responses.$200>(
       `/profiles/${id}/share`, {
-        organizations
+        organizations,
       });
   }
 
   async getProfileOperationStatus(id: Paths.GetOperation.Parameters.Cid): Promise<{
     cid?: string;
     isCompleted: boolean;
-    type: "profile";
+    type: 'profile';
     response?: ResourceIdResponse;
     errors: (AssetMetadataAndConfigError | GeneralClientError)[]
   } > {
-    return await this.get(`/operations/status/${id}`);
+    return this.get(`/operations/status/${id}`);
   }
 
   async sendCallback(cid: string, operationStatus: Components.Schemas.OperationStatus): Promise<{}> {
-    return await this.post<Components.Schemas.OperationStatus, {}>(
+    return this.post<Components.Schemas.OperationStatus, {}>(
       `/operations/callback/${cid}`, operationStatus);
   }
 
   private async get<Response>(path: string): Promise<Response> {
     let headers = {
-      "Accept": "application/json"
+      'Accept': 'application/json',
     } as Record<string, string>;
     if (this.authTokenResolver) {
       headers.Authorization = `Bearer ${this.authTokenResolver()}`;
@@ -74,8 +75,8 @@ export class FinAPIClient {
 
   private async post<Request, Response>(path: string, request: Request | undefined = undefined): Promise<Response> {
     let headers = {
-      "Content-Type": "application/json",
-      "Accept": "application/json"
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
     } as Record<string, string>;
     if (this.authTokenResolver) {
       headers.Authorization = `Bearer ${this.authTokenResolver()}`;

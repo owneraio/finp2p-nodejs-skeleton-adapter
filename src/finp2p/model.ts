@@ -73,7 +73,7 @@ export type OssOwnerNodes = {
 export type ProofDomain = {
   chainId: number,
   verifyingContract: string
-}
+};
 
 export type Proof = {
   type: 'NoProofPolicy'
@@ -81,7 +81,7 @@ export type Proof = {
   type: 'SignatureProofPolicy',
   verifyingKey: string,
   signatureTemplate: string,
-}
+};
 
 export type ProofPolicy = {
   type: 'NoProofPolicy'
@@ -90,36 +90,36 @@ export type ProofPolicy = {
   verifyingKey: string,
   signatureTemplate: string,
   domain: ProofDomain | null
-}
+};
 
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {
-    const rawObject: unknown = JSON.parse(jsonString);
+  const rawObject: unknown = JSON.parse(jsonString);
 
-    if (typeof rawObject !== "object" || rawObject === null) {
-      return null
-    }
+  if (typeof rawObject !== 'object' || rawObject === null) {
+    return null;
+  }
 
-    const obj: Record<string, unknown> = {};
+  const obj: Record<string, unknown> = {};
 
-    for (const key in rawObject) {
-      if (Object.prototype.hasOwnProperty.call(rawObject, key)) {
-        obj[key.toLowerCase()] = (rawObject as any)[key];
-      }
+  for (const key in rawObject) {
+    if (Object.prototype.hasOwnProperty.call(rawObject, key)) {
+      obj[key.toLowerCase()] = (rawObject as any)[key];
     }
+  }
 
-    const verifyingContract = obj["verifyingcontract"] as string;
-    let chainId: number
-    const chainIdVal = obj["chainid"];
-    if (!verifyingContract || !chainIdVal) {
-      return null;
-    }
-    if (typeof chainIdVal !== "number") {
-      chainId = parseInt(chainIdVal as string);
-    } else {
-      chainId = chainIdVal;
-    }
-    return {
-      chainId,
-      verifyingContract,
-    };
-}
+  const verifyingContract = obj.verifyingcontract as string;
+  let chainId: number;
+  const chainIdVal = obj.chainid;
+  if (!verifyingContract || !chainIdVal) {
+    return null;
+  }
+  if (typeof chainIdVal !== 'number') {
+    chainId = parseInt(chainIdVal as string);
+  } else {
+    chainId = chainIdVal;
+  }
+  return {
+    chainId,
+    verifyingContract,
+  };
+};

@@ -1,11 +1,11 @@
-import {AccountService} from './accounts';
-import {CommonService, HealthService} from '../interfaces';
+import { AccountService } from './accounts';
+import { CommonService, HealthService } from '../interfaces';
 import {
   OperationStatus,
   ReceiptOperation,
   successfulReceiptOperation,
 } from '../model';
-import {Transaction} from './model';
+import { Transaction } from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {
 
@@ -16,11 +16,11 @@ export class CommonServiceImpl implements CommonService, HealthService {
   }
 
   liveness(): Promise<void> {
-    return Promise.resolve()
+    return Promise.resolve();
   }
 
   readiness(): Promise<void> {
-    return Promise.resolve()
+    return Promise.resolve();
   }
 
   transactions: Record<string, Transaction> = {};

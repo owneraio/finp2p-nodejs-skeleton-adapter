@@ -87,6 +87,17 @@ export const executionContextFromAPI = (ep: Components.Schemas.ExecutionContext)
   return { planId: executionPlanId, sequence: instructionSequenceNumber };
 };
 
+export const eip712TemplateFromAPI = (template: Components.Schemas.EIP712Template): EIP712Template => {
+  const { domain, primaryType, message, types } = template;
+  return {
+    type: 'EIP712',
+    primaryType,
+    domain: domain as EIP712Domain,
+    message: message as EIP712Message,
+    types: types as EIP712Types,
+  } as EIP712Template;
+};
+
 export const signatureFromAPI = (sg: Components.Schemas.Signature): Signature => {
   const { template, signature } = sg;
   switch (template.type) {
@@ -105,17 +116,6 @@ export const signatureOptFromAPI = (sg: Components.Schemas.Signature | undefined
     return undefined;
   }
   return signatureFromAPI(sg);
-};
-
-export const eip712TemplateFromAPI = (template: Components.Schemas.EIP712Template): EIP712Template => {
-  const { domain, primaryType, message, types } = template;
-  return {
-    type: 'EIP712',
-    primaryType,
-    domain: domain as EIP712Domain,
-    message: message as EIP712Message,
-    types: types as EIP712Types,
-  } as EIP712Template;
 };
 
 
@@ -193,115 +193,6 @@ export const createAssetOperationToAPI = (result: AssetCreationStatus): Componen
 };
 
 
-export const receiptToAPI = (receipt: Receipt): Components.Schemas.Receipt => {
-  const {
-    id,
-    asset,
-    source,
-    destination,
-    quantity,
-    operationType,
-    tradeDetails,
-    transactionDetails,
-    proof,
-    timestamp,
-  } = receipt;
-  return {
-    id,
-    asset: assetToAPI(asset),
-    source: sourceOptToAPI(source),
-    destination: destinationOptToAPI(destination),
-    quantity,
-    operationType: operationType as Components.Schemas.OperationType,
-    tradeDetails: tradeDetailsToAPI(tradeDetails),
-    transactionDetails: transactionDetailsToAPI(transactionDetails),
-    proof: proofPolicyOptToAPI(proof),
-    timestamp,
-  } as Components.Schemas.Receipt;
-};
-
-export const receiptOperationToAPI = (op: ReceiptOperation): Components.Schemas.ReceiptOperation => {
-  switch (op.type) {
-    case 'pending':
-      const { correlationId: cid } = op;
-      return {
-        isCompleted: false, cid,
-      } as Components.Schemas.ReceiptOperation;
-    case 'failure':
-      const { code, message } = op.error;
-      return {
-        isCompleted: true, error: { code, message },
-      } as Components.Schemas.ReceiptOperation;
-    case 'success':
-      const { receipt } = op;
-      return {
-        isCompleted: true, response: receiptToAPI(receipt),
-      } as Components.Schemas.ReceiptOperation;
-  }
-};
-
-export const depositOperationToAPI = (op: DepositOperation): Components.Schemas.DepositOperation => {
-  switch (op.type) {
-    case 'pending':
-      const { correlationId: cid } = op;
-      return { isCompleted: false, cid } as Components.Schemas.DepositOperation;
-    case 'failure':
-      // const { code, message } = op.error;
-      return {
-        isCompleted: true, error: {},
-      } as Components.Schemas.DepositOperation;
-    case 'success':
-      const { instruction } = op;
-      return {
-        isCompleted: true,
-        response: depositInstructionToAPI(instruction),
-      } as Components.Schemas.DepositOperation;
-  }
-};
-
-export const operationStatusToAPI = (op: OperationStatus): Components.Schemas.OperationStatus => {
-  switch (op.operation) {
-    case 'createAsset':
-      return {
-        type: 'createAsset',
-        operation: createAssetOperationToAPI(op),
-      } as Components.Schemas.OperationStatusCreateAsset;
-    case 'deposit':
-      return {
-        type: 'deposit',
-        operation: depositOperationToAPI(op),
-      };
-    case 'receipt':
-      return {
-        type: 'receipt',
-        operation: receiptOperationToAPI(op),
-      } as Components.Schemas.OperationStatusReceipt;
-
-    case 'approval':
-      return {
-        type: 'approval',
-        operation: planApprovalOperationToAPI(op),
-      };
-  }
-};
-
-export const balanceToAPI = (
-  asset: Components.Schemas.Asset,
-  account: Components.Schemas.AssetBalanceAccount,
-  balance: Balance,
-): Components.Schemas.AssetBalanceInfoResponse => {
-  const { current, available, held } = balance;
-  return {
-    account, asset,
-    balanceInfo: {
-      asset,
-      current,
-      available,
-      held,
-    },
-  } as Components.Schemas.AssetBalanceInfoResponse;
-};
-
 export const executionContextOptToAPI = (ep: ExecutionContext | undefined): Components.Schemas.ExecutionContext | undefined => {
   if (!ep) {
     return undefined;
@@ -362,6 +253,52 @@ export const proofPolicyOptToAPI = (proof: ProofPolicy | undefined): Components.
 
 };
 
+export const receiptToAPI = (receipt: Receipt): Components.Schemas.Receipt => {
+  const {
+    id,
+    asset,
+    source,
+    destination,
+    quantity,
+    operationType,
+    tradeDetails,
+    transactionDetails,
+    proof,
+    timestamp,
+  } = receipt;
+  return {
+    id,
+    asset: assetToAPI(asset),
+    source: sourceOptToAPI(source),
+    destination: destinationOptToAPI(destination),
+    quantity,
+    operationType: operationType as Components.Schemas.OperationType,
+    tradeDetails: tradeDetailsToAPI(tradeDetails),
+    transactionDetails: transactionDetailsToAPI(transactionDetails),
+    proof: proofPolicyOptToAPI(proof),
+    timestamp,
+  } as Components.Schemas.Receipt;
+};
+
+export const receiptOperationToAPI = (op: ReceiptOperation): Components.Schemas.ReceiptOperation => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId: cid } = op;
+      return {
+        isCompleted: false, cid,
+      } as Components.Schemas.ReceiptOperation;
+    case 'failure':
+      const { code, message } = op.error;
+      return {
+        isCompleted: true, error: { code, message },
+      } as Components.Schemas.ReceiptOperation;
+    case 'success':
+      const { receipt } = op;
+      return {
+        isCompleted: true, response: receiptToAPI(receipt),
+      } as Components.Schemas.ReceiptOperation;
+  }
+};
 
 export const depositInstructionToAPI = (instruction: DepositInstruction): Components.Schemas.DepositInstruction => {
   const { account, description, paymentMethods, operationId, details } = instruction;
@@ -372,4 +309,67 @@ export const depositInstructionToAPI = (instruction: DepositInstruction): Compon
     operationId,
     details,
   } as Components.Schemas.DepositInstruction;
+};
+
+export const depositOperationToAPI = (op: DepositOperation): Components.Schemas.DepositOperation => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId: cid } = op;
+      return { isCompleted: false, cid } as Components.Schemas.DepositOperation;
+    case 'failure':
+      // const { code, message } = op.error;
+      return {
+        isCompleted: true, error: {},
+      } as Components.Schemas.DepositOperation;
+    case 'success':
+      const { instruction } = op;
+      return {
+        isCompleted: true,
+        response: depositInstructionToAPI(instruction),
+      } as Components.Schemas.DepositOperation;
+  }
+};
+
+export const operationStatusToAPI = (op: OperationStatus): Components.Schemas.OperationStatus => {
+  switch (op.operation) {
+    case 'createAsset':
+      return {
+        type: 'createAsset',
+        operation: createAssetOperationToAPI(op),
+      } as Components.Schemas.OperationStatusCreateAsset;
+    case 'deposit':
+      return {
+        type: 'deposit',
+        operation: depositOperationToAPI(op),
+      };
+    case 'receipt':
+      return {
+        type: 'receipt',
+        operation: receiptOperationToAPI(op),
+      } as Components.Schemas.OperationStatusReceipt;
+
+    case 'approval':
+      return {
+        type: 'approval',
+        operation: planApprovalOperationToAPI(op),
+      };
+  }
+};
+
+
+export const balanceToAPI = (
+  asset: Components.Schemas.Asset,
+  account: Components.Schemas.AssetBalanceAccount,
+  balance: Balance,
+): Components.Schemas.AssetBalanceInfoResponse => {
+  const { current, available, held } = balance;
+  return {
+    account, asset,
+    balanceInfo: {
+      asset,
+      current,
+      available,
+      held,
+    },
+  } as Components.Schemas.AssetBalanceInfoResponse;
 };
