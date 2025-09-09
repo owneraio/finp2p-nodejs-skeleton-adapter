@@ -41,18 +41,18 @@ export type HashField = {
   name: string
   type: 'string' | 'int' | 'bytes'
   value: string
-}
+};
 
 export type HashGroup = {
   hash: string
   fields: HashField[]
-}
+};
 
 export type HashListTemplate = {
   type: 'hashList'
   hash: string
   hashGroups:  HashGroup[]
-}
+};
 
 // -------------------------------------------------------------------
 

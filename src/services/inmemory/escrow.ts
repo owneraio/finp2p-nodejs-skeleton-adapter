@@ -25,7 +25,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   holdOperations: Record<string, HoldOperation> = {};
 
   public async hold(nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
-                    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
+    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
 
     logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext: exCtx });
