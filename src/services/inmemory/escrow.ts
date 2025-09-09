@@ -25,10 +25,10 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   holdOperations: Record<string, HoldOperation> = {};
 
   public async hold(nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
-    quantity: string, signature: Signature, operationId: string, executionContext: ExecutionContext,
+                    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
 
-    logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext });
+    logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext: exCtx });
 
     this.holdOperations[operationId] = {
       id: operationId,
@@ -38,25 +38,16 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     this.accountService.debit(source.finId, quantity, asset.assetId);
 
-    let tx = {
-      id: uuid(),
-      source,
-      quantity,
-      asset,
-      executionContext,
-      operationType: 'hold',
-      operationId,
-      timestamp: Date.now(),
-    } as Transaction;
+    const tx = new Transaction(quantity, asset, source, destination, exCtx, 'hold', operationId);
     this.transactions[tx.id] = tx;
 
     return successfulReceiptOperation(tx.toReceipt());
   }
 
-  public async release(destination: Destination, asset: Asset, quantity: string, operationId: string, executionContext: ExecutionContext,
+  public async release(destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
 
-    logger.info('Release hold operation', { destination, asset, quantity, operationId, executionContext });
+    logger.info('Release hold operation', { destination, asset, quantity, operationId, executionContext: exCtx });
 
     const hold = this.holdOperations[operationId];
     if (hold === undefined) {
@@ -68,23 +59,13 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     delete this.holdOperations[operationId];
 
-    let tx = {
-      id: uuid(),
-      source,
-      destination,
-      quantity,
-      asset,
-      executionContext,
-      operationType: 'release',
-      operationId,
-      timestamp: Date.now(),
-    } as Transaction;
+    const tx = new Transaction(quantity, asset, source, destination, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
     return successfulReceiptOperation(tx.toReceipt());
   }
 
-  public async rollback(asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext,
+  public async rollback(asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     logger.info('Rollback hold operation', { asset, quantity, operationId, exCtx });
 
@@ -97,16 +78,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     delete this.holdOperations[operationId];
 
-    let tx = {
-      id: uuid(),
-      source: hold.source,
-      destination: source,
-      quantity,
-      asset,
-      operationType: 'release',
-      operationId,
-      timestamp: Date.now(),
-    } as Transaction;
+    const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
     return successfulReceiptOperation(tx.toReceipt());

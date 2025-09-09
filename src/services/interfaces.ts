@@ -30,13 +30,13 @@ export interface TokenService {
 
   balance(assetId: string, finId: string): Promise<Balance>;
 
-  issue(asset: Asset, issuerFinId: string, quantity: string, exCtx: ExecutionContext): Promise<ReceiptOperation>;
+  issue(asset: Asset, issuerFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
   transfer(nonce: string, source: Source, destination: Destination, asset: Asset,
-    quantity: string, signature: Signature, exCtx: ExecutionContext): Promise<ReceiptOperation>;
+    quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
   redeem(nonce: string, source: Source, asset: Asset, quantity: string, operationId: string | undefined,
-    signature: Signature, exCtx: ExecutionContext
+    signature: Signature, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
 }
@@ -44,13 +44,13 @@ export interface TokenService {
 export interface EscrowService {
 
   hold(nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
-    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext
+    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
-  release(destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext
+  release(destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
-  rollback(asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext
+  rollback(asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
 }

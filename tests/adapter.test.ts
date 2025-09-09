@@ -43,13 +43,14 @@ describe(`token service test`, () => {
 
     let issueQuantity = 1000;
     let settlementRef = `${uuidv4()}`;
-    const issueReceipt = await client.expectReceipt(await client.tokens.issue({
+    let status = await client.tokens.issue({
       nonce: generateNonce().toString("utf-8"),
       destination: buyer.account as Components.Schemas.FinIdAccount,
       quantity: `${issueQuantity}`,
       asset: asset as Components.Schemas.Finp2pAsset,
       settlementRef: settlementRef
-    } as Paths.IssueAssets.RequestBody));
+    } as Paths.IssueAssets.RequestBody);
+    const issueReceipt = await client.expectReceipt(status);
     expect(issueReceipt.asset).toStrictEqual(asset);
     expect(parseInt(issueReceipt.quantity)).toBe(issueQuantity);
     expect(issueReceipt.destination).toStrictEqual(buyer);
