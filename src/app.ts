@@ -1,18 +1,18 @@
-import express, {Application} from "express";
-import {logger as expressLogger} from "express-winston";
-import {format, transports} from "winston";
-import process from "process";
-import * as routes from "./routes";
-import {TokenServiceImpl} from "./services/inmemory/tokens";
-import {EscrowServiceImpl} from "./services/inmemory/escrow";
-import {PaymentsServiceImpl} from "./services/inmemory/payments";
-import {AccountService} from "./services/inmemory/accounts";
-import {PlanApprovalServiceImpl} from "./services/inmemory/plans";
+import express, { Application } from 'express';
+import { logger as expressLogger } from 'express-winston';
+import { format, transports } from 'winston';
+import process from 'process';
+import * as routes from './routes';
+import { TokenServiceImpl } from './services/inmemory/tokens';
+import { EscrowServiceImpl } from './services/inmemory/escrow';
+import { PaymentsServiceImpl } from './services/inmemory/payments';
+import { AccountService } from './services/inmemory/accounts';
+import { PlanApprovalServiceImpl } from './services/inmemory/plans';
 
 function configureLogging(app: Application) {
   app.use(
     expressLogger({
-      transports: [new transports.Console({level: process.env.LOG_LEVEL || "info"})],
+      transports: [new transports.Console({ level: process.env.LOG_LEVEL || 'info' })],
       format: format.combine(
         format.timestamp(),
         format(function dynamicContent(info) {
@@ -27,28 +27,35 @@ function configureLogging(app: Application) {
           }
           return info;
         })(),
-        format.json()
+        format.json(),
       ),
       meta: true,
       expressFormat: true,
       statusLevels: true,
-      ignoreRoute: (req) => req.url.toLowerCase() === "/healthcheck"
-    })
+      ignoreRoute: (req) => req.url.toLowerCase() === '/healthcheck',
+    }),
   );
 }
 
 function createApp() {
   const app = express();
-  app.use(express.json({limit: "50mb"}));
+  app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
 
   const accountService = new AccountService();
+  const tokenService = new TokenServiceImpl(accountService);
+  const escrowService = new EscrowServiceImpl(accountService);
+  const paymentsService = new PaymentsServiceImpl();
+  const planApprovalService = new PlanApprovalServiceImpl();
+
   routes.register(
     app,
-    new TokenServiceImpl(accountService),
-    new EscrowServiceImpl(accountService),
-    new PaymentsServiceImpl(),
-    new PlanApprovalServiceImpl()
+    tokenService,
+    escrowService,
+    tokenService,
+    tokenService,
+    paymentsService,
+    planApprovalService,
   );
 
   return app;

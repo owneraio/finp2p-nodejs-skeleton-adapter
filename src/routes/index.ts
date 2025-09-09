@@ -1,10 +1,19 @@
 import * as express from 'express';
 import * as routes from './routes';
-import { EscrowService, TokenService, PaymentService, PlanApprovalService } from "../services/interfaces";
+import {
+  EscrowService,
+  TokenService,
+  PaymentService,
+  PlanApprovalService,
+  CommonService,
+  HealthService
+} from '../services/interfaces';
 
 export const register = (app: express.Application,
   tokenService: TokenService,
   escrowService: EscrowService,
+  commonService: CommonService,
+  healthService: HealthService,
   paymentService: PaymentService,
   planService: PlanApprovalService) => {
   // define a route handler for the default home page
@@ -12,5 +21,5 @@ export const register = (app: express.Application,
     res.send('OK');
   });
 
-  routes.register(app, tokenService, escrowService, paymentService, planService);
+  routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService);
 };

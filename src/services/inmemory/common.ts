@@ -1,18 +1,26 @@
 import {AccountService} from './accounts';
-import {CommonService} from "../interfaces";
+import {CommonService, HealthService} from '../interfaces';
 import {
   OperationStatus,
   ReceiptOperation,
-  successfulReceiptOperation
-} from "../model";
-import {Transaction} from "./model";
+  successfulReceiptOperation,
+} from '../model';
+import {Transaction} from './model';
 
-export class CommonServiceImpl implements CommonService {
+export class CommonServiceImpl implements CommonService, HealthService {
 
   accountService: AccountService;
 
   constructor(accountService: AccountService) {
     this.accountService = accountService;
+  }
+
+  liveness(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  readiness(): Promise<void> {
+    return Promise.resolve()
   }
 
   transactions: Record<string, Transaction> = {};
@@ -26,7 +34,7 @@ export class CommonServiceImpl implements CommonService {
     if (tx === undefined) {
       throw new Error('transaction not found!');
     }
-    return successfulReceiptOperation(tx.toReceipt())
+    return successfulReceiptOperation(tx.toReceipt());
   }
 
   public async operationStatus(cid: string): Promise<OperationStatus> {
@@ -34,7 +42,7 @@ export class CommonServiceImpl implements CommonService {
     if (tx === undefined) {
       throw new Error('transaction not found!');
     }
-    return successfulReceiptOperation(tx.toReceipt())
+    return successfulReceiptOperation(tx.toReceipt());
   }
 }
 
