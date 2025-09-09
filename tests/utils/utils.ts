@@ -2,6 +2,8 @@ import * as secp256k1 from "secp256k1";
 import * as crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import createKeccakHash from "keccak";
+import {OpenApisV3} from "dtsgenerator/dist/core/openApiV3";
+import Components = OpenApisV3.SchemaJson.Definitions.Components;
 
 export const ASSET = 102;
 export const ACCOUNT = 103;
@@ -137,10 +139,12 @@ export const transferSignature = (assetGroup: AssetGroup, settlementGroup: Settl
   return {
     signature: sign(privateKey, hash),
     template: {
+      type: 'hashList',
       hash: hash.toString("hex"),
       hashGroups: hashGroups
-    }
-  };
+    } as Components.Schemas.HashListTemplate,
+    hashFunc
+  } as Components.Schemas.Signature;
 };
 
 export const hashFields = (fields: Components.Schemas.Field[], hashFunc: string): Buffer => {
