@@ -22,7 +22,7 @@
     "clean": "rm -rf dist",
     "api-generate": "dtsgen -o src/lib/services/model-gen.ts dlt-adapter-api.yaml",
     "prebuild": "eslint ./src --ext .ts --fix",
-    "build-app": "tsc",
+    "build": "tsc",
     "build-lib": "tsc -p tsconfig.build.json",
     "test": "jest",
     "start": "node ."
