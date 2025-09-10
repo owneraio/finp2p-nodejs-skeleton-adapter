@@ -1,12 +1,12 @@
 import { v4 as uuid } from 'uuid';
 import { CommonServiceImpl } from './common';
-import { TokenService } from '../interfaces';
+import { TokenService } from '../../../lib/services';
 import {
   Asset, AssetCreationStatus, Balance, Destination, ExecutionContext, Receipt, ReceiptOperation,
   Signature, Source, successfulAssetCreation,
   successfulReceiptOperation,
-} from '../model';
-import { logger } from '../../helpers/logger';
+} from '../../../lib/services';
+import { logger } from '../../../lib/helpers/logger';
 import { Transaction } from './model';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {

@@ -1,4 +1,4 @@
-import { PaymentService } from '../interfaces';
+import { PaymentService } from '../../../lib/services';
 import {
   Asset,
   DepositAsset,
@@ -8,7 +8,7 @@ import {
   Signature,
   Source,
   successfulDepositOperation,
-} from '../model';
+} from '../../../lib/services';
 
 
 export class PaymentsServiceImpl implements PaymentService {

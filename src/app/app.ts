@@ -2,7 +2,7 @@ import express, { Application } from 'express';
 import { logger as expressLogger } from 'express-winston';
 import { format, transports } from 'winston';
 import process from 'process';
-import * as routes from './routes';
+import * as routes from '../lib/routes';
 import { TokenServiceImpl } from './services/inmemory/tokens';
 import { EscrowServiceImpl } from './services/inmemory/escrow';
 import { PaymentsServiceImpl } from './services/inmemory/payments';

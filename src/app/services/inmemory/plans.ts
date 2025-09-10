@@ -1,6 +1,6 @@
-import { logger } from '../../helpers/logger';
-import { PlanApprovalService } from '../interfaces';
-import { approvedPlan, PlanApprovalStatus } from '../model';
+import { logger } from '../../../lib/helpers/logger';
+import { PlanApprovalService } from '../../../lib/services';
+import { approvedPlan, PlanApprovalStatus } from '../../../lib/services';
 
 export class PlanApprovalServiceImpl implements PlanApprovalService {
 

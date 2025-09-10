@@ -1,4 +1,4 @@
-import { Asset, Destination, ExecutionContext, OperationType, Receipt, Source } from '../model';
+import { Asset, Destination, ExecutionContext, OperationType, Receipt, Source } from '../../../lib/services';
 import { v4 as uuid } from 'uuid';
 
 

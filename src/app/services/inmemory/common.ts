@@ -1,10 +1,10 @@
 import { AccountService } from './accounts';
-import { CommonService, HealthService } from '../interfaces';
+import { CommonService, HealthService } from '../../../lib/services';
 import {
   OperationStatus,
   ReceiptOperation,
   successfulReceiptOperation,
-} from '../model';
+} from '../../../lib/services';
 import { Transaction } from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {

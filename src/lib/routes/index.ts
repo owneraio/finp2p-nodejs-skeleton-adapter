@@ -7,7 +7,7 @@ import {
   PlanApprovalService,
   CommonService,
   HealthService,
-} from '../services/interfaces';
+} from '../services';
 
 export const register = (app: express.Application,
   tokenService: TokenService,

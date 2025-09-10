@@ -1,5 +1,4 @@
-import { logger } from '../../helpers/logger';
-import { v4 as uuid } from 'uuid';
+import { logger } from '../../../lib/helpers/logger';
 import { CommonServiceImpl } from './common';
 import {
   Asset,
@@ -9,10 +8,10 @@ import {
   Signature,
   Source,
   successfulReceiptOperation,
-} from '../model';
+} from '../../../lib/services';
 
 import { Transaction } from './model';
-import { EscrowService } from '../interfaces';
+import { EscrowService } from '../../../lib/services';
 
 interface HoldOperation {
   id: string
