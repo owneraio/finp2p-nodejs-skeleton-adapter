@@ -4,6 +4,10 @@
   "description": "",
   "main": "dist/src/index.js",
   "homepage": "https://ownera.io/",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
     "clean": "rm -rf dist",
     "api-generate": "dtsgen -o ./src/services/model-gen.ts dlt-adapter-api.yaml",
@@ -11,6 +15,9 @@
     "build": "tsc",
     "test": "jest",
     "start": "node ."
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "keywords": [],
   "author": "",
