@@ -14,15 +14,16 @@
       "types": "./dist/index.d.ts"
     },
     "./finp2p": {
-      "import": "./dist/finp2p/index.js",
-      "types": "./dist/finp2p/index.d.ts"
+      "import": "./dist/lib/finp2p/index.js",
+      "types": "./dist/lib/finp2p/index.d.ts"
     }
   },
   "scripts": {
     "clean": "rm -rf dist",
     "api-generate": "dtsgen -o src/lib/services/model-gen.ts dlt-adapter-api.yaml",
     "prebuild": "eslint ./src --ext .ts --fix",
-    "build": "tsc",
+    "build-app": "tsc",
+    "build-lib": "tsc -p tsconfig.build.json",
     "test": "jest",
     "start": "node ."
   },
