@@ -25,4 +25,4 @@ COPY --from=builder /usr/app/node_modules ./node_modules
 COPY --from=builder /usr/app/dist ./dist
 COPY --from=builder /usr/app/package.json ./
 
-CMD [ "node", "/usr/app/dist/src/index.js" ]
+CMD [ "node", "/usr/app/dist/src/app/index.js" ]
