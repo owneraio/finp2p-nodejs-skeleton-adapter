@@ -10,6 +10,11 @@
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
+    "paths": {
+      "*": [
+        "node_modules/*"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts",
