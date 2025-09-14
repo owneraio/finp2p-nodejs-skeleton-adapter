@@ -8,16 +8,6 @@
   "files": [
     "dist/**/*"
   ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./finp2p": {
-      "import": "./dist/lib/finp2p/index.js",
-      "types": "./dist/lib/finp2p/index.d.ts"
-    }
-  },
   "scripts": {
     "clean": "rm -rf dist",
     "api-generate": "dtsgen -o src/lib/services/model-gen.ts dlt-adapter-api.yaml",
