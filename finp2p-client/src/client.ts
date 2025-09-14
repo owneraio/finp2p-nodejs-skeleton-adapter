@@ -1,14 +1,16 @@
-import process from 'process';
-import { OssClient } from '../finp2p/oss.client';
-import { parseProofDomain, Proof, ProofDomain, ProofPolicy } from '../finp2p';
-import { AssetType } from '../services/model';
+import process from "process";
+import {OssClient, parseProofDomain, Proof, ProofDomain, ProofPolicy} from "./oss";
+import {AssetType} from "../../src";
 
-export class PolicyGetter {
+
+export class FinP2PClient {
+
   ossClient: OssClient;
 
-  constructor(ossClient: OssClient) {
-    this.ossClient = ossClient;
+  constructor(baseUrl: string) {
+    this.ossClient = new OssClient("", undefined);
   }
+
 
   async getPolicy(assetCode: string, assetType: AssetType): Promise<ProofPolicy> {
     let proof: Proof;
@@ -43,6 +45,5 @@ export class PolicyGetter {
       }
     }
   }
-
 
 }

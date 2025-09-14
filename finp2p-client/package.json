@@ -1,0 +1,11 @@
+{
+  "name": "finp2p-client",
+  "version": "1.0.0",
+  "description": "FinP2P API Client",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

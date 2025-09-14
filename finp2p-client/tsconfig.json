@@ -7,8 +7,6 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
@@ -21,10 +19,7 @@
   },
   "include": [
     "src/**/*.ts",
-  ],
-  "exclude": [
-    "src/app",
-    "test",
-    "**/*.test.ts"
-  ],
+    "test/**/*.ts",
+    "src/**/*.graphql"
+  ]
 }

@@ -4,8 +4,8 @@ import OperationBase = FinAPIComponents.Schemas.OperationBase;
 import IntentType = FinAPIComponents.Schemas.IntentType;
 import * as axios from 'axios';
 import ResourceIdResponse = FinAPIComponents.Schemas.ResourceIdResponse;
-import AssetMetadataAndConfigError = Components.Schemas.AssetMetadataAndConfigError;
-import GeneralClientError = Components.Schemas.GeneralClientError;
+import AssetMetadataAndConfigError = FinAPIComponents.Schemas.AssetMetadataAndConfigError;
+import GeneralClientError = FinAPIComponents.Schemas.GeneralClientError;
 
 export class FinAPIClient {
 
@@ -47,7 +47,7 @@ export class FinAPIClient {
       });
   }
 
-  async getProfileOperationStatus(id: Paths.GetOperation.Parameters.Cid): Promise<{
+  async getProfileOperationStatus(id: FinAPIPaths.GetOperation.Parameters.Cid): Promise<{
     cid?: string;
     isCompleted: boolean;
     type: 'profile';
@@ -57,10 +57,11 @@ export class FinAPIClient {
     return this.get(`/operations/status/${id}`);
   }
 
-  async sendCallback(cid: string, operationStatus: Components.Schemas.OperationStatus): Promise<{}> {
-    return this.post<Components.Schemas.OperationStatus, {}>(
-      `/operations/callback/${cid}`, operationStatus);
-  }
+  // TODO: require importing ledger api models from another sub-module
+  // async sendCallback(cid: string, operationStatus: OperationStatus): Promise<{}> {
+  //   return this.post<OperationStatus, {}>(
+  //     `/operations/callback/${cid}`, operationStatus);
+  // }
 
   private async get<Response>(path: string): Promise<Response> {
     let headers = {
