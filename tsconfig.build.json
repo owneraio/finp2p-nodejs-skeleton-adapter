@@ -24,7 +24,7 @@
   ],
   "exclude": [
     "src/app",
-    "test",
+    "tests",
     "**/*.test.ts"
   ],
 }

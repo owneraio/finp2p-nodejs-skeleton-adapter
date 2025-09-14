@@ -8,10 +8,11 @@ import {
   ReceiptOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
-  HashListTemplate, SignatureTemplate,
-} from '../services/model';
+  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
+} from '../services';
+import {components} from './model-gen';
 
-export const assetFromAPI = (asset: Components.Schemas.Asset): Asset => {
+export const assetFromAPI = (asset: components['schemas']['asset']): Asset => {
   switch (asset.type) {
     case 'fiat':
       return {
@@ -28,7 +29,7 @@ export const assetFromAPI = (asset: Components.Schemas.Asset): Asset => {
   }
 };
 
-export const depositAssetFromAPI = (asset: Components.Schemas.DepositAsset): DepositAsset => {
+export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']): DepositAsset => {
   switch (asset.type) {
     case 'custom':
       return {
@@ -39,57 +40,60 @@ export const depositAssetFromAPI = (asset: Components.Schemas.DepositAsset): Dep
   }
 };
 
-export const assetToAPI = (asset: Asset): Components.Schemas.Asset => {
+export const assetToAPI = (asset: Asset): components['schemas']['asset'] => {
   switch (asset.assetType) {
     case 'fiat':
-      return { type: 'fiat', code: asset.assetId } as Components.Schemas.FiatAsset;
+      return {type: 'fiat', code: asset.assetId};
     case 'cryptocurrency':
-      return { type: 'cryptocurrency', code: asset.assetId } as Components.Schemas.CryptocurrencyAsset;
+      return {type: 'cryptocurrency', code: asset.assetId};
     case 'finp2p':
-      return { type: 'finp2p', resourceId: asset.assetId } as Components.Schemas.Finp2pAsset;
+      return {type: 'finp2p', resourceId: asset.assetId};
   }
 };
 
-export const sourceFromAPI = (source: Components.Schemas.Source): Source => {
-  const { finId } = source;
-  return { finId };
+export const sourceFromAPI = (source: components['schemas']['source']): Source => {
+  const {finId} = source;
+  return {finId};
 };
 
-export const sourceOptToAPI = (source: Source | undefined): Components.Schemas.Source | undefined => {
+export const sourceOptToAPI = (source: Source | undefined): components['schemas']['source'] | undefined => {
   if (!source) {
     return undefined;
   }
-  const { finId } = source;
-  return { finId, account: { type: 'finId', finId } };
+  const {finId} = source;
+  return {finId, account: {type: 'finId', finId}};
 };
 
-export const destinationFromAPI = (destination: Components.Schemas.Destination): Destination => {
-  const { finId } = destination;
-  return { finId };
+export const destinationFromAPI = (destination: components['schemas']['destination']): Destination => {
+  const {finId} = destination;
+  return {finId};
 };
 
-export const destinationOptFromAPI = (destination: Components.Schemas.Destination | undefined): Destination | undefined => {
+export const destinationOptFromAPI = (destination: components['schemas']['destination'] | undefined): Destination | undefined => {
   if (!destination) {
     return undefined;
   }
-  const { finId } = destination;
-  return { finId };
+  return destinationFromAPI(destination)
 };
 
-export const destinationOptToAPI = (destination: Destination | undefined): Components.Schemas.Destination | undefined => {
+export const destinationToAPI = (destination: Destination): components['schemas']['destination'] => {
+  const {finId} = destination;
+  return {finId, account: {type: 'finId', finId}};
+}
+
+export const destinationOptToAPI = (destination: Destination | undefined): components['schemas']['destination'] | undefined => {
   if (!destination) {
     return undefined;
   }
-  const { finId } = destination;
-  return { finId, account: { type: 'finId', finId } };
+  return destinationToAPI(destination)
 };
 
-export const executionContextFromAPI = (ep: Components.Schemas.ExecutionContext): ExecutionContext => {
-  const { executionPlanId, instructionSequenceNumber } = ep;
-  return { planId: executionPlanId, sequence: instructionSequenceNumber };
+export const executionContextFromAPI = (ep: components['schemas']['executionContext']): ExecutionContext => {
+  const {executionPlanId, instructionSequenceNumber} = ep;
+  return {planId: executionPlanId, sequence: instructionSequenceNumber};
 };
 
-export const executionContextOptFromAPI = (ep: Components.Schemas.ExecutionContext | undefined): ExecutionContext | undefined => {
+export const executionContextOptFromAPI = (ep: components['schemas']['executionContext'] | undefined): ExecutionContext | undefined => {
   if (!ep) {
     return undefined;
   }
@@ -97,16 +101,16 @@ export const executionContextOptFromAPI = (ep: Components.Schemas.ExecutionConte
 };
 
 
-export const hashListTemplateFromAPI = (template: Components.Schemas.HashListTemplate): HashListTemplate => {
-  const { hash, hashGroups } = template;
+export const hashListTemplateFromAPI = (template: components['schemas']['hashListTemplate']): HashListTemplate => {
+  const {hash, hashGroups} = template;
   return {
     type: 'hashList',
     hash, hashGroups,
   } as HashListTemplate;
 };
 
-export const eip712TemplateFromAPI = (template: Components.Schemas.EIP712Template): EIP712Template => {
-  const { domain, primaryType, message, types } = template;
+export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Template']): EIP712Template => {
+  const {domain, primaryType, message, types} = template;
   return {
     type: 'EIP712',
     primaryType,
@@ -116,8 +120,8 @@ export const eip712TemplateFromAPI = (template: Components.Schemas.EIP712Templat
   } as EIP712Template;
 };
 
-export const signatureFromAPI = (sg: Components.Schemas.Signature): Signature => {
-  const { template, signature } = sg;
+export const signatureFromAPI = (sg: components['schemas']['signature']): Signature => {
+  const {template, signature} = sg;
   switch (template.type) {
     case 'hashList':
       return {
@@ -135,7 +139,7 @@ export const signatureFromAPI = (sg: Components.Schemas.Signature): Signature =>
   }
 };
 
-export const signatureOptFromAPI = (sg: Components.Schemas.Signature | undefined): Signature | undefined => {
+export const signatureOptFromAPI = (sg: components['schemas']['signature'] | undefined): Signature | undefined => {
   if (!sg) {
     return undefined;
   }
@@ -143,20 +147,22 @@ export const signatureOptFromAPI = (sg: Components.Schemas.Signature | undefined
 };
 
 
-export const planApprovalOperationToAPI = (status: PlanApprovalStatus): Components.Schemas.ExecutionPlanApprovalOperation => {
+export const planApprovalOperationToAPI = (status: PlanApprovalStatus): components['schemas']['ExecutionPlanApprovalOperation'] => {
   switch (status.type) {
     case 'approved':
       return {
         isCompleted: true,
+        cid: '',
         approval: {
           status: 'approved',
         },
-      } as Components.Schemas.ExecutionPlanApprovalOperation;
+      };
 
     case 'rejected':
-      const { code, message } = status.error;
+      const {code, message} = status.error;
       return {
         isCompleted: true,
+        cid: '',
         approval: {
           status: 'rejected',
           failure: {
@@ -164,28 +170,30 @@ export const planApprovalOperationToAPI = (status: PlanApprovalStatus): Componen
             code, message,
           },
         },
-      } as Components.Schemas.ExecutionPlanApprovalOperation;
+      };
 
     case 'pending':
-      const { correlationId } = status;
+      const {correlationId} = status;
       return {
         isCompleted: false,
         cid: correlationId,
-      } as Components.Schemas.ExecutionPlanApprovalOperation;
+      };
   }
 
 };
 
-export const createAssetOperationToAPI = (result: AssetCreationStatus): Components.Schemas.CreateAssetResponse => {
+export const createAssetOperationToAPI = (result: AssetCreationStatus): components['schemas']['CreateAssetResponse'] => {
   switch (result.type) {
     case 'success':
-      const { tokenId, tokenAddress, finp2pTokenAddress } = result;
+      const {tokenId, tokenAddress, finp2pTokenAddress} = result;
       return {
-        isCompleted: true, response: {
+        isCompleted: true,
+        cid: '',
+        response: {
           ledgerAssetInfo: {
             ledgerTokenId: {
               type: 'tokenId', tokenId: tokenId,
-            } as Components.Schemas.LedgerTokenId,
+            },
             ledgerReference: {
               type: 'contractDetails',
               network: 'ethereum',
@@ -197,19 +205,21 @@ export const createAssetOperationToAPI = (result: AssetCreationStatus): Componen
             },
           },
         },
-      } as Components.Schemas.CreateAssetResponse;
+      };
 
     case 'failure':
-      const { code, message } = result.error;
+      const {code, message} = result.error;
       return {
-        isCompleted: true, error: { code, message },
-      } as Components.Schemas.CreateAssetResponse;
+        isCompleted: true,
+        cid: '',
+        error: {code, message},
+      };
 
     case 'pending':
-      const { correlationId: cid } = result;
+      const {correlationId: cid} = result;
       return {
         isCompleted: false, cid,
-      } as Components.Schemas.CreateAssetResponse;
+      };
 
     default:
       throw new Error('Unsupported asset creation status');
@@ -217,51 +227,52 @@ export const createAssetOperationToAPI = (result: AssetCreationStatus): Componen
 };
 
 
-export const executionContextOptToAPI = (ep: ExecutionContext | undefined): Components.Schemas.ExecutionContext | undefined => {
+export const executionContextOptToAPI = (ep: ExecutionContext | undefined): components['schemas']['executionContext'] | undefined => {
   if (!ep) {
     return undefined;
   }
-  const { planId, sequence } = ep;
-  return { executionPlanId: planId, instructionSequenceNumber: sequence };
+  const {planId, sequence} = ep;
+  return {executionPlanId: planId, instructionSequenceNumber: sequence};
 };
 
-export const tradeDetailsToAPI = (tradeDetails: TradeDetails): Components.Schemas.ReceiptTradeDetails => {
-  const { executionContext } = tradeDetails;
+export const tradeDetailsToAPI = (tradeDetails: TradeDetails): components['schemas']['receiptTradeDetails'] => {
+  const {executionContext} = tradeDetails;
   return {
     executionContext: executionContextOptToAPI(executionContext),
   };
 };
 
-export const transactionDetailsToAPI = (details: TransactionDetails): Components.Schemas.TransactionDetails => {
-  const { transactionId, operationId } = details;
+export const transactionDetailsToAPI = (details: TransactionDetails): components['schemas']['transactionDetails'] => {
+  const {transactionId, operationId} = details;
   return {
     transactionId,
     operationId,
-  } as Components.Schemas.TransactionDetails;
+  }
 };
 
-export const hashListTemplateToAPI = (template: HashListTemplate): Components.Schemas.HashListTemplate => {
-  const { hash, hashGroups } = template;
+export const hashListTemplateToAPI = (template: HashListTemplate): components['schemas']['hashListTemplate'] => {
+  const {hash, hashGroups} = template;
   return {
     type: 'hashList',
     hash, hashGroups,
   };
 };
 
-export const eip712TemplateToAPI = (template: EIP712Template): Components.Schemas.EIP712Template => {
-  const { domain, primaryType, message, types } = template;
+export const eip712TemplateToAPI = (template: EIP712Template): components['schemas']['EIP712Template'] => {
+  const {domain, primaryType, message, types, hash} = template;
   return {
     type: 'EIP712',
-    domain: domain as Components.Schemas.EIP712Domain,
+    domain: domain,
     primaryType,
     message: message as {
-      [name: string]: Components.Schemas.EIP712TypedValue;
+      [key: string]: components["schemas"]["EIP712TypedValue"];
     },
-    types: types as Components.Schemas.EIP712Types,
-  } as Components.Schemas.EIP712Template;
+    hash,
+    types: types,
+  };
 };
 
-export const signatureTemplateToAPI = (template: SignatureTemplate): Components.Schemas.SignatureTemplate => {
+export const signatureTemplateToAPI = (template: SignatureTemplate): components['schemas']['signatureTemplate'] => {
   switch (template.type) {
     case 'hashList':
       return hashListTemplateToAPI(template);
@@ -270,14 +281,14 @@ export const signatureTemplateToAPI = (template: SignatureTemplate): Components.
   }
 };
 
-export const proofPolicyToAPI = (proof: ProofPolicy): Components.Schemas.ProofPolicy => {
+export const proofPolicyToAPI = (proof: ProofPolicy): components['schemas']['proofPolicy'] => {
   switch (proof.type) {
     case 'no-proof':
       return {
         type: 'noProofPolicy',
       };
     case 'signature-proof':
-      const { signature, hashFunc, template } = proof;
+      const {signature, hashFunc, template} = proof;
       return {
         type: 'signatureProofPolicy',
         signature: {
@@ -288,14 +299,14 @@ export const proofPolicyToAPI = (proof: ProofPolicy): Components.Schemas.ProofPo
   }
 };
 
-export const proofPolicyOptToAPI = (proof: ProofPolicy | undefined): Components.Schemas.ProofPolicy | undefined => {
+export const proofPolicyOptToAPI = (proof: ProofPolicy | undefined): components['schemas']['proofPolicy'] | undefined => {
   if (!proof) {
     return undefined;
   }
   return proofPolicyToAPI(proof);
 };
 
-export const receiptToAPI = (receipt: Receipt): Components.Schemas.Receipt => {
+export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt'] => {
   const {
     id,
     asset,
@@ -314,71 +325,152 @@ export const receiptToAPI = (receipt: Receipt): Components.Schemas.Receipt => {
     source: sourceOptToAPI(source),
     destination: destinationOptToAPI(destination),
     quantity,
-    operationType: operationType as Components.Schemas.OperationType,
+    operationType: operationType as components['schemas']['operationType'],
     tradeDetails: tradeDetailsToAPI(tradeDetails),
     transactionDetails: transactionDetailsToAPI(transactionDetails),
     proof: proofPolicyOptToAPI(proof),
     timestamp,
-  } as Components.Schemas.Receipt;
+  };
 };
 
-export const receiptOperationToAPI = (op: ReceiptOperation): Components.Schemas.ReceiptOperation => {
+export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas']['receiptOperation'] => {
   switch (op.type) {
     case 'pending':
-      const { correlationId: cid } = op;
+      const {correlationId: cid} = op;
       return {
         isCompleted: false, cid,
-      } as Components.Schemas.ReceiptOperation;
+      };
     case 'failure':
-      const { code, message } = op.error;
+      const {code, message} = op.error;
       return {
-        isCompleted: true, error: { code, message },
-      } as Components.Schemas.ReceiptOperation;
+        isCompleted: true,
+        cid: '',
+        error: {code, message},
+      };
     case 'success':
-      const { receipt } = op;
+      const {receipt} = op;
       return {
-        isCompleted: true, response: receiptToAPI(receipt),
-      } as Components.Schemas.ReceiptOperation;
+        isCompleted: true,
+        cid: '',
+        response: receiptToAPI(receipt),
+      };
   }
 };
 
-export const depositInstructionToAPI = (instruction: DepositInstruction): Components.Schemas.DepositInstruction => {
-  const { description, operationId, details } = instruction;
+export const wireDetailsToAPI = (details: WireDetails):
+  components["schemas"]["ibanAccountDetails"] | components["schemas"]["swiftAccountDetails"] | components["schemas"]["sortCodeDetails"] => {
+  switch (details.type) {
+    case "iban": {
+      const {iban} = details;
+      return {type: 'iban', iban}
+    }
+    case 'swift': {
+      const {swiftCode, accountNumber} = details;
+      return {type: 'swift', swiftCode, accountNumber}
+    }
+    case 'sortCode': {
+      const {code, accountNumber} = details;
+      return {type: 'sortCode', code, accountNumber}
+    }
+  }
+}
+
+export const paymentMethodInstructionToAPI = (method: PaymentMethodInstruction):
+  components["schemas"]["wireTransfer"] | components["schemas"]["wireTransferUSA"] | components["schemas"]["cryptoTransfer"] | components["schemas"]["paymentInstructions"] => {
+  switch (method.type) {
+    case "wireTransfer": {
+      const {accountHolderName, bankName, wireDetails, line1, city, postalCode, country} = method;
+      return {
+        type: 'wireTransfer',
+        accountHolderName,
+        bankName,
+        wireDetails: wireDetailsToAPI(wireDetails),
+        line1,
+        city,
+        postalCode,
+        country
+      }
+    }
+    case "wireTransferUSA": {
+      const {accountNumber, routingNumber, line1, city, postalCode, country, state} = method;
+      return {
+        type: 'wireTransferUSA',
+        accountNumber,
+        routingNumber,
+        line1,
+        city,
+        postalCode,
+        country,
+        state
+      }
+    }
+    case "cryptoTransfer": {
+      const {network, contractAddress, walletAddress} = method;
+      return {
+        type: 'cryptoTransfer',
+        network,
+        contractAddress,
+        walletAddress
+      }
+    }
+    case "paymentInstructions":
+      const {instruction} = method;
+      return {
+        type: 'paymentInstructions',
+        instruction
+      }
+  }
+}
+
+export const paymentMethodToAPI = (method: PaymentMethod): components['schemas']['paymentMethod'] => {
+  const {description, currency, methodInstruction} = method;
   return {
-    account: {},
     description,
-    paymentOptions: {},
+    currency,
+    methodInstruction: paymentMethodInstructionToAPI(methodInstruction)
+  }
+}
+
+export const depositInstructionToAPI = (instruction: DepositInstruction): components['schemas']['depositInstruction'] => {
+  const {account, description, operationId, details, paymentOptions} = instruction;
+  return {
+    account: destinationToAPI(account),
+    description,
+    paymentOptions: paymentOptions.map(paymentMethodToAPI),
     operationId,
     details,
-  } as Components.Schemas.DepositInstruction;
+  };
 };
 
-export const depositOperationToAPI = (op: DepositOperation): Components.Schemas.DepositOperation => {
+export const depositOperationToAPI = (op: DepositOperation): components['schemas']['depositOperation'] => {
   switch (op.type) {
     case 'pending':
-      const { correlationId: cid } = op;
-      return { isCompleted: false, cid } as Components.Schemas.DepositOperation;
+      const {correlationId: cid} = op;
+      return {isCompleted: false, cid};
     case 'failure':
       // const { code, message } = op.error;
       return {
-        isCompleted: true, error: {},
-      } as Components.Schemas.DepositOperation;
+        isCompleted: true,
+        cid: '',
+        error: {},
+      };
     case 'success':
-      const { instruction } = op;
+      const {instruction} = op;
       return {
         isCompleted: true,
+        cid: '',
         response: depositInstructionToAPI(instruction),
-      } as Components.Schemas.DepositOperation;
+      };
   }
 };
 
-export const operationStatusToAPI = (op: OperationStatus): Components.Schemas.OperationStatus => {
+export const operationStatusToAPI = (op: OperationStatus): components['schemas']['operationStatus'] => {
   switch (op.operation) {
     case 'createAsset':
       return {
         type: 'createAsset',
         operation: createAssetOperationToAPI(op),
-      } as Components.Schemas.OperationStatusCreateAsset;
+      };
     case 'deposit':
       return {
         type: 'deposit',
@@ -388,7 +480,7 @@ export const operationStatusToAPI = (op: OperationStatus): Components.Schemas.Op
       return {
         type: 'receipt',
         operation: receiptOperationToAPI(op),
-      } as Components.Schemas.OperationStatusReceipt;
+      };
 
     case 'approval':
       return {
@@ -400,11 +492,11 @@ export const operationStatusToAPI = (op: OperationStatus): Components.Schemas.Op
 
 
 export const balanceToAPI = (
-  asset: Components.Schemas.Asset,
-  account: Components.Schemas.AssetBalanceAccount,
+  asset: components['schemas']['asset'],
+  account: components['schemas']['assetBalanceAccount'],
   balance: Balance,
-): Components.Schemas.AssetBalanceInfoResponse => {
-  const { current, available, held } = balance;
+): components['schemas']['AssetBalanceInfoResponse'] => {
+  const {current, available, held} = balance;
   return {
     account, asset,
     balanceInfo: {
@@ -413,5 +505,5 @@ export const balanceToAPI = (
       available,
       held,
     },
-  } as Components.Schemas.AssetBalanceInfoResponse;
+  };
 };
