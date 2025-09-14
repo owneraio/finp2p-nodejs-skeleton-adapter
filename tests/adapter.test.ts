@@ -1,11 +1,11 @@
 import {ASSET, createCrypto, generateNonce, randomResourceId, transferSignature} from "./utils/utils";
-import {APIClient} from "./api/api";
+import {LedgerAPIClient} from "./api/api";
 import {v4 as uuidv4} from "uuid";
-import {components} from '../src/lib/routes/model-gen';
+import {LedgerAPI} from '../src';
 
 describe(`token service test`, () => {
 
-  let client: APIClient;
+  let client: LedgerAPIClient;
   let orgId: string;
   let hashFunction: "sha3-256" | "keccak-256";
 
@@ -23,7 +23,7 @@ describe(`token service test`, () => {
     const asset = {
       type: "finp2p",
       resourceId: randomResourceId(orgId, ASSET)
-    } as components["schemas"]["finp2pAsset"];
+    } as LedgerAPI["schemas"]["finp2pAsset"];
 
     const buyerCrypto = createCrypto();
     let buyer = {
@@ -32,7 +32,7 @@ describe(`token service test`, () => {
         type: "finId",
         finId: buyerCrypto.public.toString("hex")
       }
-    } as components["schemas"]["source"];
+    } as LedgerAPI["schemas"]["source"];
 
     const assetStatus = await client.tokens.createAsset({asset: asset});
     if (!assetStatus.isCompleted) {
@@ -49,7 +49,7 @@ describe(`token service test`, () => {
       quantity: `${issueQuantity}`,
       asset: asset,
       settlementRef,
-      signature: {} as components["schemas"]["signature"]
+      signature: {} as LedgerAPI["schemas"]["signature"]
     });
     const issueReceipt = await client.expectReceipt(status);
     expect(issueReceipt.asset).toStrictEqual(asset);
@@ -77,12 +77,12 @@ describe(`token service test`, () => {
         quantity: transferQuantity,
         asset: asset,
         source: buyer,
-        destination: seller as components["schemas"]["destination"]
+        destination: seller as LedgerAPI["schemas"]["destination"]
       },
       {
         asset: {type: "fiat", code: "USD"},
         quantity: 10000,
-        source: seller as components["schemas"]["source"],
+        source: seller as LedgerAPI["schemas"]["source"],
         destination: buyer,
         expiry: 6000
       },
@@ -94,7 +94,7 @@ describe(`token service test`, () => {
     const transferReceipt = await client.expectReceipt(await client.tokens.transfer({
       nonce: nonce.toString("hex"),
       source: buyer,
-      destination: seller as components["schemas"]["destination"],
+      destination: seller as LedgerAPI["schemas"]["destination"],
       quantity: `${transferQuantity}`,
       settlementRef: settlementRef,
       asset,
@@ -106,7 +106,7 @@ describe(`token service test`, () => {
     expect(transferReceipt.destination).toStrictEqual(seller);
 
     await client.expectBalance(buyer, asset, issueQuantity - transferQuantity);
-    await client.expectBalance(seller as components["schemas"]["source"], asset, transferQuantity);
+    await client.expectBalance(seller as LedgerAPI["schemas"]["source"], asset, transferQuantity);
 
     nonce = generateNonce();
     let redeemQuantity = 300;
@@ -147,7 +147,7 @@ describe(`token service test`, () => {
 
   test(`Scenario: escrow hold / release`, async () => {
 
-    const asset = {type: "fiat", code: "USD"} as components["schemas"]["fiatAsset"];
+    const asset = {type: "fiat", code: "USD"} as LedgerAPI["schemas"]["fiatAsset"];
 
     const buyerCrypto = createCrypto();
     const buyerFinId = buyerCrypto.public.toString("hex");
@@ -160,9 +160,9 @@ describe(`token service test`, () => {
     };
 
     let depositStatus = await client.payments.getDepositInstruction({
-      owner: buyer as components["schemas"]["source"],
-      destination: buyer as components["schemas"]["destination"],
-      asset: asset as components["schemas"]["depositAsset"]
+      owner: buyer as LedgerAPI["schemas"]["source"],
+      destination: buyer as LedgerAPI["schemas"]["destination"],
+      asset: asset as LedgerAPI["schemas"]["depositAsset"]
     });
     if (!depositStatus.isCompleted) {
       await client.common.waitForCompletion(depositStatus.cid);
@@ -173,18 +173,18 @@ describe(`token service test`, () => {
     let settlementRef = `${uuidv4()}`;
     const setBalanceStatus = await client.tokens.issue({
       nonce: generateNonce().toString("utf-8"),
-      destination: buyer.account as components["schemas"]["finIdAccount"],
+      destination: buyer.account as LedgerAPI["schemas"]["finIdAccount"],
       quantity: `${initialBalance}`,
       asset: {
         type: 'finp2p', resourceId: asset.code,
       },
       settlementRef: settlementRef,
-      signature: {} as components["schemas"]["signature"]
+      signature: {} as LedgerAPI["schemas"]["signature"]
     });
     if (!setBalanceStatus.isCompleted) {
       await client.common.waitForReceipt(setBalanceStatus.cid);
     }
-    await client.expectBalance(buyer as components["schemas"]["source"], asset, initialBalance);
+    await client.expectBalance(buyer as LedgerAPI["schemas"]["source"], asset, initialBalance);
 
     const sellerCrypto = createCrypto();
     const sellerFinId = sellerCrypto.public.toString("hex");
@@ -197,15 +197,15 @@ describe(`token service test`, () => {
     };
 
     depositStatus = await client.payments.getDepositInstruction({
-      owner: seller as components["schemas"]["source"],
-      destination: seller as components["schemas"]["destination"],
+      owner: seller as LedgerAPI["schemas"]["source"],
+      destination: seller as LedgerAPI["schemas"]["destination"],
       asset: asset
     });
     if (!depositStatus.isCompleted) {
       await client.common.waitForCompletion(depositStatus.cid);
     }
 
-    await client.expectBalance(seller as components["schemas"]["source"], asset, 0);
+    await client.expectBalance(seller as LedgerAPI["schemas"]["source"], asset, 0);
 
     const operationId = `${uuidv4()}`;
     const transferQty = 1000;
@@ -217,14 +217,14 @@ describe(`token service test`, () => {
         operation: "transfer",
         quantity: 10,
         asset: {type: "finp2p", resourceId: randomResourceId(orgId, ASSET)},
-        source: seller as components["schemas"]["source"],
-        destination: buyer as components["schemas"]["destination"],
+        source: seller as LedgerAPI["schemas"]["source"],
+        destination: buyer as LedgerAPI["schemas"]["destination"],
       },
       {
         asset: asset,
         quantity: transferQty,
-        source: buyer as components["schemas"]["source"],
-        destination: seller as components["schemas"]["destination"],
+        source: buyer as LedgerAPI["schemas"]["source"],
+        destination: seller as LedgerAPI["schemas"]["destination"],
         expiry: expiry
       },
       hashFunction, buyerCrypto.private
@@ -233,8 +233,8 @@ describe(`token service test`, () => {
     const status = await client.escrow.hold({
       nonce: holdNonce.toString('hex'),
       operationId: operationId,
-      source: buyer as components["schemas"]["source"],
-      destination: seller as components["schemas"]["destination"],
+      source: buyer as LedgerAPI["schemas"]["source"],
+      destination: seller as LedgerAPI["schemas"]["destination"],
       quantity: `${transferQty}`,
       asset: asset,
       expiry: expiry,
@@ -242,12 +242,12 @@ describe(`token service test`, () => {
     });
     await client.expectReceipt(status);
 
-    await client.expectBalance(buyer as components["schemas"]["source"], asset, initialBalance - transferQty);
+    await client.expectBalance(buyer as LedgerAPI["schemas"]["source"], asset, initialBalance - transferQty);
 
     const releaseReceipt = await client.expectReceipt(await client.escrow.release({
       operationId: operationId,
-      source: buyer as components["schemas"]["source"],
-      destination: seller as components["schemas"]["destination"],
+      source: buyer as LedgerAPI["schemas"]["source"],
+      destination: seller as LedgerAPI["schemas"]["destination"],
       quantity: `${transferQty}`,
       asset: asset
     }));
@@ -256,7 +256,7 @@ describe(`token service test`, () => {
     expect(releaseReceipt.source).toStrictEqual(buyer);
     expect(releaseReceipt.destination).toStrictEqual(seller);
 
-    await client.expectBalance(seller as components["schemas"]["source"], asset, transferQty);
+    await client.expectBalance(seller as LedgerAPI["schemas"]["source"], asset, transferQty);
   });
 
 });

@@ -2,7 +2,7 @@ import * as secp256k1 from "secp256k1";
 import * as crypto from "crypto";
 import {v4 as uuidv4} from "uuid";
 import createKeccakHash from "keccak";
-import {components} from "../../src/lib/routes/model-gen";
+import {LedgerAPI} from "../../src";
 
 export const ASSET = 102;
 
@@ -43,27 +43,27 @@ export const randomPort = () => {
 export interface AssetGroup {
   nonce: Buffer;
   operation: string;
-  source?: components["schemas"]["source"];
-  destination?: components["schemas"]["destination"];
+  source?: LedgerAPI["schemas"]["source"];
+  destination?: LedgerAPI["schemas"]["destination"];
   quantity: number;
-  asset: components["schemas"]["asset"];
+  asset: LedgerAPI["schemas"]["asset"];
 }
 
 export interface SettlementGroup {
-  asset: components["schemas"]["asset"];
-  source?: components["schemas"]["source"];
-  destination?: components["schemas"]["destination"];
+  asset: LedgerAPI["schemas"]["asset"];
+  source?: LedgerAPI["schemas"]["source"];
+  destination?: LedgerAPI["schemas"]["destination"];
   quantity: number;
   expiry: number;
 }
 
 export const transferSignature = (
   assetGroup: AssetGroup, settlementGroup: SettlementGroup,
-  hashFunc: "sha3-256" | "keccak-256", privateKey: Buffer): components["schemas"]["signature"] => {
-  const hashGroups: components["schemas"]['hashGroup'][] = [];
+  hashFunc: "sha3-256" | "keccak-256", privateKey: Buffer): LedgerAPI["schemas"]["signature"] => {
+  const hashGroups: LedgerAPI["schemas"]['hashGroup'][] = [];
   const hashes: Buffer[] = [];
   if (assetGroup !== undefined) {
-    let assetFields: components["schemas"]['field'][] = [];
+    let assetFields: LedgerAPI["schemas"]['field'][] = [];
     assetFields.push({name: "nonce", type: "bytes", value: assetGroup.nonce.toString("hex")});
     assetFields.push({name: "operation", type: "string", value: assetGroup.operation});
     assetFields.push({name: "assetType", type: "string", value: assetGroup.asset.type});
@@ -94,7 +94,7 @@ export const transferSignature = (
   }
 
   if (settlementGroup !== undefined) {
-    let settlementFields: components["schemas"]['field'][] = [];
+    let settlementFields: LedgerAPI["schemas"]['field'][] = [];
     settlementFields.push({name: "assetType", type: "string", value: settlementGroup.asset.type});
     settlementFields.push({name: "assetId", type: "string", value: extractIdFromAsset(settlementGroup.asset)});
     if (settlementGroup.source !== undefined) {
@@ -150,7 +150,7 @@ export const transferSignature = (
   };
 };
 
-export const hashFields = (fields: components["schemas"]['field'][], hashFunc: string): Buffer => {
+export const hashFields = (fields: LedgerAPI["schemas"]['field'][], hashFunc: string): Buffer => {
   let values: any = [];
   for (let f of fields) {
     switch (f.type) {
@@ -166,7 +166,7 @@ export const hashFields = (fields: components["schemas"]['field'][], hashFunc: s
   return hashValues(values, hashFunc);
 };
 
-const extractIdFromAsset = (asset: components["schemas"]['asset']): string => {
+const extractIdFromAsset = (asset: LedgerAPI["schemas"]['asset']): string => {
   switch (asset.type) {
     case "finp2p":
       return asset.resourceId;
@@ -176,16 +176,16 @@ const extractIdFromAsset = (asset: components["schemas"]['asset']): string => {
   }
 };
 
-const extractIdFromSource = (account: components["schemas"]['finIdAccount']): string => {
+const extractIdFromSource = (account: LedgerAPI["schemas"]['finIdAccount']): string => {
   switch (account.type) {
     case "finId":
       return account.finId;
   }
 };
 
-const extractIdFromDestination = (account: components["schemas"]['finIdAccount'] |
-  components["schemas"]['cryptoWalletAccount'] |
-  components["schemas"]['fiatAccount'] | undefined): string => {
+const extractIdFromDestination = (account: LedgerAPI["schemas"]['finIdAccount'] |
+  LedgerAPI["schemas"]['cryptoWalletAccount'] |
+  LedgerAPI["schemas"]['fiatAccount'] | undefined): string => {
   if (account === undefined) {
     return "";
   }
