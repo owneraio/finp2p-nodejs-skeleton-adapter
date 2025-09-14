@@ -7,12 +7,14 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
     "paths": {
       "*": [
-        "node_modules/*"
+        "./finp2p-client/node_modules/*"
       ]
     }
   },
