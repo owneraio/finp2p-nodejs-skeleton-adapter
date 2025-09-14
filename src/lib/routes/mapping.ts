@@ -436,7 +436,7 @@ export const depositInstructionToAPI = (instruction: DepositInstruction): compon
   return {
     account: destinationToAPI(account),
     description,
-    paymentOptions: paymentOptions.map(paymentMethodToAPI),
+    paymentOptions: paymentOptions ? paymentOptions.map(paymentMethodToAPI) : [],
     operationId,
     details,
   };
