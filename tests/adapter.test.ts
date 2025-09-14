@@ -11,7 +11,7 @@ describe(`token service test`, () => {
 
   beforeAll(async () => {
     // @ts-ignore
-    client = new APIClient(global.serverAddress);
+    client = new LedgerAPIClient(global.serverAddress);
     // @ts-ignore
     orgId = global.orgId;
     // @ts-ignore
