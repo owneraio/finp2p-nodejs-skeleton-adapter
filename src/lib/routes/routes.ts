@@ -77,7 +77,7 @@ export const register = (app: express.Application,
 
   /* Get token balance. */
   app.post(
-    '/api/asset/balance',
+    '/api/assets/getBalance',
     asyncMiddleware(async (req, res) => {
       const {asset, owner: {finId}} = req.body as unknown as components['schemas']['GetAssetBalanceRequest'];
       const {assetId} = assetFromAPI(asset);
@@ -88,7 +88,7 @@ export const register = (app: express.Application,
 
   /* Get token balance. */
   app.post(
-    '/api/assets/getBalance',
+    '/api/asset/balance',
     asyncMiddleware(async (req, res) => {
       const {asset, account} = req.body as unknown as components['schemas']['AssetBalanceInfoRequest'];
       const {assetId} = assetFromAPI(asset);
