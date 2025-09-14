@@ -152,7 +152,7 @@ export const approvedPlan = (): PlanApprovalStatus => ({
 export const rejectedPlan = (code: number, message: string): PlanApprovalStatus => ({
   operation: 'approval',
   type: 'rejected',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingPlan = (correlationId: string): PlanApprovalStatus => ({
@@ -188,7 +188,7 @@ export type AssetCreationStatus = SuccessfulAssetCreation | FailedAssetCreation 
 export const failedAssetCreation = (code: number, message: string): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const successfulAssetCreation = (tokenId: string, tokenAddress: string, finp2pTokenAddress: string): AssetCreationStatus => ({
@@ -237,7 +237,7 @@ export const successfulReceiptOperation = (receipt: Receipt): ReceiptOperation =
 export const failedReceiptOperation = (code: number, message: string): ReceiptOperation => ({
   operation: 'receipt',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingReceiptOperation = (correlationId: string): ReceiptOperation => ({
@@ -250,23 +250,23 @@ export const pendingReceiptOperation = (correlationId: string): ReceiptOperation
 
 
 export type IbanAccountDetails = {
-  type: "iban"
+  type: 'iban'
   iban: string;
-}
+};
 
 export type SwiftAccountDetails = {
-  type: "swift";
+  type: 'swift';
   swiftCode: string;
   accountNumber: string;
-}
+};
 
 export type SortCodeDetails = {
-  type: "sortCode";
+  type: 'sortCode';
   code: string;
   accountNumber: string;
-}
+};
 
-export type WireDetails = IbanAccountDetails | SwiftAccountDetails | SortCodeDetails
+export type WireDetails = IbanAccountDetails | SwiftAccountDetails | SortCodeDetails;
 
 export type WireTransfer = {
   type: 'wireTransfer'
@@ -277,7 +277,7 @@ export type WireTransfer = {
   city?: string
   postalCode?: string
   country?: string
-}
+};
 
 export type WireTransferUsa = {
   type: 'wireTransferUSA';
@@ -288,19 +288,19 @@ export type WireTransferUsa = {
   postalCode?: string;
   country?: string;
   state?: string;
-}
+};
 
 export type CryptoTransfer = {
-  type: "cryptoTransfer";
+  type: 'cryptoTransfer';
   network: string;
   contractAddress: string;
   walletAddress: string;
-}
+};
 
 export type PaymentInstruction = {
-  type: "paymentInstructions";
+  type: 'paymentInstructions';
   instruction: string;
-}
+};
 
 export type PaymentMethodInstruction = WireTransfer | WireTransferUsa | CryptoTransfer | PaymentInstruction;
 
@@ -308,7 +308,7 @@ export type PaymentMethod = {
   description: string
   currency: string
   methodInstruction: PaymentMethodInstruction
-}
+};
 
 export type DepositInstruction = {
   account: Destination
@@ -347,7 +347,7 @@ export const successfulDepositOperation = (instruction: DepositInstruction): Dep
 export const failedDepositOperation = (code: number, message: string): DepositOperation => ({
   operation: 'deposit',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingDepositOperation = (correlationId: string): DepositOperation => ({

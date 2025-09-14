@@ -1,6 +1,6 @@
 import * as express from 'express';
-import {asyncMiddleware} from '../helpers';
-import {components} from './model-gen';
+import { asyncMiddleware } from '../helpers';
+import { components } from './model-gen';
 import {
   assetFromAPI,
   createAssetOperationToAPI,
@@ -20,12 +20,12 @@ import {
 } from '../services';
 
 export const register = (app: express.Application,
-                         tokenService: TokenService,
-                         escrowService: EscrowService,
-                         commonService: CommonService,
-                         healthService: HealthService,
-                         paymentService: PaymentService,
-                         planService: PlanApprovalService,
+  tokenService: TokenService,
+  escrowService: EscrowService,
+  commonService: CommonService,
+  healthService: HealthService,
+  paymentService: PaymentService,
+  planService: PlanApprovalService,
 ) => {
 
   app.get('/health/liveness',
@@ -64,11 +64,11 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/create',
     asyncMiddleware(async (req, res) => {
-      const {asset, ledgerAssetBinding} = req.body as unknown as components['schemas']['CreateAssetRequest'];
-      const {assetId} = assetFromAPI(asset);
+      const { asset, ledgerAssetBinding } = req.body as unknown as components['schemas']['CreateAssetRequest'];
+      const { assetId } = assetFromAPI(asset);
       let tokenId: string | undefined = undefined;
       if (ledgerAssetBinding) {
-        ({tokenId} = ledgerAssetBinding as components['schemas']['ledgerTokenId']);
+        ({ tokenId } = ledgerAssetBinding as components['schemas']['ledgerTokenId']);
       }
       const result = await tokenService.createAsset(assetId, tokenId);
       return res.send(createAssetOperationToAPI(result));
@@ -79,10 +79,10 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/getBalance',
     asyncMiddleware(async (req, res) => {
-      const {asset, owner: {finId}} = req.body as unknown as components['schemas']['GetAssetBalanceRequest'];
-      const {assetId} = assetFromAPI(asset);
+      const { asset, owner: { finId } } = req.body as unknown as components['schemas']['GetAssetBalanceRequest'];
+      const { assetId } = assetFromAPI(asset);
       const balance = await tokenService.getBalance(assetId, finId);
-      res.send({asset, balance} as components['schemas']['balance']);
+      res.send({ asset, balance } as components['schemas']['balance']);
     }),
   );
 
@@ -90,9 +90,9 @@ export const register = (app: express.Application,
   app.post(
     '/api/asset/balance',
     asyncMiddleware(async (req, res) => {
-      const {asset, account} = req.body as unknown as components['schemas']['AssetBalanceInfoRequest'];
-      const {assetId} = assetFromAPI(asset);
-      const {finId} = account;
+      const { asset, account } = req.body as unknown as components['schemas']['AssetBalanceInfoRequest'];
+      const { assetId } = assetFromAPI(asset);
+      const { finId } = account;
       const balance = await tokenService.balance(assetId, finId);
       res.send(balanceToAPI(asset, account, balance));
     }),
@@ -102,7 +102,7 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/issue',
     asyncMiddleware(async (req, res) => {
-      const {asset, quantity, destination: {finId: issuerFinId}, executionContext} =
+      const { asset, quantity, destination: { finId: issuerFinId }, executionContext } =
         req.body as unknown as components['schemas']['IssueAssetsRequest'];
       const receiptOp = await tokenService.issue(
         assetFromAPI(asset),
@@ -118,7 +118,7 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/transfer',
     asyncMiddleware(async (req, res) => {
-      const {nonce, source, destination, asset, quantity, signature, executionContext} =
+      const { nonce, source, destination, asset, quantity, signature, executionContext } =
         req.body as unknown as components['schemas']['TransferAssetRequest'];
       const receiptOp = await tokenService.transfer(
         nonce,
@@ -137,7 +137,7 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/redeem',
     asyncMiddleware(async (req, res) => {
-      const {nonce, source, asset, quantity, operationId, signature, executionContext} =
+      const { nonce, source, asset, quantity, operationId, signature, executionContext } =
         req.body as unknown as components['schemas']['RedeemAssetsRequest'];
       const receiptOp = await tokenService.redeem(
         nonce,
@@ -155,7 +155,7 @@ export const register = (app: express.Application,
   app.get(
     '/api/assets/receipts/:id',
     asyncMiddleware(async (req, res) => {
-      const {id} = req.params;
+      const { id } = req.params;
       const receiptResult = await commonService.getReceipt(id);
       res.json(receiptOperationToAPI(receiptResult));
     }),
@@ -166,7 +166,7 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/hold',
     asyncMiddleware(async (req, res) => {
-      const {nonce, source, destination, asset, quantity, operationId, signature, executionContext} =
+      const { nonce, source, destination, asset, quantity, operationId, signature, executionContext } =
         req.body as unknown as components['schemas']['HoldOperationRequest'];
       const receiptOp = await escrowService.hold(
         nonce,
@@ -186,7 +186,7 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/release',
     asyncMiddleware(async (req, res) => {
-      const {destination, asset, quantity, operationId, executionContext} =
+      const { destination, asset, quantity, operationId, executionContext } =
         req.body as unknown as components['schemas']['ReleaseOperationRequest'];
       const receiptOp = await escrowService.release(
         destinationFromAPI(destination),
@@ -203,7 +203,7 @@ export const register = (app: express.Application,
   app.post(
     '/api/assets/rollback',
     asyncMiddleware(async (req, res) => {
-      const {asset, quantity, operationId, executionContext} =
+      const { asset, quantity, operationId, executionContext } =
         req.body as unknown as components['schemas']['RollbackOperationRequest'];
       const receiptOp = await escrowService.rollback(
         assetFromAPI(asset),
@@ -226,7 +226,7 @@ export const register = (app: express.Application,
         amount,
         details,
         nonce,
-        signature
+        signature,
       } = req.body as unknown as components['schemas']['DepositInstructionRequest'];
       const depositOp = await paymentService.deposit(
         sourceFromAPI(owner),
@@ -245,8 +245,8 @@ export const register = (app: express.Application,
   app.post(
     '/api/payments/payout',
     asyncMiddleware(async (req, res) => {
-      const {source, destination, quantity, asset, payoutInstruction, nonce, signature}
-        = req.body as unknown as components['schemas']['PayoutRequest']
+      const { source, destination, quantity, asset, payoutInstruction, nonce, signature }
+        = req.body as unknown as components['schemas']['PayoutRequest'];
       let description: string | undefined = undefined;
       if (payoutInstruction) {
         description = payoutInstruction.description;
