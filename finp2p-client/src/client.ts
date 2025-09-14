@@ -1,6 +1,5 @@
 import process from "process";
 import {OssClient, parseProofDomain, Proof, ProofDomain, ProofPolicy} from "./oss";
-import {AssetType} from "../../src";
 
 
 export class FinP2PClient {
@@ -11,8 +10,7 @@ export class FinP2PClient {
     this.ossClient = new OssClient("", undefined);
   }
 
-
-  async getPolicy(assetCode: string, assetType: AssetType): Promise<ProofPolicy> {
+  async getPolicy(assetCode: string, assetType: string): Promise<ProofPolicy> {
     let proof: Proof;
     let domain: ProofDomain | null = null;
     let configRaw: string;

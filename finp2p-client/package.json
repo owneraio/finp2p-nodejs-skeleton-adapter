@@ -1,11 +1,29 @@
 {
-  "name": "finp2p-client",
+  "name": "@owneraio/finp2p-client",
   "version": "1.0.0",
   "description": "FinP2P API Client",
+  "homepage": "https://ownera.io/",
   "main": "index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "axios": "1.11.0",
+    "graphql": "^16.8.1",
+    "graphql-import-node": "^0.0.5"
+  },
+  "devDependencies": {
+    "eslint": "^8.4.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^4.8.4"
+  }
 }
