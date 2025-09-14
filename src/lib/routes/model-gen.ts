@@ -14,6 +14,10 @@ declare namespace Components {
     export interface APIErrors {
       errors: APIError[];
     }
+    export interface APIErrorsTyped {
+      type: 'error';
+      errors: APIError[];
+    }
     export interface AbsolutePollingInterval {
       type: 'absolute';
       /**
@@ -21,7 +25,9 @@ declare namespace Components {
              */
       time: number;
     }
-    export type ApiAnyError = ApiErrorClient4XX | ApiErrorServer5XX;
+    export type ApiAnyError = {
+      type: 'error';
+    } & (ApiErrorClient4XX | ApiErrorServer5XX);
     export interface ApiErrorClient4XX {
       type: 'error';
       status: 400 | 401 | 403 | 404 | 409;
@@ -407,7 +413,7 @@ declare namespace Components {
         /**
                  * type of proposal payload
                  */
-        proposal: /* type of proposal payload */ ExecutionPlanCancellationProposal;
+        proposal: /* type of proposal payload */ ExecutionPlanCancellationProposal | ExecutionPlanResetProposal;
       };
     }
     /**
@@ -427,9 +433,16 @@ declare namespace Components {
           /**
                      * type of proposal payload
                      */
-          proposal: /* type of proposal payload */ ExecutionPlanCancellationProposal;
+          proposal: /* type of proposal payload */ ExecutionPlanCancellationProposal | ExecutionPlanResetProposal;
         };
       };
+    }
+    export interface ExecutionPlanResetProposal {
+      proposalType: 'reset';
+      /**
+             * sequence number of the instruction to reset and retry in the execution plan
+             */
+      proposedSequence: number; // uint32
     }
     export interface FiatAccount {
       type: 'fiatAccount';
@@ -550,6 +563,33 @@ declare namespace Components {
              * hex representation of the combined hash groups hash value
              */
       hash: string;
+    }
+    export interface HealthCheckOperation {
+      /**
+             * unique correlation id which identify the operation
+             */
+      cid: string;
+      /**
+             * flag indicating if the operation completed, if true then error or response must be present (but not both)
+             */
+      isCompleted: boolean;
+      operationMetadata?: /* additional metadata regarding the operation */ OperationMetadata;
+      health: {
+        /**
+                 * example:
+                 * ok/unavailable
+                 */
+        status: string;
+      };
+    }
+    export interface HealthResponse {
+      health: {
+        /**
+                 * example:
+                 * ok/unavailable
+                 */
+        status: string;
+      };
     }
     export interface HoldOperationRequest {
       nonce: /**
@@ -1136,6 +1176,24 @@ declare namespace Paths {
     export type RequestBody = Components.Schemas.AssetBalanceInfoRequest;
     namespace Responses {
       export type $200 = Components.Schemas.AssetBalanceInfoResponse;
+    }
+  }
+  namespace GetHealth {
+    namespace Responses {
+      export interface $200 {
+        /**
+                 * example:
+                 * ok
+                 */
+        status?: string;
+      }
+      export interface $503 {
+        /**
+                 * example:
+                 * unavailable
+                 */
+        status?: string;
+      }
     }
   }
   namespace GetOperation {
