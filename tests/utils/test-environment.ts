@@ -33,9 +33,9 @@ class CustomTestEnvironment extends NodeEnvironment {
   async teardown() {
     try {
       this.httpServer?.close();
-      console.log("Ganache container stopped successfully.");
+      console.log("Server stopped successfully.");
     } catch (err) {
-      console.error("Error stopping Ganache container:", err);
+      console.error("Error stopping server:", err);
     }
   }
 

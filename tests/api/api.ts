@@ -1,5 +1,5 @@
-import { ClientBase } from "./base";
-
+import {ClientBase} from "./base";
+import {components} from '../../src/lib/routes/model-gen';
 
 export class APIClient {
 
@@ -15,7 +15,7 @@ export class APIClient {
     this.common = new CommonAPI(host);
   }
 
-  async expectReceipt(status: any): Promise<Components.Schemas.Receipt> {
+  async expectReceipt(status: any): Promise<components["schemas"]["receipt"]> {
     if (status.isCompleted) {
       return status.response;
     } else {
@@ -23,8 +23,8 @@ export class APIClient {
     }
   };
 
-  async expectBalance(owner: Components.Schemas.Source, asset: Components.Schemas.Asset, amount: number) {
-    const balance = await this.common.balance({ asset: asset, owner: owner });
+  async expectBalance(owner: components["schemas"]["source"], asset: components["schemas"]["asset"], amount: number) {
+    const balance = await this.common.getBalance({asset: asset, owner: owner});
     expect(parseInt(balance.balance)).toBe(amount);
   };
 
@@ -36,19 +36,19 @@ export class TokensAPI extends ClientBase {
     super(host);
   }
 
-  public async createAsset(req: Paths.CreateAsset.RequestBody): Promise<Paths.CreateAsset.Responses.$200> {
+  public async createAsset(req: components["schemas"]["CreateAssetRequest"]): Promise<components["schemas"]["CreateAssetResponse"]> {
     return await this.post("/assets/create", req);
   }
 
-  public async issue(req: Paths.IssueAssets.RequestBody): Promise<Paths.IssueAssets.Responses.$200> {
+  public async issue(req: components["schemas"]["IssueAssetsRequest"]): Promise<components["schemas"]["IssueAssetsResponse"]> {
     return await this.post("/assets/issue", req);
   }
 
-  public async redeem(req: Paths.RedeemAssets.RequestBody): Promise<Paths.RedeemAssets.Responses.$200> {
+  public async redeem(req: components["schemas"]["RedeemAssetsRequest"]): Promise<components["schemas"]["RedeemAssetsResponse"]> {
     return await this.post("/assets/redeem", req);
   }
 
-  public async transfer(req: Paths.TransferAsset.RequestBody): Promise<Paths.TransferAsset.Responses.$200> {
+  public async transfer(req: components["schemas"]["TransferAssetRequest"]): Promise<components["schemas"]["TransferAssetResponse"]> {
     return await this.post("/assets/transfer", req);
   }
 
@@ -60,15 +60,15 @@ export class EscrowAPI extends ClientBase {
     super(host);
   }
 
-  public async hold(req: Paths.HoldOperation.RequestBody): Promise<Paths.HoldOperation.Responses.$200> {
+  public async hold(req: components["schemas"]["HoldOperationRequest"]): Promise<components["schemas"]["HoldOperationResponse"]> {
     return await this.post("/assets/hold", req);
   }
 
-  public async release(req: Paths.ReleaseOperation.RequestBody): Promise<Paths.ReleaseOperation.Responses.$200> {
+  public async release(req: components["schemas"]["ReleaseOperationRequest"]): Promise<components["schemas"]["ReleaseOperationResponse"]> {
     return await this.post("/assets/release", req);
   }
 
-  public async rollback(req: Paths.RollbackOperation.RequestBody): Promise<Paths.RollbackOperation.Responses.$200> {
+  public async rollback(req: components["schemas"]["RollbackOperationRequest"]): Promise<components["schemas"]["RollbackOperationResponse"]> {
     return await this.post("/assets/rollback", req);
   }
 }
@@ -79,11 +79,11 @@ export class PaymentsAPI extends ClientBase {
     super(host);
   }
 
-  public async getDepositInstruction(req: Paths.DepositInstruction.RequestBody): Promise<Paths.DepositInstruction.Responses.$200> {
+  public async getDepositInstruction(req: components["schemas"]["DepositInstructionRequest"]): Promise<components["schemas"]["DepositInstructionResponse"]> {
     return await this.post("/payments/depositInstruction", req);
   }
 
-  public async payout(req: Paths.Payout.RequestBody): Promise<Paths.Payout.Responses.$200> {
+  public async payout(req: components["schemas"]["PayoutRequest"]): Promise<components["schemas"]["PayoutResponse"]> {
     return await this.post("/payments/payout", req);
   }
 }
@@ -95,24 +95,25 @@ export class CommonAPI extends ClientBase {
     super(host);
   }
 
-  public async getReceipt(id: Paths.GetReceipt.Parameters.TransactionId): Promise<Paths.GetReceipt.Responses.$200> {
+  public async getReceipt(id: string): Promise<components["schemas"]["GetReceiptResponse"]> {
     return await this.post(`/assets/receipt/${id}`);
   }
 
-  public async getOperationStatus(id: Paths.GetOperation.Parameters.Cid): Promise<Paths.GetOperation.Responses.$200> {
+  public async getOperationStatus(id: string): Promise<components["schemas"]["GetOperationStatusResponse"]> {
     return await this.get(`/operations/status/${id}`);
   }
 
-  public async balance(req: Paths.GetAssetBalance.RequestBody): Promise<Paths.GetAssetBalance.Responses.$200> {
+  public async getBalance(req: components["schemas"]["GetAssetBalanceRequest"]): Promise<components["schemas"]["GetAssetBalanceResponse"]> {
     return await this.post("/assets/getBalance", req);
   }
 
-  public async waitForReceipt(id: string, tries: number = 30): Promise<Components.Schemas.Receipt> {
+
+  public async waitForReceipt(id: string, tries: number = 30): Promise<components["schemas"]["receipt"]> {
     for (let i = 1; i < tries; i++) {
       const status = await this.getOperationStatus(id);
       if (status.type === "receipt") {
         if (status.operation.isCompleted) {
-          return (status.operation as Components.Schemas.ReceiptOperation).response!;
+          return (status.operation).response!;
         }
       } else {
         throw new Error(`wrong status type, deposit expected, got: ${status.type}`);

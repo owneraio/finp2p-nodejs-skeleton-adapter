@@ -51,7 +51,7 @@ export type HashGroup = {
 export type HashListTemplate = {
   type: 'hashList'
   hash: string
-  hashGroups:  HashGroup[]
+  hashGroups: HashGroup[]
 };
 
 // -------------------------------------------------------------------
@@ -249,10 +249,71 @@ export const pendingReceiptOperation = (correlationId: string): ReceiptOperation
 // -------------------------------------------------------------------
 
 
+export type IbanAccountDetails = {
+  type: 'iban'
+  iban: string;
+};
+
+export type SwiftAccountDetails = {
+  type: 'swift';
+  swiftCode: string;
+  accountNumber: string;
+};
+
+export type SortCodeDetails = {
+  type: 'sortCode';
+  code: string;
+  accountNumber: string;
+};
+
+export type WireDetails = IbanAccountDetails | SwiftAccountDetails | SortCodeDetails;
+
+export type WireTransfer = {
+  type: 'wireTransfer'
+  accountHolderName: string
+  bankName: string
+  wireDetails: WireDetails
+  line1?: string
+  city?: string
+  postalCode?: string
+  country?: string
+};
+
+export type WireTransferUsa = {
+  type: 'wireTransferUSA';
+  accountNumber: string;
+  routingNumber: string;
+  line1?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+  state?: string;
+};
+
+export type CryptoTransfer = {
+  type: 'cryptoTransfer';
+  network: string;
+  contractAddress: string;
+  walletAddress: string;
+};
+
+export type PaymentInstruction = {
+  type: 'paymentInstructions';
+  instruction: string;
+};
+
+export type PaymentMethodInstruction = WireTransfer | WireTransferUsa | CryptoTransfer | PaymentInstruction;
+
+export type PaymentMethod = {
+  description: string
+  currency: string
+  methodInstruction: PaymentMethodInstruction
+};
+
 export type DepositInstruction = {
   account: Destination
   description: string
-  paymentMethods: {}
+  paymentOptions: PaymentMethod[]
   operationId: string | undefined
   details: any | undefined
 };
