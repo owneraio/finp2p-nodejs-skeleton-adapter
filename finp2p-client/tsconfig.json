@@ -12,19 +12,14 @@
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
-    "baseUrl": ".",
     "paths": {
       "*": [
-        "node_modules/*"
+        "./finp2p-client/node_modules/*"
       ]
     }
   },
   "include": [
     "src/**/*.ts",
-  ],
-  "exclude": [
-    "src/app",
-    "test",
-    "**/*.test.ts"
-  ],
+    "src/**/*.graphql"
+  ]
 }

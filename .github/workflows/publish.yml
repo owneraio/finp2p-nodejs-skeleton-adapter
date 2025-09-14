@@ -6,7 +6,7 @@ on:
       - "v*"
 
 jobs:
-  publish:
+  publish-adapter:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -20,6 +20,27 @@ jobs:
           scope: "@owneraio"
       - run: npm ci
       - run: npm run build-lib
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-finp2p-client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./finp2p-client
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@owneraio"
+      - run: npm install
+      - run: npm run build
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,26 +1,16 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "",
-  "main": "dist/src/app/index.js",
+  "main": "dist/index.js",
   "homepage": "https://ownera.io/",
   "types": "dist/index.d.ts",
   "files": [
     "dist/**/*"
   ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./finp2p": {
-      "import": "./dist/lib/finp2p/index.js",
-      "types": "./dist/lib/finp2p/index.d.ts"
-    }
-  },
   "scripts": {
     "clean": "rm -rf dist",
-    "api-generate": "dtsgen -o src/lib/services/model-gen.ts dlt-adapter-api.yaml",
+    "api-generate": "dtsgen -t es2021 -o src/lib/routes/model-gen.ts dlt-adapter-api.yaml",
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc",
     "build-lib": "tsc -p tsconfig.build.json",
@@ -35,8 +25,6 @@
   "license": "TBD",
   "dependencies": {
     "axios": "1.11.0",
-    "graphql": "^16.8.1",
-    "graphql-import-node": "^0.0.5",
     "express": "5.0.0",
     "express-validator": "^6.14.0",
     "express-winston": "^4.2.0",
@@ -55,7 +43,7 @@
     "@typescript-eslint/eslint-plugin": "^5.6.0",
     "@typescript-eslint/parser": "^5.6.0",
     "babel-jest": "^29.2.0",
-    "dtsgenerator": "^3.15.0",
+    "dtsgenerator": "^3.19.2",
     "eslint": "^8.4.1",
     "eslint-config-airbnb-typescript": "^16.1.0",
     "eslint-plugin-import": "^2.25.4",

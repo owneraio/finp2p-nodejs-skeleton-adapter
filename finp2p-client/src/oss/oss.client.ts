@@ -13,7 +13,7 @@ export class OssClient {
 
   authTokenResolver: (() => string) | undefined;
 
-  constructor(ossUrl: string, authTokenResolver: (() => string) | undefined) {
+  constructor(ossUrl: string, authTokenResolver: (() => string) | undefined = undefined) {
     this.ossUrl = ossUrl;
     this.authTokenResolver = authTokenResolver;
   }
