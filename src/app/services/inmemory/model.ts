@@ -1,4 +1,12 @@
-import { Asset, Destination, ExecutionContext, OperationType, Receipt, Source } from '../../../lib/services';
+import {
+  Asset,
+  Destination,
+  ExecutionContext,
+  FinIdAccount,
+  OperationType,
+  Receipt,
+  Source
+} from '../../../lib/services';
 import { v4 as uuid } from 'uuid';
 
 
@@ -6,7 +14,7 @@ export class Transaction {
 
   id: string;
 
-  source?: Source;
+  source?: FinIdAccount;
 
   destination?: Destination;
 
@@ -23,7 +31,7 @@ export class Transaction {
   timestamp: number;
 
   constructor(quantity: string, asset: Asset,
-    source: Source | undefined,
+    source: FinIdAccount | undefined,
     destination: Destination | undefined,
     executionContext: ExecutionContext | undefined,
     operationType: OperationType,

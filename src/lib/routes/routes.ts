@@ -7,7 +7,7 @@ import {
   signatureFromAPI,
   sourceFromAPI,
   receiptOperationToAPI, balanceToAPI, destinationOptFromAPI, operationStatusToAPI, planApprovalOperationToAPI,
-  depositOperationToAPI, signatureOptFromAPI, depositAssetFromAPI, executionContextOptFromAPI,
+  depositOperationToAPI, signatureOptFromAPI, depositAssetFromAPI, executionContextOptFromAPI, finIdAccountFromAPI,
 } from './mapping';
 import {
   CommonService,
@@ -69,13 +69,14 @@ export const register = (app: express.Application,
   );
 
   app.post<{}, LedgerAPI['schemas']['CreateAssetResponse'], LedgerAPI['schemas']['CreateAssetRequest']>(`/${basePath}/assets/create`, async (req, res) => {
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
       const {asset, ledgerAssetBinding} = req.body;
       const {assetId} = assetFromAPI(asset);
       let tokenId: string | undefined = undefined;
       if (ledgerAssetBinding) {
         ({tokenId} = ledgerAssetBinding as LedgerAPI['schemas']['ledgerTokenId']);
       }
-      const result = await tokenService.createAsset(assetId, tokenId);
+      const result = await tokenService.createAsset(idempotencyKey, assetId, tokenId);
       return res.send(createAssetOperationToAPI(result));
     },
   );
@@ -98,20 +99,20 @@ export const register = (app: express.Application,
   );
 
   app.post<{}, LedgerAPI['schemas']['IssueAssetsResponse'], LedgerAPI['schemas']['IssueAssetsRequest']>(`/${basePath}/assets/issue`, async (req, res) => {
-      const {asset, quantity, destination: {finId: issuerFinId}, executionContext} = req.body;
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
+      const {asset, quantity, destination, executionContext} = req.body;
       const receiptOp = await tokenService.issue(
-        assetFromAPI(asset),
-        issuerFinId,
-        quantity,
-        executionContextOptFromAPI(executionContext),
+        idempotencyKey, assetFromAPI(asset), finIdAccountFromAPI(destination), quantity, executionContextOptFromAPI(executionContext),
       );
       res.json(receiptOperationToAPI(receiptOp));
     },
   );
 
   app.post<{}, LedgerAPI['schemas']['TransferAssetResponse'], LedgerAPI['schemas']['TransferAssetRequest']>(`/${basePath}/assets/transfer`, async (req, res) => {
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
       const {nonce, source, destination, asset, quantity, signature, executionContext} = req.body;
       const receiptOp = await tokenService.transfer(
+        idempotencyKey,
         nonce,
         sourceFromAPI(source),
         destinationFromAPI(destination),
@@ -125,10 +126,12 @@ export const register = (app: express.Application,
   );
 
   app.post<{}, LedgerAPI['schemas']['RedeemAssetsResponse'], LedgerAPI['schemas']['RedeemAssetsRequest']>(`/${basePath}/assets/redeem`, async (req, res) => {
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
       const {nonce, source, asset, quantity, operationId, signature, executionContext} = req.body;
       const receiptOp = await tokenService.redeem(
+        idempotencyKey,
         nonce,
-        source,
+        finIdAccountFromAPI(source),
         assetFromAPI(asset),
         quantity,
         operationId,
@@ -148,8 +151,10 @@ export const register = (app: express.Application,
 
 
   app.post<{}, LedgerAPI['schemas']['HoldOperationResponse'], LedgerAPI['schemas']['HoldOperationRequest']>(`/${basePath}/assets/hold`, async (req, res) => {
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
       const {nonce, source, destination, asset, quantity, operationId, signature, executionContext} = req.body;
       const receiptOp = await escrowService.hold(
+        idempotencyKey,
         nonce,
         sourceFromAPI(source),
         destinationOptFromAPI(destination),
@@ -164,8 +169,10 @@ export const register = (app: express.Application,
   );
 
   app.post<{}, LedgerAPI['schemas']['ReleaseOperationResponse'], LedgerAPI['schemas']['ReleaseOperationRequest']>(`/${basePath}/assets/release`, async (req, res) => {
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
       const {destination, asset, quantity, operationId, executionContext} = req.body;
       const receiptOp = await escrowService.release(
+        idempotencyKey,
         destinationFromAPI(destination),
         assetFromAPI(asset),
         quantity,
@@ -177,8 +184,10 @@ export const register = (app: express.Application,
   );
 
   app.post<{}, LedgerAPI['schemas']['RollbackOperationResponse'], LedgerAPI['schemas']['RollbackOperationRequest']>(`/${basePath}/assets/rollback`, async (req, res) => {
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
       const {asset, quantity, operationId, executionContext} = req.body;
       const receiptOp = await escrowService.rollback(
+        idempotencyKey,
         assetFromAPI(asset),
         quantity,
         operationId,
@@ -189,8 +198,10 @@ export const register = (app: express.Application,
   );
 
   app.post<{}, LedgerAPI['schemas']['DepositInstructionResponse'], LedgerAPI['schemas']['DepositInstructionRequest']>(`/${basePath}/payments/depositInstruction/`, async (req, res) => {
-      const {owner, destination, asset, amount, details, nonce, signature } = req.body;
-      const depositOp = await paymentService.deposit(
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
+      const {owner, destination, asset, amount, details, nonce, signature} = req.body;
+      const depositOp = await paymentService.getDepositInstruction(
+        idempotencyKey,
         sourceFromAPI(owner),
         destinationFromAPI(destination),
         depositAssetFromAPI(asset),
@@ -204,20 +215,23 @@ export const register = (app: express.Application,
   );
 
   app.post<{}, LedgerAPI['schemas']['PayoutResponse'], LedgerAPI['schemas']['PayoutRequest']>(`/${basePath}/payments/payout`, async (req, res) => {
+      const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
       const {source, destination, quantity, asset, payoutInstruction, nonce, signature} = req.body;
       let description: string | undefined = undefined;
       if (payoutInstruction) {
         description = payoutInstruction.description;
       }
       const receiptOp = await paymentService.payout(
-        sourceFromAPI(source),
-        destinationOptFromAPI(destination),
-        assetFromAPI(asset),
-        quantity,
-        description,
-        nonce,
-        signatureOptFromAPI(signature),
-      );
+          idempotencyKey,
+          sourceFromAPI(source),
+          destinationOptFromAPI(destination),
+          assetFromAPI(asset),
+          quantity,
+          description,
+          nonce,
+          signatureOptFromAPI(signature),
+        )
+      ;
       res.json(receiptOperationToAPI(receiptOp));
     }
   );

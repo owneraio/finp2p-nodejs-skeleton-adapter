@@ -8,7 +8,8 @@ import {
   ReceiptOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
-  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
+  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
+  FinIdAccount,
 } from '../services';
 import { components } from './model-gen';
 
@@ -53,7 +54,7 @@ export const assetToAPI = (asset: Asset): components['schemas']['asset'] => {
 
 export const sourceFromAPI = (source: components['schemas']['source']): Source => {
   const { finId } = source;
-  return { finId };
+  return { finId, account: { type: 'finId', finId} };
 };
 
 export const sourceOptToAPI = (source: Source | undefined): components['schemas']['source'] | undefined => {
@@ -64,9 +65,23 @@ export const sourceOptToAPI = (source: Source | undefined): components['schemas'
   return { finId, account: { type: 'finId', finId } };
 };
 
+export const destinationAccountFromAPI = (account: components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount']): DestinationAccount => {
+  switch (account.type) {
+    case "finId":
+      const { finId } = account;
+      return { type: 'finId', finId };
+    case "cryptoWallet":
+      const { address } = account;
+      return { type: 'crypto', address };
+    case "fiatAccount":
+      const { code } = account;
+      return { type: 'iban', code };
+  }
+}
+
 export const destinationFromAPI = (destination: components['schemas']['destination']): Destination => {
-  const { finId } = destination;
-  return { finId };
+  const { finId, account } = destination;
+  return { finId, account: destinationAccountFromAPI(account) };
 };
 
 export const destinationOptFromAPI = (destination: components['schemas']['destination'] | undefined): Destination | undefined => {
@@ -76,9 +91,24 @@ export const destinationOptFromAPI = (destination: components['schemas']['destin
   return destinationFromAPI(destination);
 };
 
+export const destinationAccountToAPI = (account: DestinationAccount):
+  components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'] => {
+  switch (account.type) {
+    case "finId":
+      const { finId } = account;
+      return { type: 'finId', finId };
+    case "iban":
+      const { code } = account;
+      return { type: 'fiatAccount', code };
+    case "crypto":
+      const { address } = account;
+      return { type: 'cryptoWallet', address };
+  }
+}
+
 export const destinationToAPI = (destination: Destination): components['schemas']['destination'] => {
-  const { finId } = destination;
-  return { finId, account: { type: 'finId', finId } };
+  const { finId, account } = destination;
+  return { finId, account: destinationAccountToAPI(account) };
 };
 
 export const destinationOptToAPI = (destination: Destination | undefined): components['schemas']['destination'] | undefined => {
@@ -87,6 +117,11 @@ export const destinationOptToAPI = (destination: Destination | undefined): compo
   }
   return destinationToAPI(destination);
 };
+
+export const finIdAccountFromAPI = (account: components['schemas']['finIdAccount']): FinIdAccount => {
+  const { finId } = account;
+  return { type: 'finId', finId }
+}
 
 export const executionContextFromAPI = (ep: components['schemas']['executionContext']): ExecutionContext => {
   const { executionPlanId, instructionSequenceNumber } = ep;
@@ -134,8 +169,6 @@ export const signatureFromAPI = (sg: components['schemas']['signature']): Signat
         signature,
         template: eip712TemplateFromAPI(template),
       } as Signature;
-    default:
-      throw new Error('hashList signature template not supported');
   }
 };
 
@@ -220,9 +253,6 @@ export const createAssetOperationToAPI = (result: AssetCreationStatus): componen
       return {
         isCompleted: false, cid,
       };
-
-    default:
-      throw new Error('Unsupported asset creation status');
   }
 };
 

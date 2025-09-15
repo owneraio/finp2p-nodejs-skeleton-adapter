@@ -1,17 +1,17 @@
 import { v4 as uuid } from 'uuid';
 import { CommonServiceImpl } from './common';
-import { TokenService } from '../../../lib/services';
+import {FinIdAccount, TokenService} from '../../../lib/services';
 import {
   Asset, AssetCreationStatus, Balance, Destination, ExecutionContext, Receipt, ReceiptOperation,
   Signature, Source, successfulAssetCreation,
   successfulReceiptOperation,
 } from '../../../lib/services';
-import { logger } from '../../../lib/helpers/logger';
+import { logger } from '../../../lib/helpers';
 import { Transaction } from './model';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
-  public async createAsset(assetId: string, tokenId: string | undefined): Promise<AssetCreationStatus> {
+  public async createAsset(idempotencyKey: string, assetId: string, tokenId: string | undefined): Promise<AssetCreationStatus> {
     logger.info('Creating asset', assetId);
     if (!tokenId) {
       tokenId = uuid();
@@ -32,8 +32,8 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return this.accountService.getBalance(finId, assetId);
   }
 
-  public async issue(asset: Asset, issuerFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-
+  public async issue(idempotencyKey: string, asset: Asset, source: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+    const { finId: issuerFinId } = source;
     logger.info(`Issuing ${quantity} of ${asset.assetId} to ${issuerFinId}`);
 
     this.accountService.credit(issuerFinId, quantity, asset.assetId);
@@ -43,18 +43,18 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return successfulReceiptOperation(tx.toReceipt());
   }
 
-  public async transfer(nonce: string, source: Source, destination: Destination, asset: Asset,
+  public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
 
     this.accountService.move(source.finId, destination.finId, quantity, asset.assetId);
-    const tx = new Transaction(quantity, asset, source, destination, exCtx, 'transfer', undefined);
+    const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
     this.registerTransaction(tx);
     return successfulReceiptOperation(tx.toReceipt());
   }
 
-  public async redeem(nonce: string, source: Source, asset: Asset, quantity: string, operationId: string | undefined,
+  public async redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
