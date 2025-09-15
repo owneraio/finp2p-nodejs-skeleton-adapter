@@ -109,6 +109,7 @@ export enum Role {
   Seller,
   Borrower,
   Lender,
+  Unknown
 }
 
 export type Investor = {

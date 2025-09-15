@@ -20,7 +20,18 @@ export type AccountInstruction = {
   __typename?: 'AccountInstruction';
   /** Asset type associated with the account */
   asset: AssetDetails;
-  identifier: AccountIdentifier;
+  identifier?: Maybe<AccountIdentifier>;
+};
+
+export enum ActionType {
+  Request = 'request',
+  Send = 'send',
+  Unknown = 'unknown'
+}
+
+export type AdditionalContractDetails = {
+  __typename?: 'AdditionalContractDetails';
+  finP2PEVMOperatorDetails?: Maybe<FinP2PevmOperatorDetails>;
 };
 
 /** Apply an aggregation function on specified Object's field. */
@@ -37,7 +48,7 @@ export enum AggregateFunc {
   Count = 'COUNT',
   Max = 'MAX',
   Min = 'MIN',
-  Sum = 'SUM',
+  Sum = 'SUM'
 }
 
 /** Result of Aggregation function applied on an Object numeric field. */
@@ -53,7 +64,7 @@ export type AggregateResult = {
 export enum ApprovalStatus {
   Approved = 'Approved',
   Rejected = 'Rejected',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 /** Represents an Asset in the network. */
@@ -61,6 +72,8 @@ export type Asset = Profile & {
   __typename?: 'Asset';
   /** Allowed intent types to be used on the asset */
   allowedIntents?: Maybe<Array<IntentTypes>>;
+  /** classification standard used to identify the asset */
+  assetIdentifier?: Maybe<AssetIdentifier>;
   /** Collection of certificates associated with the Profile. */
   certificates: Certificates;
   /** Custom configuration for the Asset. */
@@ -74,15 +87,22 @@ export type Asset = Profile & {
   issuedTokens: TokensBalances;
   /** Issuer profile of the Asset. */
   issuerId: Scalars['String']['output'];
+  /** ledgerAssetInfo information */
+  ledgerAssetInfo?: Maybe<LedgerAssetInfo>;
   /** Profile metadata, contains ACL information of the profile. */
   metadata: ProfileMetadata;
   name: Scalars['String']['output'];
   /** Organization id to whom this profile is associated with. */
   organizationId: Scalars['String']['output'];
+  /** Describe the policies active on the asset */
+  policies?: Maybe<AssetPolicies>;
   /** Regulation Verifiers associated with the Asset. */
   regulationVerifiers?: Maybe<Array<Verifier>>;
+  symbol?: Maybe<Scalars['String']['output']>;
   /** Type of Asset (Share, Debt etc..) */
   type: Scalars['String']['output'];
+  /** asset resource version */
+  version: Scalars['String']['output'];
 };
 
 
@@ -116,6 +136,23 @@ export type AssetConversion = {
 
 export type AssetDetails = Cryptocurrency | FiatAsset | FinP2PAsset;
 
+export type AssetIdentifier = {
+  __typename?: 'AssetIdentifier';
+  type: AssetIdentifierType;
+  value: Scalars['String']['output'];
+};
+
+export enum AssetIdentifierType {
+  Cmu = 'CMU',
+  Cusip = 'CUSIP',
+  Custom = 'CUSTOM',
+  Dti = 'DTI',
+  Figi = 'FIGI',
+  Isin = 'ISIN',
+  Sedol = 'SEDOL',
+  Unspecified = 'UNSPECIFIED'
+}
+
 export type AssetInstruction = {
   __typename?: 'AssetInstruction';
   account: AccountInstruction;
@@ -137,8 +174,13 @@ export enum AssetOrderField {
   /** Assets order by determined by Name field */
   Name = 'NAME',
   /** Assets order by determined by OrganizationId field */
-  Organization = 'ORGANIZATION',
+  Organization = 'ORGANIZATION'
 }
+
+export type AssetPolicies = {
+  __typename?: 'AssetPolicies';
+  proof: ProofPolicy;
+};
 
 export type AssetTerm = {
   __typename?: 'AssetTerm';
@@ -150,7 +192,7 @@ export type AssetTerm = {
 export enum AssetType {
   Cryptocurrency = 'cryptocurrency',
   Fiat = 'fiat',
-  Finp2p = 'finp2p',
+  Finp2p = 'finp2p'
 }
 
 /** Results for asset query. */
@@ -188,7 +230,7 @@ export type BuyingIntent = {
   buyer?: Maybe<Scalars['String']['output']>;
   settlementInstruction: BuyingSettlementInstruction;
   /** Settlement term */
-  settlementTerm: SettlementTerm;
+  settlementTerm?: Maybe<SettlementTerm>;
   signaturePolicy: BuyingSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
@@ -232,7 +274,7 @@ export type CertificateOrder = {
 
 export enum CertificateOrderField {
   /** certificates order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for certificates query. */
@@ -251,12 +293,22 @@ export type CloseAmountRate = {
   repaymentVolume: Scalars['String']['output'];
 };
 
+export type ContractDetails = {
+  __typename?: 'ContractDetails';
+  additionalContractDetails?: Maybe<AdditionalContractDetails>;
+  address: Scalars['String']['output'];
+  network: Scalars['String']['output'];
+  tokenStandard?: Maybe<Scalars['String']['output']>;
+};
+
 export type ConvertibleAsset = {
   __typename?: 'ConvertibleAsset';
   /** ISO-4217 code of the fiat currency or other common codes like BTC for cryptocurrencies */
   code?: Maybe<Scalars['String']['output']>;
   /** List of available conversions */
   conversions?: Maybe<Array<Maybe<AssetConversion>>>;
+  /** Describe the policies active on the asset */
+  policies?: Maybe<AssetPolicies>;
   /** Type of the asset */
   type?: Maybe<AssetType>;
 };
@@ -277,7 +329,7 @@ export type Cryptocurrency = {
 
 export type Custodian = {
   __typename?: 'Custodian';
-  orgId?: Maybe<Scalars['String']['output']>;
+  orgId: Scalars['String']['output'];
 };
 
 export type Delivered = {
@@ -304,6 +356,11 @@ export type Documents = {
   nodes?: Maybe<Array<Document>>;
 };
 
+export type Eip712Template = {
+  __typename?: 'EIP712Template';
+  hash: Scalars['String']['output'];
+};
+
 export type ErrorState = {
   __typename?: 'ErrorState';
   code: Scalars['Int']['output'];
@@ -317,6 +374,8 @@ export type Escrow = {
   orgId: Scalars['String']['output'];
   /** Payment Asset */
   paymentAsset: PaymentAsset;
+  /** Payment asset resource id */
+  paymentAssetId: Scalars['String']['output'];
 };
 
 export type Escrows = {
@@ -369,6 +428,7 @@ export type ExecutionPlanInstruction = {
   sequence: Scalars['Int']['output'];
   state: InstructionCompletionState;
   status: ExecutionPlanInstructionStatus;
+  transitions: InstructionTransition;
 };
 
 
@@ -378,10 +438,12 @@ export type ExecutionPlanInstructionApprovalsArgs = {
 
 export enum ExecutionPlanInstructionStatus {
   Approved = 'Approved',
+  Cancelled = 'Cancelled',
   Completed = 'Completed',
   Failed = 'Failed',
   Pending = 'Pending',
-  Unknown = 'Unknown',
+  Rejected = 'Rejected',
+  Unknown = 'Unknown'
 }
 
 export type ExecutionPlanInstructions = {
@@ -397,18 +459,19 @@ export type ExecutionPlanOrder = {
 export enum ExecutionPlanOrderField {
   CreationTimestamp = 'CREATION_TIMESTAMP',
   /** plan order by PlanId field */
-  PlanId = 'PLAN_ID',
+  PlanId = 'PLAN_ID'
 }
 
 export enum ExecutionPlanStatus {
   Approved = 'Approved',
+  Cancelled = 'Cancelled',
   Completed = 'Completed',
   Failed = 'Failed',
   Halted = 'Halted',
   InProgress = 'InProgress',
   Pending = 'Pending',
   Rejected = 'Rejected',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 export type ExecutionsPlans = {
@@ -422,6 +485,13 @@ export type FiatAsset = {
   __typename?: 'FiatAsset';
   /** ISO-4217 code of the fiat currency */
   code: Scalars['String']['output'];
+};
+
+export type Field = {
+  __typename?: 'Field';
+  name: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  value: Scalars['String']['output'];
 };
 
 /**
@@ -452,10 +522,30 @@ export type FinP2PAsset = {
 
 export type FinP2PAssetAccount = {
   __typename?: 'FinP2PAssetAccount';
+  /** custodian for the finId */
+  custodian?: Maybe<Custodian>;
   /** FinId -- a user's public key represented as a hexadecimal string, associated with a user on the FinP2P network */
   finId: Scalars['String']['output'];
   /** organization id of the Asset's source ledger, the Asset's organization */
   orgId: Scalars['String']['output'];
+};
+
+export type FinP2PevmOperatorDetails = {
+  __typename?: 'FinP2PEVMOperatorDetails';
+  allowanceRequired: Scalars['Boolean']['output'];
+  finP2POperatorContractAddress: Scalars['String']['output'];
+};
+
+export type HashGroup = {
+  __typename?: 'HashGroup';
+  fields: Array<Field>;
+  hash: Scalars['String']['output'];
+};
+
+export type HashlistTemplate = {
+  __typename?: 'HashlistTemplate';
+  hash: Scalars['String']['output'];
+  hashGroups: Array<HashGroup>;
 };
 
 export type HoldInstruction = {
@@ -465,7 +555,7 @@ export type HoldInstruction = {
   /** resource id of the destination user */
   destination: Scalars['String']['output'];
   /** destination account information */
-  destinationAccount: AccountInstruction;
+  destinationAccount?: Maybe<AccountInstruction>;
   /** resource id of the source user */
   source: Scalars['String']['output'];
   /** source account information */
@@ -479,8 +569,22 @@ export type Holding = {
   assetType: AssetType;
   availableBalance: Scalars['String']['output'];
   balance: Scalars['String']['output'];
+  balanceTimestamp: Scalars['Int']['output'];
+  syncedAvailableBalance: Scalars['String']['output'];
+  syncedBalance: Scalars['String']['output'];
+  syncedHeldBalance: Scalars['String']['output'];
   withheldBalance: Scalars['String']['output'];
 };
+
+/** Fields to subscribe on */
+export enum HoldingFields {
+  AvailableBalance = 'AvailableBalance',
+  Balance = 'Balance',
+  SyncedAvailableBalance = 'SyncedAvailableBalance',
+  SyncedBalance = 'SyncedBalance',
+  SyncedHeldBalance = 'SyncedHeldBalance',
+  WithheldBalance = 'WithheldBalance'
+}
 
 export type Holdings = {
   __typename?: 'Holdings';
@@ -520,7 +624,14 @@ export type InstructionApprovals = {
 
 export type InstructionCompletionState = ErrorState | SuccessState | UnknownState;
 
-export type InstructionDetails = AwaitInstruction | HoldInstruction | IssueInstruction | ReleaseInstruction | RevertHoldInstruction | TransferInstruction;
+export type InstructionDetails = AwaitInstruction | HoldInstruction | IssueInstruction | RedeemInstruction | ReleaseInstruction | RevertHoldInstruction | TransferInstruction;
+
+export type InstructionTransition = {
+  __typename?: 'InstructionTransition';
+  onFailure?: Maybe<Transition>;
+  onSuccess?: Maybe<Transition>;
+  onTimeout?: Maybe<Transition>;
+};
 
 /** Represent an Asset's Transaction Intent occasion in which the Asset's tokens are issued. */
 export type Intent = {
@@ -530,6 +641,8 @@ export type Intent = {
   id: Scalars['String']['output'];
   /** Intent data */
   intent?: Maybe<IntentDetails>;
+  /** Profile metadata, contains ACL information of the profile. */
+  metadata: ProfileMetadata;
   /** Remaining quantity in the transaction. */
   remainingQuantity: Scalars['String']['output'];
   /** Start time of the intent. */
@@ -538,21 +651,28 @@ export type Intent = {
   status: IntentStatus;
   /** Intent type: primary sale, buying or selling intent */
   type: Scalars['String']['output'];
+  /** intent resource version */
+  version: Scalars['String']['output'];
 };
 
-export type IntentDetails = BuyingIntent | LoanIntent | PrimarySale | SellingIntent;
+export type IntentDetails = BuyingIntent | LoanIntent | PrimarySale | PrivateOfferIntent | RedemptionIntent | RequestForTransferIntent | SellingIntent;
 
 export enum IntentStatus {
   Active = 'ACTIVE',
   Cancelled = 'CANCELLED',
+  Completed = 'COMPLETED',
+  Expired = 'EXPIRED',
   NonActive = 'NON_ACTIVE',
+  Rejected = 'REJECTED'
 }
 
 export enum IntentTypes {
   Buying = 'BUYING',
   Loan = 'LOAN',
   PrimarySale = 'PRIMARY_SALE',
-  Selling = 'SELLING',
+  PrivateOffer = 'PRIVATE_OFFER',
+  RequestForTransfer = 'REQUEST_FOR_TRANSFER',
+  Selling = 'SELLING'
 }
 
 /** Results for itents query. */
@@ -614,7 +734,7 @@ export type IssuerOrder = {
 
 export enum IssuerOrderField {
   /** issuers order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for issuers query. */
@@ -625,6 +745,14 @@ export type Issuers = {
   /** Keeps pagination info in-case limit input wes provided */
   pageInfo?: Maybe<PageInfo>;
 };
+
+export type LedgerAssetInfo = {
+  __typename?: 'LedgerAssetInfo';
+  ledgerReference?: Maybe<LedgerReference>;
+  tokenId: Scalars['String']['output'];
+};
+
+export type LedgerReference = ContractDetails;
 
 export type LoanAssetInstruction = {
   __typename?: 'LoanAssetInstruction';
@@ -655,7 +783,7 @@ export type LoanIntent = {
   /** Signature policy type */
   loanSettlementInstruction: LoanSettlementInstruction;
   /** Settlement term */
-  settlementTerm: SettlementTerm;
+  settlementTerm?: Maybe<SettlementTerm>;
   signaturePolicy: LoanSignaturePolicy;
   signaturePolicyType: SignaturePolicyType;
 };
@@ -700,6 +828,16 @@ export type Messages = {
   nodes?: Maybe<Array<Message>>;
 };
 
+export type NoProof = {
+  __typename?: 'NoProof';
+  _ignore?: Maybe<Scalars['Boolean']['output']>;
+};
+
+export type NoProofPolicy = {
+  __typename?: 'NoProofPolicy';
+  _ignore?: Maybe<Scalars['Boolean']['output']>;
+};
+
 export type NotDelivered = {
   __typename?: 'NotDelivered';
   status: Scalars['String']['output'];
@@ -711,7 +849,7 @@ export enum OperationType {
   Redeem = 'Redeem',
   Release = 'Release',
   Transfer = 'Transfer',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 /** Operators available to be used  */
@@ -733,7 +871,7 @@ export enum Operator {
   /** Not Equals */
   Neq = 'NEQ',
   /** Not In */
-  Nin = 'NIN',
+  Nin = 'NIN'
 }
 
 /** Organization's information. */
@@ -783,7 +921,7 @@ export type OrganizationOrder = {
 
 export enum OrganizationOrderField {
   /** organizations order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for Organization query. */
@@ -843,6 +981,10 @@ export type PaymentAsset = {
   assets?: Maybe<Array<Maybe<ConvertibleAsset>>>;
   /** PaymentAsset id */
   id?: Maybe<Scalars['String']['output']>;
+  /** payment asset orgID */
+  orgId: Scalars['String']['output'];
+  /** payment asset resource version */
+  version: Scalars['String']['output'];
 };
 
 export type PendingDelivery = {
@@ -875,7 +1017,7 @@ export type PlanApprovals = {
 
 /** Fields to subscribe on */
 export enum PlanField {
-  Status = 'Status',
+  Status = 'Status'
 }
 
 export type PresignedBuyingIntentSignaturePolicy = {
@@ -885,6 +1027,21 @@ export type PresignedBuyingIntentSignaturePolicy = {
 
 export type PresignedLoanIntentSignaturePolicy = {
   __typename?: 'PresignedLoanIntentSignaturePolicy';
+  _ignore?: Maybe<Scalars['Boolean']['output']>;
+};
+
+export type PresignedPrivateOfferIntentSignaturePolicy = {
+  __typename?: 'PresignedPrivateOfferIntentSignaturePolicy';
+  _ignore?: Maybe<Scalars['Boolean']['output']>;
+};
+
+export type PresignedRedemptionIntentSignaturePolicy = {
+  __typename?: 'PresignedRedemptionIntentSignaturePolicy';
+  _ignore?: Maybe<Scalars['Boolean']['output']>;
+};
+
+export type PresignedRequestForTransferIntentSignaturePolicy = {
+  __typename?: 'PresignedRequestForTransferIntentSignaturePolicy';
   _ignore?: Maybe<Scalars['Boolean']['output']>;
 };
 
@@ -903,8 +1060,28 @@ export type PrimarySale = {
   issuerId: Scalars['String']['output'];
   sellingSettlementInstruction: SellingSettlementInstruction;
   /** Settlement term */
-  settlementTerm: SettlementTerm;
+  settlementTerm?: Maybe<SettlementTerm>;
 };
+
+export type PrivateOfferIntent = {
+  __typename?: 'PrivateOfferIntent';
+  /** Asset instruction specifies the asset source of destination account of the intent */
+  assetInstruction: AssetInstruction;
+  /** Asset term specifies the asset information and amount of the intent */
+  assetTerm: AssetTerm;
+  /** resource id of the buyer */
+  buyer?: Maybe<Scalars['String']['output']>;
+  /** resource id of the seller */
+  seller?: Maybe<Scalars['String']['output']>;
+  sellingSettlementInstruction: SellingSettlementInstruction;
+  /** Settlement term */
+  settlementTerm?: Maybe<SettlementTerm>;
+  signaturePolicy: PrivateOfferSignaturePolicy;
+  /** Signature policy type */
+  signaturePolicyType: SignaturePolicyType;
+};
+
+export type PrivateOfferSignaturePolicy = ManualIntentSignaturePolicy | PresignedPrivateOfferIntentSignaturePolicy;
 
 /** Profile interface. */
 export type Profile = {
@@ -930,6 +1107,10 @@ export type ProfileMetadata = {
   acl?: Maybe<Array<Scalars['String']['output']>>;
 };
 
+export type Proof = NoProof | SignatureProof;
+
+export type ProofPolicy = NoProofPolicy | SignatureProofPolicy;
+
 /** The query root of Ownera's GraphQL interface. */
 export type Query = {
   __typename?: 'Query';
@@ -949,6 +1130,8 @@ export type Query = {
   receipts: Receipts;
   /** Look up Users, Optional provide Filter or Aggregate. */
   users: Users;
+  /** Look up Workflows, Optional provide Filter. */
+  workflows: Workflows;
 };
 
 
@@ -1012,6 +1195,14 @@ export type QueryUsersArgs = {
   paginate?: InputMaybe<PaginateInput>;
 };
 
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryWorkflowsArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<WorkflowOrder>;
+  paginate?: InputMaybe<PaginateInput>;
+};
+
 export type Receipt = {
   __typename?: 'Receipt';
   /** Asset type related to holding updated */
@@ -1025,12 +1216,16 @@ export type Receipt = {
   operationId?: Maybe<Scalars['String']['output']>;
   /** Operation type */
   operationType?: Maybe<OperationType>;
+  /** Ledger proof */
+  proof?: Maybe<Proof>;
   /** Number of asset units with the transaction */
   quantity: Scalars['String']['output'];
   /** User  related to source of transaction */
   source: User;
   /** Account related to source of transaction */
   sourceAccount?: Maybe<AccountIdentifier>;
+  /** Receipt status */
+  status: ReceiptStatus;
   /** Receipt timestamp */
   timestamp: Scalars['String']['output'];
   /** Trade details associated with the transaction */
@@ -1046,13 +1241,19 @@ export type ReceiptOrder = {
 
 export enum ReceiptOrderField {
   /** receipt order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 export type ReceiptState = {
   __typename?: 'ReceiptState';
   receipt: Receipt;
 };
+
+export enum ReceiptStatus {
+  Invalid = 'Invalid',
+  Unknown = 'Unknown',
+  Valid = 'Valid'
+}
 
 /** Results for receipts query. */
 export type Receipts = {
@@ -1064,6 +1265,45 @@ export type Receipts = {
 };
 
 export type Recipient = Investor;
+
+export type RedeemInstruction = {
+  __typename?: 'RedeemInstruction';
+  /** asset's release amount */
+  amount: Scalars['String']['output'];
+  /** source account information */
+  sourceAccount: AccountInstruction;
+};
+
+export type RedemptionConditions = {
+  __typename?: 'RedemptionConditions';
+  redemptionDuration: Scalars['String']['output'];
+};
+
+export type RedemptionIntent = {
+  __typename?: 'RedemptionIntent';
+  /** Asset term specifies the asset information and amount of the intent */
+  assetTerm: AssetTerm;
+  /** Intent conditions */
+  conditions: RedemptionConditions;
+  /** Issuer id */
+  issuerId: Scalars['String']['output'];
+  /** Asset instruction specifies the asset source of destination account of the intent */
+  redeemAssetInstruction?: Maybe<AssetInstruction>;
+  /** Specify settlement accounts */
+  redemptionSettlementInstruction?: Maybe<RedemptionSettlementInstruction>;
+  /** Settlement term */
+  settlementTerm?: Maybe<SettlementTerm>;
+  signaturePolicy: RedemptionSignaturePolicy;
+  /** Signature policy type */
+  signaturePolicyType: SignaturePolicyType;
+};
+
+export type RedemptionSettlementInstruction = {
+  __typename?: 'RedemptionSettlementInstruction';
+  accounts?: Maybe<Array<AccountInstruction>>;
+};
+
+export type RedemptionSignaturePolicy = ManualIntentSignaturePolicy | PresignedRedemptionIntentSignaturePolicy;
 
 export type ReleaseInstruction = {
   __typename?: 'ReleaseInstruction';
@@ -1081,6 +1321,25 @@ export type RepaymentTerm = {
   repaymentVolume: Scalars['String']['output'];
 };
 
+export type RequestForTransferIntent = {
+  __typename?: 'RequestForTransferIntent';
+  /** Action type of the intent */
+  actionType: ActionType;
+  /** Asset instruction specifies the asset source of destination account of the intent */
+  assetInstruction: AssetInstruction;
+  /** Asset term specifies the asset information and amount of the intent */
+  assetTerm: AssetTerm;
+  /** resource id of the creditor */
+  creditor?: Maybe<Scalars['String']['output']>;
+  /** resource id of the debitor */
+  debitor?: Maybe<Scalars['String']['output']>;
+  signaturePolicy: RequestForTransferSignaturePolicy;
+  /** Signature policy type */
+  signaturePolicyType: SignaturePolicyType;
+};
+
+export type RequestForTransferSignaturePolicy = ManualIntentSignaturePolicy | PresignedRequestForTransferIntentSignaturePolicy;
+
 export type RevertHoldInstruction = {
   __typename?: 'RevertHoldInstruction';
   /** destination account information */
@@ -1097,7 +1356,7 @@ export type SellingIntent = {
   seller?: Maybe<Scalars['String']['output']>;
   sellingSettlementInstruction: SellingSettlementInstruction;
   /** Settlement term */
-  settlementTerm: SettlementTerm;
+  settlementTerm?: Maybe<SettlementTerm>;
   signaturePolicy: SellingSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
@@ -1109,6 +1368,11 @@ export type SellingSettlementInstruction = {
 };
 
 export type SellingSignaturePolicy = ManualIntentSignaturePolicy | PresignedSellingIntentSignaturePolicy;
+
+export type SequenceTransition = {
+  __typename?: 'SequenceTransition';
+  sequence: Scalars['Int']['output'];
+};
 
 export type SettlementInstruction = {
   __typename?: 'SettlementInstruction';
@@ -1123,26 +1387,63 @@ export type SettlementTerm = {
   unitValue: Scalars['String']['output'];
 };
 
+export type Signature = {
+  __typename?: 'Signature';
+  hashFunction: Scalars['String']['output'];
+  signature: Scalars['String']['output'];
+  template: Template;
+  templateType: TemplateType;
+};
+
 export enum SignaturePolicyType {
   ManualPolicy = 'ManualPolicy',
-  PresignedPolicy = 'PresignedPolicy',
+  PresignedPolicy = 'PresignedPolicy'
+}
+
+export type SignatureProof = {
+  __typename?: 'SignatureProof';
+  signature: Signature;
+};
+
+export type SignatureProofPolicy = {
+  __typename?: 'SignatureProofPolicy';
+  signatureTemplate: SignatureTemplate;
+  verifyingKey: Scalars['String']['output'];
+};
+
+export enum SignatureTemplate {
+  Eip712 = 'EIP712',
+  HashList = 'HashList',
+  Unknown = 'Unknown'
 }
 
 export enum SortOrder {
   Asc = 'ASC',
-  Desc = 'DESC',
+  Desc = 'DESC'
 }
+
+export type StatusTransition = {
+  __typename?: 'StatusTransition';
+  status: ExecutionPlanStatus;
+};
 
 export type Subscription = {
   __typename?: 'Subscription';
   planAdded: ExecutionPlan;
   plansChangedBy: ExecutionPlan;
   receiptAdded: Receipt;
+  userHoldingAdded: User;
+  userHoldingChanged: User;
 };
 
 
 export type SubscriptionPlansChangedByArgs = {
   fieldNames: Array<PlanField>;
+};
+
+
+export type SubscriptionUserHoldingChangedArgs = {
+  fieldNames: Array<HoldingFields>;
 };
 
 export type SuccessState = {
@@ -1151,6 +1452,8 @@ export type SuccessState = {
 };
 
 export type SuccessStateOutput = Receipt;
+
+export type Template = Eip712Template | HashlistTemplate;
 
 /** Represents an Asset token balance information. */
 export type TokenBalance = {
@@ -1199,6 +1502,8 @@ export type TransferInstruction = {
   sourceAccount: AccountInstruction;
 };
 
+export type Transition = SequenceTransition | StatusTransition;
+
 export type UnknownState = {
   __typename?: 'UnknownState';
   _ignore?: Maybe<Scalars['Boolean']['output']>;
@@ -1221,6 +1526,8 @@ export type User = Profile & {
   name: Scalars['String']['output'];
   /** Organization id to whom this profile is associated with. */
   organizationId: Scalars['String']['output'];
+  /** user resource version */
+  version: Scalars['String']['output'];
 };
 
 
@@ -1256,7 +1563,7 @@ export type UserOrder = {
 
 export enum UserOrderField {
   /** users order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for asset query. */
@@ -1279,3 +1586,57 @@ export type Verifier = {
   /** Provider type: REG_APP_STORE, OTHER */
   provider?: Maybe<Scalars['String']['output']>;
 };
+
+export type Workflow = {
+  __typename?: 'Workflow';
+  /** the time workflow expires */
+  expires: Scalars['Int']['output'];
+  /** Id of the workflow */
+  id: Scalars['String']['output'];
+  /** metadata of the workflow */
+  metadata: WorkflowMetadata;
+  /** Name of the workflow */
+  name: Scalars['String']['output'];
+  /** Current status of the workflow */
+  status: Scalars['String']['output'];
+  /** Current transition id of the workflow */
+  transitionId: Scalars['String']['output'];
+  /** version of the workflow */
+  version: Scalars['Int']['output'];
+};
+
+export type WorkflowMetadata = {
+  __typename?: 'WorkflowMetadata';
+  correlationIds?: Maybe<Array<Scalars['String']['output']>>;
+  currentStateRetry: Scalars['Int']['output'];
+  referenceId: Scalars['String']['output'];
+  referenceType: Scalars['String']['output'];
+  retry: Scalars['Int']['output'];
+  traceId: Scalars['String']['output'];
+  /** TTL of the workflow */
+  ttl: Scalars['Int']['output'];
+};
+
+export type WorkflowOrder = {
+  direction?: InputMaybe<SortOrder>;
+  field?: InputMaybe<WorkflowOrderField>;
+};
+
+export enum WorkflowOrderField {
+  /** workflow order */
+  Name = 'NAME',
+  ReferenceId = 'REFERENCE_ID',
+  Status = 'STATUS'
+}
+
+export type Workflows = {
+  __typename?: 'Workflows';
+  nodes?: Maybe<Array<Workflow>>;
+  /** Keeps pagination info in-case limit input wes provided */
+  pageInfo?: Maybe<PageInfo>;
+};
+
+export enum TemplateType {
+  Eip712Template = 'EIP712Template',
+  HashListTemplate = 'HashListTemplate'
+}
