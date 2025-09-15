@@ -68,7 +68,6 @@ export const register = (app: express.Application,
     },
   );
 
-  /* POST create asset. */
   app.post<{}, LedgerAPI['schemas']['CreateAssetResponse'], LedgerAPI['schemas']['CreateAssetRequest']>(`/${basePath}/assets/create`, async (req, res) => {
       const {asset, ledgerAssetBinding} = req.body;
       const {assetId} = assetFromAPI(asset);
@@ -81,7 +80,6 @@ export const register = (app: express.Application,
     },
   );
 
-  /* Get token balance. */
   app.post<{}, LedgerAPI['schemas']['GetAssetBalanceResponse'], LedgerAPI['schemas']['GetAssetBalanceRequest']>(`/${basePath}/assets/getBalance`, async (req, res) => {
       const {asset, owner: {finId}} = req.body;
       const {assetId} = assetFromAPI(asset);
@@ -90,7 +88,6 @@ export const register = (app: express.Application,
     },
   );
 
-  /* Get token balance. */
   app.post<{}, LedgerAPI['schemas']['AssetBalanceInfoResponse'], LedgerAPI['schemas']['AssetBalanceInfoRequest']>(`/${basePath}/asset/balance`, async (req, res) => {
       const {asset, account} = req.body;
       const {assetId} = assetFromAPI(asset);
@@ -100,7 +97,6 @@ export const register = (app: express.Application,
     },
   );
 
-  /* POST issue a token for a user. */
   app.post<{}, LedgerAPI['schemas']['IssueAssetsResponse'], LedgerAPI['schemas']['IssueAssetsRequest']>(`/${basePath}/assets/issue`, async (req, res) => {
       const {asset, quantity, destination: {finId: issuerFinId}, executionContext} = req.body;
       const receiptOp = await tokenService.issue(
@@ -113,7 +109,6 @@ export const register = (app: express.Application,
     },
   );
 
-  /* POST transfer token. */
   app.post<{}, LedgerAPI['schemas']['TransferAssetResponse'], LedgerAPI['schemas']['TransferAssetRequest']>(`/${basePath}/assets/transfer`, async (req, res) => {
       const {nonce, source, destination, asset, quantity, signature, executionContext} = req.body;
       const receiptOp = await tokenService.transfer(
@@ -129,7 +124,6 @@ export const register = (app: express.Application,
     },
   );
 
-  /* POST redeem token. */
   app.post<{}, LedgerAPI['schemas']['RedeemAssetsResponse'], LedgerAPI['schemas']['RedeemAssetsRequest']>(`/${basePath}/assets/redeem`, async (req, res) => {
       const {nonce, source, asset, quantity, operationId, signature, executionContext} = req.body;
       const receiptOp = await tokenService.redeem(
@@ -153,7 +147,6 @@ export const register = (app: express.Application,
   );
 
 
-  /* POST hold token. */
   app.post<{}, LedgerAPI['schemas']['HoldOperationResponse'], LedgerAPI['schemas']['HoldOperationRequest']>(`/${basePath}/assets/hold`, async (req, res) => {
       const {nonce, source, destination, asset, quantity, operationId, signature, executionContext} = req.body;
       const receiptOp = await escrowService.hold(
@@ -170,7 +163,6 @@ export const register = (app: express.Application,
     }
   );
 
-  /* POST release token. */
   app.post<{}, LedgerAPI['schemas']['ReleaseOperationResponse'], LedgerAPI['schemas']['ReleaseOperationRequest']>(`/${basePath}/assets/release`, async (req, res) => {
       const {destination, asset, quantity, operationId, executionContext} = req.body;
       const receiptOp = await escrowService.release(
@@ -184,7 +176,6 @@ export const register = (app: express.Application,
     }
   );
 
-  /* POST rollback token. */
   app.post<{}, LedgerAPI['schemas']['RollbackOperationResponse'], LedgerAPI['schemas']['RollbackOperationRequest']>(`/${basePath}/assets/rollback`, async (req, res) => {
       const {asset, quantity, operationId, executionContext} = req.body;
       const receiptOp = await escrowService.rollback(
@@ -197,17 +188,8 @@ export const register = (app: express.Application,
     }
   );
 
-  /* POST get deposit instruction. */
   app.post<{}, LedgerAPI['schemas']['DepositInstructionResponse'], LedgerAPI['schemas']['DepositInstructionRequest']>(`/${basePath}/payments/depositInstruction/`, async (req, res) => {
-      const {
-        owner,
-        destination,
-        asset,
-        amount,
-        details,
-        nonce,
-        signature,
-      } = req.body;
+      const {owner, destination, asset, amount, details, nonce, signature } = req.body;
       const depositOp = await paymentService.deposit(
         sourceFromAPI(owner),
         destinationFromAPI(destination),
@@ -221,7 +203,6 @@ export const register = (app: express.Application,
     }
   );
 
-  /* POST payout funds. */
   app.post<{}, LedgerAPI['schemas']['PayoutResponse'], LedgerAPI['schemas']['PayoutRequest']>(`/${basePath}/payments/payout`, async (req, res) => {
       const {source, destination, quantity, asset, payoutInstruction, nonce, signature} = req.body;
       let description: string | undefined = undefined;
@@ -241,7 +222,6 @@ export const register = (app: express.Application,
     }
   );
 
-  /* POST operation status. */
   app.get<LedgerOperations['getOperation']['parameters']['path'], LedgerAPI['schemas']['GetOperationStatusResponse'], {}>(`/${basePath}/operations/status/:cid`, async (req, res) => {
       const status = await commonService.operationStatus(req.params.cid);
       res.json(operationStatusToAPI(status));
