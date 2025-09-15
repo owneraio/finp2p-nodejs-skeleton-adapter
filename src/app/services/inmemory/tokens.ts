@@ -1,26 +1,26 @@
-import {v4 as uuid} from 'uuid';
-import {CommonServiceImpl} from './common';
+import { v4 as uuid } from 'uuid';
+import { CommonServiceImpl } from './common';
 import {
   AssetBind,
   AssetDenomination,
   AssetIdentifier,
   FinIdAccount,
   finIdDestination,
-  TokenService
+  TokenService,
 } from '../../../lib/services';
 import {
   Asset, AssetCreationStatus, Balance, Destination, ExecutionContext, ReceiptOperation,
   Signature, Source, successfulAssetCreation,
   successfulReceiptOperation,
 } from '../../../lib/services';
-import {logger} from '../../../lib/helpers';
-import {Transaction} from './model';
+import { logger } from '../../../lib/helpers';
+import { Transaction } from './model';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
   public async createAsset(idempotencyKey: string, asset: Asset,
-                           assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-                           assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
+    assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
+    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
     logger.info(`Creating asset ${asset.assetId}`, {
       idempotencyKey,
       assetBind,
@@ -28,13 +28,13 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       assetName,
       issuerId,
       assetDenomination,
-      assetIdentifier
+      assetIdentifier,
     });
-    let tokenId: string
+    let tokenId: string;
     if (!assetBind || !assetBind.tokenIdentifier) {
       tokenId = uuid();
     } else {
-      ({tokenIdentifier: {tokenId}} = assetBind);
+      ({ tokenIdentifier: { tokenId } } = assetBind);
     }
     return successfulAssetCreation({ tokenId, reference: undefined });
   }
@@ -53,7 +53,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-    const {finId} = to;
+    const { finId } = to;
     logger.info(`Issuing ${quantity} of ${asset.assetId} to ${finId}`);
 
     this.accountService.credit(finId, quantity, asset.assetId);
@@ -63,7 +63,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
-                        quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+    quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
 
@@ -74,7 +74,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
-                      signature: Signature, exCtx: ExecutionContext | undefined,
+    signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
 

@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, DepositOperation, DepositAsset, FinIdAccount,
-  AssetBind, AssetDenomination, AssetIdentifier
+  AssetBind, AssetDenomination, AssetIdentifier,
 } from './model';
 
 
@@ -26,8 +26,8 @@ export interface CommonService {
 export interface TokenService {
 
   createAsset(idempotencyKey: string, asset: Asset,
-              assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-              assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
+    assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
+    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
 
   getBalance(assetId: string, finId: string): Promise<string>;
 
@@ -60,8 +60,8 @@ export interface EscrowService {
 
 export interface PaymentService {
   getDepositInstruction(idempotencyKey: string, owner: Source, destination: Destination, asset: DepositAsset, amount: string | undefined,
-                        details: any | undefined,
-                        nonce: string | undefined, signature: Signature | undefined): Promise<DepositOperation>
+    details: any | undefined,
+    nonce: string | undefined, signature: Signature | undefined): Promise<DepositOperation>
 
   payout(idempotencyKey: string, source: Source, destination: Destination | undefined, asset: Asset, quantity: string,
     description: string | undefined, nonce: string | undefined,

@@ -5,7 +5,7 @@ import {
   FinIdAccount,
   OperationType,
   Receipt,
-  Source
+  Source,
 } from '../../../lib/services';
 import { v4 as uuid } from 'uuid';
 

@@ -7,8 +7,8 @@ import { TokenServiceImpl } from './services/inmemory/tokens';
 import { EscrowServiceImpl } from './services/inmemory/escrow';
 import { PaymentsServiceImpl } from './services/inmemory/payments';
 import { AccountService } from './services/inmemory/accounts';
-import {PlanApprovalServiceImpl} from "../lib/services/plan/service";
-import {FinP2PClient} from "../../finp2p-client/src";
+import { PlanApprovalServiceImpl } from '../lib/services/plan/service';
+import { FinP2PClient } from '../../finp2p-client/src';
 
 function configureLogging(app: Application) {
   app.use(

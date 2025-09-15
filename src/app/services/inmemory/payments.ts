@@ -14,7 +14,7 @@ import {
 export class PaymentsServiceImpl implements PaymentService {
 
   public async getDepositInstruction(idempotencyKey: string, owner: Source, destination: Destination, asset: DepositAsset, amount: string | undefined, details: any | undefined,
-                                     nonce: string | unknown, signature: Signature): Promise<DepositOperation> {
+    nonce: string | unknown, signature: Signature): Promise<DepositOperation> {
     return successfulDepositOperation({
       account: destination,
       description: 'IBAN GB33BUKB20201555555555',
