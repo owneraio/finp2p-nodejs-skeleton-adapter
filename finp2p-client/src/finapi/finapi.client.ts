@@ -1,88 +1,94 @@
-import CreateAssetProfile = FinAPIPaths.CreateAssetProfile;
-import ShareProfile = FinAPIPaths.ShareProfile;
-import OperationBase = FinAPIComponents.Schemas.OperationBase;
-import IntentType = FinAPIComponents.Schemas.IntentType;
-import * as axios from 'axios';
-import ResourceIdResponse = FinAPIComponents.Schemas.ResourceIdResponse;
-import AssetMetadataAndConfigError = FinAPIComponents.Schemas.AssetMetadataAndConfigError;
-import GeneralClientError = FinAPIComponents.Schemas.GeneralClientError;
+import createClient, {Client} from "openapi-fetch";
+import {components as FinAPIComponents, paths as FinAPIPaths} from "./model-gen";
+import {components as OpComponents, paths as OpPaths} from "./op-model-gen";
 
 export class FinAPIClient {
 
   finP2PUrl: string;
-
   authTokenResolver: (() => string) | undefined;
+  apiClient: Client<FinAPIPaths>
+  opClient: Client<OpPaths>
 
   constructor(finP2PUrl: string, authTokenResolver: (() => string) | undefined = undefined) {
     this.finP2PUrl = finP2PUrl;
     this.authTokenResolver = authTokenResolver;
+    this.apiClient = createClient<FinAPIPaths>({baseUrl: finP2PUrl});
+    this.opClient = createClient<OpPaths>({baseUrl: finP2PUrl});
   }
 
-  async createAsset(name: string, type: string, issuerId: string, currency: string, currencyType: 'fiat' | 'cryptocurrency', intentTypes: IntentType[], metadata: any) {
-    return this.post<CreateAssetProfile.RequestBody, FinAPIComponents.Schemas.ResourceIdResponse | OperationBase | FinAPIComponents.Schemas.ApiAnyError>(
-      '/profiles/asset', {
-        metadata,
-        intentTypes,
-        name,
-        type,
-        issuerId,
-        denomination: {
-          type: currencyType,
-          code: currency,
-        },
-        // ledgerAssetBinding: {
-        //   type: "tokenId",
-        //   tokenId
-        // },
-        assetPolicies: {
-          proof: undefined, // TBD
-        },
-      });
+  async createOwner() {
+    return this.apiClient.POST('/profiles/owner')
+  }
+
+  async createAsset(name: string, type: string, issuerId: string,
+                    symbol: string | undefined,
+                    denomination: FinAPIComponents["schemas"]["assetDenomination"],
+                    intentTypes: FinAPIComponents["schemas"]["intentType"][],
+                    ledgerAssetBinding: FinAPIComponents["schemas"]["ledgerAssetBinding"] | undefined,
+                    assetPolicies: FinAPIComponents["schemas"]["assetPolicies"] | undefined,
+                    config: string | undefined,
+                    metadata: any | undefined,
+                    assetIdentifier: FinAPIComponents["schemas"]["assetIdentifier"] | undefined
+  ) {
+    return this.apiClient.POST('/profiles/asset', {
+      body: {
+        intentTypes, name, type, symbol, issuerId, denomination,
+        ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier
+      }
+    });
   }
 
   async shareProfile(id: string, organizations: string[]) {
-    return this.post<ShareProfile.RequestBody, ShareProfile.Responses.$200>(
-      `/profiles/${id}/share`, {
-        organizations,
-      });
+    return this.apiClient.POST('/profiles/{id}/share', {
+      params: {path: {id}},
+      body: {organizations}
+    })
   }
 
-  async getProfileOperationStatus(id: FinAPIPaths.GetOperation.Parameters.Cid): Promise<{
-    cid?: string;
-    isCompleted: boolean;
-    type: 'profile';
-    response?: ResourceIdResponse;
-    errors: (AssetMetadataAndConfigError | GeneralClientError)[]
-  } > {
-    return this.get(`/operations/status/${id}`);
+  async createCertificate(profileId: string, type: string, data: string, issuanceDate: number, expirationDate: number) {
+    return this.apiClient.POST('/profiles/{profileId}/certificates', {
+      params: {path: {profileId}},
+      body: {
+        type, data, issuanceDate, expirationDate
+      }
+    })
   }
 
-  // TODO: require importing ledger api models from another sub-module
-  // async sendCallback(cid: string, operationStatus: OperationStatus): Promise<{}> {
-  //   return this.post<OperationStatus, {}>(
-  //     `/operations/callback/${cid}`, operationStatus);
-  // }
+  async getOperationStatus(cid: string) {
+    return this.apiClient.GET('/operations/status/{cid}', {
+      params: {path: {cid}}
+    });
+  }
 
-  private async get<Response>(path: string): Promise<Response> {
-    let headers = {
-      'Accept': 'application/json',
-    } as Record<string, string>;
-    if (this.authTokenResolver) {
-      headers.Authorization = `Bearer ${this.authTokenResolver()}`;
+  async waitForOperationCompletion(cid: string, timeoutMs: number): Promise<FinAPIComponents["schemas"]["operationResponse"]> {
+    const start = Date.now();
+    while (true) {
+      const {data: status} = await this.getOperationStatus(cid);
+      if (status && status.isCompleted) {
+        return status;
+      }
+      if (Date.now() - start > timeoutMs) {
+        throw new Error(`Timeout waiting for operation ${cid} to complete`);
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    const { data } = await axios.default.get<Response>(this.finP2PUrl + path, { headers });
-    return data;
   }
 
-  private async post<Request, Response>(path: string, request: Request | undefined = undefined): Promise<Response> {
-    let headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    } as Record<string, string>;
-    if (this.authTokenResolver) {
-      headers.Authorization = `Bearer ${this.authTokenResolver()}`;
-    }
-    const { data } = await axios.default.post<Response>(this.finP2PUrl + path, request, { headers });
-    return data;
+  async importTransactions(transactions: OpComponents["schemas"]["transaction"][]) {
+    this.opClient.POST('/ledger/transaction/import', {
+      body: {transactions}
+    })
   }
+
+  async sendCallback(cid: string, operationStatus: OpComponents["schemas"]["operationStatus"]) {
+    return this.opClient.POST('/operations/callback/{cid}', {
+      params: {path: {cid}},
+      body: {...operationStatus}
+    });
+  }
+
+  async getExecutionPlan(planId: string) {
+    return this.opClient.GET('/execution/{planId}', {params: {path: {planId}}})
+  }
+
 }

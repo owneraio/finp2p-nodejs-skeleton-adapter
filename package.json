@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "api-generate": "npx openapi-typescript dlt-adapter-api.yaml -o src/lib/routes/model-gen.ts --path-params-as-types",
+    "api-generate": "npx openapi-typescript dlt-adapter-api.yaml -o src/lib/routes/model-gen.ts",
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc",
     "build-lib": "tsc -p tsconfig.build.json",

@@ -63,7 +63,7 @@ export interface PaymentService {
                         details: any | undefined,
                         nonce: string | undefined, signature: Signature | undefined): Promise<DepositOperation>
 
-  payout(idempotencyKey: string,source: Source, destination: Destination | undefined, asset: Asset, quantity: string,
+  payout(idempotencyKey: string, source: Source, destination: Destination | undefined, asset: Asset, quantity: string,
     description: string | undefined, nonce: string | undefined,
     signature: Signature | undefined): Promise<ReceiptOperation>
 }

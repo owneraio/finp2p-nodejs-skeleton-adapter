@@ -95,6 +95,49 @@ export type LedgerReference = {
   additionalContractDetails: AdditionalContractDetails | undefined
 }
 
+export type IntentType =
+  "primarySale"
+  | "buyingIntent"
+  | "sellingIntent"
+  | "loanIntent"
+  | "redemptionIntent"
+  | "privateOfferIntent"
+  | "requestForTransferIntent"
+
+export enum Role {
+  Buyer,
+  Seller,
+  Borrower,
+  Lender,
+}
+
+export type Investor = {
+  profileId: string;
+  finId: string;
+  orgId: string;
+  role: Role;
+};
+
+export type Leg = {
+  asset: Asset;
+  amount: string;
+  organizationId: string;
+  source?: Investor;
+  destination?: Investor;
+};
+
+export type Contract = {
+  asset?: Leg;
+  payment?: Leg;
+};
+
+export type ExecutionPlan = {
+  id: string;
+  intentType: IntentType;
+  contract: Contract;
+};
+
+
 // -------------------------------------------------------------------
 
 
@@ -272,7 +315,7 @@ export const failedAssetCreation = (code: number, message: string): AssetCreatio
   error: {code, message},
 });
 
-export const pendingAssetCreation = (correlationId: string,  metadata: OperationMetadata | undefined): AssetCreationStatus => ({
+export const pendingAssetCreation = (correlationId: string, metadata: OperationMetadata | undefined): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'pending',
   correlationId,
@@ -315,7 +358,7 @@ export const failedReceiptOperation = (code: number, message: string): ReceiptOp
   error: {code, message},
 });
 
-export const pendingReceiptOperation = (correlationId: string,  metadata: OperationMetadata | undefined): ReceiptOperation => ({
+export const pendingReceiptOperation = (correlationId: string, metadata: OperationMetadata | undefined): ReceiptOperation => ({
   operation: 'receipt',
   type: 'pending',
   correlationId,

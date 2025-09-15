@@ -7,7 +7,7 @@ import { TokenServiceImpl } from './services/inmemory/tokens';
 import { EscrowServiceImpl } from './services/inmemory/escrow';
 import { PaymentsServiceImpl } from './services/inmemory/payments';
 import { AccountService } from './services/inmemory/accounts';
-import { PlanApprovalServiceImpl } from './services/inmemory/plans';
+import { PlanApprovalServiceImpl } from '../lib/services/plan/plans';
 
 function configureLogging(app: Application) {
   app.use(
