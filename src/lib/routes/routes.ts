@@ -8,6 +8,8 @@ import {
   sourceFromAPI,
   receiptOperationToAPI, balanceToAPI, destinationOptFromAPI, operationStatusToAPI, planApprovalOperationToAPI,
   depositOperationToAPI, signatureOptFromAPI, depositAssetFromAPI, executionContextOptFromAPI, finIdAccountFromAPI,
+  assetBindingFromAPI, assetBindingOptFromAPI, assetDenominationFromAPI, assetDenominationOptFromAPI,
+  assetIdentifierOptFromAPI,
 } from './mapping';
 import {
   CommonService,
@@ -70,13 +72,18 @@ export const register = (app: express.Application,
 
   app.post<{}, LedgerAPI['schemas']['CreateAssetResponse'], LedgerAPI['schemas']['CreateAssetRequest']>(`/${basePath}/assets/create`, async (req, res) => {
       const idempotencyKey = req.headers['Idempotency-Key'] as string | undefined ?? '';
-      const {asset, ledgerAssetBinding} = req.body;
-      const {assetId} = assetFromAPI(asset);
-      let tokenId: string | undefined = undefined;
-      if (ledgerAssetBinding) {
-        ({tokenId} = ledgerAssetBinding as LedgerAPI['schemas']['ledgerTokenId']);
-      }
-      const result = await tokenService.createAsset(idempotencyKey, assetId, tokenId);
+      const {asset, ledgerAssetBinding, metadata, name, issuerId, denomination, assetIdentifier } = req.body;
+
+      const result = await tokenService.createAsset(
+        idempotencyKey,
+        assetFromAPI(asset),
+        assetBindingOptFromAPI(ledgerAssetBinding),
+        metadata,
+        name,
+        issuerId,
+        assetDenominationOptFromAPI(denomination),
+        assetIdentifierOptFromAPI(assetIdentifier)
+      );
       return res.send(createAssetOperationToAPI(result));
     },
   );
@@ -104,14 +111,8 @@ export const register = (app: express.Application,
       const receiptOp = await tokenService.issue(
         idempotencyKey, assetFromAPI(asset), finIdAccountFromAPI(destination), quantity, executionContextOptFromAPI(executionContext),
       );
-      try {
-
-    let r = receiptOperationToAPI(receiptOp);
-    res.json(r);
-      } catch (e) {
-        throw e;
-      }
-    },
+      res.json(receiptOperationToAPI(receiptOp));
+    }
   );
 
   app.post<{}, LedgerAPI['schemas']['TransferAssetResponse'], LedgerAPI['schemas']['TransferAssetRequest']>(`/${basePath}/assets/transfer`, async (req, res) => {

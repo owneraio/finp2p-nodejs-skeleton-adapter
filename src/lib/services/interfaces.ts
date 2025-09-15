@@ -6,6 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, DepositOperation, DepositAsset, FinIdAccount,
+  AssetBind, AssetDenomination, AssetIdentifier
 } from './model';
 
 
@@ -24,7 +25,9 @@ export interface CommonService {
 
 export interface TokenService {
 
-  createAsset(idempotencyKey: string, assetId: string, tokenId: string | undefined): Promise<AssetCreationStatus>;
+  createAsset(idempotencyKey: string, asset: Asset,
+              assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
+              assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
 
   getBalance(assetId: string, finId: string): Promise<string>;
 

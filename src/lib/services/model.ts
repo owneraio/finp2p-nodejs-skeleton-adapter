@@ -59,6 +59,42 @@ export type Balance = {
   held: string
 };
 
+
+export type TokenIdentifier = {
+  tokenId: string
+}
+
+export type AssetBind = {
+  tokenIdentifier: TokenIdentifier | undefined
+}
+
+export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM';
+
+export type AssetIdentifier = {
+  type: AssetIdentifierType
+  value: string
+}
+
+export type AssetDenominationType = 'fiat' | 'cryptocurrency';
+
+export type AssetDenomination = {
+  type: AssetDenominationType
+  code: string
+}
+
+export type AdditionalContractDetails = {
+  finP2POperatorContractAddress: string | undefined
+  allowanceRequired: boolean | undefined
+}
+
+export type LedgerReference = {
+  type: 'ledgerReference';
+  network: string;
+  address: string;
+  tokenStandard: string | undefined;
+  additionalContractDetails: AdditionalContractDetails | undefined
+}
+
 // -------------------------------------------------------------------
 
 
@@ -146,6 +182,14 @@ export type Signature = {
   template: SignatureTemplate;
 };
 
+// ------------------------------------------------------------------
+
+export type OperationResponseStrategy = 'polling' | 'callback';
+
+export type OperationMetadata = {
+  responseStrategy: OperationResponseStrategy
+}
+
 
 // -------------------------------------------------------------------
 
@@ -164,6 +208,7 @@ export type PendingPlan = {
   operation: 'approval',
   type: 'pending';
   correlationId: string;
+  metadata: OperationMetadata | undefined
 };
 
 export type PlanApprovalStatus = ApprovedPlan | RejectedPlan | PendingPlan;
@@ -180,20 +225,24 @@ export const rejectedPlan = (code: number, message: string): PlanApprovalStatus 
   error: {code, message},
 });
 
-export const pendingPlan = (correlationId: string): PlanApprovalStatus => ({
+export const pendingPlan = (correlationId: string, metadata: OperationMetadata | undefined): PlanApprovalStatus => ({
   operation: 'approval',
   type: 'pending',
   correlationId,
+  metadata,
 });
 
 // -------------------------------------------------------------------
 
+export type AssetCreationResult = {
+  tokenId: string;
+  reference: LedgerReference | undefined;
+}
+
 export type SuccessfulAssetCreation = {
   operation: 'createAsset',
   type: 'success';
-  tokenId: string;
-  tokenAddress: string;
-  finp2pTokenAddress: string;
+  result: AssetCreationResult;
 };
 
 export type FailedAssetCreation = {
@@ -206,9 +255,16 @@ export type PendingAssetCreation = {
   operation: 'createAsset',
   type: 'pending';
   correlationId: string;
+  metadata: OperationMetadata | undefined
 };
 
 export type AssetCreationStatus = SuccessfulAssetCreation | FailedAssetCreation | PendingAssetCreation;
+
+export const successfulAssetCreation = (result: AssetCreationResult): AssetCreationStatus => ({
+  operation: 'createAsset',
+  type: 'success',
+  result
+});
 
 export const failedAssetCreation = (code: number, message: string): AssetCreationStatus => ({
   operation: 'createAsset',
@@ -216,26 +272,19 @@ export const failedAssetCreation = (code: number, message: string): AssetCreatio
   error: {code, message},
 });
 
-export const successfulAssetCreation = (tokenId: string, tokenAddress: string, finp2pTokenAddress: string): AssetCreationStatus => ({
-  operation: 'createAsset',
-  type: 'success',
-  tokenId,
-  tokenAddress,
-  finp2pTokenAddress,
-});
-
-export const pendingAssetCreation = (correlationId: string): AssetCreationStatus => ({
+export const pendingAssetCreation = (correlationId: string,  metadata: OperationMetadata | undefined): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'pending',
   correlationId,
+  metadata
 });
 
 // -------------------------------------------------------------------
 
-export type PendingReceiptStatus = {
+export type SuccessReceiptStatus = {
   operation: 'receipt',
-  type: 'pending';
-  correlationId: string;
+  type: 'success';
+  receipt: Receipt;
 };
 
 export type FailedReceiptStatus = {
@@ -244,10 +293,11 @@ export type FailedReceiptStatus = {
   error: ErrorDetails
 };
 
-export type SuccessReceiptStatus = {
+export type PendingReceiptStatus = {
   operation: 'receipt',
-  type: 'success';
-  receipt: Receipt;
+  type: 'pending';
+  correlationId: string;
+  metadata: OperationMetadata | undefined
 };
 
 export type ReceiptOperation = PendingReceiptStatus | FailedReceiptStatus | SuccessReceiptStatus;
@@ -265,10 +315,11 @@ export const failedReceiptOperation = (code: number, message: string): ReceiptOp
   error: {code, message},
 });
 
-export const pendingReceiptOperation = (correlationId: string): ReceiptOperation => ({
+export const pendingReceiptOperation = (correlationId: string,  metadata: OperationMetadata | undefined): ReceiptOperation => ({
   operation: 'receipt',
   type: 'pending',
   correlationId,
+  metadata
 });
 
 // -------------------------------------------------------------------
