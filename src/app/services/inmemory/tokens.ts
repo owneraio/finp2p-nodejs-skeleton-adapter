@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { CommonServiceImpl } from './common';
-import {FinIdAccount, TokenService} from '../../../lib/services';
+import {FinIdAccount, finIdDestination, TokenService} from '../../../lib/services';
 import {
   Asset, AssetCreationStatus, Balance, Destination, ExecutionContext, Receipt, ReceiptOperation,
   Signature, Source, successfulAssetCreation,
@@ -32,13 +32,12 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return this.accountService.getBalance(finId, assetId);
   }
 
-  public async issue(idempotencyKey: string, asset: Asset, source: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-    const { finId: issuerFinId } = source;
-    logger.info(`Issuing ${quantity} of ${asset.assetId} to ${issuerFinId}`);
+  public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+    const { finId } = to;
+    logger.info(`Issuing ${quantity} of ${asset.assetId} to ${finId}`);
 
-    this.accountService.credit(issuerFinId, quantity, asset.assetId);
-    const destination = { finId: issuerFinId } as Destination;
-    const tx = new Transaction(quantity, asset, undefined, destination, exCtx, 'issue', undefined);
+    this.accountService.credit(finId, quantity, asset.assetId);
+    const tx = new Transaction(quantity, asset, undefined, finIdDestination(finId), exCtx, 'issue', undefined);
     this.registerTransaction(tx);
     return successfulReceiptOperation(tx.toReceipt());
   }

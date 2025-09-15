@@ -29,17 +29,17 @@ export const register = (app: express.Application,
                          planService: PlanApprovalService,
 ) => {
 
-  // app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  //   const status = err.status || 500;
-  //   const message = err.message || "Internal Server Error";
-  //
-  //   // Log the error (your logger instead of console)
-  //   console.error("Error middleware caught:", err);
-  //
-  //   res.status(status).json({
-  //     error: message,
-  //   });
-  // })
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    const status = err.status || 500;
+    const message = err.message || "Internal Server Error";
+
+    // Log the error (your logger instead of console)
+    console.error("Error middleware caught:", err);
+
+    res.status(status).json({
+      error: message,
+    });
+  })
 
   app.get('/health/liveness', async (req, res) => {
       if (req.headers['skip-vendor'] !== 'true') {
@@ -104,7 +104,13 @@ export const register = (app: express.Application,
       const receiptOp = await tokenService.issue(
         idempotencyKey, assetFromAPI(asset), finIdAccountFromAPI(destination), quantity, executionContextOptFromAPI(executionContext),
       );
-      res.json(receiptOperationToAPI(receiptOp));
+      try {
+
+    let r = receiptOperationToAPI(receiptOp);
+    res.json(r);
+      } catch (e) {
+        throw e;
+      }
     },
   );
 

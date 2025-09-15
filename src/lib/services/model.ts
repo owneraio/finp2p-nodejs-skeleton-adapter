@@ -38,6 +38,9 @@ export type Destination = {
   account: DestinationAccount
 };
 
+export const finIdDestination = (finId: string): Destination => {
+  return {finId, account: {type: 'finId', finId}}
+}
 
 export type ExecutionContext = {
   planId: string
