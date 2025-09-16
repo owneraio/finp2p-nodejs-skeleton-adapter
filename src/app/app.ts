@@ -8,7 +8,7 @@ import { EscrowServiceImpl } from './services/inmemory/escrow';
 import { PaymentsServiceImpl } from './services/inmemory/payments';
 import { AccountService } from './services/inmemory/accounts';
 import { PlanApprovalServiceImpl } from '../lib/services/plan/service';
-import { FinP2PClient } from '@owneraio/finp2p-client';
+// import { FinP2PClient } from '@owneraio/finp2p-client';
 
 function configureLogging(app: Application) {
   app.use(
@@ -38,7 +38,7 @@ function configureLogging(app: Application) {
   );
 }
 
-function createApp(finP2PClient: FinP2PClient | undefined) {
+function createApp(/*finP2PClient: FinP2PClient | undefined*/) {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
@@ -47,7 +47,7 @@ function createApp(finP2PClient: FinP2PClient | undefined) {
   const tokenService = new TokenServiceImpl(accountService);
   const escrowService = new EscrowServiceImpl(accountService);
   const paymentsService = new PaymentsServiceImpl();
-  const planApprovalService = new PlanApprovalServiceImpl(finP2PClient);
+  const planApprovalService = new PlanApprovalServiceImpl(/*finP2PClient*/);
 
   routes.register(
     app,
