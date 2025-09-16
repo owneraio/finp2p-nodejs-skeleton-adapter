@@ -9,9 +9,9 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
   // finP2P?: FinP2PClient;
 
-  constructor(/*finP2P: FinP2PClient | undefined*/) {
-    // this.finP2P = finP2P;
-  }
+  // constructor(finP2P: FinP2PClient | undefined) {
+  // this.finP2P = finP2P;
+  // }
 
   public async approvePlan(planId: string): Promise<PlanApprovalStatus> {
     logger.info(`Got execution plan to approve: ${planId}`);
