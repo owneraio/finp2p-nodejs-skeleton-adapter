@@ -1,7 +1,8 @@
 import process from "process";
 import {OssClient, parseProofDomain, Proof, ProofDomain, ProofPolicy} from "./oss";
 import {FinAPIClient} from "./finapi";
-import IntentType = FinAPIComponents.Schemas.IntentType;
+import {components as FinAPIComponents, paths as FinAPIPaths} from "./finapi/model-gen";
+import {components as OpComponents, paths as OpPaths} from "./finapi/op-model-gen";
 
 
 export class FinP2PClient {
@@ -14,21 +15,44 @@ export class FinP2PClient {
     this.ossClient = new OssClient(ossUrl);
   }
 
-  async createAsset(name: string, type: string, issuerId: string, currency: string, currencyType: 'fiat' | 'cryptocurrency', intentTypes: IntentType[], metadata: any) {
-    return await this.finAPIClient.createAsset(name, type, issuerId, currency, currencyType, intentTypes, metadata);
+  async createAsset(name: string, type: string, issuerId: string,
+                    symbol: string | undefined,
+                    denomination: FinAPIComponents["schemas"]["assetDenomination"],
+                    intentTypes: FinAPIComponents["schemas"]["intentType"][],
+                    ledgerAssetBinding: FinAPIComponents["schemas"]["ledgerAssetBinding"] | undefined,
+                    assetPolicies: FinAPIComponents["schemas"]["assetPolicies"] | undefined,
+                    config: string | undefined,
+                    metadata: any | undefined,
+                    assetIdentifier: FinAPIComponents["schemas"]["assetIdentifier"] | undefined) {
+    return await this.finAPIClient.createAsset(
+      name, type, issuerId, symbol, denomination, intentTypes,
+      ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier
+    );
   }
 
   async shareProfile(id: string, organizations: string[]) {
     return await this.finAPIClient.shareProfile(id, organizations);
   }
 
-  async getProfileOperationStatus(id: string) {
-    return await this.finAPIClient.getProfileOperationStatus(id);
+  async createCertificate(profileId: string, type: string, data: string, issuanceDate: number, expirationDate: number) {
+    return await this.finAPIClient.createCertificate(profileId, type, data, issuanceDate, expirationDate);
   }
 
-  // async sendCallback(cid: string, operationStatus: OperationStatus) {
-  //   return await this.finAPIClient.sendCallback(cid, operationStatus);
-  // }
+  async getProfileOperationStatus(id: string) {
+    return await this.finAPIClient.getOperationStatus(id);
+  }
+
+  async sendCallback(cid: string, operationStatus: OpComponents["schemas"]["operationStatus"]) {
+    return await this.finAPIClient.sendCallback(cid, operationStatus);
+  }
+
+  async importTransactions(transactions: OpComponents["schemas"]["transaction"][]) {
+    return await this.finAPIClient.importTransactions(transactions);
+  }
+
+  async getExecutionPlan(planId: string) {
+    return await this.finAPIClient.getExecutionPlan(planId);
+  }
 
   // ------ OSS Client methods ------
 

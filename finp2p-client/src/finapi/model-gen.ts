@@ -1,2976 +1,3601 @@
-declare namespace FinAPIComponents {
-  namespace Schemas {
-    export interface AbsolutePollingInterval {
-      type: 'absolute';
-      /**
-             * absolute time as epoch time seconds
-             */
-      time: number;
-    }
-    export type Account = FinIdAccount | CryptoWalletAccount | IbanAccount;
-    /**
-         * describes account information
-         */
-    export interface AccountAsset {
-      account: Account;
-      asset: Asset;
-    }
-    export type AccountOperation = {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid?: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      type: 'account';
-      metadata?: any;
-    } & (ApiAnyError | AccountOperationResultResponse);
-    export interface AccountOperationResult {
-      /**
-             * custodian org id
-             */
-      custodyOrgId?: string;
-      /**
-             * hex representation of a secp256k1 resource public key 33 bytes compressed
-             */
-      finId?: string;
-    }
-    export interface AccountOperationResultResponse {
-      type: 'response';
-      response?: AccountOperationResult;
-    }
-    export type AccountRequestForTransfer = FinIdAccount;
-    /**
-         * the total number of units
-         */
-    export type Amount = string; // ^\d+\.?\d*$
-    export type ApiAnyError = ApiErrorClient4XX | ApiErrorServer5XX;
-    export interface ApiErrorClient4XX {
-      type: 'error';
-      status: 400 | 401 | 403 | 404 | 409;
-      errors: (AssetMetadataAndConfigError | GeneralClientError)[];
-    }
-    export interface ApiErrorServer5XX {
-      type: 'error';
-      status: 500 | 502 | 503 | 504;
-      errors: GeneralServerError[];
-    }
-    export interface ApproveExecutionPlanRequest {
-      /**
-             * execution plan information
-             */
-      executionPlan: {
-        /**
-                 * execution plan id
-                 */
-        id: string;
-      };
-    }
-    export interface ApproveExecutionPlanResponse {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      operationMetadata?: /* additional metadata regarding the operation */ OperationMetadata;
-      approval: PlanApproved | PlanRejected;
-    }
-    export type Asset = CryptocurrencyAsset | FiatAsset | Finp2pAsset;
-    export interface AssetDenomination {
-      /**
-             * denomination asset type
-             */
-      type: 'fiat' | 'cryptocurrency';
-      /**
-             * unique code identifying the denomination asset type
-             */
-      code: string; // ^[a-zA-Z0-9]*$
-    }
-    /**
-         * The Asset resource id
-         * example:
-         * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-         */
-    export type AssetId = string; // ^[^:](?:.+):102:(?:.+)
-    export interface AssetInstruction {
-      account: AssetInstructionAccount;
-      asset: Finp2pAsset;
-    }
-    export type AssetInstructionAccount = FinIdAccount;
-    export interface AssetIssuer {
-      type: 'assetIssuer';
-      issuerId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      assetId: /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-      AssetId /* ^[^:](?:.+):102:(?:.+) */;
-    }
-    export interface AssetMetadataAndConfigError {
-      code: 4108;
-      message: 'Asset metadata and config cannot be provided at the same time';
-    }
-    export interface AssetPolicies {
-      proof?: ProofPolicy;
-    }
-    export interface AssetTerm {
-      asset: Asset;
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface AssetVerifier {
-      /**
-             * verifier id
-             */
-      id: string; // ^[a-zA-Z0-9]*$
-      name: /* The name of the asset */ Name /* ^[a-zA-Z0-9\-_. /]*$ */;
-      /**
-             * one from the list [REG_APP_STORE, OTHER]
-             */
-      provider: 'REG_APP_STORE' | 'OTHER';
-    }
-    export interface BalanceInformation {
-      /**
-             * the asset token balance quantity
-             */
-      quantity: string;
-    }
-    /**
-         * Asset Hash Group (AHG) structure:
-         *
-         * AHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce           | []byte  |  |
-         * | 2 | operation       | string  | "transfer" |
-         * | 3 | assetType       | string  | "finp2p" |
-         * | 4 | assetId         | string  | unique identifier of the asset |
-         * | 5 | srcAccountType  | string  | "finId" |
-         * | 6 | srcAccount      | string  | source account finId address  |
-         * | 7 | dstAccountType  | string  | "finId" |
-         * | 8 | dstAccount      | string  | destination account finId address  |
-         * | 9 | amount          | string  | string representation of the transfer amount |
-         *
-         * Settlement Hash Group (SHG) structure:
-         *
-         * SHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
-         * | 2 | assetId         | string  | unique identifier of the asset |
-         * | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 4 | srcAccount      | string  | source account of the asset  |
-         * | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 6 | dstAccount      | string  | destination account for the asset  |
-         * | 7 | amount          | string  | string representation of the settlement amount |
-         * | 8 | expiry          | string  | string representation of the escrow hold expiry value |
-         *
-         * hashGroups = hash('SHA3-256', [AHG, SHG]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
-         *
-         */
-    export type BuyerTransferSignature = string;
-    export interface BuyingIntent {
-      type: 'buyingIntent';
-      /**
-             * resource id of the buyer
-             */
-      buyer: string;
-      assetTerm: Finp2pAssetTerm;
-      assetInstruction: IntentAssetInstruction;
-      settlementTerm?: SettlementTerm;
-      settlementInstruction: BuyingIntentSettlementInstruction;
-      signaturePolicy?: PresignedBuyIntentSignaturePolicy | ManualSignaturePolicy;
-    }
-    export interface BuyingIntentAssetTermUpdate {
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface BuyingIntentExecution {
-      type: 'buyingIntentExecution';
-      nonce: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      asset: TransferRequestAssetOrder;
-      settlement: /* Settlement information for the execute intent request */ ExecuteIntentRequestSettlement;
-      seller: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-    }
-    export interface BuyingIntentSettlementInstruction {
-      sourceAccount: /* describes account information */ AccountAsset;
-    }
-    export interface BuyingIntentSettlementTermUpdate {
-      unitValue: /* A unit value represented as a string, the value is a decimal number */ UnitValue /* ^\d+(\.\d+)?$ */;
-    }
-    /**
-         * allowed fields to be updated on given intent type
-         */
-    export interface BuyingIntentUpdatePayload {
-      type: 'buyingIntent';
-      settlementTerm?: BuyingIntentSettlementTermUpdate;
-      assetTerm?: BuyingIntentAssetTermUpdate;
-    }
-    export interface CallbackEndpoint {
-      type: 'endpoint';
-    }
-    export interface CallbackResultsStrategy {
-      type: 'callback';
-      callback: CallbackEndpoint;
-    }
-    export interface CloseAmountTerm {
-      type: 'closeAmountTerm';
-      closeAmount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export type Correspondent = AssetIssuer;
-    export interface CryptoTransfer {
-      type: 'cryptoTransfer';
-      network: string;
-      contractAddress: string;
-      walletAddress: string;
-    }
-    export interface CryptoWalletAccount {
-      type: 'cryptoWallet';
-      /**
-             * address of the cryptocurrency wallet
-             */
-      address: string; // ^0x[0-9a-hA-H]+$
-    }
-    export interface CryptocurrencyAsset {
-      type: 'cryptocurrency';
-      /**
-             * unique identifier symbol of the cryptocurrency
-             */
-      code: string; // ^[0-9a-zA-Z_\-]+$
-    }
-    export interface Custodian {
-      orgId: string;
-    }
-    export interface CustomAsset {
-      type: 'custom';
-    }
-    /**
-         * describes account information
-         */
-    export interface DepositAccount {
-      account: FinIdAccount;
-      asset: DepositAsset;
-    }
-    export type DepositAsset = CryptocurrencyAsset | FiatAsset | Finp2pAsset | CustomAsset;
-    export interface DepositInstruction {
-      /**
-             * operation id
-             */
-      operationId: string;
-      /**
-             * Deposit instruction, including account details
-             */
-      depositInstruction: {
-        account: /* describes account information */ DepositAccount;
-        /**
-                 * Instruction details
-                 */
-        description: string;
-        /**
-                 * Additional details
-                 */
-        details?: {
-          [key: string]: any;
+/**
+ * This file was auto-generated by openapi-typescript.
+ * Do not make direct changes to the file.
+ */
+
+export interface paths {
+    "/profiles/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        paymentOptions?: PaymentMethods;
-      };
-    }
-    export interface DepositInstructionResponse {
-      type: 'response';
-      response?: DepositInstruction;
-    }
-    export type DepositOperation = {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid?: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      type: 'deposit';
-    } & (ApiAnyError | DepositInstructionResponse);
-    /**
-         * HG = hash('SHA3-256', [fields by order]);
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce           | []byte  |  |
-         * | 2 | operation       | string  | "deposit" |
-         * | 3 | assetType       | string  | "fiat", "cryptocurrency", "custom" |
-         * | 4 | assetId         | string  | unique identifier of the asset |
-         * | 5 | dstAccountType  | string  | "finId" |
-         * | 6 | dstAccount      | string  | destination account to deposit funds  |
-         * | 7 | amount          | string  | string representation of the deposit amount |
-         *
-         * hashGroups = hash('SHA3-256', [HG]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
-         *
-         */
-    export type DepositSignature = string;
-    export type DepositSignaturePolicy = ManualSignaturePolicy;
-    export interface DocumentRef {
-      /**
-             * the ID of the document
-             */
-      id: string;
-      /**
-             * the URI to retrieve the document
-             */
-      uri: string;
-      /**
-             * The file name
-             */
-      fileName: string;
-      /**
-             * The file mimeType
-             */
-      mimeType: string;
-    }
-    export interface DocumentsList {
-      /**
-             * A list document references
-             */
-      refs: DocumentRef[];
-    }
-    /**
-         * Settlement information for the execute intent request
-         */
-    export interface ExecuteIntentRequestSettlement {
-      term: AssetTerm;
-      instruction: SettlementInstruction;
-    }
-    /**
-         * Settlement information for the execute intent request
-         */
-    export interface ExecuteLoanIntentRequestSettlement {
-      term: AssetTerm;
-      instruction: LoanSettlementInstruction;
-    }
-    export type ExecutionOperation = {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid?: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      type: 'execution';
-      metadata?: any;
-    } & (ApiAnyError | ExecutionOperationResultResponse);
-    export interface ExecutionOperationResult {
-      executionPlanId: /**
-             * The execution resource id
-             * example:
-             * bank-x:106:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-      ExecutionPlanId /* ^[^:](?:.+):106:(?:.+)$ */;
-    }
-    export interface ExecutionOperationResultResponse {
-      type: 'response';
-      response?: ExecutionOperationResult;
-    }
-    export interface ExecutionPlanApprovalOperation {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      operationMetadata?: /* additional metadata regarding the operation */ OperationMetadata;
-      approval: PlanApproved | PlanRejected;
-    }
-    /**
-         * The execution resource id
-         * example:
-         * bank-x:106:9929ccaf-8967-4ba3-9198-a4b8e3128388
-         */
-    export type ExecutionPlanId = string; // ^[^:](?:.+):106:(?:.+)$
-    export interface FiatAsset {
-      type: 'fiat';
-      /**
-             * unique identifier code of the fiat currency - based on ISO-4217
-             */
-      code: string; // ^(?:AED|AFN|ALL|AMD|ANG|AOA|ARS|AUD|AWG|AZN|BAM|BBD|BDT|BGN|BHD|BIF|BMD|BND|BOB|BRL|BSD|BTN|BWP|BYR|BZD|CAD|CDF|CHF|CLP|CNY|COP|CRC|CUC|CUP|CVE|CZK|DJF|DKK|DOP|DZD|EGP|ERN|ETB|EUR|FJD|FKP|GBP|GEL|GGP|GHS|GIP|GMD|GNF|GTQ|GYD|HKD|HNL|HRK|HTG|HUF|IDR|ILS|IMP|INR|IQD|IRR|ISK|JEP|JMD|JOD|JPY|KES|KGS|KHR|KMF|KPW|KRW|KWD|KYD|KZT|LAK|LBP|LKR|LRD|LSL|LYD|MAD|MDL|MGA|MKD|MMK|MNT|MOP|MRO|MUR|MVR|MWK|MXN|MYR|MZN|NAD|NGN|NIO|NOK|NPR|NZD|OMR|PAB|PEN|PGK|PHP|PKR|PLN|PYG|QAR|RON|RSD|RUB|RWF|SAR|SBD|SCR|SDG|SEK|SGD|SHP|SLL|SOS|SPL|SRD|STD|SVC|SYP|SZL|THB|TJS|TMT|TND|TOP|TRY|TTD|TVD|TWD|TZS|UAH|UGX|USD|UYU|UZS|VEF|VND|VUV|WST|XAF|XCD|XDR|XOF|XPF|YER|ZAR|ZMW|ZWD)$
-    }
-    /**
-         * describing a field in the hash group
-         */
-    export interface Field {
-      /**
-             * name of field
-             */
-      name?: string;
-      /**
-             * type of field
-             */
-      type?: 'string' | 'int';
-      /**
-             * hex representation of the field value
-             */
-      value?: string;
-    }
-    /**
-         * Existing owner hex representation of a secp256k1 public key 33 bytes compressed
-         */
-    export type FinId = string; // ^[0-9a-h]*$
-    export interface FinIdAccount {
-      type: 'finId';
-      finId: /* Existing owner hex representation of a secp256k1 public key 33 bytes compressed */ FinId /* ^[0-9a-h]*$ */;
-      orgId: string; // ^[^:]*$
-      custodian?: Custodian;
-    }
-    export interface Finp2pAsset {
-      type: 'finp2p';
-      /**
-             * unique resource ID of the FinP2P asset
-             */
-      resourceId: string; // ^[^:](?:.+):102:(?:.+)
-    }
-    export interface Finp2pAssetTerm {
-      asset: Finp2pAsset;
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface GeneralClientError {
-      code: 1000;
-      message: 'General client error';
-    }
-    export interface GeneralServerError {
-      code: 2000;
-      message: 'General server error';
-    }
-    export interface HashGroup {
-      /**
-             * hex representation of the hash group hash value
-             */
-      hash?: string;
-      /**
-             * list of fields by order they appear in the hash group
-             */
-      fields?: /* describing a field in the hash group */ Field[];
-    }
-    export interface IbanAccount {
-      type: 'iban';
-      /**
-             * iban address
-             * example:
-             * GB29NWBK60161331926819
-             */
-      code: string;
-    }
-    export interface IbanAccountDetails {
-      type: 'iban';
-      iban: string;
-    }
-    export interface IdResponse {
-      id: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-    }
-    /**
-         * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-         *
-         *   const nonce = Buffer.alloc(32);
-         *   nonce.fill(crypto.randomBytes(24), 0, 24);
-         *
-         *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-         *   const t = BigInt(nowEpochSeconds);
-         *   nonce.writeBigInt64BE(t, 24);
-         *
-         */
-    export type IdempotencyKey = string;
-    export type Intent = PrimarySale | BuyingIntent | SellingIntent | LoanIntent | RedemptionIntent | PrivateOfferIntent;
-    export interface IntentAssetInstruction {
-      account: AssetInstruction;
-    }
-    export type IntentExecution = PrimarySaleExecution | BuyingIntentExecution | SellingIntentExecution | LoanIntentExecution | RedemptionIntentExecution | PrivateOfferIntentExecution;
-    /**
-         * The intent resource id
-         * example:
-         * bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
-         */
-    export type IntentId = string; // ^[^:](?:.+):105:(?:.+)
-    export interface IntentIdResponse {
-      intentId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-    }
-    export interface IntentInfo {
-      /**
-             * The type of the intent.
-             */
-      type: 'requestForTransferIntent';
-      /**
-             * The amount of the asset, fiat or cryptocurrency to be transferred.
-             * example:
-             * 100
-             */
-      amount: string;
-      asset: Asset;
-    }
-    export type IntentType = 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent';
-    /**
-         * Allowed intent types to be applied on an asset
-         */
-    export type IntentTypes = [
-      IntentType,
-      ...IntentType[],
-    ];
-    /**
-         * Allowed intent types to be applied on an asset
-         */
-    export type IntentTypesAllowEmpty = IntentType[];
-    export interface InterestTerm {
-      type: 'interestTerm';
-      /**
-             * indicative annual interest rate of the operation
-             */
-      interestRate: string;
-    }
-    export interface IssueRequestAssetOrder {
-      term: Finp2pAssetTerm;
-      instruction: IssueRequestAssetOrderInstruction;
-    }
-    export interface IssueRequestAssetOrderInstruction {
-      destinationAccount: AssetInstruction;
-    }
-    /**
-         *
-         * Asset Hash Group (AHG) structure:
-         *
-         * AHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce           | []byte  |  |
-         * | 2 | operation       | string  | "issue" |
-         * | 3 | assetType       | string  | "finp2p" |
-         * | 4 | assetId         | string  | unique identifier of the asset |
-         * | 5 | dstAccountType  | string  | "finId" |
-         * | 6 | dstAccount      | string  | destination account finId address hex representation |
-         * | 7 | amount          | string  | hex (prefixed with 0x) representation of the issuance amount |
-         *
-         * Settlement Hash Group (SHG) structure:
-         *
-         * SHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
-         * | 2 | assetId         | string  | unique identifier of the asset |
-         * | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 4 | srcAccount      | string  | source account of the asset  |
-         * | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 6 | dstAccount      | string  | destination account for the asset  |
-         * | 7 | amount          | string  | string representation of the settlement amount |
-         * | 8 | expiry          | string  | string representation of the escrow hold expiry value |
-         *
-         * hashGroups = hash('SHA3-256', [AHG, SHG]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
-         *
-         */
-    export type IssueSignature = string;
-    export type LedgerAssetBinding = LedgerTokenId;
-    export interface LedgerTokenId {
-      /**
-             * the type of the identifier
-             */
-      type: 'tokenId';
-      /**
-             * the token id binding
-             */
-      tokenId: string;
-    }
-    export type LoanConditions = RepaymentTerm | InterestTerm | CloseAmountTerm;
-    export interface LoanInstruction {
-      /**
-             * date and time operation starts, in epoch (seconds)
-             */
-      openDate: number; // int64
-      /**
-             * date and time operation ends, in epoch (seconds)
-             */
-      closeDate: number; // int64
-      conditions: LoanConditions;
-    }
-    export interface LoanIntent {
-      type: 'loanIntent';
-      creatorType: 'borrower' | 'lender';
-      borrower: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      lender: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      assetTerm?: Finp2pAssetTerm;
-      assetInstruction?: LoanIntentAssetInstruction;
-      settlementTerm?: SettlementTerm;
-      settlementInstruction?: LoanIntentSettlementInstruction;
-      loanInstruction?: LoanInstruction;
-      signaturePolicy?: PresignedLoanIntentSignaturePolicy;
-    }
-    export interface LoanIntentAssetInstruction {
-      borrowerAccount: AssetInstruction;
-      lenderAccount: AssetInstruction;
-    }
-    export interface LoanIntentAssetTermUpdate {
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface LoanIntentExecution {
-      type: 'loanIntentExecution';
-      executorType: 'borrower' | 'lender';
-      nonce: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      borrower: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      lender: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      asset: LoanRequestAssetOrder;
-      settlement: /* Settlement information for the execute intent request */ ExecuteLoanIntentRequestSettlement;
-      loanInstruction?: LoanInstruction;
-    }
-    export interface LoanIntentSettlementInstruction {
-      borrowerAccount: /* describes account information */ AccountAsset;
-      lenderAccount: /* describes account information */ AccountAsset;
-    }
-    export interface LoanIntentSettlementTermUpdate {
-      unitValue: /* A unit value represented as a string, the value is a decimal number */ UnitValue /* ^\d+(\.\d+)?$ */;
-    }
-    /**
-         * allowed fields to be updated on given intent type
-         */
-    export interface LoanIntentUpdatePayload {
-      type: 'loanIntent';
-      settlementTerm?: LoanIntentSettlementTermUpdate;
-      assetTerm?: LoanIntentAssetTermUpdate;
-    }
-    export interface LoanRequestAssetOrder {
-      term: Finp2pAssetTerm;
-      instruction: LoanRequestAssetOrderInstruction;
-    }
-    export interface LoanRequestAssetOrderInstruction {
-      borrowerAccount: AssetInstruction;
-      lenderAccount: AssetInstruction;
-    }
-    export interface LoanSettlementInstruction {
-      borrowerAccount: /* describes account information */ AccountAsset;
-      lenderAccount: /* describes account information */ AccountAsset;
-    }
-    /**
-         * Loan signature:
-         *
-         * Single Hash Group (AHG) structure:
-         *
-         * HASH = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |---|--|--|--|
-         * |  1 | nonce           | []byte  |  |
-         * |  2 | operation       | string  | "loan" |
-         * |  3 | assetType       | string  | "finp2p" |
-         * |  4 | assetId         | string  | unique identifier of the collateral asset |
-         * |  5 | srcAccountType  | string  | "finId" |
-         * |  6 | srcAccount      | string  | source account finId address  |
-         * |  7 | dstAccountType  | string  | "finId" |
-         * |  8 | dstAccount      | string  | destination account finId address  |
-         * |  9 | amount          | string  | string representation of the transfer amount |
-         * | 10 | assetType       | string  | money asset type "finp2p", "fiat", "cryptocurrency" |
-         * | 11 | assetId         | string  | unique identifier of the money asset |
-         * | 12 | srcAccountType  | string  | source money account type "finId", "cryptoWallet", "escrow" |
-         * | 13 | srcAccount      | string  | source money account id  |
-         * | 14 | dstAccountType  | string  | destination money account type "finId", "cryptoWallet", "escrow" |
-         * | 15 | dstAccount      | string  | destination money account id  |
-         * | 16 | amount          | string  | string representation of the money borrowed |
-         * | 17 | closeAmount     | string  | string representation of the money returned back |
-         * | 18 | openTime        | string  | string representation of the open time volume |
-         * | 19 | closeTime       | string  | string representation of the close time volume |
-         *
-         * hashGroups = hash('SHA3-256', [HASH]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
-         *
-         */
-    export type LoanSignature = string;
-    export interface ManualSignaturePolicy {
-      type: 'manualPolicy';
-      nonce?: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-    }
-    export interface MessageResponse {
-      id: string;
-    }
-    /**
-         * The name of the asset
-         */
-    export type Name = string; // ^[a-zA-Z0-9\-_. /]*$
-    /**
-         * no proof validation required for this policy
-         */
-    export interface NoProofPolicy {
-      type: 'noProofPolicy';
-    }
-    /**
-         * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-         *
-         *   const nonce = Buffer.alloc(32);
-         *   nonce.fill(crypto.randomBytes(24), 0, 24);
-         *
-         *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-         *   const t = BigInt(nowEpochSeconds);
-         *   nonce.writeBigInt64BE(t, 24);
-         *
-         */
-    export type Nonce = string;
-    export interface OperationBase {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      operationMetadata?: /* additional metadata regarding the operation */ OperationMetadata;
-    }
-    /**
-         * additional metadata regarding the operation
-         */
-    export interface OperationMetadata {
-      /**
-             * denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
-             * optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
-             *
-             */
-      operationResponseStrategy?: /**
-             * denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
-             * optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
-             *
-             */
-      PollingResultsStrategy | CallbackResultsStrategy;
-    }
-    export type OperationResponse = TokenOperation | ProfileOperation | DepositOperation | WithdrawOperation | ExecutionOperation | AccountOperation;
-    /**
-         * The Owner resource id
-         * example:
-         * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-         */
-    export type OwnerId = string; // ^[^:](?:.+):101:(?:.+)
-    export interface PaymentInstructions {
-      type: 'paymentInstructions';
-      instruction: string;
-    }
-    export interface PaymentMethod {
-      description: string;
-      /**
-             * accepted currency for payment
-             */
-      currency: string;
-      methodInstruction: WireTransfer | WireTransferUSA | CryptoTransfer | PaymentInstructions;
-    }
-    export type PaymentMethods = PaymentMethod[];
-    export interface PlanApprovalResponse {
-      approval: PlanApproved | PlanRejected;
-    }
-    export interface PlanApproved {
-      status: 'approved';
-    }
-    export interface PlanRejected {
-      status: 'rejected';
-      failure?: ValidationFailure | RegulationFailure;
-    }
-    export interface PollingResultsStrategy {
-      type: 'poll';
-      polling: RandomPollingInterval | AbsolutePollingInterval | RelativePollingInterval;
-    }
-    export interface PreSignedRedemptionIntentSignaturePolicy {
-      type: 'presignedPolicy';
-    }
-    export interface PresignedBuyIntentSignaturePolicy {
-      type: 'presignedPolicy';
-    }
-    export interface PresignedLoanIntentSignaturePolicy {
-      type: 'presignedPolicy';
-    }
-    export interface PresignedPrivateOfferIntentSignaturePolicy {
-      type: 'presignedPolicy';
-    }
-    export interface PresignedSellIntentSignaturePolicy {
-      type: 'presignedPolicy';
-    }
-    export interface PrimarySale {
-      type: 'primarySale';
-      issuer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      assetTerm: Finp2pAssetTerm;
-      assetInstruction: IntentAssetInstruction;
-      settlementTerm: SettlementTerm;
-      settlementInstruction?: SellingIntentSettlementInstruction;
-    }
-    export interface PrimarySaleAssetTermUpdate {
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface PrimarySaleExecution {
-      type: 'primarySaleExecution';
-      nonce: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      issuer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      buyer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      asset: IssueRequestAssetOrder;
-      settlement: /* Settlement information for the execute intent request */ ExecuteIntentRequestSettlement;
-    }
-    /**
-         * allowed fields to be updated on given intent type
-         */
-    export interface PrimarySaleIntentUpdatePayload {
-      type: 'primarySale';
-      settlementTerm?: PrimarySaleSettlementTermUpdate;
-      assetTerm?: PrimarySaleAssetTermUpdate;
-    }
-    export interface PrimarySaleSettlementTermUpdate {
-      unitValue: /* A unit value represented as a string, the value is a decimal number */ UnitValue /* ^\d+(\.\d+)?$ */;
-    }
-    export interface PrivateOfferAssetInstruction {
-      account?: AssetInstructionAccount;
-      asset: Finp2pAsset;
-    }
-    export interface PrivateOfferIntent {
-      type: 'privateOfferIntent';
-      buyer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      seller: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      assetTerm: Finp2pAssetTerm;
-      assetInstruction?: PrivateOfferIntentAssetInstruction;
-      settlementTerm: SettlementTerm;
-      signaturePolicy?: PresignedSellIntentSignaturePolicy | ManualSignaturePolicy;
-      settlementInstruction?: SellingIntentSettlementInstruction;
-    }
-    export interface PrivateOfferIntentAssetInstruction {
-      account: PrivateOfferAssetInstruction;
-    }
-    export interface PrivateOfferIntentAssetTermUpdate {
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface PrivateOfferIntentExecution {
-      type: 'privateOfferIntentExecution';
-      nonce: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      asset: TransferRequestAssetOrder;
-      settlement: /* Settlement information for the execute intent request */ ExecuteIntentRequestSettlement;
-      buyer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      seller: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-    }
-    export interface PrivateOfferIntentSettlementInstruction {
-      sellerAccount: /* describes account information */ AccountAsset;
-      buyerAccount: /* describes account information */ AccountAsset;
-    }
-    export interface PrivateOfferIntentSettlementTermUpdate {
-      unitValue: /* A unit value represented as a string, the value is a decimal number */ UnitValue /* ^\d+(\.\d+)?$ */;
-    }
-    /**
-         * allowed fields to be updated on given intent type
-         */
-    export interface PrivateOfferIntentUpdatePayload {
-      type: 'privateOfferIntent';
-      settlementTerm?: PrivateOfferIntentSettlementTermUpdate;
-      assetTerm?: PrivateOfferIntentAssetTermUpdate;
-    }
-    /**
-         * finp2p resource id format
-         * example:
-         * bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
-         */
-    export type ProfileId = string; // ^[^:](?:.+):(101|102):(?:.+)
-    export type ProfileOperation = {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid?: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      type: 'profile';
-    } & (ApiAnyError | ProfileOperationResponse);
-    export interface ProfileOperationResponse {
-      type: 'response';
-      response?: ResourceIdResponse;
-    }
-    export type ProofPolicy = SignatureProofPolicy | /* no proof validation required for this policy */ NoProofPolicy;
-    export interface RandomPollingInterval {
-      type: 'random';
-    }
-    export interface Receipt {
-      /**
-             * receipt id
-             */
-      id: string;
-      asset: ReceiptAsset;
-      source?: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      destination?: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      quantity: string;
-      tradeDetails?: ReceiptTradeDetails;
-      details: ReceiptDetails;
-      operationRef?: string;
-      operationType: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'unknown';
-      timestamp: number;
-    }
-    export interface ReceiptAsset {
-      /**
-             * asset code
-             */
-      code: string;
-      /**
-             * asset type
-             */
-      type: string;
-    }
-    export interface ReceiptAssetDetails {
-      type: 'asset';
-      sourceFinId?: string;
-      destinationFinId?: string;
-      transactionDetails: /* Additional input and output details for UTXO supporting DLTs */ ReceiptTransactionDetails;
-    }
-    export type ReceiptDetails = ReceiptAssetDetails | ReceiptPaymentDetails;
-    export interface ReceiptExecutionContext {
-      executionPlanId: string;
-      instructionSequenceNumber: number;
-    }
-    export interface ReceiptPaymentDetails {
-      type: 'payment';
-      source?: /* describes account information */ AccountAsset;
-      destination?: /* describes account information */ AccountAsset;
-      transactionDetails: /* Additional input and output details for UTXO supporting DLTs */ ReceiptTransactionDetails;
-    }
-    export interface ReceiptResponse {
-      type: 'response';
-      receipt?: Receipt;
-    }
-    export interface ReceiptTradeDetails {
-      intentId?: string;
-      intentVersion?: string;
-      executionContext?: ReceiptExecutionContext;
-    }
-    /**
-         * Additional input and output details for UTXO supporting DLTs
-         */
-    export interface ReceiptTransactionDetails {
-      /**
-             * Transaction id
-             */
-      transactionId: string;
-      /**
-             * Operation id
-             */
-      operationId?: string;
-    }
-    export interface RedemptionIntent {
-      type: 'redemptionIntent';
-      issuer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      assetTerm: Finp2pAssetTerm;
-      assetInstruction?: IntentAssetInstruction;
-      settlementTerm?: SettlementTerm;
-      settlementInstruction: RedemptionIntentSettlementInstruction;
-      conditions?: RedemptionIntentConditions;
-      signaturePolicy?: PreSignedRedemptionIntentSignaturePolicy | ManualSignaturePolicy;
-    }
-    export interface RedemptionIntentAssetTermUpdate {
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface RedemptionIntentConditions {
-      /**
-             * duration in ISO 8601 format (e.g., "PT1H30M" for 1 hour 30 minutes)
-             */
-      redemptionDuration?: string; // duration ^P(\d{1}Y)?(\d{1,2}M)?(\d{1,3}D)?(T(\d{1,2}H)?(\d{1,2}M)?(\d{1,2}S)?)?$
-    }
-    export interface RedemptionIntentExecution {
-      type: 'redemptionIntentExecution';
-      nonce: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      issuer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      seller: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      asset: TransferRequestAssetOrder;
-      settlement: /* Settlement information for the execute intent request */ ExecuteIntentRequestSettlement;
-    }
-    export interface RedemptionIntentSettlementInstruction {
-      sourceAccounts: /* describes account information */ AccountAsset[];
-    }
-    export interface RedemptionIntentSettlementTermUpdate {
-      unitValue: /* A unit value represented as a string, the value is a decimal number */ UnitValue /* ^\d+(\.\d+)?$ */;
-    }
-    /**
-         * allowed fields to be updated on given intent type
-         */
-    export interface RedemptionIntentUpdatePayload {
-      type: 'redemptionIntent';
-      settlementTerm?: RedemptionIntentSettlementTermUpdate;
-      assetTerm?: RedemptionIntentAssetTermUpdate;
-    }
-    export interface RegulationError {
-      /**
-             * the type of regulation
-             */
-      regulationType: string;
-      /**
-             * actionable details of the error
-             */
-      details: string;
-    }
-    export interface RegulationFailure {
-      failureType: 'RegulationFailure';
-      errors: RegulationError[];
-    }
-    export interface RelativePollingInterval {
-      type: 'relative';
-      /**
-             * ISO-8601 duration format
-             * example:
-             * PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
-             */
-      duration: string;
-    }
-    export interface RepaymentTerm {
-      type: 'repaymentTerm';
-      closeAmount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-      /**
-             * indicative annual interest rate of the operation
-             */
-      interestRate?: string; // ^-?\d*\.?\d*$
-    }
-    export interface RequestForTransferDestinationAccount {
-      /**
-             * The type of the intent.
-             */
-      type: 'requestForTransferIntent';
-      /**
-             * The amount of the asset, fiat or cryptocurrency to be transferred.
-             * example:
-             * 100
-             */
-      amount: string;
-      asset: Asset;
-      /**
-             * Indicates whether the operation is to send or request money/asset.
-             */
-      action: 'request';
-      destinationAccount?: AccountRequestForTransfer;
-    }
-    export interface RequestForTransferExecuteIntent {
-      nonce?: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      senderId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      receiverId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      /**
-             * Indicates whether the operation is to send or request money/asset.
-             */
-      action: 'send' | 'request';
-      /**
-             * The type of the intent.
-             */
-      type: 'requestForTransferIntent';
-      /**
-             * The amount of the asset, fiat or cryptocurrency to be transferred.
-             * example:
-             * 100
-             */
-      amount: string;
-      asset: Asset;
-      sourceAccount: AccountRequestForTransfer;
-      destinationAccount: AccountRequestForTransfer;
-      transactionMetadata?: TransactionMetadata;
-    }
-    export interface RequestForTransferIntent {
-      /**
-             * start time for intent, in epoch (seconds)
-             */
-      start: number; // int64
-      /**
-             * end time for intent, in epoch (seconds)
-             */
-      end: number; // int64
-      nonce?: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      senderId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      receiverId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      intentInfo: RequestForTransferIntentInfo;
-      transactionMetadata?: TransactionMetadata;
-    }
-    export type RequestForTransferIntentInfo = RequestForTransferSourceAccount | RequestForTransferDestinationAccount;
-    export interface RequestForTransferSourceAccount {
-      /**
-             * The type of the intent.
-             */
-      type: 'requestForTransferIntent';
-      /**
-             * The amount of the asset, fiat or cryptocurrency to be transferred.
-             * example:
-             * 100
-             */
-      amount: string;
-      asset: Asset;
-      /**
-             * Indicates whether the operation is to send or request money/asset.
-             */
-      action: 'send';
-      sourceAccount?: AccountRequestForTransfer;
-    }
-    export interface RequestForTransferUpdateIntent {
-      /**
-             * start time for intent, in epoch (seconds)
-             */
-      start?: number; // int64
-      /**
-             * end time for intent, in epoch (seconds)
-             */
-      end?: number; // int64
-      /**
-             * To change the status of the intent
-             */
-      status?: 'Unknown' | 'Active' | 'NonActive' | 'Cancelled' | 'Completed' | 'Expired' | 'Rejected';
-      intentInfo?: {
+        get?: never;
+        put?: never;
         /**
-                 * The amount of the asset, fiat or cryptocurrency to be transferred.
-                 * example:
-                 * 100
-                 */
-        amount?: string;
-      };
-      transactionMetadata?: TransactionMetadata;
-    }
-    /**
-         * finp2p resource id format
-         * example:
-         * bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
+         * Create owner profile
+         * @description Creates a new global identity for an asset owner, the Global Identity cryptography is based on the secp256k1 curve
          */
-    export type ResourceId = string; // ^[^:](?:.+):(101|102|103|104|105):(?:.+)
-    export interface ResourceIdResponse {
-      id: /**
-             * finp2p resource id format
-             * example:
-             * bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-      ResourceId /* ^[^:](?:.+):(101|102|103|104|105):(?:.+) */;
-    }
-    /**
-         * Asset Hash Group (AHG) structure:
-         *
-         * AHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce           | []byte  |  |
-         * | 2 | operation       | string  | "transfer" |
-         * | 3 | assetType       | string  | "finp2p" |
-         * | 4 | assetId         | string  | unique identifier of the asset |
-         * | 5 | srcAccountType  | string  | "finId" |
-         * | 6 | srcAccount      | string  | source account finId address  |
-         * | 7 | dstAccountType  | string  | "finId" |
-         * | 8 | dstAccount      | string  | destination account finId address  |
-         * | 9 | amount          | string  | string representation of the transfer amount |
-         *
-         * Settlement Hash Group (SHG) structure:
-         *
-         * SHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
-         * | 2 | assetId         | string  | unique identifier of the asset |
-         * | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 4 | srcAccount      | string  | source account of the asset  |
-         * | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 6 | dstAccount      | string  | destination account for the asset  |
-         * | 7 | amount          | string  | string representation of the settlement amount |
-         *
-         * hashGroups = hash('SHA3-256', [AHG, SHG]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
-         *
-         */
-    export type SellerTransferSignature = string;
-    export interface SellingIntent {
-      type: 'sellingIntent';
-      seller: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      assetTerm: Finp2pAssetTerm;
-      assetInstruction: IntentAssetInstruction;
-      settlementTerm: SettlementTerm;
-      signaturePolicy?: PresignedSellIntentSignaturePolicy | ManualSignaturePolicy;
-      settlementInstruction?: SellingIntentSettlementInstruction;
-    }
-    export interface SellingIntentAssetTermUpdate {
-      amount: /* the total number of units */ Amount /* ^\d+\.?\d*$ */;
-    }
-    export interface SellingIntentExecution {
-      type: 'sellingIntentExecution';
-      nonce: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      Nonce;
-      asset: TransferRequestAssetOrder;
-      settlement: /* Settlement information for the execute intent request */ ExecuteIntentRequestSettlement;
-      buyer: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-    }
-    export interface SellingIntentSettlementInstruction {
-      destinationAccounts: /* describes account information */ AccountAsset[];
-    }
-    export interface SellingIntentSettlementTermUpdate {
-      unitValue: /* A unit value represented as a string, the value is a decimal number */ UnitValue /* ^\d+(\.\d+)?$ */;
-    }
-    /**
-         * allowed fields to be updated on given intent type
-         */
-    export interface SellingIntentUpdatePayload {
-      type: 'sellingIntent';
-      settlementTerm?: SellingIntentSettlementTermUpdate;
-      assetTerm?: SellingIntentAssetTermUpdate;
-    }
-    export interface SettlementInstruction {
-      sourceAccount: /* describes account information */ AccountAsset;
-      destinationAccount: /* describes account information */ AccountAsset;
-    }
-    export interface SettlementTerm {
-      asset: Asset;
-      /**
-             * A unit value represented as a string, the value is a decimal number
-             */
-      unitValue: string; // ^\d+\.?\d*$
-    }
-    export interface SignatureProofPolicy {
-      type: string;
-      policy: {
+        post: operations["createOwnerProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/owner/{ownerId}/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         /**
-                 * The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
-                 * example:
-                 * 0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12
-                 */
-        publicKey?: string;
-        signatureTemplate?: 'hashlist' | 'EIP712';
-      };
-    }
-    /**
-         * Type of response, immediate / synchronous response or asynchronous
+         * Add an account to an owner profile
+         * @description Adds a custody managed account to an owner
          */
-    export type SignatureResponseType = 'signature' | 'acknowledgement';
-    export interface SignatureResultResponse {
-      /**
-             * Nonce
-             */
-      nonce?: string;
-    }
-    /**
-         * represent a signature template information
-         */
-    export interface SignatureTemplate {
-      /**
-             * hex representation of the signature
-             */
-      signature?: string;
-      /**
-             * ordered list of hash groups
-             */
-      template?: {
-        hashGroups?: HashGroup[];
+        post: operations["addAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         /**
-                 * hex representation of the combined hash groups hash value
-                 */
-        hash?: string;
-      };
-    }
-    export interface SwiftAccountDetails {
-      type: 'bic';
-      swiftCode: string;
-      accountNumber: string;
-    }
-    export type TokenOperation = {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid?: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      type: 'token';
-      metadata?: any;
-    } & (ApiAnyError | TokenOperationResultResponse);
-    export interface TokenOperationResult {
-      receipt: Receipt;
-    }
-    export interface TokenOperationResultResponse {
-      type: 'response';
-      response?: TokenOperationResult;
-    }
-    export interface TransactionMetadata {
-      /**
-             * Optional reference ID for the transaction.
-             * example:
-             * ref-2024-003
-             */
-      referenceId?: string;
-      /**
-             * Optional description or note for the transfer.
-             * example:
-             * Transfer of funds for invoice
-             */
-      description?: string;
-    }
-    export interface TransferRequestAssetOrder {
-      term: Finp2pAssetTerm;
-      instruction: TransferRequestAssetOrderInstruction;
-    }
-    export interface TransferRequestAssetOrderInstruction {
-      sourceAccount: AssetInstruction;
-      destinationAccount: AssetInstruction;
-    }
-    /**
-         *
-         * Asset Hash Group (AHG) structure:
-         *
-         * AHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce           | []byte  |  |
-         * | 2 | operation       | string  | "transfer" |
-         * | 3 | assetType       | string  | "finp2p" |
-         * | 4 | assetId         | string  | unique identifier of the asset |
-         * | 5 | srcAccountType  | string  | "finId" |
-         * | 6 | srcAccount      | string  | source account finId address  |
-         * | 7 | dstAccountType  | string  | "finId" |
-         * | 8 | dstAccount      | string  | destination account finId address  |
-         * | 9 | amount          | string  | string representation of the transfer amount |
-         *
-         * hashGroups = hash('SHA3-256', [AHG]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
+         * Create asset profile
+         * @description Creates a new profile for an asset identity
+         */
+        post: operations["createAssetProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update asset profile
+         * @deprecated
+         * @description Update a profile for an asset identity
+         */
+        put: operations["updateAssetProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update asset profile
+         * @description Patch a profile for an asset identity
+         */
+        patch: operations["patchAssetProfile"];
+        trace?: never;
+    };
+    "/profiles/asset/{id}/intent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create intent for asset profile
+         * @description Create a new intent on an asset profile for either primarySale, buyingIntent or SellingIntent
+         */
+        post: operations["addAssetProfileIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/{id}/intent/{intentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update intent on an asset profile
+         * @description Update an asset intent with new intent rules
+         */
+        patch: operations["updateAssetProfileIntent"];
+        trace?: never;
+    };
+    "/profiles/asset/{id}/intent/{intentId}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable the intent
+         * @description Enable the intent (in case it was previously disabled)
+         */
+        put: operations["enableAssetProfileIntent"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/{id}/intent/{intentId}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Disable the intent
+         * @description Disable the intent so that it can not participate in a token transfer, but is still visible to other participants with an inactive status
+         */
+        put: operations["disableAssetProfileIntent"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Share profile with other organizations
+         * @description Shares profile with other organizations
+         */
+        post: operations["shareProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/{id}/intents/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Intent types allowed to be applied on asset
+         * @description Enable intent types to be used on given asset id
+         */
+        put: operations["enableAssetAllowedIntents"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/{id}/intents/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Block intent types from being applied on asset
+         * @description Block intent types to be used on given asset id
+         */
+        put: operations["disableAssetAllowedIntents"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/{profileId}/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Certificate
+         * @description Creates a new Certificate for a specific profile identity
+         */
+        post: operations["createCertificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/{profileId}/certificates/{certificateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Certificate
+         * @deprecated
+         * @description Updates a new Certificate for a specific profile identity
+         */
+        put: operations["updateCertificate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Certificate
+         * @description Patch a Certificate for a specific profile identity
+         */
+        patch: operations["patchCertificate"];
+        trace?: never;
+    };
+    "/profiles/{profileId}/certificates/{certificateId}/docs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds a new document on a Certificate
+         * @description Adds a new document associated with a Certificate ID
+         */
+        post: operations["addCertificateDoc"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/docs/{uri}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get document
+         * @description Get document content, associated with a Certificate ID
+         */
+        get: operations["getDoc"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/{profileId}/certificates/{certificateId}/docs/{docId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update document
+         * @description Update an existing document on a Certificate
+         */
+        put: operations["updateCertificateDoc"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokens/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute token intent operation
+         * @description Execute a token intent
+         */
+        post: operations["ExecuteToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokens/execute/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel execution
+         * @description Best effort cancellation of ongoing plan
+         */
+        post: operations["CancelExecuteToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokens/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Asset Token transfer
+         * @description Transfer existing asset token to a new owner. Transfer of ownership is done by eliminating existing tokens owned by the sender and creating new tokens with the new owner.
+         */
+        put: operations["transferToken"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokens/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get asset balance
+         * @deprecated
+         * @description Get owner Asset's tokens balance
+         */
+        post: operations["GetAssetBalance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/deposit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create deposit request
+         * @description Create a new deposit request
+         */
+        post: operations["createDepositRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokens/execute/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose execution plan reset
+         * @description Initiates a reset proposal for an execution plan to a specified instruction sequence. The proposal must be ledger-approved by all participants. Once all approvals are collected, the reset process begins, synchronizing all participants to the specified sequence.
+         */
+        post: operations["resetExecutionPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payments/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create withdraw request
+         * @description Create a new withdraw request
+         */
+        post: operations["createWithdrawRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/operations/status/{cid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get operation
+         * @description get the operation state by the operation correlation id
+         */
+        get: operations["getOperation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/attachments/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get attachment
+         * @description Get document content, associated with a message ID
+         */
+        get: operations["getAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send message
+         * @description Send a message to a group of users
+         */
+        post: operations["sendMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/intent/transfer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate a transfer
+         * @description Send or request an asset, fiat currency, or cryptocurrency transfer between users.
+         */
+        post: operations["createRequestForTransferIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/intent/transfer/execute/{intentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute a transfer
+         * @description Send or request an asset, fiat currency, or cryptocurrency transfer between users.
+         */
+        post: operations["executeRequestForTransferIntent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/asset/intent/transfer/{intentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a transfer intent
+         * @description Update transfer intent, send or request an asset, fiat currency, or cryptocurrency transfer between users.
+         */
+        patch: operations["updateRequestForTransferIntent"];
+        trace?: never;
+    };
+    "/profiles/owner/account/balance/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request asset balance synchronization
+         * @description Initiates a request to synchronize the asset account's balance with the ledger.
+         *     The process is asynchronous and completes in the background.
          *
          */
-    export type TransferSignature = string;
-    /**
-         *
-         * Asset Hash Group (AHG) structure:
-         *
-         * AHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce           | []byte  |  |
-         * | 2 | operation       | string  | "transfer" |
-         * | 3 | assetType       | string  | "finp2p" |
-         * | 4 | assetId         | string  | unique identifier of the asset |
-         * | 5 | srcAccountType  | string  | "finId" |
-         * | 6 | srcAccount      | string  | source account finId address  |
-         * | 7 | dstAccountType  | string  | "finId" |
-         * | 8 | dstAccount      | string  | destination account finId address  |
-         * | 9 | amount          | string  | string representation of the transfer amount |
-         *
-         * Settlement Hash Group (SHG) structure:
-         *
-         * SHG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
-         * | 2 | assetId         | string  | unique identifier of the asset |
-         * | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 4 | srcAccount      | string  | source account of the asset  |
-         * | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
-         * | 6 | dstAccount      | string  | destination account for the asset  |
-         * | 7 | amount          | string  | string representation of the settlement amount |
-         *
-         * hashGroups = hash('SHA3-256', [AHG, SHG]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
-         *
+        post: operations["balance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health check
+         * @description Returns the health status of the service.
          */
-    export type TransferWithSettlementSignature = string;
-    /**
-         * A unit value represented as a string, the value is a decimal number
-         */
-    export type UnitValue = string; // ^\d+(\.\d+)?$
-    export type UpdateIntent = /* allowed fields to be updated on given intent type */ PrimarySaleIntentUpdatePayload | /* allowed fields to be updated on given intent type */ BuyingIntentUpdatePayload | /* allowed fields to be updated on given intent type */ SellingIntentUpdatePayload | /* allowed fields to be updated on given intent type */ LoanIntentUpdatePayload | /* allowed fields to be updated on given intent type */ RedemptionIntentUpdatePayload | /* allowed fields to be updated on given intent type */ PrivateOfferIntentUpdatePayload;
-    export interface ValidationFailure {
-      failureType: 'ValidationFailure';
-      /**
-             * ledger error code for validation
-             */
-      code: number; // uint32
-      message: string;
-    }
-    /**
-         * Signature = sign(sender private secp256k1 key, message)
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce | []byte |  |
-         * | 2 | operation       | string | "transfer" |
-         * | 3 | "*" | string | value should indicate any recipient address |
-         * | 4 | assetId            | string | |
-         * | 5 | quantity           | string | string representation of the quantity |
-         * | 6 | settlementAssetId   | string | |
-         * | 7 | settlementQuantity  | string | string representation of the quantity |
-         * | 8 | settlementExpiry    | string | string representation of the expiry value |
-         *
-         */
-    export type WildcardTransferSignature = string;
-    export type WireDetails = IbanAccountDetails | SwiftAccountDetails;
-    export interface WireTransfer {
-      type: 'wireTransfer';
-      accountHolderName: string;
-      bankName: string;
-      wireDetails: WireDetails;
-      line1: string;
-      city: string;
-      postalCode: string;
-      country: string;
-    }
-    export interface WireTransferUSA {
-      type: 'wireTransferUSA';
-      accountNumber: string;
-      routingNumber: string;
-      line1: string;
-      city: string;
-      postalCode: string;
-      country: string;
-      state: string;
-    }
-    /**
-         * describes account information
-         */
-    export interface WithdrawAccount {
-      account: FinIdAccount;
-      asset: Asset;
-    }
-    /**
-         * Withdrawal instruction
-         */
-    export interface WithdrawInstruction {
-      account: /* describes account information */ AccountAsset;
-      /**
-             * Instruction details
-             */
-      description: string;
-    }
-    export type WithdrawOperation = {
-      /**
-             * unique correlation id which identify the operation
-             */
-      cid?: string;
-      /**
-             * flag indicating if the operation completed, if true then error or response must be present (but not both)
-             */
-      isCompleted: boolean;
-      type: 'withdraw';
-    } & (ApiAnyError | ReceiptResponse);
-    /**
-         * HG = hash('SHA3-256', [fields by order]);
-         *
-         * | order | value | type | comment |
-         * |--|--|--|--|
-         * | 1 | nonce           | []byte  |  |
-         * | 2 | operation       | string  | "withdraw" |
-         * | 3 | assetType       | string  |  "fiat", "cryptocurrency", "custom" |
-         * | 4 | assetId         | string  | unique identifier of the asset |
-         * | 5 | srcAccountType  | string  | "finId" |
-         * | 6 | srcAccount      | string  | source account to withdraw funds from  |
-         * | 7 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" | optional
-         * | 8 | dstAccount      | string  | destination account to deposit funds into  | optional
-         * | 9 | amount          | string  | string representation of the amount |
-         *
-         * hashGroups = hash('SHA3-256', [HG]);
-         *
-         * Signature = sign(sender private secp256k1 key, hashGroups)
-         *
-         */
-    export type WithdrawSignature = string;
-    export type WithdrawSignaturePolicy = ManualSignaturePolicy;
-  }
+        get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-declare namespace FinAPIPaths {
-  namespace AddAccount {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type OwnerId = /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-            FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-    }
-    export interface PathParameters {
-      ownerId: Parameters.OwnerId;
-    }
-    export interface RequestBody {
-      /**
-             * Org ID for the custodian of the account
-             */
-      orgId: string;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.AccountOperationResult;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace AddAssetProfileIntent {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type Id = string; // ^[^:](?:.+):102:(?:.+)
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface PathParameters {
-      id: Parameters.Id /* ^[^:](?:.+):102:(?:.+) */;
-    }
-    export interface RequestBody {
-      /**
-             * start time for intent, in epoch (seconds)
-             */
-      start: number; // int64
-      /**
-             * end time for intent, in epoch (seconds)
-             */
-      end: number; // int64
-      intent: FinAPIComponents.Schemas.Intent;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.IdResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace AddCertificateDoc {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type CertificateId = string;
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type ProfileId = /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-            FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-    }
-    export interface PathParameters {
-      profileId: Parameters.ProfileId;
-      certificateId: Parameters.CertificateId;
-    }
-    /**
-         * The request body can contain multiple files as multiple file form fields
+export type webhooks = Record<string, never>;
+export interface components {
+    schemas: {
+        "idempotency-key": components["schemas"]["nonce"];
+        /**
+         * @description finp2p resource id format
+         * @example bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
          */
-    export interface RequestBody {
-      /**
-             * the document in binary format
-             */
-      file?: string; // binary
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.DocumentsList;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace Balance {
-    export interface RequestBody {
-      asset: /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-      FinAPIComponents.Schemas.AssetId /* ^[^:](?:.+):102:(?:.+) */;
-      /**
-             * owner hex representation of a secp256k1 public key 33 bytes compressed
-             */
-      sourcePublicKey: string;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.BalanceInformation;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace CreateAssetProfile {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface RequestBody {
-      /**
-             * The asset metadata
-             */
-      metadata?: {
-        [name: string]: any;
-      };
-      /**
-             * The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
-             */
-      config?: string;
-      /**
-             * A list of regulation verifiers to execute to validate a transaction
-             */
-      verifiers?: FinAPIComponents.Schemas.AssetVerifier[];
-      intentTypes?: /* Allowed intent types to be applied on an asset */ FinAPIComponents.Schemas.IntentTypesAllowEmpty;
-      name: /* The name of the asset */ FinAPIComponents.Schemas.Name /* ^[a-zA-Z0-9\-_. /]*$ */;
-      /**
-             * The type of the asset
-             */
-      type: string; // ^[a-zA-Z0-9\- ]*$
-      issuerId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      denomination: FinAPIComponents.Schemas.AssetDenomination;
-      ledgerAssetBinding?: FinAPIComponents.Schemas.LedgerAssetBinding;
-      assetPolicies?: FinAPIComponents.Schemas.AssetPolicies;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.ResourceIdResponse;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace CreateCertificate {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type ProfileId = /**
-             * finp2p resource id format
-             * example:
-             * bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-            FinAPIComponents.Schemas.ProfileId /* ^[^:](?:.+):(101|102):(?:.+) */;
-    }
-    export interface PathParameters {
-      profileId: Parameters.ProfileId;
-    }
-    export interface RequestBody {
-      /**
-             * The type of the Certificate
-             */
-      type: string; // ^[a-zA-Z0-9 _./]*$
-      /**
-             * The issuance date of the Certificate in epoch time seconds
-             */
-      issuanceDate: number; // int64
-      /**
-             * The expiration date of the Certificate in epoch time seconds
-             */
-      expirationDate: number; // int64
-      /**
-             * Serialized data objects that contain one or more properties that are each related to the subject of the Certificate
-             */
-      data: string;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.IdResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace CreateDepositRequest {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface RequestBody {
-      profileId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      account: /* describes account information */ FinAPIComponents.Schemas.DepositAccount;
-      amount: /* the total number of units */ FinAPIComponents.Schemas.Amount /* ^\d+\.?\d*$ */;
-      /**
-             * Any addition deposit specific information
-             */
-      details?: {
-        [key: string]: any;
-      };
-      nonce?: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      FinAPIComponents.Schemas.Nonce;
-      signaturePolicy?: FinAPIComponents.Schemas.DepositSignaturePolicy;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.DepositInstruction;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace CreateOwnerProfile {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.ResourceIdResponse;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace CreateRequestForTransferIntent {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export type RequestBody = FinAPIComponents.Schemas.RequestForTransferIntent;
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.IntentIdResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace CreateWithdrawRequest {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface RequestBody {
-      profileId: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      account: /* describes account information */ FinAPIComponents.Schemas.WithdrawAccount;
-      amount: /* the total number of units */ FinAPIComponents.Schemas.Amount /* ^\d+\.?\d*$ */;
-      withdrawInstruction?: /* Withdrawal instruction */ FinAPIComponents.Schemas.WithdrawInstruction;
-      nonce?: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      FinAPIComponents.Schemas.Nonce;
-      signaturePolicy?: FinAPIComponents.Schemas.WithdrawSignaturePolicy;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.Receipt;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace DisableAssetAllowedIntents {
-    namespace Parameters {
-      /**
-             * example:
-             * bank-x:103:ed495b49-2ad8-4e44-a294-405d5e24d181
-             */
-      export type Id = string; // ^[^:](?:.+):(?:.+):(?:.+)
-    }
-    export interface PathParameters {
-      id: /**
-             * example:
-             * bank-x:103:ed495b49-2ad8-4e44-a294-405d5e24d181
-             */
-      Parameters.Id /* ^[^:](?:.+):(?:.+):(?:.+) */;
-    }
-    export interface RequestBody {
-      intentTypes: /* Allowed intent types to be applied on an asset */ FinAPIComponents.Schemas.IntentTypes;
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace DisableAssetProfileIntent {
-    namespace Parameters {
-      export type Id = /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-            FinAPIComponents.Schemas.AssetId /* ^[^:](?:.+):102:(?:.+) */;
-      export type IntentId = /**
-             * The intent resource id
-             * example:
-             * bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-            FinAPIComponents.Schemas.IntentId /* ^[^:](?:.+):105:(?:.+) */;
-    }
-    export interface PathParameters {
-      id: Parameters.Id;
-      intentId: Parameters.IntentId;
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace EnableAssetAllowedIntents {
-    namespace Parameters {
-      /**
-             * example:
-             * bank-x:103:ed495b49-2ad8-4e44-a294-405d5e24d181
-             */
-      export type Id = string; // ^[^:](?:.+):(?:.+):(?:.+)
-    }
-    export interface PathParameters {
-      id: /**
-             * example:
-             * bank-x:103:ed495b49-2ad8-4e44-a294-405d5e24d181
-             */
-      Parameters.Id /* ^[^:](?:.+):(?:.+):(?:.+) */;
-    }
-    export interface RequestBody {
-      intentTypes: /* Allowed intent types to be applied on an asset */ FinAPIComponents.Schemas.IntentTypes;
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace EnableAssetProfileIntent {
-    namespace Parameters {
-      export type Id = /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-            FinAPIComponents.Schemas.AssetId /* ^[^:](?:.+):102:(?:.+) */;
-      export type IntentId = /**
-             * The intent resource id
-             * example:
-             * bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-            FinAPIComponents.Schemas.IntentId /* ^[^:](?:.+):105:(?:.+) */;
-    }
-    export interface PathParameters {
-      id: Parameters.Id;
-      intentId: Parameters.IntentId;
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace ExecuteRequestForTransferIntent {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type IntentId = string; // ^[^:](?:.+):105:(?:.+)
-    }
-    export interface PathParameters {
-      intentId: Parameters.IntentId /* ^[^:](?:.+):105:(?:.+) */;
-    }
-    export type RequestBody = FinAPIComponents.Schemas.RequestForTransferExecuteIntent;
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.OperationResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace ExecuteToken {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface RequestBody {
-      user: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      intentId: /**
-             * The intent resource id
-             * example:
-             * bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-      FinAPIComponents.Schemas.IntentId /* ^[^:](?:.+):105:(?:.+) */;
-      intent: FinAPIComponents.Schemas.IntentExecution;
-      /**
-             * unique identifier for the execution, will default to generated UUID if not provided
-             */
-      executionId?: string;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.ExecutionOperationResult;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace GetAttachment {
-    namespace Parameters {
-      export type Uuid = string;
-    }
-    export interface PathParameters {
-      uuid: Parameters.Uuid;
-    }
-    namespace Responses {
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace GetDoc {
-    namespace Parameters {
-      export type Uri = string;
-    }
-    export interface PathParameters {
-      uri: Parameters.Uri;
-    }
-    namespace Responses {
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace GetOperation {
-    namespace Parameters {
-      export type Cid = string;
-    }
-    export interface PathParameters {
-      cid: Parameters.Cid;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.OperationResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace RedeemToken {
-    export interface RequestBody {
-      asset: /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-      FinAPIComponents.Schemas.AssetId /* ^[^:](?:.+):102:(?:.+) */;
-      seller: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      sourcePublicKey: /* Existing owner hex representation of a secp256k1 public key 33 bytes compressed */ FinAPIComponents.Schemas.FinId /* ^[0-9a-h]*$ */;
-      /**
-             * How many units of token type to redeem
-             */
-      quantity: string;
-      /**
-             * 24 randomly generated bytes by the client
-             */
-      nonce: string;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.TokenOperationResult;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace SendMessage {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface RequestBody {
-      /**
-             * message subject or title
-             */
-      subject: string;
-      /**
-             * message body
-             */
-      body: string;
-      correspondent: FinAPIComponents.Schemas.Correspondent;
-      /**
-             * Collections of owners ids to send the message to
-             */
-      recipients: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */[];
-      /**
-             * Collection optional attachments
-             */
-      attachments?: {
-        filename?: string /* binary */[];
-      };
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.MessageResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace ShareProfile {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      /**
-             * example:
-             * bank-x:103:ed495b49-2ad8-4e44-a294-405d5e24d181
-             */
-      export type Id = string; // ^[^:](?:.+):(?:.+):(?:.+)
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface PathParameters {
-      id: /**
-             * example:
-             * bank-x:103:ed495b49-2ad8-4e44-a294-405d5e24d181
-             */
-      Parameters.Id /* ^[^:](?:.+):(?:.+):(?:.+) */;
-    }
-    export interface RequestBody {
-      /**
-             * Collections of organizations ids to share the profile with
-             */
-      organizations: string[];
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace SignatureResult {
-    export interface RequestBody {
-      /**
-             * nonce
-             */
-      requestId: string;
-      assetId?: /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-      FinAPIComponents.Schemas.AssetId /* ^[^:](?:.+):102:(?:.+) */;
-      intentId: /**
-             * The intent resource id
-             * example:
-             * bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-      FinAPIComponents.Schemas.IntentId /* ^[^:](?:.+):105:(?:.+) */;
-      signature: /**
-             *
-             * Asset Hash Group (AHG) structure:
-             *
-             * AHG = hash('SHA3-256', [fields by order]);
-             *
-             * | order | value | type | comment |
-             * |--|--|--|--|
-             * | 1 | nonce           | []byte  |  |
-             * | 2 | operation       | string  | "transfer" |
-             * | 3 | assetType       | string  | "finp2p" |
-             * | 4 | assetId         | string  | unique identifier of the asset |
-             * | 5 | srcAccountType  | string  | "finId" |
-             * | 6 | srcAccount      | string  | source account finId address  |
-             * | 7 | dstAccountType  | string  | "finId" |
-             * | 8 | dstAccount      | string  | destination account finId address  |
-             * | 9 | amount          | string  | string representation of the transfer amount |
-             *
-             * hashGroups = hash('SHA3-256', [AHG]);
-             *
-             * Signature = sign(sender private secp256k1 key, hashGroups)
-             *
-             */
-      FinAPIComponents.Schemas.TransferSignature;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.SignatureResultResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace TransferToken {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface RequestBody {
-      nonce: /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-      FinAPIComponents.Schemas.Nonce;
-      source: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      destination: /**
-             * The Owner resource id
-             * example:
-             * bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
-             */
-      FinAPIComponents.Schemas.OwnerId /* ^[^:](?:.+):101:(?:.+) */;
-      asset: FinAPIComponents.Schemas.TransferRequestAssetOrder;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.ExecutionOperationResult;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace UpdateAssetProfile {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type Id = /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-            FinAPIComponents.Schemas.AssetId /* ^[^:](?:.+):102:(?:.+) */;
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-    }
-    export interface PathParameters {
-      id: Parameters.Id;
-    }
-    export interface RequestBody {
-      /**
-             * The asset metadata
-             */
-      metadata?: {
-        [name: string]: any;
-      };
-      /**
-             * The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
-             */
-      config?: string;
-      /**
-             * A list of regulation verifiers to execute to validate a transaction
-             */
-      verifiers?: FinAPIComponents.Schemas.AssetVerifier[];
-      name: /* The name of the asset */ FinAPIComponents.Schemas.Name /* ^[a-zA-Z0-9\-_. /]*$ */;
-      assetPolicies?: FinAPIComponents.Schemas.AssetPolicies;
-    }
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.ResourceIdResponse;
-      export type $202 = FinAPIComponents.Schemas.OperationBase;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace UpdateAssetProfileIntent {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type Id = /**
-             * The Asset resource id
-             * example:
-             * bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
-             */
-            FinAPIComponents.Schemas.AssetId /* ^[^:](?:.+):102:(?:.+) */;
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type IntentId = /**
-             * The intent resource id
-             * example:
-             * bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-            FinAPIComponents.Schemas.IntentId /* ^[^:](?:.+):105:(?:.+) */;
-    }
-    export interface PathParameters {
-      id: Parameters.Id;
-      intentId: Parameters.IntentId;
-    }
-    export interface RequestBody {
-      /**
-             * start time for intent, in epoch (seconds)
-             */
-      start?: number; // int64
-      /**
-             * end time for intent, in epoch (seconds)
-             */
-      end?: number; // int64
-      intent?: FinAPIComponents.Schemas.UpdateIntent;
-      /**
-             * To change the status of the intent
-             */
-      status?: 'Rejected';
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace UpdateCertificate {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type CertificateId = string;
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type ProfileId = /**
-             * finp2p resource id format
-             * example:
-             * bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
-             */
-            FinAPIComponents.Schemas.ProfileId /* ^[^:](?:.+):(101|102):(?:.+) */;
-    }
-    export interface PathParameters {
-      profileId: Parameters.ProfileId;
-      certificateId: Parameters.CertificateId;
-    }
-    export interface RequestBody {
-      /**
-             * The issuance date of the Certificate in epoch time seconds
-             */
-      issuanceDate: number; // int64
-      /**
-             * The expiration date of the Certificate in epoch time seconds
-             */
-      expirationDate: number; // int64
-      /**
-             * Serilized data objects that contain one or more properties that are each related to the subject of the Certificate
-             */
-      data: string;
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace UpdateCertificateDoc {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type CertificateId = string;
-      export type DocId = string;
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type ProfileId = string;
-    }
-    export interface PathParameters {
-      docId: Parameters.DocId;
-      profileId: Parameters.ProfileId;
-      certificateId: Parameters.CertificateId;
-    }
-    export interface RequestBody {
-      /**
-             * the document in binary format
-             */
-      file?: string; // binary
-    }
-    namespace Responses {
-      export interface $200 {
-      }
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
-  namespace UpdateRequestForTransferIntent {
-    export interface HeaderParameters {
-      'Idempotency-Key'?: Parameters.IdempotencyKey;
-    }
-    namespace Parameters {
-      export type IdempotencyKey = /**
-             * 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-             *
-             *   const nonce = Buffer.alloc(32);
-             *   nonce.fill(crypto.randomBytes(24), 0, 24);
-             *
-             *   const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-             *   const t = BigInt(nowEpochSeconds);
-             *   nonce.writeBigInt64BE(t, 24);
-             *
-             */
-            FinAPIComponents.Schemas.Nonce;
-      export type IntentId = string; // ^[^:](?:.+):105:(?:.+)
-    }
-    export interface PathParameters {
-      intentId: Parameters.IntentId /* ^[^:](?:.+):105:(?:.+) */;
-    }
-    export type RequestBody = FinAPIComponents.Schemas.RequestForTransferUpdateIntent;
-    namespace Responses {
-      export type $200 = FinAPIComponents.Schemas.OperationResponse;
-      export type $400 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $401 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $403 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $404 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $409 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $500 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $502 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $503 = FinAPIComponents.Schemas.ApiAnyError;
-      export type $504 = FinAPIComponents.Schemas.ApiAnyError;
-    }
-  }
+        resourceId: string;
+        /**
+         * @description finp2p resource id format
+         * @example bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
+         */
+        profileId: string;
+        /**
+         * @description The Owner resource id
+         * @example bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
+         */
+        ownerId: string;
+        /**
+         * @description The Asset resource id
+         * @example bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
+         */
+        assetId: string;
+        /**
+         * @description The intent resource id
+         * @example bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
+         */
+        intentId: string;
+        /**
+         * @description The execution resource id
+         * @example bank-x:106:9929ccaf-8967-4ba3-9198-a4b8e3128388
+         */
+        executionPlanId: string;
+        /** @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed */
+        finId: string;
+        primarySaleExecution: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "primarySaleExecution";
+            nonce: components["schemas"]["nonce"];
+            issuer: components["schemas"]["ownerId"];
+            buyer: components["schemas"]["ownerId"];
+            asset: components["schemas"]["issueRequestAssetOrder"];
+            settlement: components["schemas"]["executeIntentRequestSettlement"];
+        };
+        buyingIntentExecution: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "buyingIntentExecution";
+            nonce: components["schemas"]["nonce"];
+            asset: components["schemas"]["transferRequestAssetOrder"];
+            settlement: components["schemas"]["executeIntentRequestSettlement"];
+            seller: components["schemas"]["ownerId"];
+        };
+        sellingIntentExecution: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "sellingIntentExecution";
+            nonce: components["schemas"]["nonce"];
+            asset: components["schemas"]["transferRequestAssetOrder"];
+            settlement: components["schemas"]["executeIntentRequestSettlement"];
+            buyer: components["schemas"]["ownerId"];
+        };
+        loanIntentExecution: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "loanIntentExecution";
+            /** @enum {string} */
+            executorType: "borrower" | "lender";
+            nonce: components["schemas"]["nonce"];
+            borrower: components["schemas"]["ownerId"];
+            lender: components["schemas"]["ownerId"];
+            asset: components["schemas"]["loanRequestAssetOrder"];
+            settlement: components["schemas"]["executeLoanIntentRequestSettlement"];
+            loanInstruction?: components["schemas"]["loanInstruction"];
+        };
+        redemptionIntentExecution: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "redemptionIntentExecution";
+            nonce: components["schemas"]["nonce"];
+            issuer: components["schemas"]["ownerId"];
+            seller: components["schemas"]["ownerId"];
+            asset: components["schemas"]["transferRequestAssetOrder"];
+            settlement: components["schemas"]["executeIntentRequestSettlement"];
+        };
+        privateOfferIntentExecution: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "privateOfferIntentExecution";
+            nonce: components["schemas"]["nonce"];
+            asset: components["schemas"]["privateOfferRequestAssetOrder"];
+            settlement?: components["schemas"]["executeIntentRequestSettlement"];
+            buyer: components["schemas"]["ownerId"];
+            seller: components["schemas"]["ownerId"];
+        };
+        intentExecution: components["schemas"]["primarySaleExecution"] | components["schemas"]["buyingIntentExecution"] | components["schemas"]["sellingIntentExecution"] | components["schemas"]["loanIntentExecution"] | components["schemas"]["redemptionIntentExecution"] | components["schemas"]["privateOfferIntentExecution"];
+        correspondent: components["schemas"]["assetIssuer"];
+        intent: components["schemas"]["primarySale"] | components["schemas"]["buyingIntent"] | components["schemas"]["sellingIntent"] | components["schemas"]["loanIntent"] | components["schemas"]["redemptionIntent"] | components["schemas"]["privateOfferIntent"];
+        primarySale: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "primarySale";
+            issuer: components["schemas"]["ownerId"];
+            assetTerm: components["schemas"]["finp2pAssetTerm"];
+            assetInstruction: components["schemas"]["intentAssetInstruction"];
+            settlementTerm: components["schemas"]["settlementTerm"];
+            settlementInstruction?: components["schemas"]["sellingIntentSettlementInstruction"];
+        };
+        buyingIntent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "buyingIntent";
+            /** @description resource id of the buyer */
+            buyer: string;
+            assetTerm: components["schemas"]["finp2pAssetTerm"];
+            assetInstruction: components["schemas"]["intentAssetInstruction"];
+            settlementTerm?: components["schemas"]["settlementTerm"];
+            settlementInstruction: components["schemas"]["buyingIntentSettlementInstruction"];
+            signaturePolicy?: components["schemas"]["presignedBuyIntentSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
+        };
+        sellingIntent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "sellingIntent";
+            seller: components["schemas"]["ownerId"];
+            assetTerm: components["schemas"]["finp2pAssetTerm"];
+            assetInstruction: components["schemas"]["intentAssetInstruction"];
+            settlementTerm: components["schemas"]["settlementTerm"];
+            signaturePolicy?: components["schemas"]["presignedSellIntentSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
+            settlementInstruction?: components["schemas"]["sellingIntentSettlementInstruction"];
+        };
+        loanIntent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "loanIntent";
+            /** @enum {string} */
+            creatorType: "borrower" | "lender";
+            borrower: components["schemas"]["ownerId"];
+            lender: components["schemas"]["ownerId"];
+            assetTerm?: components["schemas"]["finp2pAssetTerm"];
+            assetInstruction?: components["schemas"]["loanIntentAssetInstruction"];
+            settlementTerm?: components["schemas"]["settlementTerm"];
+            settlementInstruction?: components["schemas"]["loanIntentSettlementInstruction"];
+            loanInstruction?: components["schemas"]["loanInstruction"];
+            signaturePolicy?: components["schemas"]["presignedLoanIntentSignaturePolicy"];
+        };
+        redemptionIntent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "redemptionIntent";
+            issuer: components["schemas"]["ownerId"];
+            assetTerm: components["schemas"]["finp2pAssetTerm"];
+            assetInstruction?: components["schemas"]["intentAssetInstruction"];
+            settlementTerm?: components["schemas"]["settlementTerm"];
+            settlementInstruction: components["schemas"]["redemptionIntentSettlementInstruction"];
+            conditions?: components["schemas"]["redemptionIntentConditions"];
+            signaturePolicy?: components["schemas"]["preSignedRedemptionIntentSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
+        };
+        privateOfferIntent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "privateOfferIntent";
+            buyer: components["schemas"]["ownerId"];
+            seller: components["schemas"]["ownerId"];
+            assetTerm: components["schemas"]["finp2pAssetTerm"];
+            assetInstruction?: components["schemas"]["privateOfferIntentAssetInstruction"];
+            settlementTerm?: components["schemas"]["settlementTerm"];
+            signaturePolicy?: components["schemas"]["presignedSellIntentSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
+            settlementInstruction?: components["schemas"]["sellingIntentSettlementInstruction"];
+        };
+        settlementTerm: {
+            asset: components["schemas"]["asset"];
+            /** @description A unit value represented as a string, the value is a decimal number */
+            unitValue: string;
+        };
+        assetTerm: {
+            asset: components["schemas"]["asset"];
+            amount: components["schemas"]["amount"];
+        };
+        issueRequestAssetOrder: {
+            term: components["schemas"]["finp2pAssetTerm"];
+            instruction: components["schemas"]["issueRequestAssetOrderInstruction"];
+        };
+        issueRequestAssetOrderInstruction: {
+            destinationAccount: components["schemas"]["assetInstruction"];
+        };
+        privateOfferRequestAssetOrder: {
+            term: components["schemas"]["finp2pAssetTerm"];
+            instruction: components["schemas"]["privateOfferRequestAssetOrderInstruction"];
+        };
+        transferRequestAssetOrder: {
+            term: components["schemas"]["finp2pAssetTerm"];
+            instruction: components["schemas"]["transferRequestAssetOrderInstruction"];
+        };
+        loanRequestAssetOrder: {
+            term: components["schemas"]["finp2pAssetTerm"];
+            instruction: components["schemas"]["loanRequestAssetOrderInstruction"];
+        };
+        transferRequestAssetOrderInstruction: {
+            sourceAccount: components["schemas"]["assetInstruction"];
+            destinationAccount: components["schemas"]["assetInstruction"];
+        };
+        privateOfferRequestAssetOrderInstruction: {
+            sourceAccount?: components["schemas"]["assetInstruction"];
+            destinationAccount: components["schemas"]["assetInstruction"];
+        };
+        loanRequestAssetOrderInstruction: {
+            borrowerAccount: components["schemas"]["assetInstruction"];
+            lenderAccount: components["schemas"]["assetInstruction"];
+        };
+        /** @description Settlement information for the execute intent request */
+        executeIntentRequestSettlement: {
+            term: components["schemas"]["assetTerm"];
+            instruction: components["schemas"]["settlementInstruction"];
+        };
+        /** @description Settlement information for the execute intent request */
+        executeLoanIntentRequestSettlement: {
+            term: components["schemas"]["assetTerm"];
+            instruction: components["schemas"]["loanSettlementInstruction"];
+        };
+        finp2pAssetTerm: {
+            asset: components["schemas"]["finp2pAsset"];
+            amount: components["schemas"]["amount"];
+        };
+        intentAssetInstruction: {
+            account: components["schemas"]["assetInstruction"];
+        };
+        privateOfferIntentAssetInstruction: {
+            account: components["schemas"]["privateOfferAssetInstruction"];
+        };
+        loanIntentAssetInstruction: {
+            borrowerAccount: components["schemas"]["assetInstruction"];
+            lenderAccount: components["schemas"]["assetInstruction"];
+        };
+        assetInstruction: {
+            account: components["schemas"]["assetInstructionAccount"];
+            asset: components["schemas"]["finp2pAsset"];
+        };
+        privateOfferAssetInstruction: {
+            account?: components["schemas"]["assetInstructionAccount"];
+            asset: components["schemas"]["finp2pAsset"];
+        };
+        assetInstructionAccount: components["schemas"]["finIdAccount"];
+        settlementInstruction: {
+            sourceAccount: components["schemas"]["accountAsset"];
+            destinationAccount: components["schemas"]["accountAsset"];
+        };
+        loanSettlementInstruction: {
+            borrowerAccount: components["schemas"]["accountAsset"];
+            lenderAccount: components["schemas"]["accountAsset"];
+        };
+        buyingIntentSettlementInstruction: {
+            sourceAccount: components["schemas"]["accountAsset"];
+        };
+        sellingIntentSettlementInstruction: {
+            destinationAccounts: components["schemas"]["accountAsset"][];
+        };
+        redemptionIntentSettlementInstruction: {
+            sourceAccounts: components["schemas"]["accountAsset"][];
+        };
+        loanIntentSettlementInstruction: {
+            borrowerAccount: components["schemas"]["accountAsset"];
+            lenderAccount: components["schemas"]["accountAsset"];
+        };
+        privateOfferIntentSettlementInstruction: {
+            sellerAccount: components["schemas"]["accountAsset"];
+            buyerAccount: components["schemas"]["accountAsset"];
+        };
+        loanInstruction: {
+            /**
+             * Format: int64
+             * @description date and time operation starts, in epoch (seconds)
+             */
+            openDate: number;
+            /**
+             * Format: int64
+             * @description date and time operation ends, in epoch (seconds)
+             */
+            closeDate: number;
+            conditions: components["schemas"]["loanConditions"];
+        };
+        presignedSellIntentSignaturePolicy: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "presignedPolicy";
+        };
+        presignedBuyIntentSignaturePolicy: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "presignedPolicy";
+        };
+        presignedLoanIntentSignaturePolicy: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "presignedPolicy";
+        };
+        preSignedRedemptionIntentSignaturePolicy: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "preSignedPolicy";
+        };
+        presignedPrivateOfferIntentSignaturePolicy: {
+            /** @enum {string} */
+            type: "presignedPolicy";
+        };
+        manualSignaturePolicy: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "manualPolicy";
+            nonce?: components["schemas"]["nonce"];
+        };
+        /**
+         * @description Type of response, immediate / synchronous response or asynchronous
+         * @enum {string}
+         */
+        signatureResponseType: "signature" | "acknowledgement";
+        idResponse: {
+            id: components["schemas"]["ownerId"];
+        };
+        intentIdResponse: {
+            intentId: components["schemas"]["ownerId"];
+        };
+        resourceIdResponse: {
+            id: components["schemas"]["resourceId"];
+        };
+        operationBase: {
+            /** @description unique correlation id which identify the operation */
+            cid?: string;
+            /**
+             * @description flag indicating if the operation completed, if true then error or response must be present (but not both)
+             * @default false
+             */
+            isCompleted: boolean;
+        };
+        operationResponse: components["schemas"]["tokenOperation"] | components["schemas"]["profileOperation"] | components["schemas"]["depositOperation"] | components["schemas"]["withdrawOperation"] | components["schemas"]["executionOperation"] | components["schemas"]["cancelExecutionOperation"] | components["schemas"]["resetExecutionOperation"] | components["schemas"]["accountOperation"];
+        tokenOperation: components["schemas"]["operationBase"] & {
+            /** @enum {string} */
+            type: "token";
+            metadata?: unknown;
+            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["tokenOperationResultResponse"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "token";
+        };
+        tokenOperationResultResponse: {
+            /** @enum {string} */
+            type: "success";
+        } & components["schemas"]["tokenOperationResult"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "success";
+        };
+        executionOperation: components["schemas"]["operationBase"] & {
+            /** @enum {string} */
+            type: "execution";
+            metadata?: unknown;
+            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["executionOperationResultResponse"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "execution";
+        };
+        cancelExecutionOperation: components["schemas"]["operationBase"] & {
+            /** @enum {string} */
+            type: "cancel-execution";
+            metadata?: unknown;
+            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["cancelExecutionOperationResultResponse"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cancel-execution";
+        };
+        resetExecutionOperation: components["schemas"]["operationBase"] & Omit<{
+            /** @enum {string} */
+            type: "reset-execution";
+            metadata?: unknown;
+        }, "type"> & (components["schemas"]["APIErrors"] | components["schemas"]["resetExecutionOperationResultResponse"]) & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "reset-execution";
+        };
+        executionOperationResultResponse: {
+            /** @enum {string} */
+            type: "success";
+        } & components["schemas"]["executionOperationResult"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "success";
+        };
+        cancelExecutionOperationResultResponse: {
+            /** @enum {string} */
+            type: "success";
+        } & components["schemas"]["executionCancellationOperationResult"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "success";
+        };
+        resetExecutionOperationResultResponse: {
+            /** @enum {string} */
+            type: "response";
+            response?: components["schemas"]["executionResetOperationResult"];
+        };
+        accountOperation: components["schemas"]["operationBase"] & {
+            /** @enum {string} */
+            type: "account";
+            metadata?: unknown;
+            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["accountOperationResultResponse"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "account";
+        };
+        accountOperationResultResponse: {
+            /** @enum {string} */
+            type: "success";
+        } & components["schemas"]["accountOperationResult"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "success";
+        };
+        accountOperationResult: {
+            /** @description custodian org id */
+            custodyOrgId?: string;
+            /** @description hex representation of a secp256k1 resource public key 33 bytes compressed */
+            finId?: string;
+        };
+        executionOperationResult: {
+            executionPlanId: components["schemas"]["executionPlanId"];
+        };
+        executionCancellationOperationResult: components["schemas"]["executionPlanCancellationStatus"];
+        executionResetOperationResult: components["schemas"]["executionPlanResetStatus"];
+        executionPlanCancellationStatus: {
+            /** @enum {string} */
+            status: "approved" | "rejected";
+            /** @description status per organization participating in the execution plan */
+            organizationsStatuses: {
+                organization: string;
+                /** @enum {string} */
+                status: "approved" | "rejected";
+            }[];
+        };
+        executionPlanResetStatus: {
+            /** @enum {string} */
+            status: "approved" | "rejected";
+            /** @description status per organization participating in the execution plan */
+            organizationsStatuses: {
+                organization: string;
+                /** @enum {string} */
+                status: "approved" | "rejected";
+            }[];
+        };
+        tokenOperationResult: {
+            receipt: components["schemas"]["receipt"];
+        };
+        profileOperation: components["schemas"]["operationBase"] & {
+            /** @enum {string} */
+            type: "profile";
+            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["profileOperationResponse"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "profile";
+        };
+        profileOperationResponse: {
+            /** @enum {string} */
+            type: "success";
+        } & components["schemas"]["resourceIdResponse"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "success";
+        };
+        depositOperation: components["schemas"]["operationBase"] & {
+            /** @enum {string} */
+            type: "deposit";
+            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["depositInstructionResponse"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deposit";
+        };
+        depositInstructionResponse: {
+            /** @enum {string} */
+            type: "success";
+        } & components["schemas"]["depositInstruction"] & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "success";
+        };
+        withdrawOperation: components["schemas"]["operationBase"] & {
+            /** @enum {string} */
+            type: "withdraw";
+            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["receiptResponse"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "withdraw";
+        };
+        receiptResponse: {
+            /** @enum {string} */
+            type: "success";
+        } & {
+            receipt: components["schemas"]["receipt"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "success";
+        };
+        depositInstruction: {
+            /** @description operation id */
+            operationId: string;
+            /** @description Deposit instruction, including account details */
+            depositInstruction: {
+                account: components["schemas"]["depositAccount"];
+                /** @description Instruction details */
+                description: string;
+                /** @description Additional details */
+                details?: Record<string, never>;
+                paymentOptions?: components["schemas"]["paymentMethods"];
+            };
+        };
+        receipt: {
+            /** @description receipt id */
+            id: string;
+            asset: components["schemas"]["receiptAsset"];
+            source?: components["schemas"]["ownerId"];
+            destination?: components["schemas"]["ownerId"];
+            quantity: string;
+            tradeDetails?: components["schemas"]["receiptTradeDetails"];
+            details: components["schemas"]["receiptDetails"];
+            operationRef?: string;
+            /** @enum {string} */
+            operationType: "hold" | "issue" | "redeem" | "release" | "transfer" | "unknown";
+            timestamp: number;
+        };
+        receiptAsset: {
+            /** @description asset code */
+            code: string;
+            /** @description asset type */
+            type: string;
+        };
+        receiptTradeDetails: {
+            intentId?: string;
+            intentVersion?: string;
+            executionContext?: components["schemas"]["receiptExecutionContext"];
+        };
+        receiptExecutionContext: {
+            executionPlanId: string;
+            instructionSequenceNumber: number;
+        };
+        receiptDetails: components["schemas"]["receiptAssetDetails"] | components["schemas"]["receiptPaymentDetails"];
+        receiptAssetDetails: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "asset";
+            sourceFinId?: string;
+            destinationFinId?: string;
+            transactionDetails: components["schemas"]["receiptTransactionDetails"];
+        };
+        receiptPaymentDetails: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "payment";
+            source?: components["schemas"]["accountAsset"];
+            destination?: components["schemas"]["accountAsset"];
+            transactionDetails: components["schemas"]["receiptTransactionDetails"];
+        };
+        /** @description Additional input and output details for UTXO supporting DLTs */
+        receiptTransactionDetails: {
+            /** @description Transaction id */
+            transactionId: string;
+            /** @description Operation id */
+            operationId?: string;
+        };
+        /** @description Signature = sign(sender private secp256k1 key, message)
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce | []byte |  |
+         *     | 2 | operation       | string | "transfer" |
+         *     | 3 | "*" | string | value should indicate any recipient address |
+         *     | 4 | assetId            | string | |
+         *     | 5 | quantity           | string | string representation of the quantity |
+         *     | 6 | settlementAssetId   | string | |
+         *     | 7 | settlementQuantity  | string | string representation of the quantity |
+         *     | 8 | settlementExpiry    | string | string representation of the expiry value |
+         *      */
+        wildcardTransferSignature: string;
+        /** @description
+         *     Asset Hash Group (AHG) structure:
+         *
+         *     AHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce           | []byte  |  |
+         *     | 2 | operation       | string  | "transfer" |
+         *     | 3 | assetType       | string  | "finp2p" |
+         *     | 4 | assetId         | string  | unique identifier of the asset |
+         *     | 5 | srcAccountType  | string  | "finId" |
+         *     | 6 | srcAccount      | string  | source account finId address  |
+         *     | 7 | dstAccountType  | string  | "finId" |
+         *     | 8 | dstAccount      | string  | destination account finId address  |
+         *     | 9 | amount          | string  | string representation of the transfer amount |
+         *
+         *     hashGroups = hash('SHA3-256', [AHG]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        transferSignature: string;
+        signatureResultResponse: {
+            /** @description Nonce */
+            nonce?: string;
+        };
+        /** @description
+         *     Asset Hash Group (AHG) structure:
+         *
+         *     AHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce           | []byte  |  |
+         *     | 2 | operation       | string  | "transfer" |
+         *     | 3 | assetType       | string  | "finp2p" |
+         *     | 4 | assetId         | string  | unique identifier of the asset |
+         *     | 5 | srcAccountType  | string  | "finId" |
+         *     | 6 | srcAccount      | string  | source account finId address  |
+         *     | 7 | dstAccountType  | string  | "finId" |
+         *     | 8 | dstAccount      | string  | destination account finId address  |
+         *     | 9 | amount          | string  | string representation of the transfer amount |
+         *
+         *     Settlement Hash Group (SHG) structure:
+         *
+         *     SHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
+         *     | 2 | assetId         | string  | unique identifier of the asset |
+         *     | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 4 | srcAccount      | string  | source account of the asset  |
+         *     | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 6 | dstAccount      | string  | destination account for the asset  |
+         *     | 7 | amount          | string  | string representation of the settlement amount |
+         *
+         *     hashGroups = hash('SHA3-256', [AHG, SHG]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        transferWithSettlementSignature: string;
+        /** @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
+         *
+         *       const nonce = Buffer.alloc(32);
+         *       nonce.fill(crypto.randomBytes(24), 0, 24);
+         *
+         *       const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
+         *       const t = BigInt(nowEpochSeconds);
+         *       nonce.writeBigInt64BE(t, 24);
+         *      */
+        nonce: string;
+        /** @description Asset Hash Group (AHG) structure:
+         *
+         *     AHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce           | []byte  |  |
+         *     | 2 | operation       | string  | "transfer" |
+         *     | 3 | assetType       | string  | "finp2p" |
+         *     | 4 | assetId         | string  | unique identifier of the asset |
+         *     | 5 | srcAccountType  | string  | "finId" |
+         *     | 6 | srcAccount      | string  | source account finId address  |
+         *     | 7 | dstAccountType  | string  | "finId" |
+         *     | 8 | dstAccount      | string  | destination account finId address  |
+         *     | 9 | amount          | string  | string representation of the transfer amount |
+         *
+         *     Settlement Hash Group (SHG) structure:
+         *
+         *     SHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
+         *     | 2 | assetId         | string  | unique identifier of the asset |
+         *     | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 4 | srcAccount      | string  | source account of the asset  |
+         *     | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 6 | dstAccount      | string  | destination account for the asset  |
+         *     | 7 | amount          | string  | string representation of the settlement amount |
+         *
+         *     hashGroups = hash('SHA3-256', [AHG, SHG]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        sellerTransferSignature: string;
+        /** @description Asset Hash Group (AHG) structure:
+         *
+         *     AHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce           | []byte  |  |
+         *     | 2 | operation       | string  | "transfer" |
+         *     | 3 | assetType       | string  | "finp2p" |
+         *     | 4 | assetId         | string  | unique identifier of the asset |
+         *     | 5 | srcAccountType  | string  | "finId" |
+         *     | 6 | srcAccount      | string  | source account finId address  |
+         *     | 7 | dstAccountType  | string  | "finId" |
+         *     | 8 | dstAccount      | string  | destination account finId address  |
+         *     | 9 | amount          | string  | string representation of the transfer amount |
+         *
+         *     Settlement Hash Group (SHG) structure:
+         *
+         *     SHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
+         *     | 2 | assetId         | string  | unique identifier of the asset |
+         *     | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 4 | srcAccount      | string  | source account of the asset  |
+         *     | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 6 | dstAccount      | string  | destination account for the asset  |
+         *     | 7 | amount          | string  | string representation of the settlement amount |
+         *     | 8 | expiry          | string  | string representation of the escrow hold expiry value |
+         *
+         *     hashGroups = hash('SHA3-256', [AHG, SHG]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        buyerTransferSignature: string;
+        /** @description
+         *     Asset Hash Group (AHG) structure:
+         *
+         *     AHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce           | []byte  |  |
+         *     | 2 | operation       | string  | "issue" |
+         *     | 3 | assetType       | string  | "finp2p" |
+         *     | 4 | assetId         | string  | unique identifier of the asset |
+         *     | 5 | dstAccountType  | string  | "finId" |
+         *     | 6 | dstAccount      | string  | destination account finId address hex representation |
+         *     | 7 | amount          | string  | hex (prefixed with 0x) representation of the issuance amount |
+         *
+         *     Settlement Hash Group (SHG) structure:
+         *
+         *     SHG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | assetType       | string  | "finp2p", "fiat", "cryptocurrency" |
+         *     | 2 | assetId         | string  | unique identifier of the asset |
+         *     | 3 | srcAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 4 | srcAccount      | string  | source account of the asset  |
+         *     | 5 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" |
+         *     | 6 | dstAccount      | string  | destination account for the asset  |
+         *     | 7 | amount          | string  | string representation of the settlement amount |
+         *     | 8 | expiry          | string  | string representation of the escrow hold expiry value |
+         *
+         *     hashGroups = hash('SHA3-256', [AHG, SHG]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        issueSignature: string;
+        /** @description HG = hash('SHA3-256', [fields by order]);
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce           | []byte  |  |
+         *     | 2 | operation       | string  | "deposit" |
+         *     | 3 | assetType       | string  | "fiat", "cryptocurrency", "custom" |
+         *     | 4 | assetId         | string  | unique identifier of the asset |
+         *     | 5 | dstAccountType  | string  | "finId" |
+         *     | 6 | dstAccount      | string  | destination account to deposit funds  |
+         *     | 7 | amount          | string  | string representation of the deposit amount |
+         *
+         *     hashGroups = hash('SHA3-256', [HG]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        depositSignature: string;
+        /** @description HG = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |--|--|--|--|
+         *     | 1 | nonce           | []byte  |  |
+         *     | 2 | operation       | string  | "withdraw" |
+         *     | 3 | assetType       | string  |  "fiat", "cryptocurrency", "custom" |
+         *     | 4 | assetId         | string  | unique identifier of the asset |
+         *     | 5 | srcAccountType  | string  | "finId" |
+         *     | 6 | srcAccount      | string  | source account to withdraw funds from  |
+         *     | 7 | dstAccountType  | string  | "finId", "cryptoWallet", "escrow" | optional
+         *     | 8 | dstAccount      | string  | destination account to deposit funds into  | optional
+         *     | 9 | amount          | string  | string representation of the amount |
+         *
+         *     hashGroups = hash('SHA3-256', [HG]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        withdrawSignature: string;
+        /** @description Loan signature:
+         *
+         *     Single Hash Group (AHG) structure:
+         *
+         *     HASH = hash('SHA3-256', [fields by order]);
+         *
+         *     | order | value | type | comment |
+         *     |---|--|--|--|
+         *     |  1 | nonce           | []byte  |  |
+         *     |  2 | operation       | string  | "loan" |
+         *     |  3 | assetType       | string  | "finp2p" |
+         *     |  4 | assetId         | string  | unique identifier of the collateral asset |
+         *     |  5 | srcAccountType  | string  | "finId" |
+         *     |  6 | srcAccount      | string  | source account finId address  |
+         *     |  7 | dstAccountType  | string  | "finId" |
+         *     |  8 | dstAccount      | string  | destination account finId address  |
+         *     |  9 | amount          | string  | string representation of the transfer amount |
+         *     | 10 | assetType       | string  | money asset type "finp2p", "fiat", "cryptocurrency" |
+         *     | 11 | assetId         | string  | unique identifier of the money asset |
+         *     | 12 | srcAccountType  | string  | source money account type "finId", "cryptoWallet", "escrow" |
+         *     | 13 | srcAccount      | string  | source money account id  |
+         *     | 14 | dstAccountType  | string  | destination money account type "finId", "cryptoWallet", "escrow" |
+         *     | 15 | dstAccount      | string  | destination money account id  |
+         *     | 16 | amount          | string  | string representation of the money borrowed |
+         *     | 17 | closeAmount     | string  | string representation of the money returned back |
+         *     | 18 | openTime        | string  | string representation of the open time volume |
+         *     | 19 | closeTime       | string  | string representation of the close time volume |
+         *
+         *     hashGroups = hash('SHA3-256', [HASH]);
+         *
+         *     Signature = sign(sender private secp256k1 key, hashGroups)
+         *      */
+        loanSignature: string;
+        /** @description describes account information */
+        accountAsset: {
+            account: components["schemas"]["account"];
+            asset: components["schemas"]["asset"];
+        };
+        finIdAccount: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "finId";
+            finId: components["schemas"]["finId"];
+            orgId: string;
+            custodian?: components["schemas"]["custodian"];
+        };
+        custodian: {
+            orgId: string;
+        };
+        cryptoWalletAccount: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cryptoWallet";
+            /** @description address of the cryptocurrency wallet */
+            address: string;
+        };
+        ibanAccount: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "iban";
+            /**
+             * @description iban address
+             * @example GB29NWBK60161331926819
+             */
+            code: string;
+        };
+        asset: components["schemas"]["cryptocurrencyAsset"] | components["schemas"]["fiatAsset"] | components["schemas"]["finp2pAsset"];
+        depositSignaturePolicy: components["schemas"]["manualSignaturePolicy"];
+        withdrawSignaturePolicy: components["schemas"]["manualSignaturePolicy"];
+        /** @description the total number of units */
+        amount: string;
+        /** @description A unit value represented as a string, the value is a decimal number */
+        unitValue: string;
+        cryptocurrencyAsset: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cryptocurrency";
+            /** @description unique identifier symbol of the cryptocurrency */
+            code: string;
+        };
+        fiatAsset: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "fiat";
+            /** @description unique identifier code of the fiat currency - based on ISO-4217 */
+            code: string;
+        };
+        finp2pAsset: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "finp2p";
+            /** @description unique resource ID of the FinP2P asset */
+            resourceId: string;
+        };
+        /** @description represent a signature template information */
+        signatureTemplate: {
+            /** @description hex representation of the signature */
+            signature?: string;
+            /** @description ordered list of hash groups */
+            template?: {
+                hashGroups?: components["schemas"]["hashGroup"][];
+                /** @description hex representation of the combined hash groups hash value */
+                hash?: string;
+            };
+        };
+        hashGroup: {
+            /** @description hex representation of the hash group hash value */
+            hash?: string;
+            /** @description list of fields by order they appear in the hash group */
+            fields?: components["schemas"]["field"][];
+        };
+        /** @description describing a field in the hash group */
+        field: {
+            /** @description name of field */
+            name?: string;
+            /**
+             * @description type of field
+             * @enum {string}
+             */
+            type?: "string" | "int";
+            /** @description hex representation of the field value */
+            value?: string;
+        };
+        /** @description describes account information */
+        depositAccount: {
+            account: components["schemas"]["finIdAccount"];
+            asset: components["schemas"]["depositAsset"];
+        };
+        depositAsset: components["schemas"]["cryptocurrencyAsset"] | components["schemas"]["fiatAsset"] | components["schemas"]["finp2pAsset"] | components["schemas"]["customAsset"];
+        customAsset: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custom";
+        };
+        /** @description describes account information */
+        withdrawAccount: {
+            account: components["schemas"]["finIdAccount"];
+            asset: components["schemas"]["asset"];
+        };
+        /** @description Withdrawal instruction */
+        withdrawInstruction: {
+            account: components["schemas"]["accountAsset"];
+            /** @description Instruction details */
+            description: string;
+        };
+        documentsList: {
+            /** @description A list document references */
+            refs: components["schemas"]["documentRef"][];
+        };
+        documentRef: {
+            /** @description the ID of the document */
+            id: string;
+            /** @description the URI to retrieve the document */
+            uri: string;
+            /** @description The file name */
+            fileName: string;
+            /** @description The file mimeType */
+            mimeType: string;
+        };
+        /** @description The name of the asset */
+        name: string;
+        /** @description The symbol of the asset */
+        symbol: string;
+        /** @description The symbol of the asset */
+        symbolOpt: string;
+        /** @description The name of the asset */
+        nameOpt: string;
+        assetVerifier: {
+            /** @description verifier id */
+            id: string;
+            name: components["schemas"]["name"];
+            /**
+             * @description one from the list [REG_APP_STORE, OTHER]
+             * @enum {string}
+             */
+            provider: "REG_APP_STORE" | "OTHER";
+        };
+        assetPolicies: {
+            proof?: components["schemas"]["proofPolicy"];
+        };
+        assetPoliciesOpt: components["schemas"]["assetPoliciesOptInner"];
+        assetPoliciesOptInner: {
+            proof?: components["schemas"]["proofPolicyOpt"];
+        };
+        proofPolicyOpt: components["schemas"]["signatureProofPolicyOpt"] | components["schemas"]["noProofPolicy"];
+        proofPolicy: components["schemas"]["signatureProofPolicy"] | components["schemas"]["noProofPolicy"];
+        /** @description no proof validation required for this policy */
+        noProofPolicy: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "noProofPolicy";
+        };
+        signatureProofPolicy: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "signatureProofPolicy";
+            policy: {
+                /**
+                 * @description The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
+                 * @example 0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12
+                 */
+                publicKey?: string;
+                /** @enum {string} */
+                signatureTemplate?: "hashlist" | "EIP712";
+            };
+        };
+        signatureProofPolicyOpt: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "signatureProofPolicy";
+            policy: {
+                /**
+                 * @description The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
+                 * @example 0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12
+                 */
+                publicKey?: string;
+                /** @enum {string} */
+                signatureTemplate?: "hashlist" | "EIP712";
+            };
+        };
+        balanceInformation: {
+            /** @description the asset token balance quantity */
+            quantity: string;
+        };
+        assetIssuer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "assetIssuer";
+            issuerId: components["schemas"]["ownerId"];
+            assetId: components["schemas"]["assetId"];
+        };
+        messageResponse: {
+            id: string;
+        };
+        loanConditions: components["schemas"]["repaymentTerm"] | components["schemas"]["interestTerm"] | components["schemas"]["closeAmountTerm"];
+        repaymentTerm: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "repaymentTerm";
+            closeAmount: components["schemas"]["amount"];
+            /** @description indicative annual interest rate of the operation */
+            interestRate?: string;
+        };
+        interestTerm: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "interestTerm";
+            /** @description indicative annual interest rate of the operation */
+            interestRate: string;
+        };
+        closeAmountTerm: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "closeAmountTerm";
+            closeAmount: components["schemas"]["amount"];
+        };
+        /** @description Allowed intent types to be applied on an asset */
+        intentTypesAllowEmpty: components["schemas"]["intentType"][];
+        /** @description Allowed intent types to be applied on an asset */
+        intentTypes: components["schemas"]["intentType"][];
+        /** @enum {string} */
+        intentType: "primarySale" | "buyingIntent" | "sellingIntent" | "loanIntent" | "redemptionIntent" | "privateOfferIntent" | "requestForTransferIntent";
+        updateIntent: components["schemas"]["primarySaleIntentUpdatePayload"] | components["schemas"]["buyingIntentUpdatePayload"] | components["schemas"]["sellingIntentUpdatePayload"] | components["schemas"]["loanIntentUpdatePayload"] | components["schemas"]["redemptionIntentUpdatePayload"] | components["schemas"]["privateOfferIntentUpdatePayload"];
+        /** @description allowed fields to be updated on given intent type */
+        primarySaleIntentUpdatePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "primarySale";
+            settlementTerm?: components["schemas"]["primarySaleSettlementTermUpdate"];
+            assetTerm?: components["schemas"]["primarySaleAssetTermUpdate"];
+        };
+        primarySaleAssetTermUpdate: {
+            amount: components["schemas"]["amount"];
+        };
+        primarySaleSettlementTermUpdate: {
+            unitValue: components["schemas"]["unitValue"];
+        };
+        /** @description allowed fields to be updated on given intent type */
+        buyingIntentUpdatePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "buyingIntent";
+            settlementTerm?: components["schemas"]["buyingIntentSettlementTermUpdate"];
+            assetTerm?: components["schemas"]["buyingIntentAssetTermUpdate"];
+        };
+        buyingIntentSettlementTermUpdate: {
+            unitValue: components["schemas"]["unitValue"];
+        };
+        buyingIntentAssetTermUpdate: {
+            amount: components["schemas"]["amount"];
+        };
+        /** @description allowed fields to be updated on given intent type */
+        sellingIntentUpdatePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "sellingIntent";
+            settlementTerm?: components["schemas"]["sellingIntentSettlementTermUpdate"];
+            assetTerm?: components["schemas"]["sellingIntentAssetTermUpdate"];
+        };
+        sellingIntentSettlementTermUpdate: {
+            unitValue: components["schemas"]["unitValue"];
+        };
+        sellingIntentAssetTermUpdate: {
+            amount: components["schemas"]["amount"];
+        };
+        /** @description allowed fields to be updated on given intent type */
+        loanIntentUpdatePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "loanIntent";
+            settlementTerm?: components["schemas"]["loanIntentSettlementTermUpdate"];
+            assetTerm?: components["schemas"]["loanIntentAssetTermUpdate"];
+        };
+        loanIntentSettlementTermUpdate: {
+            unitValue: components["schemas"]["unitValue"];
+        };
+        loanIntentAssetTermUpdate: {
+            amount: components["schemas"]["amount"];
+        };
+        /** @description allowed fields to be updated on given intent type */
+        redemptionIntentUpdatePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "redemptionIntent";
+            settlementTerm?: components["schemas"]["redemptionIntentSettlementTermUpdate"];
+            assetTerm?: components["schemas"]["redemptionIntentAssetTermUpdate"];
+        };
+        redemptionIntentSettlementTermUpdate: {
+            unitValue: components["schemas"]["unitValue"];
+        };
+        redemptionIntentAssetTermUpdate: {
+            amount: components["schemas"]["amount"];
+        };
+        redemptionIntentConditions: {
+            /**
+             * Format: duration
+             * @description duration in ISO 8601 format (e.g., "PT1H30M" for 1 hour 30 minutes)
+             */
+            redemptionDuration?: string;
+        };
+        /** @description allowed fields to be updated on given intent type */
+        privateOfferIntentUpdatePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "privateOfferIntent";
+            settlementTerm?: components["schemas"]["privateOfferIntentSettlementTermUpdate"];
+            assetTerm?: components["schemas"]["privateOfferIntentAssetTermUpdate"];
+        };
+        privateOfferIntentSettlementTermUpdate: {
+            unitValue: components["schemas"]["unitValue"];
+        };
+        privateOfferIntentAssetTermUpdate: {
+            amount: components["schemas"]["amount"];
+        };
+        ledgerAssetBinding: components["schemas"]["ledgerTokenId"];
+        ledgerTokenId: {
+            /**
+             * @description the type of the identifier (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "tokenId";
+            /** @description the token id binding */
+            tokenId: string;
+        };
+        requestForTransferIntent: {
+            /**
+             * Format: int64
+             * @description start time for intent, in epoch (seconds)
+             */
+            start: number;
+            /**
+             * Format: int64
+             * @description end time for intent, in epoch (seconds)
+             */
+            end: number;
+            nonce?: components["schemas"]["nonce"];
+            senderId: components["schemas"]["ownerId"];
+            receiverId: components["schemas"]["ownerId"];
+            /**
+             * Format: ^[a-zA-Z0-9-]{1,64}$
+             * @description unique identifier for the intent, will default to generated UUID if not provided
+             */
+            intentId?: string;
+            intentInfo: components["schemas"]["requestForTransferIntentInfo"];
+            transactionMetadata?: components["schemas"]["transactionMetadata"];
+        };
+        requestForTransferExecuteIntent: {
+            nonce?: components["schemas"]["nonce"];
+            senderId: components["schemas"]["ownerId"];
+            receiverId: components["schemas"]["ownerId"];
+            /**
+             * @description Indicates whether the operation is to send or request money/asset.
+             * @enum {string}
+             */
+            action: "send" | "request";
+            /**
+             * @description The type of the intent.
+             * @enum {string}
+             */
+            type: "requestForTransferIntent";
+            /**
+             * @description The amount of the asset, fiat or cryptocurrency to be transferred.
+             * @example 100
+             */
+            amount: string;
+            asset: components["schemas"]["asset"];
+            sourceAccount: components["schemas"]["accountRequestForTransfer"];
+            destinationAccount: components["schemas"]["accountRequestForTransfer"];
+            transactionMetadata?: components["schemas"]["transactionMetadata"];
+        };
+        requestForTransferUpdateIntent: {
+            /**
+             * Format: int64
+             * @description start time for intent, in epoch (seconds)
+             */
+            start?: number;
+            /**
+             * Format: int64
+             * @description end time for intent, in epoch (seconds)
+             */
+            end?: number;
+            /**
+             * @description To change the status of the intent
+             * @enum {string}
+             */
+            status?: "Unknown" | "Active" | "NonActive" | "Cancelled" | "Completed" | "Expired" | "Rejected";
+            intentInfo?: {
+                /**
+                 * @description The amount of the asset, fiat or cryptocurrency to be transferred.
+                 * @example 100
+                 */
+                amount?: string;
+            };
+            transactionMetadata?: components["schemas"]["transactionMetadata"];
+        };
+        account: components["schemas"]["finIdAccount"] | components["schemas"]["cryptoWalletAccount"] | components["schemas"]["ibanAccount"];
+        accountRequestForTransfer: components["schemas"]["finIdAccount"];
+        intentInfo: {
+            /**
+             * @description The type of the intent.
+             * @enum {string}
+             */
+            type: "requestForTransferIntent";
+            /**
+             * @description The amount of the asset, fiat or cryptocurrency to be transferred.
+             * @example 100
+             */
+            amount: string;
+            asset: components["schemas"]["asset"];
+        };
+        requestForTransferIntentInfo: components["schemas"]["requestForTransferSourceAccount"] | components["schemas"]["requestForTransferDestinationAccount"];
+        requestForTransferSourceAccount: components["schemas"]["intentInfo"] & {
+            /**
+             * @description Indicates whether the operation is to send or request money/asset.
+             * @enum {string}
+             */
+            action: "send";
+            sourceAccount?: components["schemas"]["accountRequestForTransfer"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "send";
+        };
+        requestForTransferDestinationAccount: components["schemas"]["intentInfo"] & {
+            /**
+             * @description Indicates whether the operation is to send or request money/asset.
+             * @enum {string}
+             */
+            action: "request";
+            destinationAccount?: components["schemas"]["accountRequestForTransfer"];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            action: "request";
+        };
+        transactionMetadata: {
+            /**
+             * @description Optional reference ID for the transaction.
+             * @example ref-2024-003
+             */
+            referenceId?: string;
+            /**
+             * @description Optional description or note for the transfer.
+             * @example Transfer of funds for invoice
+             */
+            description?: string;
+        };
+        AccountBalanceSyncRequest: {
+            account: components["schemas"]["finIdAccount"];
+            asset: components["schemas"]["asset"];
+        };
+        /**
+         * @description Indicates how the asset is denominated
+         * @enum {string}
+         */
+        assetDenominationType: "fiat" | "cryptocurrency";
+        assetDenomination: {
+            type: components["schemas"]["assetDenominationType"];
+            /** @description Unique code identifying the denomination asset type */
+            code: string;
+        };
+        /**
+         * @description Classification type standards
+         * @enum {string}
+         */
+        assetIdentifierType: "ISIN" | "CUSIP" | "SEDOL" | "DTI" | "CMU" | "FIGI" | "CUSTOM";
+        assetIdentifier: {
+            assetIdentifierType: components["schemas"]["assetIdentifierType"];
+            /** @description The classification standard used to identify the asset */
+            assetIdentifierValue: string;
+        };
+        APIError: {
+            /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference).
+             *      */
+            code: number;
+            /** @description A descriptive message providing context about the error. */
+            message: string;
+        };
+        APIErrors: {
+            errors: components["schemas"]["APIError"][];
+        };
+        ibanAccountDetails: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "iban";
+            iban: string;
+        };
+        swiftAccountDetails: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "swift";
+            swiftCode: string;
+            accountNumber: string;
+        };
+        sortCodeDetails: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "sortCode";
+            /** @description sort code has XX-XX-XX format */
+            code: string;
+            accountNumber: string;
+        };
+        wireDetails: components["schemas"]["ibanAccountDetails"] | components["schemas"]["swiftAccountDetails"] | components["schemas"]["sortCodeDetails"];
+        wireTransfer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "wireTransfer";
+            accountHolderName: string;
+            bankName: string;
+            wireDetails: components["schemas"]["wireDetails"];
+            line1?: string;
+            city?: string;
+            postalCode?: string;
+            country?: string;
+        };
+        wireTransferUSA: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "wireTransferUSA";
+            accountNumber: string;
+            routingNumber: string;
+            line1?: string;
+            city?: string;
+            postalCode?: string;
+            country?: string;
+            state?: string;
+        };
+        cryptoTransfer: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cryptoTransfer";
+            network: string;
+            contractAddress: string;
+            walletAddress: string;
+        };
+        paymentInstructions: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "paymentInstructions";
+            instruction: string;
+        };
+        paymentMethod: {
+            description: string;
+            /** @description accepted currency for payment */
+            currency: string;
+            methodInstruction: components["schemas"]["wireTransfer"] | components["schemas"]["wireTransferUSA"] | components["schemas"]["cryptoTransfer"] | components["schemas"]["paymentInstructions"];
+        };
+        paymentMethods: components["schemas"]["paymentMethod"][];
+        APIErrorsTyped: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "error";
+            errors: components["schemas"]["APIError"][];
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+    createOwnerProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["resourceIdResponse"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    addAccount: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the owner profile */
+                ownerId: components["schemas"]["ownerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Org ID for the custodian of the account */
+                    orgId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["accountOperationResult"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    createAssetProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The asset metadata */
+                    metadata?: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @deprecated
+                     * @description The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
+                     */
+                    config?: string;
+                    /** @description A list of regulation verifiers to execute to validate a transaction */
+                    verifiers?: components["schemas"]["assetVerifier"][];
+                    intentTypes?: components["schemas"]["intentTypesAllowEmpty"];
+                    name: components["schemas"]["name"];
+                    symbol?: components["schemas"]["symbol"];
+                    /** @description The type of the asset */
+                    type: string;
+                    issuerId: components["schemas"]["ownerId"];
+                    denomination: components["schemas"]["assetDenomination"];
+                    ledgerAssetBinding?: components["schemas"]["ledgerAssetBinding"];
+                    assetPolicies?: components["schemas"]["assetPolicies"];
+                    assetIdentifier?: components["schemas"]["assetIdentifier"];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["resourceIdResponse"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    updateAssetProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the asset profile */
+                id: components["schemas"]["assetId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The asset metadata */
+                    metadata?: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @deprecated
+                     * @description The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
+                     */
+                    config?: string;
+                    /** @description A list of regulation verifiers to execute to validate a transaction */
+                    verifiers?: components["schemas"]["assetVerifier"][];
+                    name: components["schemas"]["name"];
+                    symbol?: components["schemas"]["symbol"];
+                    assetPolicies?: components["schemas"]["assetPolicies"];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["resourceIdResponse"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+            /** @description Invalid Input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+        };
+    };
+    patchAssetProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the asset profile */
+                id: components["schemas"]["assetId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The asset metadata */
+                    metadata?: {
+                        [key: string]: unknown;
+                    } | null;
+                    /**
+                     * @deprecated
+                     * @description The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
+                     */
+                    config?: string | null;
+                    /** @description A list of regulation verifiers to execute to validate a transaction */
+                    verifiers?: components["schemas"]["assetVerifier"][] | null;
+                    name?: components["schemas"]["nameOpt"];
+                    symbol?: components["schemas"]["symbolOpt"];
+                    assetPolicies?: components["schemas"]["assetPoliciesOpt"];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["resourceIdResponse"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    addAssetProfileIntent: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the asset profile */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: int64
+                     * @description start time for intent, in epoch (seconds)
+                     */
+                    start: number;
+                    /**
+                     * Format: int64
+                     * @description end time for intent, in epoch (seconds)
+                     */
+                    end: number;
+                    intent: components["schemas"]["intent"];
+                    /** @description unique identifier for the intent, will default to generated UUID if not provided */
+                    intentId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["idResponse"];
+                };
+            };
+        };
+    };
+    updateAssetProfileIntent: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the asset profile */
+                id: components["schemas"]["assetId"];
+                /** @description ID of the intent */
+                intentId: components["schemas"]["intentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: int64
+                     * @description start time for intent, in epoch (seconds)
+                     */
+                    start?: number;
+                    /**
+                     * Format: int64
+                     * @description end time for intent, in epoch (seconds)
+                     */
+                    end?: number;
+                    intent?: components["schemas"]["updateIntent"];
+                    /**
+                     * @description To change the status of the intent
+                     * @enum {string}
+                     */
+                    status?: "Rejected";
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    enableAssetProfileIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID of the asset profile */
+                id: components["schemas"]["assetId"];
+                /** @description ID of the intent */
+                intentId: components["schemas"]["intentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disableAssetProfileIntent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID of the asset profile */
+                id: components["schemas"]["assetId"];
+                /** @description ID of the intent */
+                intentId: components["schemas"]["intentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    shareProfile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the asset profile */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Collections of organizations ids to share the profile with */
+                    organizations: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    enableAssetAllowedIntents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID of the asset profile */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    intentTypes: components["schemas"]["intentTypes"];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disableAssetAllowedIntents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description ID of the asset profile */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    intentTypes: components["schemas"]["intentTypes"];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createCertificate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of The profile that holds the certificate */
+                profileId: components["schemas"]["profileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description The type of the Certificate */
+                    type: string;
+                    /**
+                     * Format: int64
+                     * @description The issuance date of the Certificate in epoch time seconds
+                     */
+                    issuanceDate: number;
+                    /**
+                     * Format: int64
+                     * @description The expiration date of the Certificate in epoch time seconds
+                     */
+                    expirationDate: number;
+                    /** @description Serialized data objects that contain one or more properties that are each related to the subject of the Certificate */
+                    data: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["idResponse"];
+                };
+            };
+        };
+    };
+    updateCertificate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of The profile that holds the certificate */
+                profileId: components["schemas"]["profileId"];
+                /** @description ID of a Certificate to update */
+                certificateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: int64
+                     * @description The issuance date of the Certificate in epoch time seconds
+                     */
+                    issuanceDate: number;
+                    /**
+                     * Format: int64
+                     * @description The expiration date of the Certificate in epoch time seconds
+                     */
+                    expirationDate: number;
+                    /** @description Serilized data objects that contain one or more properties that are each related to the subject of the Certificate */
+                    data: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid Input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+        };
+    };
+    patchCertificate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of The profile that holds the certificate */
+                profileId: components["schemas"]["profileId"];
+                /** @description ID of a Certificate to update */
+                certificateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: int64
+                     * @description The issuance date of the Certificate in epoch time seconds
+                     */
+                    issuanceDate?: number;
+                    /**
+                     * Format: int64
+                     * @description The expiration date of the Certificate in epoch time seconds
+                     */
+                    expirationDate?: number;
+                    /** @description Serilized data objects that contain one or more properties that are each related to the subject of the Certificate */
+                    data?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    addCertificateDoc: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of The profile that holds the certificate */
+                profileId: components["schemas"]["ownerId"];
+                /** @description ID of The certificate that will hold the doc */
+                certificateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description the document in binary format
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["documentsList"];
+                };
+            };
+        };
+    };
+    getDoc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Document URI */
+                uri: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    updateCertificateDoc: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description Document ID */
+                docId: string;
+                /** @description ID of The profile that holds the certificate */
+                profileId: string;
+                /** @description ID of The certificate that holds the doc */
+                certificateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description the document in binary format
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExecuteToken: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    user: components["schemas"]["ownerId"];
+                    intentId: components["schemas"]["intentId"];
+                    intent: components["schemas"]["intentExecution"];
+                    /** @description unique identifier for the execution, will default to generated UUID if not provided */
+                    executionId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description operation information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["executionOperationResult"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    CancelExecuteToken: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    executionPlanId: components["schemas"]["executionPlanId"];
+                };
+            };
+        };
+        responses: {
+            /** @description operation information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["executionCancellationOperationResult"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    transferToken: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    nonce: components["schemas"]["nonce"];
+                    source: components["schemas"]["ownerId"];
+                    destination: components["schemas"]["ownerId"];
+                    asset: components["schemas"]["transferRequestAssetOrder"];
+                };
+            };
+        };
+        responses: {
+            /** @description operation information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["executionOperationResult"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    GetAssetBalance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    asset: components["schemas"]["assetId"];
+                    /** @description owner hex representation of a secp256k1 public key 33 bytes compressed */
+                    sourcePublicKey: string;
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["balanceInformation"];
+                };
+            };
+        };
+    };
+    createDepositRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    profileId: components["schemas"]["ownerId"];
+                    account: components["schemas"]["depositAccount"];
+                    amount: components["schemas"]["amount"];
+                    /** @description Any addition deposit specific information */
+                    details?: Record<string, never>;
+                    nonce?: components["schemas"]["nonce"];
+                    signaturePolicy?: components["schemas"]["depositSignaturePolicy"];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["depositInstruction"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    resetExecutionPlan: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    executionPlanId: components["schemas"]["executionPlanId"];
+                    /**
+                     * Format: uint32
+                     * @description sequence number of the instruction to reset to and retry the execution plan from
+                     */
+                    targetSequence: number;
+                    /**
+                     * Format: uint32
+                     * @description sequence number of the instruction from which the reset of execution plan should be launched
+                     */
+                    fromSequence: number;
+                };
+            };
+        };
+        responses: {
+            /** @description operation information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["executionCancellationOperationResult"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    createWithdrawRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    profileId: components["schemas"]["ownerId"];
+                    account: components["schemas"]["withdrawAccount"];
+                    amount: components["schemas"]["amount"];
+                    withdrawInstruction?: components["schemas"]["withdrawInstruction"];
+                    /** @deprecated */
+                    nonce?: components["schemas"]["nonce"];
+                    signaturePolicy?: components["schemas"]["withdrawSignaturePolicy"];
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["receipt"];
+                };
+            };
+            /** @description accepted operation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationBase"];
+                };
+            };
+        };
+    };
+    getOperation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description correlation id of an operation */
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description operation response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationResponse"];
+                };
+            };
+        };
+    };
+    getAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Attachment UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    sendMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** @description message subject or title */
+                    subject: string;
+                    /** @description message body */
+                    body: string;
+                    correspondent: components["schemas"]["correspondent"];
+                    /** @description Collections of owners ids to send the message to */
+                    recipients: components["schemas"]["ownerId"][];
+                    /** @description Collection optional attachments */
+                    attachments?: {
+                        filename?: string[];
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["messageResponse"];
+                };
+            };
+        };
+    };
+    createRequestForTransferIntent: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["requestForTransferIntent"];
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["intentIdResponse"];
+                };
+            };
+        };
+    };
+    executeRequestForTransferIntent: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the transfer profile */
+                intentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["requestForTransferExecuteIntent"];
+            };
+        };
+        responses: {
+            /** @description operation information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationResponse"];
+                };
+            };
+        };
+    };
+    updateRequestForTransferIntent: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: components["schemas"]["nonce"];
+            };
+            path: {
+                /** @description ID of the intent */
+                intentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["requestForTransferUpdateIntent"];
+            };
+        };
+        responses: {
+            /** @description operation information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["operationResponse"];
+                };
+            };
+            /** @description Invalid Input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+        };
+    };
+    balance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountBalanceSyncRequest"];
+            };
+        };
+        responses: {
+            /** @description sync request received, sync in progress */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service is healthy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example ok */
+                        status?: string;
+                    };
+                };
+            };
+            /** @description Service is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example unavailable */
+                        status?: string;
+                    };
+                };
+            };
+        };
+    };
 }

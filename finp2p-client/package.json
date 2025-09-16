@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-client",
-  "version": "0.25.1",
+  "version": "0.25.2",
   "description": "FinP2P API Client",
   "homepage": "https://ownera.io/",
   "main": "./dist/index.js",
@@ -9,7 +9,11 @@
     "dist/**/*"
   ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "api-generate": "npx openapi-typescript ./apis/application-api.base.yaml -o src/finapi/model-gen.ts",
+    "op-api-generate": "npx openapi-typescript ./apis/operational-api.yaml -o src/finapi/op-model-gen.ts",
+    "graphql-gen": "graphql-codegen --config grahpqlgen.ts",
+    "generate-all": "npm run api-generate && npm run op-api-generate && npm run graphql-gen"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
@@ -17,11 +21,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "1.11.0",
+    "openapi-fetch": "0.14.0",
     "graphql": "^16.8.1",
     "graphql-import-node": "^0.0.5"
   },
   "devDependencies": {
+    "@graphql-codegen/cli": "5.0.0",
+    "@graphql-codegen/typescript": "4.0.1",
+    "@graphql-codegen/typescript-resolvers": "^4.0.1",
     "eslint": "^8.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^4.8.4"

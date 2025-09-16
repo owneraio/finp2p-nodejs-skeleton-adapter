@@ -1,0 +1,1514 @@
+"Organization's information."
+type Organization {
+    id: String!
+
+    "Organization's supported types, e.g. Primary, Escrow"
+    types: [String!]
+
+    "Organization's name on the finp2p network."
+    name: String!
+
+    "Organization's finp2p public key represented as a hexadecimal string."
+    finId: String!
+
+    "Organization's cluster id."
+    clusterId: String!
+
+    "Assets which the Organization act as the Primary Node."
+    assets(filter : [Filter!], aggregates: [Aggregate!], paginate: PaginateInput = {}): Assets!
+
+    "Users which the Organization act as the Primary Node."
+    users(filter : [Filter!], aggregates: [Aggregate!], paginate: PaginateInput = {}): Users!
+}
+
+"Profile interface."
+interface Profile {
+    id: String!
+
+    "Collection of certificates associated with the Profile."
+    certificates(filter : [Filter!], aggregates: [Aggregate!]): Certificates!
+
+    "Organization id to which this profile is associated with."
+    organizationId: String!
+
+    "Profile metadata, contains ACL information of the profile."
+    metadata: ProfileMetadata!
+}
+
+enum IntentTypes {
+    PRIMARY_SALE
+    BUYING
+    SELLING
+    LOAN
+    PRIVATE_OFFER
+    REQUEST_FOR_TRANSFER
+}
+
+
+"Represents an Asset in the network."
+type Asset implements Profile  {
+    id: String!
+
+    "Collection of certificates associated with the Profile."
+    certificates(filter : [Filter!], aggregates: [Aggregate!]): Certificates!
+
+    "Collection of Intents associated with the Asset."
+    intents(filter : [Filter!], aggregates: [Aggregate!]): Intents!
+
+    name: String!
+
+    symbol: String
+
+    "Type of Asset (Share, Debt etc..)"
+    type: String!
+
+    "Custom configuration for the Asset."
+    config: String!
+
+    "Tokens issued for the given Asset."
+    issuedTokens(filter : [Filter!], aggregates: [Aggregate!]): TokensBalances!
+
+    "Issuer profile of the Asset."
+    issuerId: String!
+
+    "Regulation Verifiers associated with the Asset."
+    regulationVerifiers: [Verifier!]
+
+    "Organization id to whom this profile is associated with."
+    organizationId: String!
+
+    "Profile metadata, contains ACL information of the profile."
+    metadata: ProfileMetadata!
+
+    "Denomination currency of the Asset"
+    denomination: FiatAsset!
+
+    "Allowed intent types to be used on the asset"
+    allowedIntents: [IntentTypes!]
+
+    "Describe the policies active on the asset"
+    policies: AssetPolicies
+
+    "ledgerAssetInfo information"
+    ledgerAssetInfo: LedgerAssetInfo
+
+    "classification standard used to identify the asset"
+    assetIdentifier: AssetIdentifier
+
+    "asset resource version"
+    version: String!
+}
+
+type LedgerAssetInfo {
+    tokenId: String!
+    ledgerReference: LedgerReference
+}
+
+union LedgerReference = ContractDetails
+
+type ContractDetails {
+    network: String!
+    address: String!
+    tokenStandard: String
+    additionalContractDetails: AdditionalContractDetails
+}
+
+type AdditionalContractDetails {
+    finP2PEVMOperatorDetails: FinP2PEVMOperatorDetails
+}
+
+type FinP2PEVMOperatorDetails {
+    finP2POperatorContractAddress: String!
+    allowanceRequired: Boolean!
+}
+
+"Regulation Verifier"
+type Verifier {
+    "Verifier ID"
+    id: String
+
+    "Verifier Name"
+    name: String
+
+    "Provider type: REG_APP_STORE, OTHER"
+    provider: String
+}
+
+"Represents an Issuer in the network."
+type Issuer  {
+    id: String!
+
+    "Assets issued by the Issuer."
+    assets(filter : [Filter!], aggregates: [Aggregate!], paginate: PaginateInput = {}): Assets!
+
+    outbox(filter : [Filter!]): OutgoingMessages
+}
+
+"Represents an User in the network."
+type User implements Profile  {
+    id: String!
+
+    "Collection of certificates associated with the Profile."
+    certificates(filter : [Filter!], aggregates: [Aggregate!]): Certificates!
+
+    name: String!
+
+    holdings(filter : [Filter!], aggregates: [Aggregate!]): Holdings!
+
+    "Organization id to whom this profile is associated with."
+    organizationId: String!
+
+    "Profile metadata, contains ACL information of the profile."
+    metadata: ProfileMetadata!
+
+    "finIds keys associated with this investor"
+    finIds: [String!]
+
+    accounts(filter: [Filter!]): [FinP2PAccount!]
+
+    "User's associated messages"
+    #    inbox(filter : [Filter!]): [IncomingMessage!]!
+    inbox(filter : [Filter!]): Messages!
+
+    "user resource version"
+    version: String!
+
+}
+
+type OutgoingMessages {
+    nodes: [OutgoingMessage!]
+}
+
+type Messages {
+    nodes: [Message!]
+}
+
+type Message {
+    id: String!
+    subject: String! #Q: is subject and body always relevant for any communication type? (email, SMS, notification)
+    body: String!
+    # TODO: [IC-P3] improve
+    timestamp: String!
+    attachments: [Attachment!]! #Q: attachments may not be relevant to different communication types
+    correspondent: Correspondent! ## Source as FinID account ?
+}
+
+type IncomingMessage {
+    message : Message
+}
+
+
+type OutgoingMessage {
+    message: Message
+
+    # Message recipients
+    recipients(filter : [Filter!]): MessageRecipients!
+}
+
+type MessageRecipients {
+    "Collection of User Objects, conforms to the Filter input if provided."
+    nodes: [MessageRecipient!]
+}
+
+union DeliveryStatus =  PendingDelivery | Delivered | NotDelivered
+
+type PendingDelivery {
+    _ignore: Boolean
+}
+
+type Delivered {
+    _ignore: Boolean
+}
+
+type NotDelivered {
+    # non delivery reason
+    status : String!
+}
+
+type MessageRecipient {
+    destination: Recipient!
+    deliveryStatus: DeliveryStatus
+}
+
+type Attachment {
+    uuid: String!
+    name: String
+    link: String
+    messageId: String!
+}
+
+
+union Correspondent = AssetIssuer
+union Recipient  = Investor
+
+type AssetIssuer {
+    issuerId: String!
+    assetId: String!
+}
+
+type Investor {
+    resourceId: String!
+}
+
+type Holdings {
+    "Collection of Funds balance objects, conforms to the Filter input if provided."
+    nodes: [Holding!]
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+}
+
+type Holding {
+    account: FinP2PAssetAccount!
+    assetType: AssetType!
+    asset: AssetDetails!
+    balance: String! ## calculated balance based on asset's receipt
+    withheldBalance: String! ## calculated available balance based on asset's receipt
+    availableBalance: String! ## calculated held balance based on asset's receipt
+    balanceTimestamp: Int! ##  epoch seconds timestamp of last balance synchronization
+    syncedBalance: String! ## balance synced from ledger
+    syncedAvailableBalance: String! ## available balance synced from ledger
+    syncedHeldBalance: String! ## held balance synced from ledger
+}
+
+type FinP2PAccount {
+    finId: String!
+    custodian: Custodian!
+}
+
+type Custodian {
+    orgId: String!
+}
+
+"Represents an Asset token balance information."
+type TokenBalance {
+    userId: String!
+    assetId: String!
+    quantity: String!
+    transactionsDetails: [TransactionDetails!]
+}
+
+type TransactionDetails {
+    transactionId: String!
+    index: Int!
+    quantity: String!
+}
+
+type Receipt {
+    id: String!
+
+    "Asset type related to holding updated"
+    asset : AssetDetails!
+
+    "User  related to source of transaction"
+    source: User!
+
+    "Account related to source of transaction"
+    sourceAccount: AccountIdentifier
+
+    "Account related to destination of transaction"
+    destination: User!
+
+    "Account related to destination of transaction"
+    destinationAccount: AccountIdentifier
+
+    "Number of asset units with the transaction"
+    quantity: String!
+
+    "Trade details associated with the transaction"
+    tradeDetails: TradeDetails
+
+    "Operation id"
+    operationId: String
+
+    "Underlying transaction id"
+    transactionId: String
+
+    "Operation type"
+    operationType: OperationType
+
+    "Receipt timestamp"
+    timestamp: String!
+
+    "Receipt status"
+    status: ReceiptStatus!
+
+    "Ledger proof"
+    proof: Proof
+}
+
+union Proof = NoProof | SignatureProof
+
+type NoProof {
+    _ignore: Boolean
+}
+
+type SignatureProof {
+    signature: Signature!
+}
+
+type Signature {
+    template: Template!
+    signature: String!
+    hashFunction: String!
+    templateType: templateType!
+}
+
+enum templateType {
+    EIP712Template
+    HashListTemplate
+}
+
+union Template = HashlistTemplate | EIP712Template
+
+type HashlistTemplate {
+    hash: String!
+    hashGroups: [HashGroup!]!
+}
+
+type HashGroup {
+    hash: String!
+    fields: [Field!]!
+}
+
+type Field {
+    name: String!
+    type: String!
+    value: String!
+}
+
+type EIP712Template {
+    hash: String!
+}
+
+enum OperationType {
+    Unknown
+    Issue
+    Transfer
+    Release
+    Hold
+    Redeem
+}
+
+type TradeDetails {
+    "Intent  associated with the transaction"
+    intent: Intent
+
+    "Details of ExecutionPlan associated with the transaction"
+    executionContext: ExecutionContext
+}
+
+type ExecutionContext {
+    "ExecutionPlan associated with the transaction"
+    executionPlanId: String
+
+    "The associated instruction sequence number"
+    instructionSequenceNumber: Int
+}
+
+"Represents a Certificate in the network."
+type Certificate {
+    id: String!
+
+    "Profile to whom this Certificate is associate with."
+    profileId: String!
+
+    "Type of Certificate (KYA,KYC,AML etc.. )."
+    type: String!
+
+    "Service Provider Id which provided the Certificate."
+    providerId : String!
+
+    issuedAt: Int!
+    expiry: Int
+
+    "Semi-Structured Data provided as additional information for the Certificate."
+    data: String
+
+    "Certificate associated documents metadata."
+    documents(filter : [Filter!]): Documents!
+}
+
+
+"Represent an Asset's Transaction Intent occasion in which the Asset's tokens are issued."
+type Intent {
+    id: String!
+
+    "Start time of the intent."
+    start: Int!
+
+    "End time of the intent."
+    end: Int!
+
+    "Intent status"
+    status: IntentStatus!
+
+    "Remaining quantity in the transaction."
+    remainingQuantity: String!
+
+    "Intent type: primary sale, buying or selling intent"
+    type: String!
+
+    "Intent data"
+    intent: IntentDetails
+
+    "Profile metadata, contains ACL information of the profile."
+    metadata: ProfileMetadata!
+
+    "intent resource version"
+    version: String!
+}
+
+
+enum IntentStatus {
+    ACTIVE
+    NON_ACTIVE
+    CANCELLED
+    COMPLETED
+    EXPIRED
+    REJECTED
+}
+
+type AssetTerm {
+    asset: AssetDetails!
+
+    "Total amount of asset allocated"
+    amount: String!
+}
+
+type AssetInstruction {
+    account: AccountInstruction!
+    destinationAccount: AccountInstruction
+}
+
+type LoanAssetInstruction {
+    borrowerAccount: AccountInstruction!
+    lenderAccount: AccountInstruction!
+}
+
+type AccountInstruction {
+    "Asset type associated with the account"
+    asset : AssetDetails!
+    identifier: AccountIdentifier
+}
+
+union AccountIdentifier = CryptoWalletAccount | Iban | FinP2PAssetAccount
+
+
+type FinP2PAssetAccount { #type FinIdAccount {
+    "FinId -- a user's public key represented as a hexadecimal string, associated with a user on the FinP2P network"
+    finId : String!
+
+    "organization id of the Asset's source ledger, the Asset's organization"
+    orgId : String!
+
+    "custodian for the finId"
+    custodian: Custodian
+}
+
+type CryptoWalletAccount {
+    "Wallet address represented as a hexadecimal string prefixed with 0x"
+    address: String!
+
+    #    "Blockchain network information related to the specifed address"
+    #    chain: String!
+}
+
+type Iban {
+    "IBAN code"
+    code: String!
+}
+
+union AssetDetails = FinP2PAsset | FiatAsset | Cryptocurrency
+
+type FinP2PAsset {
+    "Resource ID of the FinP2P asset"
+    resourceId: String!
+}
+
+type FiatAsset {
+    "ISO-4217 code of the fiat currency"
+    code: String!
+}
+
+type Cryptocurrency {
+    "Symbol of the Cryptocurrnecy"
+    symbol: String!
+}
+
+type SettlementTerm {
+    asset: AssetDetails!
+    unitValue: String!
+}
+
+type SettlementInstruction {
+    details: SettlementInstructionTypeDetails!
+}
+
+union SettlementInstructionTypeDetails = SellingSettlementInstruction | BuyingSettlementInstruction
+
+type SellingSettlementInstruction {
+    accounts: [AccountInstruction!]
+}
+
+type BuyingSettlementInstruction {
+    account: AccountInstruction!
+}
+
+type RedemptionSettlementInstruction {
+    accounts: [AccountInstruction!]
+}
+
+type RedemptionConditions {
+    redemptionDuration: String!
+}
+
+
+type Escrows {
+    "Collection of escrow Objects, conforms to the Filter input if provided."
+    nodes: [Escrow!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+"Represents an Escrow in the network."
+type Escrow {
+    "FinP2P Organization Id of the Escrow"
+    orgId: String!
+
+    "Payment Asset"
+    paymentAsset: PaymentAsset!
+
+    "Payment asset resource id"
+    paymentAssetId: String!
+}
+
+
+"Represents supported asset types and conversions in Escrow."
+type PaymentAsset {
+    "PaymentAsset id"
+    id: String
+
+    "Type of account, f.e.: 'Escrow'"
+    accountType: String
+
+    "List of supported assets"
+    assets: [ConvertibleAsset]
+
+    "payment asset orgID"
+    orgId: String!
+
+    "payment asset resource version"
+    version: String!
+}
+
+type ConvertibleAsset {
+    "Type of the asset"
+    type: AssetType
+
+    "ISO-4217 code of the fiat currency or other common codes like BTC for cryptocurrencies"
+    code: String
+
+    "List of available conversions"
+    conversions: [AssetConversion]
+
+    "Describe the policies active on the asset"
+    policies: AssetPolicies
+}
+
+enum AssetType {
+    finp2p,
+    fiat,
+    cryptocurrency
+}
+
+type AssetConversion {
+    "Type of accounts"
+    accountType: AccountIdentifier
+
+    "List of symbols"
+    symbols: [String]
+}
+
+enum ExecutionPlanStatus {
+    Unknown
+    Pending
+    Approved
+    Completed
+    Failed
+    Rejected
+    Halted
+    InProgress
+    Cancelled
+}
+
+type ExecutionPlan {
+    "resource id of execution plan"
+    id: String!
+
+    "Intent associated with execution plan"
+    intent: Intent
+
+    "organizations which participate in the execution plan"
+    organizations: [ExecutionOrganization!]!
+
+    "lifecycle status of the execution plan"
+    status: ExecutionPlanStatus!
+
+    "plan's list of instructions"
+    instructions: [ExecutionPlanInstruction]!
+
+    "list of plan approvals"
+    approvals: [PlanApproval]!
+
+    "plan creation (timestamp in sec)"
+    creationTimestamp: Int!
+
+    "last time plan was modified (epoch time seconds)"
+    lastModified: Int!
+}
+
+enum ApprovalStatus {
+    Approved
+    Rejected
+    Unknown
+}
+
+type PlanApprovalStatusInfo {
+    code: Int!
+    message: String!
+}
+
+type PlanApproval {
+    planId: String!
+    orgId: String!
+    status: ApprovalStatus!
+    statusInfo: PlanApprovalStatusInfo!
+}
+
+type InstructionApproval {
+    planId: String!
+    sequence: Int!
+    orgId: String!
+    status: String!
+}
+
+union InstructionDetails = IssueInstruction | TransferInstruction | HoldInstruction | ReleaseInstruction | RevertHoldInstruction | AwaitInstruction | RedeemInstruction
+
+union InstructionCompletionState = UnknownState | ErrorState | SuccessState
+
+enum ExecutionPlanInstructionStatus {
+    Unknown
+    Pending
+    Completed
+    Failed
+    Approved
+    Rejected
+    Cancelled
+}
+
+type ExecutionPlanInstruction {
+    sequence: Int!
+    organizations: [ExecutionOrganization!]!
+    details: InstructionDetails!
+    status: ExecutionPlanInstructionStatus!
+    state: InstructionCompletionState!
+    approvals(filter:[Filter!]): InstructionApprovals!
+    transitions: InstructionTransition!
+}
+
+union Transition = StatusTransition | SequenceTransition
+
+type InstructionTransition {
+    onSuccess: Transition
+    onFailure: Transition
+    onTimeout: Transition
+}
+
+type StatusTransition {
+    status: ExecutionPlanStatus!
+}
+
+type SequenceTransition {
+    sequence: Int!
+}
+
+type IssueInstruction {
+    "resource id of the buyer"
+    buyer: String!
+
+    "buyer's account"
+    destinationAccount: AccountInstruction!
+
+    "asset's issuance amount"
+    amount: String!
+}
+
+type TransferInstruction {
+    "resource id of the source"
+    source: String!
+
+    "resource id of the destination"
+    destination: String!
+
+    "source account information"
+    sourceAccount: AccountInstruction!
+
+    "destination account information"
+    destinationAccount: AccountInstruction!
+
+    "asset's transfer amount"
+    amount: String!
+}
+
+type HoldInstruction {
+    "resource id of the source user"
+    source: String!
+
+    "resource id of the destination user"
+    destination: String!
+
+    "source account information"
+    sourceAccount: AccountInstruction!
+
+    "destination account information"
+    destinationAccount: AccountInstruction
+
+    "asset's hold amount"
+    amount: String!
+}
+
+type ReleaseInstruction {
+    "source account information"
+    sourceAccount: AccountInstruction!
+
+    "destination account information"
+    destinationAccount: AccountInstruction!
+
+    "asset's release amount"
+    amount: String!
+}
+
+type RevertHoldInstruction {
+    "destination account information"
+    destinationAccount: AccountInstruction!
+}
+
+type AwaitInstruction {
+    "epoch time for await instruction"
+    waitTime: Int!
+}
+
+type RedeemInstruction {
+    "source account information"
+    sourceAccount: AccountInstruction!
+
+    "asset's release amount"
+    amount: String!
+}
+
+type ExecutionPlanInstructions {
+    nodes: [ExecutionPlanInstruction!]
+}
+
+type ErrorState {
+    code: Int!
+    message: String!
+}
+
+union SuccessStateOutput = Receipt
+type SuccessState {
+    output: SuccessStateOutput
+}
+
+type UnknownState {
+    _ignore : Boolean
+}
+
+type ReceiptState{
+    receipt: Receipt!
+}
+
+
+"Information about organization in an Execution Plan context"
+type ExecutionOrganization {
+    organizationId: String!
+    #    Role:
+}
+
+type ExecutionsPlans {
+    nodes: [ExecutionPlan!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+enum ActionType {
+    send
+    request
+    unknown
+}
+
+
+union IntentDetails = PrimarySale | BuyingIntent | SellingIntent | LoanIntent | RedemptionIntent | PrivateOfferIntent | RequestForTransferIntent
+
+type PrimarySale  {
+    "Issuer id"
+    issuerId: String!
+
+    "Asset term specifies the asset information and amount of the intent"
+    assetTerm: AssetTerm!
+
+    "Asset instruction specifies the asset source of destination account of the intent"
+    assetInstruction: AssetInstruction!
+
+    "Settlement term"
+    settlementTerm: SettlementTerm
+
+    sellingSettlementInstruction: SellingSettlementInstruction!
+}
+
+type RedemptionIntent  {
+    "Issuer id"
+    issuerId: String!
+    "Specify settlement accounts"
+    redemptionSettlementInstruction: RedemptionSettlementInstruction
+    "Asset term specifies the asset information and amount of the intent"
+    assetTerm: AssetTerm!
+    "Asset instruction specifies the asset source of destination account of the intent"
+    redeemAssetInstruction: AssetInstruction
+    "Settlement term"
+    settlementTerm: SettlementTerm
+    "Intent conditions"
+    conditions: RedemptionConditions!
+    "Signature policy type"
+    signaturePolicyType: SignaturePolicyType!
+    signaturePolicy: RedemptionSignaturePolicy!
+}
+
+enum SignaturePolicyType {
+    PresignedPolicy
+    ManualPolicy
+}
+
+type ManualIntentSignaturePolicy {
+    _ignore: Boolean
+}
+
+
+type PresignedBuyingIntentSignaturePolicy{
+    _ignore: Boolean
+}
+
+type PresignedSellingIntentSignaturePolicy{
+    _ignore: Boolean
+}
+
+type PresignedLoanIntentSignaturePolicy{
+    # todo: don't expose it!
+    _ignore: Boolean
+}
+
+type PresignedRedemptionIntentSignaturePolicy{
+    _ignore: Boolean
+}
+
+type PresignedRequestForTransferIntentSignaturePolicy{
+    _ignore: Boolean
+}
+
+type PresignedPrivateOfferIntentSignaturePolicy{
+    _ignore: Boolean
+}
+
+union BuyingSignaturePolicy = PresignedBuyingIntentSignaturePolicy | ManualIntentSignaturePolicy
+union SellingSignaturePolicy = PresignedSellingIntentSignaturePolicy | ManualIntentSignaturePolicy
+union LoanSignaturePolicy = PresignedLoanIntentSignaturePolicy
+union RedemptionSignaturePolicy = PresignedRedemptionIntentSignaturePolicy | ManualIntentSignaturePolicy
+union PrivateOfferSignaturePolicy = PresignedPrivateOfferIntentSignaturePolicy | ManualIntentSignaturePolicy
+union RequestForTransferSignaturePolicy = PresignedRequestForTransferIntentSignaturePolicy | ManualIntentSignaturePolicy
+
+type BuyingIntent{
+    "resource id of the buyer"
+    buyer: String
+
+    "Asset term specifies the asset information and amount of the intent"
+    assetTerm: AssetTerm!
+
+    "Asset instruction specifies the asset source of destination account of the intent"
+    assetInstruction: AssetInstruction!
+
+    "Settlement term"
+    settlementTerm: SettlementTerm
+
+    "Signature policy type"
+    signaturePolicyType: SignaturePolicyType!
+    signaturePolicy: BuyingSignaturePolicy!
+    settlementInstruction: BuyingSettlementInstruction!
+}
+
+type SellingIntent{
+    "resource id of the seller"
+    seller: String
+
+    "Asset term specifies the asset information and amount of the intent"
+    assetTerm: AssetTerm!
+
+    "Asset instruction specifies the asset source of destination account of the intent"
+    assetInstruction: AssetInstruction!
+
+    "Settlement term"
+    settlementTerm: SettlementTerm
+
+    "Signature policy type"
+    signaturePolicyType: SignaturePolicyType!
+    signaturePolicy: SellingSignaturePolicy!
+    sellingSettlementInstruction: SellingSettlementInstruction!
+}
+
+type PrivateOfferIntent{
+    "resource id of the buyer"
+    buyer: String
+
+    "resource id of the seller"
+    seller: String
+
+    "Asset term specifies the asset information and amount of the intent"
+    assetTerm: AssetTerm!
+
+    "Asset instruction specifies the asset source of destination account of the intent"
+    assetInstruction: AssetInstruction!
+
+    "Settlement term"
+    settlementTerm: SettlementTerm
+
+    "Signature policy type"
+    signaturePolicyType: SignaturePolicyType!
+    signaturePolicy: PrivateOfferSignaturePolicy!
+    sellingSettlementInstruction: SellingSettlementInstruction!
+}
+
+type RequestForTransferIntent{
+    "resource id of the creditor"
+    creditor: String
+
+    "resource id of the debitor"
+    debitor: String
+
+    "Asset term specifies the asset information and amount of the intent"
+    assetTerm: AssetTerm!
+
+    "Asset instruction specifies the asset source of destination account of the intent"
+    assetInstruction: AssetInstruction!
+
+    "Signature policy type"
+    signaturePolicyType: SignaturePolicyType!
+    signaturePolicy: RequestForTransferSignaturePolicy!
+
+    "Action type of the intent"
+    actionType: ActionType!
+}
+
+type LoanIntent{
+    "resource id of the borrower"
+    borrower: String!
+    "resource id of the lender"
+    lender: String!
+
+    "Asset term specifies the asset information and amount of the intent"
+    assetTerm: AssetTerm!
+
+    "Asset instruction specifies the asset source of destination account of the intent"
+    assetInstruction: LoanAssetInstruction!
+
+    "Settlement term"
+    settlementTerm: SettlementTerm
+
+    "Signature policy type"
+    loanSettlementInstruction: LoanSettlementInstruction!
+    loanInstruction: LoanInstruction!
+    signaturePolicyType: SignaturePolicyType!
+    signaturePolicy: LoanSignaturePolicy!
+}
+
+type LoanSettlementInstruction {
+    borrowerAccount: AccountIdentifier
+    lenderAccount: AccountIdentifier
+}
+
+type LoanInstruction {
+    openDate: Int!
+    closeDate: Int!
+    loanConditions: LoanConditions!
+}
+
+union LoanConditions = RepaymentTerm |  InterestRate | CloseAmountRate
+
+type RepaymentTerm {
+    repaymentVolume: String!
+    annualPercentageRate: String
+}
+
+type InterestRate {
+    annualPercentageRate: String!
+}
+
+type CloseAmountRate {
+    repaymentVolume: String!
+}
+
+"Certificate related Document metadata informaiton"
+type Document {
+    id: String!
+
+    "Locaiton of document content."
+    uri: String!
+
+    name: String!
+    mimeType: String!
+}
+
+"Profile Metadata (ACL)."
+type ProfileMetadata {
+    acl: [String!]
+}
+
+type OrganizationAsset {
+    asset: Asset!
+    metadata: ProfileMetadata!
+}
+
+"""
+Filter capabilities that can be applied on queries which return multiple results of a given Entity.
+Currently filtering is available only on the fields which belongs to the Root of the entity
+and not on nested entities' fields.
+"""
+input Filter {
+    "The Object's key to which apply the filter rule."
+    key: String!
+
+    "The Value to be used by the Filter Operator."
+    value: String!
+
+    "Operator to apply on the specified key and provided value."
+    operator : Operator!
+}
+
+"Operators available to be used "
+enum Operator {
+    "Equals"
+    EQ
+    "Not Equals"
+    NEQ
+    "Greater Than"
+    GT
+    "Greater Than or Equals"
+    GTE
+    "Less Than"
+    LT
+    "Less Than or Equals"
+    LTE
+    "In"
+    IN
+    "Not In"
+    NIN
+    "Contains"
+    CONTAINS
+}
+
+
+"Results for asset query."
+type Users {
+    "Collection of User Objects, conforms to the Filter input if provided."
+    nodes: [User!]
+    aggregate: [AggregateResult!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+"Results for asset query."
+type Assets {
+    "Collection of Asset Objects, conforms to the Filter input if provided."
+    nodes: [Asset!]
+
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+"Results for tokens query."
+type TokensBalances {
+    "Collection of Token Objects, conforms to the Filter input if provided."
+    nodes: [TokenBalance!]
+
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+}
+
+"Results for issuers query."
+type Issuers {
+    "Collection of Issuer Objects, conforms to the Filter input if provided."
+    nodes: [Issuer!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+"Results for certificates query."
+type Certificates {
+    "Collection of Certificate Objects, conforms to the Filter input if provided."
+    nodes: [Certificate!]
+
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+"Results for Organization query."
+type Organizations {
+    "Collection of Organization Objects, conforms to the Filter input if provided."
+    nodes: [Organization!]
+
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+"Results for Plan Approval query."
+type PlanApprovals {
+    "Collection of Plan Approval Objects, conforms to the Filter input if provided."
+    nodes: [PlanApproval!]
+
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+}
+
+"Results for Instruction Approval query."
+type InstructionApprovals {
+    "Collection of Instruction Approval Objects, conforms to the Filter input if provided."
+    nodes: [InstructionApproval!]
+
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+}
+
+"Results for itents query."
+type Intents {
+    "Collection of Intent Objects, conforms to the Filter input if provided."
+    nodes: [Intent!]
+
+    "Collection of Aggregate Results, if an Aggregate input was provided."
+    aggregate: [AggregateResult!]
+}
+
+"Results for documents query."
+type Documents {
+    "Collection of Document Objects, conforms to the Filter input if provided."
+    nodes: [Document!]
+}
+
+"Results for receipts query."
+type Receipts {
+    "Collection of Receipt Objects, conforms to the Filter input if provided."
+    nodes: [Receipt!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+
+"Result of Aggregation function applied on an Object numeric field."
+type AggregateResult {
+    "The Object's field which this results refer to."
+    field: String!
+
+    "The AggregateFunc which this AggregateResult refers to."
+    func: AggregateFunc!
+
+    result: String!
+}
+
+"Aggregation function to be applied on Object's numeric field."
+enum AggregateFunc {
+    SUM
+    COUNT
+    AVG
+    MAX
+    MIN
+}
+
+"Apply an aggregation function on specified Object's field."
+input Aggregate {
+    "Object's field to which apply the AggregateFunc"
+    field : String
+
+    "AggregateFunc to apply on the provided Field."
+    func :AggregateFunc!
+}
+
+
+"The query root of Ownera's GraphQL interface."
+type Query {
+    "Look up Assets, Optional provide Filters or Aggregates."
+    assets(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: AssetOrder): Assets!
+
+    "Look up Users, Optional provide Filter or Aggregate."
+    users(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Users!
+
+    "Look up a receipt by a Filter (mandatory)."
+    receipts(filter: [Filter], paginate: PaginateInput = {}): Receipts!
+
+    "Look up Issuers, Optional provide Filter."
+    issuers(filter: [Filter!], paginate: PaginateInput = {}): Issuers!
+
+    "Look up Certificates, Optional provide Filter or Aggregate."
+    certificates(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Certificates!
+
+    "Look up Organizations, Optional provide Filter or Aggregate."
+    organizations(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Organizations!
+
+    "List of escrows"
+    escrows(filter: [Filter!]): Escrows!
+
+    "Look up Execution Plans, Optional provide Filter."
+    plans(filter:[Filter!], paginate: PaginateInput = {}, orderBy: ExecutionPlanOrder): ExecutionsPlans!
+
+    "Look up Workflows, Optional provide Filter."
+    workflows(filter: [Filter!], paginate: PaginateInput = {}, orderBy: WorkflowOrder): Workflows!
+}
+
+type PageInfo {
+    "Indicates if there are more items after the current page"
+    hasNextPage: Boolean!
+
+    "Cursor for the end of the current page"
+    endCursor: String
+
+    "Total count of items"
+    totalCount: Int!
+
+    "Total count of items left to be presented"
+    totalLeft: Int!
+}
+
+type Subscription {
+    receiptAdded: Receipt!
+    planAdded: ExecutionPlan!
+    plansChangedBy(fieldNames: [PlanField!]!): ExecutionPlan!
+    userHoldingAdded: User!
+    userHoldingChanged(fieldNames: [HoldingFields!]!): User!
+}
+
+"Fields to subscribe on"
+enum PlanField {
+    Status
+}
+
+"Fields to subscribe on"
+enum HoldingFields {
+    Balance
+    WithheldBalance
+    AvailableBalance
+    SyncedBalance
+    SyncedAvailableBalance
+    SyncedHeldBalance
+}
+
+input PaginateInput {
+    "Number of records to return in response"
+    limit: Int
+
+    "Number of pages to skip to get new cursor"
+    skip: Int
+
+    "Cursor field to return records after it"
+    after: String
+}
+
+input AssetOrder {
+    field: AssetOrderField
+    direction: SortOrder
+}
+
+enum AssetOrderField {
+    "Assets order by determined by OrganizationId field"
+    ORGANIZATION
+
+    "Assets order by determined by Name field"
+    NAME
+}
+
+input UserOrder {
+    field: UserOrderField
+    direction: SortOrder
+}
+
+enum UserOrderField {
+    "users order by determined by Id field"
+    ID
+}
+
+input ReceiptOrder {
+    field: ReceiptOrderField
+    direction: SortOrder
+}
+
+enum ReceiptOrderField {
+    "receipt order by determined by Id field"
+    ID
+}
+
+input IssuerOrder {
+    field: IssuerOrderField
+    direction: SortOrder
+}
+
+enum IssuerOrderField {
+    "issuers order by determined by Id field"
+    ID
+}
+
+input CertificateOrder {
+    field: CertificateOrderField
+    direction: SortOrder
+}
+
+enum CertificateOrderField {
+    "certificates order by determined by Id field"
+    ID
+}
+
+input OrganizationOrder {
+    field: OrganizationOrderField
+    direction: SortOrder
+}
+
+enum OrganizationOrderField {
+    "organizations order by determined by Id field"
+    ID
+}
+
+input ExecutionPlanOrder {
+    field: ExecutionPlanOrderField
+    direction: SortOrder
+}
+
+enum ExecutionPlanOrderField {
+    "plan order by PlanId field"
+    PLAN_ID
+    CREATION_TIMESTAMP
+}
+
+enum SortOrder {
+    ASC
+    DESC
+}
+
+enum ReceiptStatus {
+    Unknown
+    Valid
+    Invalid
+}
+
+union ProofPolicy = SignatureProofPolicy | NoProofPolicy
+
+type AssetPolicies {
+    proof: ProofPolicy!
+}
+
+enum SignatureTemplate {
+    EIP712
+    HashList
+    Unknown
+}
+
+type SignatureProofPolicy {
+    verifyingKey: String!
+    signatureTemplate: SignatureTemplate!
+}
+
+type NoProofPolicy {
+    _ignore: Boolean
+}
+
+enum AssetIdentifierType {
+    UNSPECIFIED
+    ISIN
+    CUSIP
+    SEDOL
+    DTI
+    CMU
+    FIGI
+    CUSTOM
+}
+
+type AssetIdentifier {
+    type: AssetIdentifierType!
+    value: String!
+}
+
+type Workflows {
+    nodes: [Workflow!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+type WorkflowMetadata {
+    "TTL of the workflow"
+    ttl: Int!
+
+    retry: Int!
+
+    currentStateRetry: Int!
+
+    traceId: String!
+
+    correlationIds: [String!]
+
+    referenceId: String!
+
+    referenceType: String!
+}
+
+type Workflow {
+    "Id of the workflow"
+    id: String!
+
+    "Name of the workflow"
+    name: String!
+
+    "Current transition id of the workflow"
+    transitionId: String!
+
+    "Current status of the workflow"
+    status: String!
+
+    "version of the workflow"
+    version: Int!
+
+    "metadata of the workflow"
+    metadata: WorkflowMetadata!
+
+    "the time workflow expires"
+    expires: Int!
+}
+
+enum WorkflowOrderField {
+    "workflow order"
+    NAME
+    STATUS
+    REFERENCE_ID
+}
+
+input WorkflowOrder {
+    field: WorkflowOrderField
+    direction: SortOrder
+}

@@ -1,6 +1,12 @@
-name: Node.js CI
+name: CI
 
-on: [push]
+on:
+  push:
+    branches:
+      - 'master'
+    tags:
+      - 'v0.**'
+  pull_request:
 
 jobs:
   build:
@@ -8,11 +14,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js
+      - name: Checkout application repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18.x'
-      - run: npm install
-      - run: npm run build
-      - run: npm test
+
+      - name: finp2p-client install dependencies
+        working-directory: ./finp2p-client
+        run: npm clean-install
+
+      - name: Adapter npm clean-install
+        run: npm clean-install
+
+      - name: Adapter npm run build
+        run: npm run build
+
+      - name: Adapter npm test
+        run: npm test

@@ -12,26 +12,26 @@ export type DepositAsset = Asset | {
 export type FinIdAccount = {
   type: 'finId',
   finId: string
-}
+};
 
 export type CryptocurrencyWallet = {
   type: 'crypto'
   address: string
-}
+};
 
 export type IbanIdentifier = {
   type: 'iban',
   code: string
-}
+};
 
-export type SourceAccount = FinIdAccount
+export type SourceAccount = FinIdAccount;
 
 export type Source = {
   finId: string
   account: SourceAccount
 };
 
-export type DestinationAccount = FinIdAccount | CryptocurrencyWallet | IbanIdentifier
+export type DestinationAccount = FinIdAccount | CryptocurrencyWallet | IbanIdentifier;
 
 export type Destination = {
   finId: string
@@ -39,8 +39,8 @@ export type Destination = {
 };
 
 export const finIdDestination = (finId: string): Destination => {
-  return {finId, account: {type: 'finId', finId}}
-}
+  return { finId, account: { type: 'finId', finId } };
+};
 
 export type ExecutionContext = {
   planId: string
@@ -62,30 +62,30 @@ export type Balance = {
 
 export type TokenIdentifier = {
   tokenId: string
-}
+};
 
 export type AssetBind = {
   tokenIdentifier: TokenIdentifier | undefined
-}
+};
 
 export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM';
 
 export type AssetIdentifier = {
   type: AssetIdentifierType
   value: string
-}
+};
 
 export type AssetDenominationType = 'fiat' | 'cryptocurrency';
 
 export type AssetDenomination = {
   type: AssetDenominationType
   code: string
-}
+};
 
 export type AdditionalContractDetails = {
   finP2POperatorContractAddress: string | undefined
   allowanceRequired: boolean | undefined
-}
+};
 
 export type LedgerReference = {
   type: 'ledgerReference';
@@ -93,7 +93,51 @@ export type LedgerReference = {
   address: string;
   tokenStandard: string | undefined;
   additionalContractDetails: AdditionalContractDetails | undefined
+};
+
+export type IntentType =
+  'primarySale'
+  | 'buyingIntent'
+  | 'sellingIntent'
+  | 'loanIntent'
+  | 'redemptionIntent'
+  | 'privateOfferIntent'
+  | 'requestForTransferIntent';
+
+export enum Role {
+  Buyer,
+  Seller,
+  Borrower,
+  Lender,
+  Unknown,
 }
+
+export type Investor = {
+  profileId: string;
+  finId: string;
+  orgId: string;
+  role: Role;
+};
+
+export type Leg = {
+  asset: Asset;
+  amount: string;
+  organizationId: string;
+  source?: Investor;
+  destination?: Investor;
+};
+
+export type Contract = {
+  asset?: Leg;
+  payment?: Leg;
+};
+
+export type ExecutionPlan = {
+  id: string;
+  intentType: IntentType;
+  contract: Contract;
+};
+
 
 // -------------------------------------------------------------------
 
@@ -188,7 +232,7 @@ export type OperationResponseStrategy = 'polling' | 'callback';
 
 export type OperationMetadata = {
   responseStrategy: OperationResponseStrategy
-}
+};
 
 
 // -------------------------------------------------------------------
@@ -222,7 +266,7 @@ export const approvedPlan = (): PlanApprovalStatus => ({
 export const rejectedPlan = (code: number, message: string): PlanApprovalStatus => ({
   operation: 'approval',
   type: 'rejected',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingPlan = (correlationId: string, metadata: OperationMetadata | undefined): PlanApprovalStatus => ({
@@ -237,7 +281,7 @@ export const pendingPlan = (correlationId: string, metadata: OperationMetadata |
 export type AssetCreationResult = {
   tokenId: string;
   reference: LedgerReference | undefined;
-}
+};
 
 export type SuccessfulAssetCreation = {
   operation: 'createAsset',
@@ -263,20 +307,20 @@ export type AssetCreationStatus = SuccessfulAssetCreation | FailedAssetCreation 
 export const successfulAssetCreation = (result: AssetCreationResult): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'success',
-  result
+  result,
 });
 
 export const failedAssetCreation = (code: number, message: string): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
-export const pendingAssetCreation = (correlationId: string,  metadata: OperationMetadata | undefined): AssetCreationStatus => ({
+export const pendingAssetCreation = (correlationId: string, metadata: OperationMetadata | undefined): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'pending',
   correlationId,
-  metadata
+  metadata,
 });
 
 // -------------------------------------------------------------------
@@ -312,14 +356,14 @@ export const successfulReceiptOperation = (receipt: Receipt): ReceiptOperation =
 export const failedReceiptOperation = (code: number, message: string): ReceiptOperation => ({
   operation: 'receipt',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
-export const pendingReceiptOperation = (correlationId: string,  metadata: OperationMetadata | undefined): ReceiptOperation => ({
+export const pendingReceiptOperation = (correlationId: string, metadata: OperationMetadata | undefined): ReceiptOperation => ({
   operation: 'receipt',
   type: 'pending',
   correlationId,
-  metadata
+  metadata,
 });
 
 // -------------------------------------------------------------------
@@ -423,7 +467,7 @@ export const successfulDepositOperation = (instruction: DepositInstruction): Dep
 export const failedDepositOperation = (code: number, message: string): DepositOperation => ({
   operation: 'deposit',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingDepositOperation = (correlationId: string): DepositOperation => ({
