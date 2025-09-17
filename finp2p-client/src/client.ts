@@ -102,6 +102,10 @@ export class FinP2PClient {
     return await this.ossClient.getAssetsWithTokens()
   }
 
+  async getOwnerByFinId(assetId: string) {
+    return await this.ossClient.getOwnerByFinId(assetId);
+  }
+
   async getOwnerBalances(assetId: string) {
     return await this.ossClient.getOwnerBalances(assetId);
   }
