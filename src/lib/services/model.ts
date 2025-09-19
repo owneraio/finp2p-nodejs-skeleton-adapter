@@ -168,44 +168,9 @@ export type EIP712Domain = {
   verifyingContract?: string;
 };
 
-export type EIP712TypeArray = EIP712TypedValue[];
-export type EIP712TypeBool = boolean;
-export type EIP712TypeByte = string;
-export type EIP712TypeInteger = number;
+export type EIP712Message = any;
 
-export interface EIP712TypeObject {
-  [name: string]: EIP712TypedValue;
-}
-
-export type EIP712TypeString = string;
-
-export type EIP712TypedValue =
-  EIP712TypeString
-  | EIP712TypeInteger
-  | EIP712TypeBool
-  | EIP712TypeByte
-  | EIP712TypeObject
-  | EIP712TypeArray;
-
-export type EIP712Types = {
-  [name: string]: EIP712TypeDefinition[];
-};
-
-export interface EIP712TypeDefinition {
-  name?: string;
-  fields?: EIP712FieldDefinition[];
-}
-
-export interface EIP712FieldDefinition {
-  name?: string;
-  type?: string;
-}
-
-
-export type EIP712Message = {
-  [name: string]: EIP712TypedValue;
-};
-
+export type EIP712Types = Record<string, Array<{ name: string; type: string }>>;
 
 export type EIP712Template = {
   type: 'EIP712'
