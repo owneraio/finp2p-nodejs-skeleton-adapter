@@ -168,7 +168,7 @@ export type EIP712Domain = {
   verifyingContract?: string;
 };
 
-export type EIP712Message = any;
+export type EIP712Message = Record<string, unknown>;
 
 export type EIP712Types = Record<string, Array<{ name: string; type: string }>>;
 
