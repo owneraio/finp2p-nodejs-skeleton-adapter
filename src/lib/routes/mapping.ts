@@ -198,7 +198,7 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
       types[name] = fields;
     }
     return types;
-  }, {} as EIP712Types)
+  }, {} as EIP712Types);
 }
 
 export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Template']): EIP712Template => {
