@@ -57,12 +57,12 @@ export const hashListSignature = (
   const hashGroups: LedgerAPI["schemas"]['hashGroup'][] = [];
   const hashes: Buffer[] = [];
   if (asset) {
-    const {nonce, source, destination, asset: {asseId, assetType}, quantity, operation} = asset;
+    const {nonce, source, destination, asset: {assetId, assetType}, quantity, operation} = asset;
     let fields: LedgerAPI["schemas"]['field'][] = [];
     fields.push({name: "nonce", type: "bytes", value: nonce});
     fields.push({name: "operation", type: "string", value: operation});
     fields.push({name: "assetType", type: "string", value: assetType});
-    fields.push({name: "assetId", type: "string", value: asseId});
+    fields.push({name: "assetId", type: "string", value: assetId});
     if (source) {
       const {finId, type} = source;
       fields.push({name: "srcAccountType", type: "string", value: type});
@@ -80,10 +80,10 @@ export const hashListSignature = (
   }
 
   if (settlement) {
-    const {source, destination, asset: {asseId, assetType}, quantity, expiry} = settlement;
+    const {source, destination, asset: {assetId, assetType}, quantity, expiry} = settlement;
     let fields: LedgerAPI["schemas"]['field'][] = [];
     fields.push({name: "assetType", type: "string", value: assetType});
-    fields.push({name: "assetId", type: "string", value: asseId});
+    fields.push({name: "assetId", type: "string", value: assetId});
     if (source) {
       const {finId, type} = source;
       fields.push({name: "srcAccountType", type: "string", value: type});
