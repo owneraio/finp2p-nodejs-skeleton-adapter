@@ -202,14 +202,14 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
 }
 
 export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Template']): EIP712Template => {
-  const {domain, primaryType, message, types} = template;
-  let types1 = eip712TypesFromAPI(types);
+  const {domain, primaryType, message, types, hash} = template;
   return {
     type: 'EIP712',
     primaryType,
     domain: domain as EIP712Domain,
     message: message as EIP712Message,
-    types: types1,
+    types: eip712TypesFromAPI(types),
+    hash
   } as EIP712Template;
 };
 

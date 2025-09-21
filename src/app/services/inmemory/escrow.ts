@@ -3,11 +3,11 @@ import { CommonServiceImpl } from './common';
 import {
   Asset,
   Destination,
-  ExecutionContext,
+  ExecutionContext, failedReceiptOperation,
   ReceiptOperation,
   Signature,
   Source,
-  successfulReceiptOperation,
+  successfulReceiptOperation, verifySignature,
 } from '../../../lib/services';
 
 import { Transaction } from './model';
@@ -28,7 +28,10 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   ): Promise<ReceiptOperation> {
 
     logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext: exCtx });
-
+    const signer = source.finId
+    if (!await verifySignature(signature, signer)) {
+      return failedReceiptOperation(1, `Signature verification failed`)
+    }
     this.holdOperations[operationId] = {
       id: operationId,
       source,

@@ -1,9 +1,9 @@
-import { v4 as uuid } from 'uuid';
-import { CommonServiceImpl } from './common';
+import {v4 as uuid} from 'uuid';
+import {CommonServiceImpl} from './common';
 import {
   AssetBind,
   AssetDenomination,
-  AssetIdentifier,
+  AssetIdentifier, failedReceiptOperation,
   FinIdAccount,
   finIdDestination,
   TokenService,
@@ -12,15 +12,16 @@ import {
   Asset, AssetCreationStatus, Balance, Destination, ExecutionContext, ReceiptOperation,
   Signature, Source, successfulAssetCreation,
   successfulReceiptOperation,
+  verifySignature
 } from '../../../lib/services';
-import {logger, verifyEIP712} from '../../../lib/helpers';
-import { Transaction } from './model';
+import {logger} from '../../../lib/helpers';
+import {Transaction} from './model';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
   public async createAsset(idempotencyKey: string, asset: Asset,
-    assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
+                           assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
+                           assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
     logger.info(`Creating asset ${asset.assetId}`, {
       idempotencyKey,
       assetBind,
@@ -34,9 +35,9 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     if (!assetBind || !assetBind.tokenIdentifier) {
       tokenId = uuid();
     } else {
-      ({ tokenIdentifier: { tokenId } } = assetBind);
+      ({tokenIdentifier: {tokenId}} = assetBind);
     }
-    return successfulAssetCreation({ tokenId, reference: undefined });
+    return successfulAssetCreation({tokenId, reference: undefined});
   }
 
   public async balance(assetId: string, finId: string): Promise<Balance> {
@@ -53,7 +54,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-    const { finId } = to;
+    const {finId} = to;
     logger.info(`Issuing ${quantity} of ${asset.assetId} to ${finId}`);
 
     this.accountService.credit(finId, quantity, asset.assetId);
@@ -63,16 +64,15 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
-    quantity: string, sgn: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+                        quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
-    const { signature, template } = sgn;
-    if (template.type === 'EIP712') {
-      const { domain: { chainId, verifyingContract}, message, types, primaryType } = template;
-      if (!verifyEIP712(chainId, verifyingContract, types, message, source.finId, signature)) {}
-      throw new Error("EIP712 signature not verified");
-    }
+
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
+    const signer = source.finId
+    if (!await verifySignature(signature, signer)) {
+      return failedReceiptOperation(1, `Signature verification failed`)
+    }
 
     this.accountService.move(source.finId, destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
@@ -81,9 +81,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
-    signature: Signature, exCtx: ExecutionContext | undefined,
+                      signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
+
+    const signer = source.finId
+    if (!await verifySignature(signature, signer)) {
+      return failedReceiptOperation(1, `Signature verification failed`)
+    }
 
     this.accountService.debit(source.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);

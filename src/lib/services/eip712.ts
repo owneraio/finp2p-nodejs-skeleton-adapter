@@ -347,8 +347,6 @@ export const eip712TransactionDetails = (operationId: string, transactionId: str
 };
 
 
-
-
 export type EIP712Template = {
   type: 'EIP712'
   primaryType: string;
@@ -357,8 +355,6 @@ export type EIP712Template = {
   types: EIP712Types
   hash: string
 };
-
-
 
 
 export interface EIP712ReceiptMessage extends EIP712Message {
