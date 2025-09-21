@@ -1,3 +1,5 @@
+import {EIP712Template} from "./eip712";
+
 export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
 export type Asset = {
@@ -161,27 +163,6 @@ export type HashListTemplate = {
 
 // -------------------------------------------------------------------
 
-export type EIP712Domain = {
-  name?: string;
-  version?: string;
-  chainId?: number;
-  verifyingContract?: string;
-};
-
-export type EIP712Message = Record<string, unknown>;
-
-export type EIP712Types = Record<string, Array<{ name: string; type: string }>>;
-
-export type EIP712Template = {
-  type: 'EIP712'
-  primaryType: string;
-  domain: EIP712Domain;
-  message: EIP712Message;
-  types: EIP712Types
-  hash: string
-};
-
-// --------------------------------------------------
 
 
 export type SignatureTemplate = HashListTemplate | EIP712Template;

@@ -192,13 +192,16 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
   if (!types.definitions) {
     throw new Error("EIP712 types definitions are missing");
   }
-  return types.definitions.reduce((types, {name, fields}) => {
-    if (name && types && name !== "EIP712Domain") {
+  // @ts-ignore
+  return types.definitions
+    .filter(d => d.name && d.fields)
+    .filter(d => d.name !== "EIP712Domain")
+    // @ts-ignore
+    .reduce((d, {name, fields}) => {
       // @ts-ignore
-      types[name] = fields;
-    }
-    return types;
-  }, {} as EIP712Types);
+      d[name] = fields;
+      return types;
+    }, {} as EIP712Types);
 }
 
 export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Template']): EIP712Template => {
