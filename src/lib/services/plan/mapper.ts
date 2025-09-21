@@ -1,5 +1,5 @@
 import { Asset, Contract, ExecutionPlan, Leg, Role } from '../model';
-import { OpComponents } from '@owneraio/finp2p-client/dist/finapi';
+import { OpComponents } from '@owneraio/finp2p-client';
 import { ValidationError } from '../errors';
 
 
