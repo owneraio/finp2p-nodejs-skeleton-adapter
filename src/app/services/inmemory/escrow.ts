@@ -1,9 +1,9 @@
-import { logger } from '../../../lib/helpers/logger';
+import { logger } from '../../../lib/helpers';
 import { CommonServiceImpl } from './common';
 import {
   Asset,
-  Destination,
-  ExecutionContext, failedReceiptOperation,
+  Destination, EscrowService,
+  ExecutionContext, failedReceiptOperation, ProofProvider,
   ReceiptOperation,
   Signature,
   Source,
@@ -11,7 +11,7 @@ import {
 } from '../../../lib/services';
 
 import { Transaction } from './model';
-import { EscrowService } from '../../../lib/services';
+import { AccountService } from './accounts';
 
 interface HoldOperation {
   id: string
@@ -21,7 +21,15 @@ interface HoldOperation {
 
 export class EscrowServiceImpl extends CommonServiceImpl implements EscrowService {
 
+  proofProvider: ProofProvider | undefined;
+
   holdOperations: Record<string, HoldOperation> = {};
+
+
+  constructor(accountService: AccountService, proofProvider: ProofProvider | undefined) {
+    super(accountService);
+    this.proofProvider = proofProvider;
+  }
 
   public async hold(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
     quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
@@ -43,7 +51,11 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
     const tx = new Transaction(quantity, asset, source.account, undefined, exCtx, 'hold', operationId);
     this.transactions[tx.id] = tx;
 
-    return successfulReceiptOperation(tx.toReceipt());
+    let receipt = tx.toReceipt();
+    if (this.proofProvider) {
+      receipt = await this.proofProvider.ledgerProof(receipt);
+    }
+    return successfulReceiptOperation(receipt);
   }
 
   public async release(idempotencyKey: string, destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
@@ -64,7 +76,11 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
     const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
-    return successfulReceiptOperation(tx.toReceipt());
+    let receipt = tx.toReceipt();
+    if (this.proofProvider) {
+      receipt = await this.proofProvider.ledgerProof(receipt);
+    }
+    return successfulReceiptOperation(receipt);
   }
 
   public async rollback(idempotencyKey: string, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
@@ -83,7 +99,11 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
     const tx = new Transaction(quantity, asset, source.account, undefined, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
-    return successfulReceiptOperation(tx.toReceipt());
+    let receipt = tx.toReceipt();
+    if (this.proofProvider) {
+      receipt = await this.proofProvider.ledgerProof(receipt);
+    }
+    return successfulReceiptOperation(receipt);
   }
 
 }

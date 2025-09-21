@@ -1,23 +1,29 @@
 import { v4 as uuid } from 'uuid';
 import { CommonServiceImpl } from './common';
 import {
-  AssetBind,
+  AssetBind, AssetCreationStatus,
   AssetDenomination,
-  AssetIdentifier, failedReceiptOperation,
+  AssetIdentifier, Balance, Destination, failedReceiptOperation,
   FinIdAccount,
-  finIdDestination,
-  TokenService,
+  finIdDestination, ProofProvider, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
+  TokenService, verifySignature,
 } from '../../../lib/services';
 import {
-  Asset, AssetCreationStatus, Balance, Destination, ExecutionContext, ReceiptOperation,
-  Signature, Source, successfulAssetCreation,
-  successfulReceiptOperation,
-  verifySignature,
+  Asset, ExecutionContext,
+  Signature,
 } from '../../../lib/services';
 import { logger } from '../../../lib/helpers';
 import { Transaction } from './model';
+import { AccountService } from './accounts';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
+
+  proofProvider: ProofProvider | undefined;
+
+  constructor(accountService: AccountService, proofProvider: ProofProvider | undefined) {
+    super(accountService);
+    this.proofProvider = proofProvider;
+  }
 
   public async createAsset(idempotencyKey: string, asset: Asset,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
@@ -60,12 +66,15 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     this.accountService.credit(finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, undefined, finIdDestination(finId), exCtx, 'issue', undefined);
     this.registerTransaction(tx);
-    return successfulReceiptOperation(tx.toReceipt());
+    let receipt = tx.toReceipt();
+    if (this.proofProvider) {
+      receipt = await this.proofProvider.ledgerProof(receipt);
+    }
+    return successfulReceiptOperation(receipt);
   }
 
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-
 
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
@@ -77,7 +86,11 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     this.accountService.move(source.finId, destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
     this.registerTransaction(tx);
-    return successfulReceiptOperation(tx.toReceipt());
+    let receipt = tx.toReceipt();
+    if (this.proofProvider) {
+      receipt = await this.proofProvider.ledgerProof(receipt);
+    }
+    return successfulReceiptOperation(receipt);
   }
 
   public async redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
@@ -93,7 +106,11 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     this.accountService.debit(source.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);
     this.registerTransaction(tx);
-    return successfulReceiptOperation(tx.toReceipt());
+    let receipt = tx.toReceipt();
+    if (this.proofProvider) {
+      receipt = await this.proofProvider.ledgerProof(receipt);
+    }
+    return successfulReceiptOperation(receipt);
   }
 
 }

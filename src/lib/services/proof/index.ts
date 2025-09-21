@@ -1,2 +1,2 @@
-export * from './mappers'
-export * from './provider'
+export * from './mappers';
+export * from './provider';
