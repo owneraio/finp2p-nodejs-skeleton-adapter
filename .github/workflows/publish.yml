@@ -18,6 +18,11 @@ jobs:
           node-version: 20
           registry-url: "https://npm.pkg.github.com"
           scope: "@owneraio"
+
+      - name: finp2p-client setup
+        working-directory: ./finp2p-client
+        run: npm ci
+
       - run: npm ci
       - run: npm run build-lib
       - run: npm publish
