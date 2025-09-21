@@ -27,7 +27,7 @@ export const receiptToEIP712Message = (receipt: Receipt): EIP712ReceiptMessage =
     quantity,
     asset: eip712Asset(assetId, assetType),
     tradeDetails: eip712TradeDetails(eip712ExecutionContext(
-      exCtx?.planId || '', `${exCtx?.sequence || ''}`)),
+      exCtx?.planId || '', exCtx?.sequence?.toString() || '')),
     transactionDetails: eip712TransactionDetails(operationId || '', id),
   };
 };
