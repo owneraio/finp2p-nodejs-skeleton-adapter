@@ -41,7 +41,7 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   private async startApp() {
     const port = randomPort();
-    const app = createApp(/*undefined*/);
+    const app = createApp(undefined);
     console.log("App created successfully.");
 
     this.httpServer = app.listen(port, () => {

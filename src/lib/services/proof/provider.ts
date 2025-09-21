@@ -1,6 +1,5 @@
 import { Receipt } from '../model';
-import winston from 'winston';
-import { FinP2PClient } from '../../../../finp2p-client/src';
+import { FinP2PClient } from '@owneraio/finp2p-client';
 import { DOMAIN_TYPE, RECEIPT_PROOF_TYPES } from '../eip712';
 import { EIP712_DOMAIN, hashEIP712, logger, signEIP712WithPrivateKey } from '../../helpers';
 import { receiptToEIP712Message } from './mappers';

@@ -10,6 +10,7 @@ import { AccountService } from './services/inmemory/accounts';
 import { PlanApprovalServiceImpl } from '../lib/services/plan/service';
 import { ProofProvider } from '../lib/services';
 import { Wallet } from 'ethers';
+import {FinP2PClient} from "@owneraio/finp2p-client";
 
 function configureLogging(app: Application) {
   app.use(
@@ -39,20 +40,20 @@ function configureLogging(app: Application) {
   );
 }
 
-function createApp(/*finP2PClient: FinP2PClient | undefined*/) {
+function createApp(finP2PClient: FinP2PClient | undefined) {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
 
   const { privateKey } = Wallet.createRandom();
   const signerPrivateKey = process.env.SIGNER_PRIVATE_KEY || privateKey;
-  const proofProvider = new ProofProvider(/*finP2PClient*/undefined, signerPrivateKey);
+  const proofProvider = new ProofProvider(finP2PClient, signerPrivateKey);
 
   const accountService = new AccountService();
   const tokenService = new TokenServiceImpl(accountService, proofProvider);
   const escrowService = new EscrowServiceImpl(accountService, proofProvider);
   const paymentsService = new PaymentsServiceImpl();
-  const planApprovalService = new PlanApprovalServiceImpl(/*finP2PClient*/);
+  const planApprovalService = new PlanApprovalServiceImpl(finP2PClient);
 
   routes.register(
     app,
