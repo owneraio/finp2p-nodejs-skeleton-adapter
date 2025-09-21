@@ -5,7 +5,7 @@ export const EIP712_DOMAIN = {
   name: 'FinP2P',
   version: '1',
   chainId: 1,
-  verifyingContract: '0x0',
+  verifyingContract: '0x0000000000000000000000000000000000000000',
 };
 
 export const finIdToAddress = (finId: string): string => {

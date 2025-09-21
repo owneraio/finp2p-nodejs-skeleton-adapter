@@ -15,11 +15,20 @@ export const enum PrimaryType {
   Loan = 6,
 }
 
-export type EIP712Domain = {
+export type EIP712Domain  = {
   name: string
   version: string
   chainId: number
   verifyingContract: string
+};
+
+export const DOMAIN_TYPE = {
+  EIP712Domain: [
+    { name: 'name', type: 'string' },
+    { name: 'version', type: 'string' },
+    { name: 'chainId', type: 'uint256' },
+    { name: 'verifyingContract', type: 'address' },
+  ],
 };
 
 
