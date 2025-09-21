@@ -14,14 +14,14 @@ export type AssetGroup = {
   quantity: string,
   asset: {
     assetType: string
-    asseId: string,
+    assetId: string,
   };
 };
 
 export type SettlementGroup = {
   asset: {
     assetType: string
-    asseId: string,
+    assetId: string,
   };
   source?: {
     type: string
