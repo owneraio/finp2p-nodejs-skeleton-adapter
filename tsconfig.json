@@ -21,7 +21,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "test/**/*.ts",
-    "src/**/*.graphql"
+    "test/**/*.ts"
   ]
 }
