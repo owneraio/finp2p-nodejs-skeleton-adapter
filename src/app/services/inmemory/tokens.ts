@@ -3,7 +3,7 @@ import { CommonServiceImpl } from './common';
 import {
   AssetBind,
   AssetDenomination,
-  AssetIdentifier,
+  AssetIdentifier, failedReceiptOperation,
   FinIdAccount,
   finIdDestination,
   TokenService,
@@ -12,6 +12,7 @@ import {
   Asset, AssetCreationStatus, Balance, Destination, ExecutionContext, ReceiptOperation,
   Signature, Source, successfulAssetCreation,
   successfulReceiptOperation,
+  verifySignature,
 } from '../../../lib/services';
 import { logger } from '../../../lib/helpers';
 import { Transaction } from './model';
@@ -65,7 +66,13 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
+
+
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
+    const signer = source.finId;
+    if (!await verifySignature(signature, signer)) {
+      return failedReceiptOperation(1, 'Signature verification failed');
+    }
 
     this.accountService.move(source.finId, destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
@@ -77,6 +84,11 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
+
+    const signer = source.finId;
+    if (!await verifySignature(signature, signer)) {
+      return failedReceiptOperation(1, 'Signature verification failed');
+    }
 
     this.accountService.debit(source.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);

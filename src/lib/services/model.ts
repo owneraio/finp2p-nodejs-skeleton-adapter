@@ -1,3 +1,5 @@
+import { EIP712Template } from './eip712';
+
 export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
 export type Asset = {
@@ -161,62 +163,6 @@ export type HashListTemplate = {
 
 // -------------------------------------------------------------------
 
-export type EIP712Domain = {
-  name?: string;
-  version?: string;
-  chainId?: number;
-  verifyingContract?: string;
-};
-
-export type EIP712TypeArray = EIP712TypedValue[];
-export type EIP712TypeBool = boolean;
-export type EIP712TypeByte = string;
-export type EIP712TypeInteger = number;
-
-export interface EIP712TypeObject {
-  [name: string]: EIP712TypedValue;
-}
-
-export type EIP712TypeString = string;
-
-export type EIP712TypedValue =
-  EIP712TypeString
-  | EIP712TypeInteger
-  | EIP712TypeBool
-  | EIP712TypeByte
-  | EIP712TypeObject
-  | EIP712TypeArray;
-
-export type EIP712Types = {
-  [name: string]: EIP712TypeDefinition[];
-};
-
-export interface EIP712TypeDefinition {
-  name?: string;
-  fields?: EIP712FieldDefinition[];
-}
-
-export interface EIP712FieldDefinition {
-  name?: string;
-  type?: string;
-}
-
-
-export type EIP712Message = {
-  [name: string]: EIP712TypedValue;
-};
-
-
-export type EIP712Template = {
-  type: 'EIP712'
-  primaryType: string;
-  domain: EIP712Domain;
-  message: EIP712Message;
-  types: EIP712Types
-  hash: string
-};
-
-// --------------------------------------------------
 
 
 export type SignatureTemplate = HashListTemplate | EIP712Template;
@@ -224,6 +170,7 @@ export type SignatureTemplate = HashListTemplate | EIP712Template;
 export type Signature = {
   signature: string;
   template: SignatureTemplate;
+  hashFunc: 'unspecified' | 'sha3_256' | 'sha3-256' | 'blake2b' | 'keccak_256' | 'keccak-256';
 };
 
 // ------------------------------------------------------------------

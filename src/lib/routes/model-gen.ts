@@ -701,17 +701,17 @@ export interface components {
       /** Format: address */
       verifyingContract?: string;
     };
-    EIP712TypedValue: components['schemas']['EIP712TypeString'] | components['schemas']['EIP712TypeInteger'] | components['schemas']['EIP712TypeBool'] | components['schemas']['EIP712TypeByte'] | components['schemas']['EIP712TypeObject'] /*| components["schemas"]["EIP712TypeArray"]*/;
+    EIP712TypedValue: components['schemas']['EIP712TypeString'] | components['schemas']['EIP712TypeInteger'] | components['schemas']['EIP712TypeBool'] | components['schemas']['EIP712TypeByte'] | components['schemas']['EIP712TypeObject'];
     EIP712Types: {
-      definitions?: components['schemas']['EIP712TypeDefinition'][];
+      definitions: components['schemas']['EIP712TypeDefinition'][];
     };
     EIP712TypeDefinition: {
-      name?: string;
-      fields?: components['schemas']['EIP712FieldDefinition'][];
+      name: string;
+      fields: components['schemas']['EIP712FieldDefinition'][];
     };
     EIP712FieldDefinition: {
-      name?: string;
-      type?: string;
+      name: string;
+      type: string;
     };
     EIP712Template: {
       /**

@@ -1315,9 +1315,10 @@ components:
         - $ref: '#/components/schemas/EIP712TypeBool'
         - $ref: '#/components/schemas/EIP712TypeByte'
         - $ref: '#/components/schemas/EIP712TypeObject'
-        - $ref: '#/components/schemas/EIP712TypeArray'
+#        - $ref: '#/components/schemas/EIP712TypeArray'
     EIP712Types:
       type: object
+      required: [ definitions ]
       properties:
         definitions:
           type: array
@@ -1325,6 +1326,7 @@ components:
             $ref: '#/components/schemas/EIP712TypeDefinition'
     EIP712TypeDefinition:
       type: object
+      required: [ name, fields ]
       properties:
         name:
           type: string
@@ -1334,6 +1336,7 @@ components:
             $ref: '#/components/schemas/EIP712FieldDefinition'
     EIP712FieldDefinition:
       type: object
+      required:  [ name, type ]
       properties:
         name:
           type: string
