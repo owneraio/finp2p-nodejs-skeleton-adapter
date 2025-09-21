@@ -28,6 +28,8 @@ jobs:
 
       - name: Adapter npm clean-install
         run: npm clean-install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Adapter npm run build
         run: npm run build

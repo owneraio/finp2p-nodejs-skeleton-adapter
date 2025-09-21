@@ -20,6 +20,9 @@ jobs:
           scope: "@owneraio"
 
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - run: npm run build-lib
       - run: npm publish
         env:
