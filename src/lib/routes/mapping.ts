@@ -214,19 +214,21 @@ export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Tem
 };
 
 export const signatureFromAPI = (sg: components['schemas']['signature']): Signature => {
-  const { template, signature } = sg;
+  const { template, signature, hashFunc } = sg;
   switch (template.type) {
     case 'hashList':
       return {
         signature,
+        hashFunc,
         template: hashListTemplateFromAPI(template),
-      } as Signature;
+      };
 
     case 'EIP712':
       return {
         signature,
+        hashFunc,
         template: eip712TemplateFromAPI(template),
-      } as Signature;
+      };
   }
 };
 

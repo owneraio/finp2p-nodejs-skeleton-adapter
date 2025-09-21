@@ -170,6 +170,7 @@ export type SignatureTemplate = HashListTemplate | EIP712Template;
 export type Signature = {
   signature: string;
   template: SignatureTemplate;
+  hashFunc: 'unspecified' | 'sha3_256' | 'sha3-256' | 'blake2b' | 'keccak_256' | 'keccak-256';
 };
 
 // ------------------------------------------------------------------
