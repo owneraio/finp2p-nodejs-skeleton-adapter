@@ -3,11 +3,14 @@ name: Publish Package
 on:
   push:
     tags:
-      - "v*"
+      - "finp2p-client-v*"
 
 jobs:
-  publish-adapter:
+  publish-finp2p-client:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./finp2p-client
     permissions:
       packages: write
       contents: read
@@ -18,12 +21,8 @@ jobs:
           node-version: 20
           registry-url: "https://npm.pkg.github.com"
           scope: "@owneraio"
-
-      - run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - run: npm run build-lib
+      - run: npm install
+      - run: npm run build
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
