@@ -1315,7 +1315,7 @@ components:
         - $ref: '#/components/schemas/EIP712TypeBool'
         - $ref: '#/components/schemas/EIP712TypeByte'
         - $ref: '#/components/schemas/EIP712TypeObject'
-        - $ref: '#/components/schemas/EIP712TypeArray'
+#        - $ref: '#/components/schemas/EIP712TypeArray'
     EIP712Types:
       type: object
       required: [ definitions ]

@@ -1,9 +1,9 @@
-import {logger} from '../../helpers';
-import {approvedPlan, ExecutionPlan, pendingPlan, PlanApprovalService, PlanApprovalStatus} from '../index';
+import { logger } from '../../helpers';
+import { approvedPlan, ExecutionPlan, pendingPlan, PlanApprovalService, PlanApprovalStatus } from '../index';
 // import { FinP2PClient, executionPlanApprovalStatus } from '@owneraio/finp2p-client';
 // import { executionFromAPI } from './mapper';
-import {ValidationError} from '../errors';
-import {v4 as uuid} from 'uuid';
+import { ValidationError } from '../errors';
+import { v4 as uuid } from 'uuid';
 
 export class PlanApprovalServiceImpl implements PlanApprovalService {
 

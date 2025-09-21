@@ -1,4 +1,4 @@
-import {EIP712Template} from "./eip712";
+import { EIP712Template } from './eip712';
 
 export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
