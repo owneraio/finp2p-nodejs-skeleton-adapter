@@ -37,7 +37,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     this.accountService.debit(source.finId, quantity, asset.assetId);
 
-    const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'hold', operationId);
+    const tx = new Transaction(quantity, asset, source.account, undefined, exCtx, 'hold', operationId);
     this.transactions[tx.id] = tx;
 
     return successfulReceiptOperation(tx.toReceipt());
