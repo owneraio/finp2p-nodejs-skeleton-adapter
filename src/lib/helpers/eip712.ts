@@ -1,29 +1,34 @@
-import {Signer, TypedDataEncoder, verifyTypedData, Wallet, TypedDataField} from "ethers";
+import {Signer, TypedDataEncoder, verifyTypedData, Wallet, TypedDataField, computeAddress} from "ethers";
 
 
-export const DOMAIN = {
+export const EIP712_DOMAIN = {
   name: "FinP2P",
   version: "1",
   chainId: 1,
   verifyingContract: "0x0"
 };
 
-export const signWithPrivateKey = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>, signerPrivateKey: string) => {
-  return sign(chainId, verifyingContract, types, message, new Wallet(signerPrivateKey));
+export const finIdToAddress = (finId: string): string => {
+  return computeAddress(`0x${finId}`);
 };
 
-export const sign = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>, signer: Signer) => {
-  const domain = {...DOMAIN, chainId, verifyingContract};
+export const signEIP712WithPrivateKey = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>, signerPrivateKey: string) => {
+  return signEIP712(chainId, verifyingContract, types, message, new Wallet(signerPrivateKey));
+};
+
+export const signEIP712 = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>, signer: Signer) => {
+  const domain = {...EIP712_DOMAIN, chainId, verifyingContract};
   return signer.signTypedData(domain, types, message);
 };
 
-export const hash = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>) => {
-  const domain = {...DOMAIN, chainId, verifyingContract};
+export const hashEIP712 = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>) => {
+  const domain = {...EIP712_DOMAIN, chainId, verifyingContract};
   return TypedDataEncoder.hash(domain, types, message);
 };
 
-export const verify = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>, signerAddress: string, signature: string) => {
-  const domain = {...DOMAIN, chainId, verifyingContract};
+export const verifyEIP712 = (chainId: bigint | number, verifyingContract: string, types: Record<string, Array<TypedDataField>>, message: Record<string, any>, signerFinId: string, signature: string) => {
+  const signerAddress = finIdToAddress(signerFinId);
+  const domain = {...EIP712_DOMAIN, chainId, verifyingContract};
   const address = verifyTypedData(domain, types, message, signature);
   return address.toLowerCase() === signerAddress.toLowerCase();
 };

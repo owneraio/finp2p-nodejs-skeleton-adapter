@@ -13,7 +13,7 @@ import {
   Signature, Source, successfulAssetCreation,
   successfulReceiptOperation,
 } from '../../../lib/services';
-import { logger } from '../../../lib/helpers';
+import {logger, verifyEIP712} from '../../../lib/helpers';
 import { Transaction } from './model';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
@@ -63,7 +63,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
-    quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+    quantity: string, sgn: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+
+    const { signature, template } = sgn;
+    if (template.type === 'EIP712') {
+      const { domain: { chainId, verifyingContract}, message, types, primaryType } = template;
+      if (!verifyEIP712(chainId, verifyingContract, types, message, source.finId, signature)) {}
+      throw new Error("EIP712 signature not verified");
+    }
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
 

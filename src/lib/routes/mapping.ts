@@ -13,6 +13,7 @@ import {
   AssetCreationResult,
 } from '../services';
 import {components} from './model-gen';
+import {LedgerAPI} from "./index";
 
 export const assetFromAPI = (asset: components['schemas']['asset']): Asset => {
   switch (asset.type) {
@@ -192,26 +193,23 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
   if (!types.definitions) {
     throw new Error("EIP712 types definitions are missing");
   }
-  // @ts-ignore
   return types.definitions
-    .filter(d => d.name && d.fields)
     .filter(d => d.name !== "EIP712Domain")
-    // @ts-ignore
     .reduce((d, {name, fields}) => {
-      // @ts-ignore
       d[name] = fields;
-      return types;
+      return d;
     }, {} as EIP712Types);
 }
 
 export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Template']): EIP712Template => {
   const {domain, primaryType, message, types} = template;
+  let types1 = eip712TypesFromAPI(types);
   return {
     type: 'EIP712',
     primaryType,
     domain: domain as EIP712Domain,
     message: message as EIP712Message,
-    types: eip712TypesFromAPI(types),
+    types: types1,
   } as EIP712Template;
 };
 
@@ -376,17 +374,43 @@ export const hashListTemplateToAPI = (template: HashListTemplate): components['s
   };
 };
 
+
+const isPrimitive = (value: any): boolean => {
+  return value !== Object(value);
+};
+
+export const eip712MessageToAPI = (message: EIP712Message): {
+  [name: string]: LedgerAPI["schemas"]["EIP712TypedValue"];
+} => {
+  const result: Record<string, LedgerAPI["schemas"]["EIP712TypedValue"]> = {};
+  Object.entries(message).forEach(([name, value]) => {
+    if (isPrimitive(value)) {
+      result[name] = value;
+    } else if (typeof value === "object" && value !== null) {
+      result[name] = {...value} as LedgerAPI["schemas"]["EIP712TypeObject"];
+    }
+  });
+  return result;
+};
+
+export const eip712TypesToAPI = (types: EIP712Types): LedgerAPI["schemas"]["EIP712Types"] => {
+  return {
+    definitions: Object.entries(types)
+      .map(([name, fields]) => {
+        return {name, fields};
+      })
+  };
+};
+
 export const eip712TemplateToAPI = (template: EIP712Template): components['schemas']['EIP712Template'] => {
   const {domain, primaryType, message, types, hash} = template;
   return {
     type: 'EIP712',
     domain: domain,
     primaryType,
-    message: message as {
-      [key: string]: components['schemas']['EIP712TypedValue'];
-    },
+    message: eip712MessageToAPI(message),
     hash,
-    types: types,
+    types: eip712TypesToAPI(types),
   };
 };
 
