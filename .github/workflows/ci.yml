@@ -27,7 +27,7 @@ jobs:
         run: npm clean-install
 
       - name: Adapter npm clean-install
-        run: npm clean-install
+        run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
