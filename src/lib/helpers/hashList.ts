@@ -3,7 +3,7 @@ import createKeccakHash from 'keccak';
 import * as secp256k1 from 'secp256k1';
 
 
-const hashBufferValues = (values: Buffer[], hashFunc: string) => {
+export const hashBufferValues = (values: Buffer[], hashFunc: string) => {
   let hashFn: crypto.Hash;
   switch (hashFunc) {
     case  'sha3_256':
