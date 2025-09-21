@@ -35,9 +35,7 @@ export const verifySignature = async (sgn: Signature, signerFinId: string): Prom
         return false;
       }
 
-      logger.warn(`Unsupported signature type: ${template.type}`);
       return true;
-
     }
   }
 
