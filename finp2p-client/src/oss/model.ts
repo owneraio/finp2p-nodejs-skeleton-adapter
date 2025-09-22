@@ -18,7 +18,7 @@ export type LedgerReference = {
 };
 
 export type AssetIdentifier = {
-  type: string,
+  type: string
   value: string
 }
 
