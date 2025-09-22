@@ -1,3 +1,27 @@
+
+export type LedgerAssetInfo = {
+  tokenId: string
+  ledgerReference?: LedgerReference
+}
+
+export type LedgerReference = {
+  __typename: string;
+  network: string;
+  address: string;
+  tokenStandard: string;
+  additionalContractDetails: {
+    finP2PEVMOperatorDetails: {
+      finP2POperatorContractAddress: string;
+      allowanceRequired: boolean;
+    };
+  };
+};
+
+export type AssetIdentifier = {
+  type: string
+  value: string
+}
+
 export type OssAsset = {
   id: string,
   name: string,
@@ -8,6 +32,7 @@ export type OssAsset = {
   },
   issuerId: string,
   config: string,
+  assetIdentifier: AssetIdentifier;
   allowedIntents: string[],
   regulationVerifiers: {
     id: string,
@@ -26,9 +51,7 @@ export type OssAsset = {
       expiry: number
     }[]
   }
-  ledgerAssetInfo: {
-    tokenId: string
-  }
+  ledgerAssetInfo: LedgerAssetInfo
 };
 
 export type OssAssetNodes = {
