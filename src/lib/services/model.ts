@@ -461,6 +461,7 @@ export type PendingDepositOperation = {
   operation: 'deposit',
   type: 'pending';
   correlationId: string;
+  metadata: OperationMetadata | undefined
 };
 
 export const successfulDepositOperation = (instruction: DepositInstruction): DepositOperation => ({
@@ -475,10 +476,11 @@ export const failedDepositOperation = (code: number, message: string): DepositOp
   error: {code, message},
 });
 
-export const pendingDepositOperation = (correlationId: string): DepositOperation => ({
+export const pendingDepositOperation = (correlationId: string, metadata: OperationMetadata | undefined): DepositOperation => ({
   operation: 'deposit',
   type: 'pending',
   correlationId,
+  metadata
 });
 
 // -------------------------------------------------------------------
