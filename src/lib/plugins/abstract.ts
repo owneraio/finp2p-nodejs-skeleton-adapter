@@ -10,7 +10,7 @@ export abstract class AbstractPlugin implements LedgerCallbackService {
   finP2PClient: FinP2PClient;
   logger: winston.Logger
 
-  protected constructor(finP2PClient: FinP2PClient, logger: winston.Logger) {
+  constructor(finP2PClient: FinP2PClient, logger: winston.Logger) {
     this.finP2PClient = finP2PClient;
     this.logger = logger;
   }

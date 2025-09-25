@@ -95,12 +95,18 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       const plugin = this.pluginManager.getPlanApprovalPlugin();
       if (plugin) {
         if (plugin.isAsync) {
+          if (!plugin.asyncIface) {
+            throw new Error('No async interface in plan approval plugin');
+          }
           const cid = uuid();
           plugin.asyncIface.validateIssuance(idempotencyKey, cid, destination, asset, amount)
             .then(() => {
             });
           return Promise.resolve(pendingPlan(cid, {responseStrategy: 'callback'}));
         } else {
+          if (!plugin.syncIface) {
+            throw new Error('No sync interface in plan approval plugin');
+          }
           return plugin.syncIface.validateIssuance(destination, asset, amount);
         }
       }
@@ -113,11 +119,17 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       const plugin = this.pluginManager.getPlanApprovalPlugin();
       if (plugin) {
         if (plugin.isAsync) {
+          if (!plugin.asyncIface) {
+            throw new Error('No async interface in plan approval plugin');
+          }
           const cid = uuid();
           plugin.asyncIface.validateTransfer(idempotencyKey, cid, source, destination, asset, amount).then(() => {
           });
           return Promise.resolve(pendingPlan(cid, {responseStrategy: 'callback'}));
         } else {
+          if (!plugin.syncIface) {
+            throw new Error('No sync interface in plan approval plugin');
+          }
           return plugin.syncIface.validateTransfer(source, destination, asset, amount);
         }
       }
@@ -130,11 +142,17 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       const plugin = this.pluginManager.getPlanApprovalPlugin();
       if (plugin) {
         if (!plugin.isAsync) {
+          if (!plugin.asyncIface) {
+            throw new Error('No async interface in plan approval plugin');
+          }
           const cid = uuid();
           plugin.asyncIface.validateRedemption(idempotencyKey, cid, source, destination, asset, amount).then(() => {
           });
           return Promise.resolve(pendingPlan(cid, {responseStrategy: 'callback'}));
         } else {
+          if (!plugin.syncIface) {
+            throw new Error('No sync interface in plan approval plugin');
+          }
           return plugin.syncIface.validateRedemption(source, destination, asset, amount);
         }
       }
