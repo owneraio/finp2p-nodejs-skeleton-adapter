@@ -5,5 +5,7 @@ export * from './interfaces';
 export * from './utils';
 export * from './errors';
 export * from './proof';
+export * from './plan';
+export * from './payments';
 export * from './verify';
 

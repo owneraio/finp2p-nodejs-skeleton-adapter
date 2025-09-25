@@ -1,17 +1,13 @@
 import express, {Application} from 'express';
+import {Wallet} from 'ethers';
 import {logger as expressLogger} from 'express-winston';
 import {format, transports} from 'winston';
 import process from 'process';
 import * as routes from '../lib/routes';
-import {TokenServiceImpl} from './services/inmemory/tokens';
-import {EscrowServiceImpl} from './services/inmemory/escrow';
-import {PaymentsServiceImpl} from './services/inmemory/payments';
-import {AccountService} from './services/inmemory/accounts';
-import {PlanApprovalServiceImpl} from '../lib/services/plan/service';
-import {ProofProvider} from '../lib/services';
-import {Wallet} from 'ethers';
-import {FinP2PClient} from "@owneraio/finp2p-client";
 import {PluginManager} from "../lib/plugins/manager";
+import {PlanApprovalServiceImpl, PaymentsServiceImpl, ProofProvider} from '../lib/services';
+import {TokenServiceImpl, EscrowServiceImpl, AccountService} from './services/inmemory';
+import {FinP2PClient} from "@owneraio/finp2p-client";
 import {DelayedApprovals} from "./plugins/delayed-approvals";
 import {logger} from "../lib/helpers";
 
@@ -60,7 +56,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
   const accountService = new AccountService();
   const tokenService = new TokenServiceImpl(accountService, proofProvider);
   const escrowService = new EscrowServiceImpl(accountService, proofProvider);
-  const paymentsService = new PaymentsServiceImpl();
+  const paymentsService = new PaymentsServiceImpl(pluginManager);
   const planApprovalService = new PlanApprovalServiceImpl(orgId, pluginManager, finP2PClient);
 
   routes.register(

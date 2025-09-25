@@ -2,12 +2,23 @@
 
 
 import {
-  Asset,
+  Asset, DepositAsset,
   DepositOperation,
   DestinationAccount,
   FinIdAccount,
-  OperationStatus, PlanApprovalStatus, ReceiptOperation,
+  OperationStatus, PlanApprovalStatus, ReceiptOperation, Source,
 } from "../services";
+
+
+export interface AssetCreationPlugin {
+  validateAssetCreation(assetId: string, tokenId: string): Promise<void>
+}
+
+export interface AsyncAssetCreationPlugin {
+  validateAssetCreation(idempotencyKey: string, cid: string, assetId: string, tokenId: string): Promise<void>
+}
+
+//------------------------------------------------------------
 
 
 export interface PlanApprovalPlugin {
@@ -32,21 +43,21 @@ export interface AsyncPlanApprovalPlugin {
 
 export interface PaymentsPlugin {
 
-  deposit(idempotencyKey: string, cid: string, ownerFinId: string, asset: Asset, amount: string): Promise<DepositOperation>;
+  deposit(owner: FinIdAccount, asset: DepositAsset, amount: string | undefined): Promise<DepositOperation>;
 
-  depositCustom(idempotencyKey: string, cid: string, ownerFinId: string, amount: string, details: any): Promise<DepositOperation>;
+  depositCustom(owner: FinIdAccount, amount: string | undefined, details: any): Promise<DepositOperation>;
 
-  withdraw(idempotencyKey: string, cid: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<ReceiptOperation>;
+  payout(source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<ReceiptOperation>;
 }
 
 
 export interface AsyncPaymentsPlugin {
 
-  deposit(idempotencyKey: string, cid: string, ownerFinId: string, asset: Asset, amount: string): Promise<void>;
+  deposit(idempotencyKey: string, cid: string, owner: FinIdAccount, asset: DepositAsset, amount: string | undefined): Promise<void>;
 
-  depositCustom(idempotencyKey: string, cid: string, ownerFinId: string, amount: string, details: any): Promise<void>;
+  depositCustom(idempotencyKey: string, cid: string, owner: FinIdAccount, amount: string | undefined, details: any): Promise<void>;
 
-  withdraw(idempotencyKey: string, cid: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<void>;
+  payout(idempotencyKey: string, cid: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<void>;
 }
 
 //------------------------------------------------------------
