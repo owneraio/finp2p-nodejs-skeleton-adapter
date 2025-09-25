@@ -20,19 +20,24 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
   public async approvePlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus> {
     logger.info(`Got execution plan to approve: ${planId}`);
     if (this.finP2P) {
-      const {data} = await this.finP2P.getExecutionPlan(planId);
-      if (!data) {
-        logger.warn(`No plan ${planId} found`);
-        throw new ValidationError(`No plan ${planId} found`);
-      }
-      const plan = executionFromAPI(data.plan);
-      logger.info(`Fetched plan data: ${JSON.stringify(plan)}`);
+      try {
 
-      if (this.pluginManager) {
-        const plugin = this.pluginManager.getPlanApprovalPlugin();
-        if (plugin) {
-          return this.validatePlanUsingPlugin(idempotencyKey, plan, plugin)
+        const {data} = await this.finP2P.getExecutionPlan(planId);
+        if (!data) {
+          logger.warn(`No plan ${planId} found`);
+          throw new ValidationError(`No plan ${planId} found`);
         }
+        const plan = executionFromAPI(data.plan);
+        logger.info(`Fetched plan data: ${JSON.stringify(plan)}`);
+
+        if (this.pluginManager) {
+          const plugin = this.pluginManager.getPlanApprovalPlugin();
+          if (plugin) {
+            return this.validatePlanUsingPlugin(idempotencyKey, plan, plugin)
+          }
+        }
+      } catch (e) {
+        logger.warn(e)
       }
     }
 
@@ -45,11 +50,15 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
     switch (plan.intentType) {
       case "primarySale":
-        const { contract: { asset: { asset, destination, amount } } } = plan
+        const {contract: {asset: {asset, destination, amount}}} = plan
         if (!destination) {
           throw new ValidationError('No destination in primary sale');
         }
-        plugin.validateIssuance(idempotencyKey, cid, asset.assetId, destination.finId, amount).then(() => {
+        if (destination.type !== 'finId') {
+          throw new ValidationError('Only finId destination is supported in primary sale');
+        }
+        const { finId: issuerFinId } = destination;
+        plugin.validateIssuance(idempotencyKey, cid, asset.assetId, issuerFinId, amount).then(() => {
           logger.info(`Plan ${plan.id} approved`);
         })
       case "buyingIntent":

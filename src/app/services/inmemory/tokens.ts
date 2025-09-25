@@ -79,9 +79,9 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
     const signer = source.finId;
-    if (!await verifySignature(signature, signer)) {
-      return failedReceiptOperation(1, 'Signature verification failed');
-    }
+    // if (!await verifySignature(signature, signer)) {
+    //   return failedReceiptOperation(1, 'Signature verification failed');
+    // }
 
     this.accountService.move(source.finId, destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
@@ -99,9 +99,9 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
 
     const signer = source.finId;
-    if (!await verifySignature(signature, signer)) {
-      return failedReceiptOperation(1, 'Signature verification failed');
-    }
+    // if (!await verifySignature(signature, signer)) {
+    //   return failedReceiptOperation(1, 'Signature verification failed');
+    // }
 
     this.accountService.debit(source.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);

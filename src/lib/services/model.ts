@@ -1,4 +1,4 @@
-import { EIP712Template } from './eip712';
+import {EIP712Template} from './eip712';
 
 export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
@@ -33,7 +33,8 @@ export type Source = {
   account: SourceAccount
 };
 
-export type DestinationAccount = FinIdAccount | CryptocurrencyWallet | IbanIdentifier;
+export type Account = FinIdAccount | CryptocurrencyWallet | IbanIdentifier;
+export type DestinationAccount = Account;
 
 export type Destination = {
   finId: string
@@ -41,7 +42,7 @@ export type Destination = {
 };
 
 export const finIdDestination = (finId: string): Destination => {
-  return { finId, account: { type: 'finId', finId } };
+  return {finId, account: {type: 'finId', finId}};
 };
 
 export type ExecutionContext = {
@@ -106,42 +107,100 @@ export type IntentType =
   | 'privateOfferIntent'
   | 'requestForTransferIntent';
 
-export enum Role {
-  Buyer,
-  Seller,
-  Borrower,
-  Lender,
-  Unknown,
-}
-
-export type Investor = {
-  profileId: string;
-  finId: string;
-  orgId: string;
-  role: Role;
-};
 
 export type Leg = {
   asset: Asset;
   amount: string;
-  organizationId: string;
-  source?: Investor;
-  destination?: Investor;
+  source?: Account;
+  destination?: Account;
 };
 
-export type Contract = {
+export type PlanContract = {
   asset: Leg;
   payment?: Leg;
+  investors: PlanInvestor[];
 };
+
+export type PlanInvestorRole = "buyer" | "seller" | "lender" | "borrower" | "issuer"
+
+export type PlanInvestor = {
+  profileId: string;
+  role: PlanInvestorRole;
+  signature: Signature | undefined
+};
+
+export type HoldInstruction = {
+  type: "hold";
+  source: Account;
+  destination?: Account;
+  asset: Asset;
+  amount: string;
+  // signature: Signature;
+}
+
+export type ReleaseInstruction = {
+  type: "release";
+  asset: Asset;
+  source: Account;
+  destination: Account;
+  amount: string;
+}
+
+export type IssueInstruction = {
+  type: "issue";
+  asset: Asset;
+  destination: Account;
+  amount: string;
+  // signature: Signature;
+}
+
+export type TransferInstruction = {
+  type: "transfer";
+  asset: Asset;
+  source: Account;
+  destination: Account;
+  amount: string;
+  // signature: Signature;
+}
+
+export type AwaitInstruction = {
+  type: "await";
+  waitUntil: number; // Format: uint64
+}
+
+export type RevertHoldInstruction = {
+  type: "revertHoldInstruction";
+  asset: Asset;
+  source?: Account;
+  destination: Account;
+}
+
+export type RedemptionInstruction = {
+  type: "redeem";
+  asset: Asset;
+  source: Account;
+  destination?: Account;
+  amount: string;
+  // signature: Signature;
+}
+
+export type ExecutionPlanOperation = HoldInstruction | ReleaseInstruction | IssueInstruction | TransferInstruction | AwaitInstruction | RevertHoldInstruction | RedemptionInstruction;
+
+export type ExecutionInstruction = {
+  sequence: number;
+  organizations: string[];
+  operation: ExecutionPlanOperation;
+  timeout?: number;
+}
 
 export type ExecutionPlan = {
   id: string;
   intentType: IntentType;
-  contract: Contract;
+  contract: PlanContract;
+  instructions: ExecutionInstruction[];
 };
 
-
-// -------------------------------------------------------------------
+// -----------
 
 
 export type HashField = {
@@ -162,7 +221,6 @@ export type HashListTemplate = {
 };
 
 // -------------------------------------------------------------------
-
 
 
 export type SignatureTemplate = HashListTemplate | EIP712Template;
@@ -213,7 +271,7 @@ export const approvedPlan = (): PlanApprovalStatus => ({
 export const rejectedPlan = (code: number, message: string): PlanApprovalStatus => ({
   operation: 'approval',
   type: 'rejected',
-  error: { code, message },
+  error: {code, message},
 });
 
 export const pendingPlan = (correlationId: string, metadata: OperationMetadata | undefined): PlanApprovalStatus => ({
@@ -260,7 +318,7 @@ export const successfulAssetCreation = (result: AssetCreationResult): AssetCreat
 export const failedAssetCreation = (code: number, message: string): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'failure',
-  error: { code, message },
+  error: {code, message},
 });
 
 export const pendingAssetCreation = (correlationId: string, metadata: OperationMetadata | undefined): AssetCreationStatus => ({
@@ -303,7 +361,7 @@ export const successfulReceiptOperation = (receipt: Receipt): ReceiptOperation =
 export const failedReceiptOperation = (code: number, message: string): ReceiptOperation => ({
   operation: 'receipt',
   type: 'failure',
-  error: { code, message },
+  error: {code, message},
 });
 
 export const pendingReceiptOperation = (correlationId: string, metadata: OperationMetadata | undefined): ReceiptOperation => ({
@@ -414,7 +472,7 @@ export const successfulDepositOperation = (instruction: DepositInstruction): Dep
 export const failedDepositOperation = (code: number, message: string): DepositOperation => ({
   operation: 'deposit',
   type: 'failure',
-  error: { code, message },
+  error: {code, message},
 });
 
 export const pendingDepositOperation = (correlationId: string): DepositOperation => ({

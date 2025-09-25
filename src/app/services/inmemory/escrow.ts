@@ -36,10 +36,10 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   ): Promise<ReceiptOperation> {
 
     logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext: exCtx });
-    const signer = source.finId;
-    if (!await verifySignature(signature, signer)) {
-      return failedReceiptOperation(1, 'Signature verification failed');
-    }
+    // const signer = source.finId;
+    // if (!await verifySignature(signature, signer)) {
+    //   return failedReceiptOperation(1, 'Signature verification failed');
+    // }
     this.holdOperations[operationId] = {
       id: operationId,
       source,

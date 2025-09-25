@@ -1,4 +1,13 @@
-import {Asset, Contract, ExecutionPlan, Leg, Role} from '../model';
+import {
+  Account,
+  Asset,
+  ExecutionInstruction,
+  ExecutionPlan,
+  ExecutionPlanOperation,
+  Leg,
+  PlanContract,
+  PlanInvestor
+} from '../model';
 import {OpComponents} from '@owneraio/finp2p-client';
 import {ValidationError} from '../errors';
 
@@ -14,6 +23,27 @@ export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => 
   }
 };
 
+export const accountFromAPI = (account: OpComponents['schemas']['finIdAccount'] | OpComponents['schemas']['cryptoWalletAccount'] | OpComponents['schemas']['fiatAccount']): Account => {
+  switch (account.type) {
+    case 'finId':
+      const {finId} = account;
+      return {type: 'finId', finId};
+    case 'cryptoWallet':
+      const {address} = account;
+      return {type: 'crypto', address};
+    case 'fiatAccount':
+      const {code} = account;
+      return {type: 'iban', code};
+  }
+};
+
+export const accountOptFromAPI = (account?: OpComponents['schemas']['finIdAccount'] | OpComponents['schemas']['cryptoWalletAccount'] | OpComponents['schemas']['fiatAccount'] | undefined): Account | undefined => {
+  if (!account) {
+    return undefined;
+  }
+  return accountFromAPI(account);
+}
+
 const legFromAssetOrder = (order: OpComponents['schemas']['assetOrder']): Leg => {
   const {term, instruction} = order;
   if (!term) {
@@ -22,41 +52,14 @@ const legFromAssetOrder = (order: OpComponents['schemas']['assetOrder']): Leg =>
   if (!instruction) {
     throw new ValidationError('No instruction in order');
   }
-  let leg: Leg = {
-    asset: assetFromAPI(term.asset),
-    amount: term.amount,
-    organizationId: '',
-  };
-
+  const {asset, amount} = term;
   const {sourceAccount, destinationAccount} = instruction;
-  if (sourceAccount) {
-    const {account} = sourceAccount;
-    if (account.type === 'finId') {
-      const {finId, orgId} = account;
-      leg.source = {
-        profileId: '',
-        role: Role.Unknown,
-        finId,
-        orgId: orgId ? orgId : '',
-      };
-      leg.organizationId = orgId ? orgId : '';
-    }
-  }
-  if (destinationAccount) {
-    const {account} = destinationAccount;
-    if (account.type === 'finId') {
-      const {finId, orgId} = account;
-      leg.destination = {
-        profileId: '',
-        role: Role.Unknown,
-        finId,
-        orgId: orgId ? orgId : '',
-      };
-      leg.organizationId = orgId ? orgId : '';
-    }
-  }
-
-  return leg;
+  return {
+    asset: assetFromAPI(asset),
+    amount: amount,
+    source: accountOptFromAPI(sourceAccount?.account),
+    destination: accountOptFromAPI(destinationAccount?.account)
+  };
 };
 
 const legFromAssetOrderOpt = (order?: OpComponents['schemas']['assetOrder']): Leg | undefined => {
@@ -74,41 +77,14 @@ const legFromLoanOrder = (order: OpComponents['schemas']['loanOrder']): Leg => {
   if (!instruction) {
     throw new ValidationError('No instruction in order');
   }
-  let leg: Leg = {
-    asset: assetFromAPI(term.asset),
-    amount: term.amount,
-    organizationId: '',
-  };
-
+  const {asset, amount} = term;
   const {borrowerAccount, lenderAccount} = instruction;
-  if (borrowerAccount) {
-    const {account} = borrowerAccount;
-    if (account.type === 'finId') {
-      const {finId, orgId} = account;
-      leg.source = {
-        profileId: '',
-        role: Role.Unknown,
-        finId,
-        orgId: orgId ? orgId : '',
-      };
-      leg.organizationId = orgId ? orgId : '';
-    }
-  }
-  if (lenderAccount) {
-    const {account} = lenderAccount;
-    if (account.type === 'finId') {
-      const {finId, orgId} = account;
-      leg.destination = {
-        profileId: '',
-        role: Role.Unknown,
-        finId,
-        orgId: orgId ? orgId : '',
-      };
-      leg.organizationId = orgId ? orgId : '';
-    }
-  }
-
-  return leg;
+  return {
+    asset: assetFromAPI(asset),
+    amount: amount,
+    source: accountOptFromAPI(borrowerAccount?.account),
+    destination: accountOptFromAPI(lenderAccount?.account)
+  };
 };
 
 const legFromLoanOrderOpt = (order?: OpComponents['schemas']['loanOrder']): Leg | undefined => {
@@ -118,19 +94,13 @@ const legFromLoanOrderOpt = (order?: OpComponents['schemas']['loanOrder']): Leg 
   return legFromLoanOrder(order);
 };
 
+const contractFromAPI = (contract: OpComponents['schemas']['contract']): PlanContract => {
+  const {investors, contractDetails} = contract;
 
-export const executionFromAPI = (plan: OpComponents['schemas']['executionPlan']): ExecutionPlan => {
-  const {
-    id,
-    intent: {intent: {type: intentType}},
-    contract: {investors, contractDetails},
-  } = plan;
-
-  // const buyer = investors?.find(i => i.role === 'buyer')
-  // const seller = investors?.find(i => i.role === 'seller')
-  // const borrower = investors?.find(i => i.role === 'borrower')
-  // const lender = investors?.find(i => i.role === 'lender')
-  // const issuer = investors?.find(i => i.role === 'issuer')
+  const planInvestors = investors?.map(i => ({
+    profileId: i.investor,
+    role: i.role,
+  } as PlanInvestor)) || [];
 
   let assetLeg: Leg | undefined;
   let paymentLeg: Leg | undefined;
@@ -190,9 +160,113 @@ export const executionFromAPI = (plan: OpComponents['schemas']['executionPlan'])
   }
 
   return {
-    id, intentType, contract: {
-      asset: assetLeg,
-      payment: paymentLeg,
-    },
+    asset: assetLeg,
+    payment: paymentLeg,
+    investors: planInvestors
+  }
+}
+
+type OpPlanInstruction = {
+  /** Format: uint32 */
+  sequence: number;
+  organizations: string[];
+  executionPlanOperation: OpComponents["schemas"]["executionPlanOperation"];
+  /** Format: int32 */
+  timeout?: number;
+}
+
+const epOperationFromAPI = (instruction: OpComponents["schemas"]["executionPlanOperation"]): ExecutionPlanOperation => {
+  switch (instruction.type) {
+    case 'issue': {
+      const {asset, destination, amount, signature} = instruction;
+      return {
+        type: 'issue',
+        asset: assetFromAPI(asset),
+        destination: accountFromAPI(destination.account),
+        amount
+      };
+    }
+    case 'transfer': {
+      const {asset, source, destination, amount} = instruction;
+      return {
+        type: 'transfer',
+        asset: assetFromAPI(asset),
+        source: accountFromAPI(source.account),
+        destination: accountFromAPI(destination.account),
+        amount
+      }
+    }
+    case 'redeem': {
+      const {asset, source, destination, amount} = instruction;
+      return {
+        type: 'redeem',
+        asset: assetFromAPI(asset),
+        source: accountFromAPI(source.account),
+        destination: destination ? accountFromAPI(destination.account) : undefined,
+        amount,
+      }
+    }
+    case 'hold': {
+      const {asset, source, destination, amount} = instruction;
+      return {
+        type: 'hold',
+        asset: assetFromAPI(asset),
+        source: accountFromAPI(source.account),
+        destination: destination ? accountFromAPI(destination.account) : undefined,
+        amount,
+      }
+    }
+    case "release": {
+      const {asset, source, destination, amount} = instruction;
+      return {
+        type: 'release',
+        asset: assetFromAPI(asset),
+        source: accountFromAPI(source.account),
+        destination: accountFromAPI(destination.account),
+        amount,
+      }
+    }
+    case "revertHoldInstruction": {
+      const {asset, source, destination} = instruction;
+      return {
+        type: 'revertHoldInstruction',
+        asset: assetFromAPI(asset),
+        source: source ? accountFromAPI(source.account) : undefined,
+        destination: accountFromAPI(destination.account),
+      }
+    }
+    case "await": {
+      const {waitUntil} = instruction;
+      return {
+        type: 'await',
+        waitUntil
+      }
+    }
+  }
+}
+
+
+const instructionFromAPI = (instruction: OpPlanInstruction): ExecutionInstruction => {
+  const {sequence, organizations, executionPlanOperation, timeout} = instruction;
+  return {
+    sequence,
+    organizations,
+    timeout,
+    operation: epOperationFromAPI(executionPlanOperation)
+  };
+}
+
+export const executionFromAPI = (plan: OpComponents['schemas']['executionPlan']): ExecutionPlan => {
+  const {
+    id,
+    intent: {intent: {type: intentType}},
+    contract,
+    instructions
+  } = plan;
+
+  return {
+    id, intentType,
+    contract: contractFromAPI(contract),
+    instructions: instructions?.map(instructionFromAPI) || []
   };
 };
