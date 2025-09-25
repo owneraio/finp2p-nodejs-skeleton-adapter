@@ -9,10 +9,12 @@ import {PlanApprovalPlugin} from "../../plugins/interfaces";
 
 export class PlanApprovalServiceImpl implements PlanApprovalService {
 
+  orgId: string
   finP2P: FinP2PClient | undefined;
   pluginManager: PluginManager | undefined
 
-  constructor(pluginManager: PluginManager | undefined, finP2P?: FinP2PClient | undefined) {
+  constructor(orgId: string, pluginManager: PluginManager | undefined, finP2P?: FinP2PClient | undefined) {
+    this.orgId = orgId;
     this.finP2P = finP2P;
     this.pluginManager = pluginManager;
   }
@@ -20,24 +22,19 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
   public async approvePlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus> {
     logger.info(`Got execution plan to approve: ${planId}`);
     if (this.finP2P) {
-      try {
+      const {data} = await this.finP2P.getExecutionPlan(planId);
+      if (!data) {
+        logger.warn(`No plan ${planId} found`);
+        throw new ValidationError(`No plan ${planId} found`);
+      }
+      const plan = executionFromAPI(data.plan);
+      logger.info(`Fetched plan data: ${JSON.stringify(plan)}`);
 
-        const {data} = await this.finP2P.getExecutionPlan(planId);
-        if (!data) {
-          logger.warn(`No plan ${planId} found`);
-          throw new ValidationError(`No plan ${planId} found`);
+      if (this.pluginManager) {
+        const plugin = this.pluginManager.getPlanApprovalPlugin();
+        if (plugin) {
+          return this.validatePlanUsingPlugin(idempotencyKey, plan, plugin)
         }
-        const plan = executionFromAPI(data.plan);
-        logger.info(`Fetched plan data: ${JSON.stringify(plan)}`);
-
-        if (this.pluginManager) {
-          const plugin = this.pluginManager.getPlanApprovalPlugin();
-          if (plugin) {
-            return this.validatePlanUsingPlugin(idempotencyKey, plan, plugin)
-          }
-        }
-      } catch (e) {
-        logger.warn(e)
       }
     }
 
@@ -48,22 +45,53 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
   private validatePlanUsingPlugin(idempotencyKey: string, plan: ExecutionPlan, plugin: PlanApprovalPlugin): PlanApprovalStatus {
     const cid = uuid();
 
-    switch (plan.intentType) {
-      case "primarySale":
-        const {contract: {asset: {asset, destination, amount}}} = plan
-        if (!destination) {
-          throw new ValidationError('No destination in primary sale');
+    const instructions = plan.instructions.filter(i => i.organizations.includes(this.orgId));
+    for (const instruction of instructions) {
+      const {operation} = instruction;
+      switch (operation.type) {
+        case "issue": {
+          const {asset, destination, amount} = operation;
+          if (!destination) {
+            throw new ValidationError('No destination in primary sale');
+          }
+          if (destination.type !== 'finId') {
+            throw new ValidationError('Only finId destination is supported in primary sale');
+          }
+          plugin.validateIssuance(idempotencyKey, cid, destination, asset, amount).then(() => {
+            logger.info(`Plan ${plan.id} approved`);
+          })
+          break
         }
-        if (destination.type !== 'finId') {
-          throw new ValidationError('Only finId destination is supported in primary sale');
+        case "transfer": {
+          const {asset, source, destination, amount} = operation;
+          if (source.type !== 'finId') {
+            throw new ValidationError('Only finId destination is supported in primary sale');
+          }
+          plugin.validateTransfer(idempotencyKey, cid, source, destination, asset, amount).then(() => {
+            logger.info(`Plan ${plan.id} approved`);
+          })
+          break
         }
-        const { finId: issuerFinId } = destination;
-        plugin.validateIssuance(idempotencyKey, cid, asset.assetId, issuerFinId, amount).then(() => {
-          logger.info(`Plan ${plan.id} approved`);
-        })
-      case "buyingIntent":
+        case "hold":
+      }
 
     }
+    // switch (plan.intentType) {
+    //   case "primarySale":
+    //     const {contract: {asset: {asset, destination, amount}}} = plan
+    //     if (!destination) {
+    //       throw new ValidationError('No destination in primary sale');
+    //     }
+    //     if (destination.type !== 'finId') {
+    //       throw new ValidationError('Only finId destination is supported in primary sale');
+    //     }
+    //     const { finId: issuerFinId } = destination;
+    //     plugin.validateIssuance(idempotencyKey, cid, asset.assetId, issuerFinId, amount).then(() => {
+    //       logger.info(`Plan ${plan.id} approved`);
+    //     })
+    //   case "buyingIntent":
+    //
+    // }
 
 
     return pendingPlan(cid, {responseStrategy: 'callback'});

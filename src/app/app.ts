@@ -40,7 +40,7 @@ function configureLogging(app: Application) {
   );
 }
 
-function createApp(finP2PClient: FinP2PClient | undefined) {
+function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
@@ -53,7 +53,7 @@ function createApp(finP2PClient: FinP2PClient | undefined) {
   const tokenService = new TokenServiceImpl(accountService, proofProvider);
   const escrowService = new EscrowServiceImpl(accountService, proofProvider);
   const paymentsService = new PaymentsServiceImpl();
-  const planApprovalService = new PlanApprovalServiceImpl(undefined, finP2PClient);
+  const planApprovalService = new PlanApprovalServiceImpl(orgId, undefined, finP2PClient);
 
   routes.register(
     app,
