@@ -1,33 +1,26 @@
-import {AssetCreationPlugin, DepositPlugin, PlanApprovalPlugin} from "./interfaces";
+import {AsyncPaymentsPlugin, AsyncPlanApprovalPlugin, PlanApprovalPlugin} from "./interfaces";
+import {Plugin} from "./plugin";
 
 
 export class PluginManager {
 
-  private assetCreationPlugin: AssetCreationPlugin | null = null;
-  private planApprovalPlugin: PlanApprovalPlugin | null = null;
-  private depositPlugin: DepositPlugin | null = null;
+  private planApprovalPlugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null = null;
+  private depositPlugin: AsyncPaymentsPlugin | null = null;
 
-  registerAssetCreationPlugin(plugin: AssetCreationPlugin): void {
-    this.assetCreationPlugin = plugin;
-  }
 
-  getAssetCreationPlugin(): AssetCreationPlugin | null {
-    return this.assetCreationPlugin;
-  }
-
-  registerPlanApprovalPlugin(plugin: PlanApprovalPlugin): void {
+  registerPlanApprovalPlugin(plugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin>): void {
     this.planApprovalPlugin = plugin;
   }
 
-  getPlanApprovalPlugin(): PlanApprovalPlugin | null {
+  getPlanApprovalPlugin(): Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null {
     return this.planApprovalPlugin;
   }
 
-  registerDepositPlugin(plugin: DepositPlugin): void {
+  registerDepositPlugin(plugin: AsyncPaymentsPlugin): void {
     this.depositPlugin = plugin;
   }
 
-  getDepositPlugin(): DepositPlugin | null {
+  getDepositPlugin(): AsyncPaymentsPlugin | null {
     return this.depositPlugin;
   }
 
