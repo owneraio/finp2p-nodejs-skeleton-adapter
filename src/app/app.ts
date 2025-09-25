@@ -53,7 +53,7 @@ function createApp(finP2PClient: FinP2PClient | undefined) {
   const tokenService = new TokenServiceImpl(accountService, proofProvider);
   const escrowService = new EscrowServiceImpl(accountService, proofProvider);
   const paymentsService = new PaymentsServiceImpl();
-  const planApprovalService = new PlanApprovalServiceImpl(finP2PClient);
+  const planApprovalService = new PlanApprovalServiceImpl(undefined, finP2PClient);
 
   routes.register(
     app,

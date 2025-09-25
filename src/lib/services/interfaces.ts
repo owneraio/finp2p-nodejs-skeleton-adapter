@@ -69,5 +69,5 @@ export interface PaymentService {
 }
 
 export interface PlanApprovalService {
-  approvePlan(planId: string): Promise<PlanApprovalStatus>
+  approvePlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus>
 }

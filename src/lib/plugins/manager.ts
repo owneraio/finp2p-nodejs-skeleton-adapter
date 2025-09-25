@@ -23,7 +23,6 @@ export class PluginManager {
     return this.planApprovalPlugin;
   }
 
-
   registerDepositPlugin(plugin: DepositPlugin): void {
     this.depositPlugin = plugin;
   }

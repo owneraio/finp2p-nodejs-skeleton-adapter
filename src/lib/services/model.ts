@@ -130,7 +130,7 @@ export type Leg = {
 };
 
 export type Contract = {
-  asset?: Leg;
+  asset: Leg;
   payment?: Leg;
 };
 

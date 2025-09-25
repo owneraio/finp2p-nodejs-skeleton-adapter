@@ -1,21 +1,21 @@
-import { Asset, Contract, ExecutionPlan, Leg, Role } from '../model';
-import { OpComponents } from '@owneraio/finp2p-client';
-import { ValidationError } from '../errors';
+import {Asset, Contract, ExecutionPlan, Leg, Role} from '../model';
+import {OpComponents} from '@owneraio/finp2p-client';
+import {ValidationError} from '../errors';
 
 
 export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => {
   switch (asset.type) {
     case 'finp2p':
-      return { assetType: 'finp2p', assetId: asset.resourceId };
+      return {assetType: 'finp2p', assetId: asset.resourceId};
     case 'cryptocurrency':
-      return { assetType: 'cryptocurrency', assetId: asset.code };
+      return {assetType: 'cryptocurrency', assetId: asset.code};
     case 'fiat':
-      return { assetType: 'fiat', assetId: asset.code };
+      return {assetType: 'fiat', assetId: asset.code};
   }
 };
 
 const legFromAssetOrder = (order: OpComponents['schemas']['assetOrder']): Leg => {
-  const { term, instruction } = order;
+  const {term, instruction} = order;
   if (!term) {
     throw new ValidationError('No term in order');
   }
@@ -28,11 +28,11 @@ const legFromAssetOrder = (order: OpComponents['schemas']['assetOrder']): Leg =>
     organizationId: '',
   };
 
-  const { sourceAccount, destinationAccount } = instruction;
+  const {sourceAccount, destinationAccount} = instruction;
   if (sourceAccount) {
-    const { account } = sourceAccount;
+    const {account} = sourceAccount;
     if (account.type === 'finId') {
-      const { finId, orgId } = account;
+      const {finId, orgId} = account;
       leg.source = {
         profileId: '',
         role: Role.Unknown,
@@ -43,9 +43,9 @@ const legFromAssetOrder = (order: OpComponents['schemas']['assetOrder']): Leg =>
     }
   }
   if (destinationAccount) {
-    const { account } = destinationAccount;
+    const {account} = destinationAccount;
     if (account.type === 'finId') {
-      const { finId, orgId } = account;
+      const {finId, orgId} = account;
       leg.destination = {
         profileId: '',
         role: Role.Unknown,
@@ -67,7 +67,7 @@ const legFromAssetOrderOpt = (order?: OpComponents['schemas']['assetOrder']): Le
 };
 
 const legFromLoanOrder = (order: OpComponents['schemas']['loanOrder']): Leg => {
-  const { term, instruction } = order;
+  const {term, instruction} = order;
   if (!term) {
     throw new ValidationError('No term in order');
   }
@@ -80,11 +80,11 @@ const legFromLoanOrder = (order: OpComponents['schemas']['loanOrder']): Leg => {
     organizationId: '',
   };
 
-  const { borrowerAccount, lenderAccount } = instruction;
+  const {borrowerAccount, lenderAccount} = instruction;
   if (borrowerAccount) {
-    const { account } = borrowerAccount;
+    const {account} = borrowerAccount;
     if (account.type === 'finId') {
-      const { finId, orgId } = account;
+      const {finId, orgId} = account;
       leg.source = {
         profileId: '',
         role: Role.Unknown,
@@ -95,9 +95,9 @@ const legFromLoanOrder = (order: OpComponents['schemas']['loanOrder']): Leg => {
     }
   }
   if (lenderAccount) {
-    const { account } = lenderAccount;
+    const {account} = lenderAccount;
     if (account.type === 'finId') {
-      const { finId, orgId } = account;
+      const {finId, orgId} = account;
       leg.destination = {
         profileId: '',
         role: Role.Unknown,
@@ -122,8 +122,8 @@ const legFromLoanOrderOpt = (order?: OpComponents['schemas']['loanOrder']): Leg 
 export const executionFromAPI = (plan: OpComponents['schemas']['executionPlan']): ExecutionPlan => {
   const {
     id,
-    intent: { intent: { type: intentType } },
-    contract: { investors, contractDetails },
+    intent: {intent: {type: intentType}},
+    contract: {investors, contractDetails},
   } = plan;
 
   // const buyer = investors?.find(i => i.role === 'buyer')
@@ -132,59 +132,67 @@ export const executionFromAPI = (plan: OpComponents['schemas']['executionPlan'])
   // const lender = investors?.find(i => i.role === 'lender')
   // const issuer = investors?.find(i => i.role === 'issuer')
 
-  let contract: Contract = {};
+  let assetLeg: Leg | undefined;
+  let paymentLeg: Leg | undefined;
   if (contractDetails) {
     switch (contractDetails.type) {
       case 'transfer': {
-        const { asset } = contractDetails;
-        contract.asset = legFromAssetOrderOpt(asset);
+        const {asset} = contractDetails;
+        assetLeg = legFromAssetOrderOpt(asset);
         break;
       }
       case 'issuance': {
-        const { asset, settlement } = contractDetails;
-        contract.asset = legFromAssetOrderOpt(asset);
-        contract.payment = legFromAssetOrderOpt(settlement);
+        const {asset, settlement} = contractDetails;
+        assetLeg = legFromAssetOrderOpt(asset);
+        paymentLeg = legFromAssetOrderOpt(settlement);
         break;
       }
       case 'buying': {
-        const { asset, settlement } = contractDetails;
-        contract.asset = legFromAssetOrderOpt(asset);
-        contract.payment = legFromAssetOrderOpt(settlement);
+        const {asset, settlement} = contractDetails;
+        assetLeg = legFromAssetOrderOpt(asset);
+        paymentLeg = legFromAssetOrderOpt(settlement);
         break;
       }
       case 'selling': {
-        const { asset, settlement } = contractDetails;
-        contract.asset = legFromAssetOrderOpt(asset);
-        contract.payment = legFromAssetOrderOpt(settlement);
+        const {asset, settlement} = contractDetails;
+        assetLeg = legFromAssetOrderOpt(asset);
+        paymentLeg = legFromAssetOrderOpt(settlement);
         break;
       }
       case 'loan': {
-        const { asset, settlement } = contractDetails;
-        contract.asset = legFromLoanOrderOpt(asset);
-        contract.payment = legFromLoanOrderOpt(settlement);
+        const {asset, settlement} = contractDetails;
+        assetLeg = legFromLoanOrderOpt(asset);
+        paymentLeg = legFromLoanOrderOpt(settlement);
         break;
       }
       case 'redeem': {
-        const { asset, settlement } = contractDetails;
-        contract.asset = legFromAssetOrderOpt(asset);
-        contract.payment = legFromAssetOrderOpt(settlement);
+        const {asset, settlement} = contractDetails;
+        assetLeg = legFromAssetOrderOpt(asset);
+        paymentLeg = legFromAssetOrderOpt(settlement);
         break;
       }
       case 'privateOffer': {
-        const { asset, settlement } = contractDetails;
-        contract.asset = legFromAssetOrderOpt(asset);
-        contract.payment = legFromAssetOrderOpt(settlement);
+        const {asset, settlement} = contractDetails;
+        assetLeg = legFromAssetOrderOpt(asset);
+        paymentLeg = legFromAssetOrderOpt(settlement);
         break;
       }
       case 'requestForTransfer': {
-        const { asset } = contractDetails;
-        contract.asset = legFromAssetOrderOpt(asset);
+        const {asset} = contractDetails;
+        assetLeg = legFromAssetOrderOpt(asset);
         break;
       }
     }
   }
 
+  if (!assetLeg) {
+    throw new ValidationError('No asset leg in contract');
+  }
+
   return {
-    id, intentType, contract,
+    id, intentType, contract: {
+      asset: assetLeg,
+      payment: paymentLeg,
+    },
   };
 };

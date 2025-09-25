@@ -4,16 +4,16 @@
 import {OperationStatus} from "../services";
 
 export interface AssetCreationPlugin {
-  validateAssetCreation(assetId: string, tokenId: string): Promise<void>
+  validateAssetCreation(idempotencyKey: string, cid: string, assetId: string, tokenId: string): Promise<void>
 }
 
 export interface PlanApprovalPlugin {
 
-  validateIssuance(toFinId: string, assetId: string, amount: number): Promise<void>;
+  validateIssuance(idempotencyKey: string, cid: string, toFinId: string, assetId: string, amount: string): Promise<void>;
 
-  validateTransfer(fromFinId: string, toFinId: string, assetId: string, amount: number): Promise<void>;
+  validateTransfer(idempotencyKey: string, cid: string, fromFinId: string, toFinId: string, assetId: string, amount: string): Promise<void>;
 
-  validateRedemption(fromFinId: string, assetId: string, amount: number): Promise<void>;
+  validateRedemption(idempotencyKey: string, cid: string, fromFinId: string, assetId: string, amount: string): Promise<void>;
 }
 
 export interface DepositPlugin {
