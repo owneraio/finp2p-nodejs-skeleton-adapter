@@ -38,7 +38,7 @@ export class FinP2PClient {
     return await this.finAPIClient.createCertificate(profileId, type, data, issuanceDate, expirationDate);
   }
 
-  async getProfileOperationStatus(id: string) {
+  async getOperationStatus(id: string) {
     return await this.finAPIClient.getOperationStatus(id);
   }
 
@@ -52,6 +52,10 @@ export class FinP2PClient {
 
   async getExecutionPlan(planId: string) {
     return await this.finAPIClient.getExecutionPlan(planId);
+  }
+
+  async waitForOperationCompletion(cid: string, timeoutMs: number):  Promise<FinAPIComponents["schemas"]["operationResponse"]> {
+    return await this.finAPIClient.waitForOperationCompletion(cid, timeoutMs)
   }
 
   // ------ OSS Client methods ------

@@ -66,8 +66,9 @@ export interface PaymentService {
   payout(idempotencyKey: string, source: Source, destination: Destination | undefined, asset: Asset, quantity: string,
     description: string | undefined, nonce: string | undefined,
     signature: Signature | undefined): Promise<ReceiptOperation>
+
 }
 
 export interface PlanApprovalService {
-  approvePlan(planId: string): Promise<PlanApprovalStatus>
+  approvePlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus>
 }

@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.25.5",
+  "version": "0.25.7",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
@@ -15,6 +15,7 @@
     "build": "tsc",
     "build-lib": "tsc -p tsconfig.build.json",
     "test": "jest",
+    "start-debug": "ts-node ./src/app/index.ts",
     "start": "node ."
   },
   "publishConfig": {

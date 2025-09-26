@@ -6,15 +6,19 @@ import { FinP2PClient } from '@owneraio/finp2p-client';
 const init = async () => {
   const port = process.env.PORT || '3000';
 
+  const orgId = process.env.ORGANIZATION_ID;
+  if (!orgId) {
+    throw new Error('ORGANIZATION_ID is not set');
+  }
   let finP2PClient: FinP2PClient | undefined;
-  const finAPIUrl = process.env.FINAPI_URL;
+  const finAPIUrl = process.env.FINP2P_ADDRESS;
   const ossUrl = process.env.OSS_URL;
   if (finAPIUrl && ossUrl) {
     finP2PClient = new FinP2PClient(finAPIUrl, ossUrl);
     logger.info('FinP2PClient initialized');
   }
 
-  const app = createApp(finP2PClient);
+  const app = createApp(orgId, finP2PClient);
   app.listen(port, () => {
     logger.info(`listening at http://localhost:${port}`);
   });
