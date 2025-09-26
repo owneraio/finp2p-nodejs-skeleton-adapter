@@ -54,6 +54,10 @@ export class FinP2PClient {
     return await this.finAPIClient.getExecutionPlan(planId);
   }
 
+  async waitForOperationCompletion(cid: string, timeoutMs: number):  Promise<FinAPIComponents["schemas"]["operationResponse"]> {
+    return await this.finAPIClient.waitForOperationCompletion(cid, timeoutMs)
+  }
+
   // ------ OSS Client methods ------
 
   async getAssetProofPolicy(assetCode: string, assetType: string): Promise<ProofPolicy> {
