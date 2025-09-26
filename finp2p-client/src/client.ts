@@ -38,7 +38,7 @@ export class FinP2PClient {
     return await this.finAPIClient.createCertificate(profileId, type, data, issuanceDate, expirationDate);
   }
 
-  async getProfileOperationStatus(id: string) {
+  async getOperationStatus(id: string) {
     return await this.finAPIClient.getOperationStatus(id);
   }
 

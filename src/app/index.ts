@@ -11,7 +11,7 @@ const init = async () => {
     throw new Error('ORGANIZATION_ID is not set');
   }
   let finP2PClient: FinP2PClient | undefined;
-  const finAPIUrl = process.env.FINAPI_URL;
+  const finAPIUrl = process.env.FINP2P_ADDRESS;
   const ossUrl = process.env.OSS_URL;
   if (finAPIUrl && ossUrl) {
     finP2PClient = new FinP2PClient(finAPIUrl, ossUrl);
