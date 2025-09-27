@@ -1,4 +1,4 @@
-import {EIP712Template} from './eip712';
+import { EIP712Template } from './eip712';
 
 export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
@@ -42,7 +42,7 @@ export type Destination = {
 };
 
 export const finIdDestination = (finId: string): Destination => {
-  return {finId, account: {type: 'finId', finId}};
+  return { finId, account: { type: 'finId', finId } };
 };
 
 export type ExecutionContext = {
@@ -121,7 +121,7 @@ export type PlanContract = {
   investors: PlanInvestor[];
 };
 
-export type PlanInvestorRole = "buyer" | "seller" | "lender" | "borrower" | "issuer"
+export type PlanInvestorRole = 'buyer' | 'seller' | 'lender' | 'borrower' | 'issuer';
 
 export type PlanInvestor = {
   profileId: string;
@@ -130,59 +130,59 @@ export type PlanInvestor = {
 };
 
 export type HoldInstruction = {
-  type: "hold";
+  type: 'hold';
   source: Account;
   destination?: Account;
   asset: Asset;
   amount: string;
   // signature: Signature;
-}
+};
 
 export type ReleaseInstruction = {
-  type: "release";
+  type: 'release';
   asset: Asset;
   source: Account;
   destination: Account;
   amount: string;
-}
+};
 
 export type IssueInstruction = {
-  type: "issue";
+  type: 'issue';
   asset: Asset;
   destination: Account;
   amount: string;
   // signature: Signature;
-}
+};
 
 export type TransferInstruction = {
-  type: "transfer";
+  type: 'transfer';
   asset: Asset;
   source: Account;
   destination: Account;
   amount: string;
   // signature: Signature;
-}
+};
 
 export type AwaitInstruction = {
-  type: "await";
+  type: 'await';
   waitUntil: number; // Format: uint64
-}
+};
 
 export type RevertHoldInstruction = {
-  type: "revertHoldInstruction";
+  type: 'revertHoldInstruction';
   asset: Asset;
   source?: Account;
   destination: Account;
-}
+};
 
 export type RedemptionInstruction = {
-  type: "redeem";
+  type: 'redeem';
   asset: Asset;
   source: Account;
   destination?: Account;
   amount: string;
   // signature: Signature;
-}
+};
 
 export type ExecutionPlanOperation = HoldInstruction | ReleaseInstruction | IssueInstruction | TransferInstruction | AwaitInstruction | RevertHoldInstruction | RedemptionInstruction;
 
@@ -191,7 +191,7 @@ export type ExecutionInstruction = {
   organizations: string[];
   operation: ExecutionPlanOperation;
   timeout?: number;
-}
+};
 
 export type ExecutionPlan = {
   id: string;
@@ -271,7 +271,7 @@ export const approvedPlan = (): PlanApprovalStatus => ({
 export const rejectedPlan = (code: number, message: string): PlanApprovalStatus => ({
   operation: 'approval',
   type: 'rejected',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingPlan = (correlationId: string, metadata: OperationMetadata | undefined): PlanApprovalStatus => ({
@@ -318,7 +318,7 @@ export const successfulAssetCreation = (result: AssetCreationResult): AssetCreat
 export const failedAssetCreation = (code: number, message: string): AssetCreationStatus => ({
   operation: 'createAsset',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingAssetCreation = (correlationId: string, metadata: OperationMetadata | undefined): AssetCreationStatus => ({
@@ -361,7 +361,7 @@ export const successfulReceiptOperation = (receipt: Receipt): ReceiptOperation =
 export const failedReceiptOperation = (code: number, message: string): ReceiptOperation => ({
   operation: 'receipt',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingReceiptOperation = (correlationId: string, metadata: OperationMetadata | undefined): ReceiptOperation => ({
@@ -473,14 +473,14 @@ export const successfulDepositOperation = (instruction: DepositInstruction): Dep
 export const failedDepositOperation = (code: number, message: string): DepositOperation => ({
   operation: 'deposit',
   type: 'failure',
-  error: {code, message},
+  error: { code, message },
 });
 
 export const pendingDepositOperation = (correlationId: string, metadata: OperationMetadata | undefined): DepositOperation => ({
   operation: 'deposit',
   type: 'pending',
   correlationId,
-  metadata
+  metadata,
 });
 
 // -------------------------------------------------------------------

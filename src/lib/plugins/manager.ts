@@ -3,15 +3,17 @@ import {
   AsyncAssetCreationPlugin,
   AsyncPaymentsPlugin,
   AsyncPlanApprovalPlugin, PaymentsPlugin,
-  PlanApprovalPlugin
-} from "./interfaces";
-import {Plugin} from "./plugin";
+  PlanApprovalPlugin,
+} from './interfaces';
+import { Plugin } from './plugin';
 
 
 export class PluginManager {
 
   private assetCreationPlugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin> | null = null;
+
   private planApprovalPlugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null = null;
+
   private paymentsPlugin: Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null = null;
 
   registerAssetCreationPlugin(plugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin>): void {
