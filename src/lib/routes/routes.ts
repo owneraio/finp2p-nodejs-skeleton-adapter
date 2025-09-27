@@ -1,5 +1,5 @@
-import express, {Request, Response, NextFunction} from 'express';
-import {components as LedgerAPI, operations as LedgerOperations} from './model-gen';
+import express, { Request, Response, NextFunction } from 'express';
+import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import {
   assetFromAPI,
   createAssetOperationToAPI,
@@ -23,12 +23,12 @@ import {
 const basePath = 'api';
 
 export const register = (app: express.Application,
-                         tokenService: TokenService,
-                         escrowService: EscrowService,
-                         commonService: CommonService,
-                         healthService: HealthService,
-                         paymentService: PaymentService,
-                         planService: PlanApprovalService,
+  tokenService: TokenService,
+  escrowService: EscrowService,
+  commonService: CommonService,
+  healthService: HealthService,
+  paymentService: PaymentService,
+  planService: PlanApprovalService,
 ) => {
 
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
@@ -44,45 +44,45 @@ export const register = (app: express.Application,
   });
 
   app.get('/health/liveness', async (req, res) => {
-      if (req.headers['skip-vendor'] !== 'true') {
-        await healthService.liveness();
-      }
-      res.send('OK');
-    },
+    if (req.headers['skip-vendor'] !== 'true') {
+      await healthService.liveness();
+    }
+    res.send('OK');
+  },
   );
 
   app.get('/health/readiness', async (req, res) => {
-      if (req.headers['skip-vendor'] !== 'true') {
-        await healthService.readiness();
-      }
-      return res.send('OK');
-    },
+    if (req.headers['skip-vendor'] !== 'true') {
+      await healthService.readiness();
+    }
+    return res.send('OK');
+  },
   );
 
   app.get('/health', async (req, res) => {
-      res.send('OK');
-    },
+    res.send('OK');
+  },
   );
 
   app.post<{},
-    LedgerAPI['schemas']['ApproveExecutionPlanResponse'],
-    LedgerAPI['schemas']['ApproveExecutionPlanRequest']>(
+  LedgerAPI['schemas']['ApproveExecutionPlanResponse'],
+  LedgerAPI['schemas']['ApproveExecutionPlanRequest']>(
     `/${basePath}/plan/approve`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {executionPlan: {id}} = req.body;
+      const { executionPlan: { id } } = req.body;
       const approveOp = await planService.approvePlan(idempotencyKey, id);
       return res.send(planApprovalOperationToAPI(approveOp));
     },
   );
 
   app.post<{},
-    LedgerAPI['schemas']['CreateAssetResponse'],
-    LedgerAPI['schemas']['CreateAssetRequest']>(
+  LedgerAPI['schemas']['CreateAssetResponse'],
+  LedgerAPI['schemas']['CreateAssetRequest']>(
     `/${basePath}/assets/create`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {asset, ledgerAssetBinding, metadata, name, issuerId, denomination, assetIdentifier} = req.body;
+      const { asset, ledgerAssetBinding, metadata, name, issuerId, denomination, assetIdentifier } = req.body;
 
       const result = await tokenService.createAsset(
         idempotencyKey,
@@ -98,32 +98,32 @@ export const register = (app: express.Application,
     });
 
   app.post<{},
-    LedgerAPI['schemas']['GetAssetBalanceResponse'],
-    LedgerAPI['schemas']['GetAssetBalanceRequest']>(
+  LedgerAPI['schemas']['GetAssetBalanceResponse'],
+  LedgerAPI['schemas']['GetAssetBalanceRequest']>(
     `/${basePath}/assets/getBalance`,
     async (req, res) => {
-      const {asset, owner: {finId}} = req.body;
-      const {assetId} = assetFromAPI(asset);
+      const { asset, owner: { finId } } = req.body;
+      const { assetId } = assetFromAPI(asset);
       const balance = await tokenService.getBalance(assetId, finId);
-      res.send({asset, balance});
+      res.send({ asset, balance });
     });
 
   app.post<{}, LedgerAPI['schemas']['AssetBalanceInfoResponse'], LedgerAPI['schemas']['AssetBalanceInfoRequest']>(`/${basePath}/asset/balance`, async (req, res) => {
-      const {asset, account} = req.body;
-      const {assetId} = assetFromAPI(asset);
-      const {finId} = account;
-      const balance = await tokenService.balance(assetId, finId);
-      res.send(balanceToAPI(asset, account, balance));
-    },
+    const { asset, account } = req.body;
+    const { assetId } = assetFromAPI(asset);
+    const { finId } = account;
+    const balance = await tokenService.balance(assetId, finId);
+    res.send(balanceToAPI(asset, account, balance));
+  },
   );
 
   app.post<{},
-    LedgerAPI['schemas']['IssueAssetsResponse'],
-    LedgerAPI['schemas']['IssueAssetsRequest']>(
+  LedgerAPI['schemas']['IssueAssetsResponse'],
+  LedgerAPI['schemas']['IssueAssetsRequest']>(
     `/${basePath}/assets/issue`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {asset, quantity, destination, executionContext} = req.body;
+      const { asset, quantity, destination, executionContext } = req.body;
       const receiptOp = await tokenService.issue(
         idempotencyKey, assetFromAPI(asset), finIdAccountFromAPI(destination), quantity, executionContextOptFromAPI(executionContext),
       );
@@ -131,12 +131,12 @@ export const register = (app: express.Application,
     });
 
   app.post<{},
-    LedgerAPI['schemas']['TransferAssetResponse'],
-    LedgerAPI['schemas']['TransferAssetRequest']>(
+  LedgerAPI['schemas']['TransferAssetResponse'],
+  LedgerAPI['schemas']['TransferAssetRequest']>(
     `/${basePath}/assets/transfer`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {nonce, source, destination, asset, quantity, signature, executionContext} = req.body;
+      const { nonce, source, destination, asset, quantity, signature, executionContext } = req.body;
       const receiptOp = await tokenService.transfer(
         idempotencyKey,
         nonce,
@@ -151,12 +151,12 @@ export const register = (app: express.Application,
     });
 
   app.post<{},
-    LedgerAPI['schemas']['RedeemAssetsResponse'],
-    LedgerAPI['schemas']['RedeemAssetsRequest']>(
+  LedgerAPI['schemas']['RedeemAssetsResponse'],
+  LedgerAPI['schemas']['RedeemAssetsRequest']>(
     `/${basePath}/assets/redeem`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {nonce, source, asset, quantity, operationId, signature, executionContext} = req.body;
+      const { nonce, source, asset, quantity, operationId, signature, executionContext } = req.body;
       const receiptOp = await tokenService.redeem(
         idempotencyKey,
         nonce,
@@ -171,22 +171,22 @@ export const register = (app: express.Application,
     });
 
   app.get<LedgerOperations['getReceipt']['parameters']['path'],
-    LedgerAPI['schemas']['GetReceiptResponse'], {}>(
+  LedgerAPI['schemas']['GetReceiptResponse'], {}>(
     `/${basePath}/assets/receipts/:transactionId`,
     async (req, res) => {
-      const {transactionId} = req.params;
+      const { transactionId } = req.params;
       const receiptResult = await commonService.getReceipt(transactionId);
       res.json(receiptOperationToAPI(receiptResult));
     });
 
 
   app.post<{},
-    LedgerAPI['schemas']['HoldOperationResponse'],
-    LedgerAPI['schemas']['HoldOperationRequest']>(
+  LedgerAPI['schemas']['HoldOperationResponse'],
+  LedgerAPI['schemas']['HoldOperationRequest']>(
     `/${basePath}/assets/hold`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {nonce, source, destination, asset, quantity, operationId, signature, executionContext} = req.body;
+      const { nonce, source, destination, asset, quantity, operationId, signature, executionContext } = req.body;
       const receiptOp = await escrowService.hold(
         idempotencyKey,
         nonce,
@@ -202,12 +202,12 @@ export const register = (app: express.Application,
     });
 
   app.post<{},
-    LedgerAPI['schemas']['ReleaseOperationResponse'],
-    LedgerAPI['schemas']['ReleaseOperationRequest']>(
+  LedgerAPI['schemas']['ReleaseOperationResponse'],
+  LedgerAPI['schemas']['ReleaseOperationRequest']>(
     `/${basePath}/assets/release`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {destination, asset, quantity, operationId, executionContext} = req.body;
+      const { destination, asset, quantity, operationId, executionContext } = req.body;
       const receiptOp = await escrowService.release(
         idempotencyKey,
         destinationFromAPI(destination),
@@ -220,12 +220,12 @@ export const register = (app: express.Application,
     });
 
   app.post<{},
-    LedgerAPI['schemas']['RollbackOperationResponse'],
-    LedgerAPI['schemas']['RollbackOperationRequest']>(
+  LedgerAPI['schemas']['RollbackOperationResponse'],
+  LedgerAPI['schemas']['RollbackOperationRequest']>(
     `/${basePath}/assets/rollback`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {asset, quantity, operationId, executionContext} = req.body;
+      const { asset, quantity, operationId, executionContext } = req.body;
       const receiptOp = await escrowService.rollback(
         idempotencyKey,
         assetFromAPI(asset),
@@ -237,12 +237,12 @@ export const register = (app: express.Application,
     });
 
   app.post<{},
-    LedgerAPI['schemas']['DepositInstructionResponse'],
-    LedgerAPI['schemas']['DepositInstructionRequest']>(
+  LedgerAPI['schemas']['DepositInstructionResponse'],
+  LedgerAPI['schemas']['DepositInstructionRequest']>(
     `/${basePath}/payments/depositInstruction/`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {owner, destination, asset, amount, details, nonce, signature} = req.body;
+      const { owner, destination, asset, amount, details, nonce, signature } = req.body;
       const depositOp = await paymentService.getDepositInstruction(
         idempotencyKey,
         sourceFromAPI(owner),
@@ -257,12 +257,12 @@ export const register = (app: express.Application,
     });
 
   app.post<{},
-    LedgerAPI['schemas']['PayoutResponse'],
-    LedgerAPI['schemas']['PayoutRequest']>(
+  LedgerAPI['schemas']['PayoutResponse'],
+  LedgerAPI['schemas']['PayoutRequest']>(
     `/${basePath}/payments/payout`,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const {source, destination, quantity, asset, payoutInstruction, nonce, signature} = req.body;
+      const { source, destination, quantity, asset, payoutInstruction, nonce, signature } = req.body;
       let description: string | undefined = undefined;
       if (payoutInstruction) {
         description = payoutInstruction.description;
@@ -281,7 +281,7 @@ export const register = (app: express.Application,
     });
 
   app.get<LedgerOperations['getOperation']['parameters']['path'],
-    LedgerAPI['schemas']['GetOperationStatusResponse'], {}>(
+  LedgerAPI['schemas']['GetOperationStatusResponse'], {}>(
     `/${basePath}/operations/status/:cid`,
     async (req, res) => {
       const status = await commonService.operationStatus(req.params.cid);

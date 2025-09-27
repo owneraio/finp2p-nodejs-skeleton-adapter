@@ -7,7 +7,7 @@ import {
   DestinationAccount,
   FinIdAccount,
   OperationStatus, PlanApprovalStatus, ReceiptOperation, Source,
-} from "../services";
+} from '../services';
 
 
 export interface AssetCreationPlugin {

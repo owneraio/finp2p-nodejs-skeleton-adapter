@@ -1,22 +1,24 @@
-import {logger} from '../../helpers';
+import { logger } from '../../helpers';
 import {
   approvedPlan, Asset, DestinationAccount,
   ExecutionPlan,
   FinIdAccount, pendingPlan,
   PlanApprovalService,
-  PlanApprovalStatus
+  PlanApprovalStatus,
 } from '../index';
-import {ValidationError} from '../errors';
-import {v4 as uuid} from 'uuid';
-import {FinP2PClient} from "@owneraio/finp2p-client";
-import {executionFromAPI} from "./mapper";
-import {PluginManager} from "../../plugins/manager";
+import { ValidationError } from '../errors';
+import { v4 as uuid } from 'uuid';
+import { FinP2PClient } from '@owneraio/finp2p-client';
+import { executionFromAPI } from './mapper';
+import { PluginManager } from '../../plugins/manager';
 
 export class PlanApprovalServiceImpl implements PlanApprovalService {
 
-  orgId: string
+  orgId: string;
+
   finP2P: FinP2PClient | undefined;
-  pluginManager: PluginManager | undefined
+
+  pluginManager: PluginManager | undefined;
 
   constructor(orgId: string, pluginManager: PluginManager | undefined, finP2P?: FinP2PClient | undefined) {
     this.orgId = orgId;
@@ -27,17 +29,17 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
   public async approvePlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus> {
     logger.info(`Got execution plan to approve: ${planId}`);
     if (this.finP2P) {
-      const {data} = await this.finP2P.getExecutionPlan(planId);
+      const { data } = await this.finP2P.getExecutionPlan(planId);
       if (!data) {
         logger.warn(`No plan ${planId} found`);
         throw new ValidationError(`No plan ${planId} found`);
       }
       const plan = executionFromAPI(data.plan);
       logger.info(`Fetched plan data: ${JSON.stringify(plan)}`);
-      return this.validatePlan(idempotencyKey, plan)
+      return this.validatePlan(idempotencyKey, plan);
     }
 
-    logger.debug(`No FinP2P client, auto-approving plan`);
+    logger.debug('No FinP2P client, auto-approving plan');
     return approvedPlan();
   }
 
@@ -45,44 +47,44 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
     const instructions = plan.instructions.filter(i => i.organizations.includes(this.orgId));
     for (const instruction of instructions) {
-      const {operation} = instruction;
+      const { operation } = instruction;
       switch (operation.type) {
-        case "issue": {
-          const {asset, destination, amount} = operation;
+        case 'issue': {
+          const { asset, destination, amount } = operation;
           if (!destination) {
             throw new ValidationError('No destination in primary sale');
           }
           if (destination.type !== 'finId') {
             throw new ValidationError('Only finId destination is supported in primary sale');
           }
-          return this.validateIssuance(idempotencyKey, destination, asset, amount)
+          return this.validateIssuance(idempotencyKey, destination, asset, amount);
         }
 
-        case "transfer": {
-          const {asset, source, destination, amount} = operation;
+        case 'transfer': {
+          const { asset, source, destination, amount } = operation;
           if (source.type !== 'finId') {
             throw new ValidationError('Only finId destination is supported in primary sale');
           }
-          return this.validateTransfer(idempotencyKey, source, destination, asset, amount)
+          return this.validateTransfer(idempotencyKey, source, destination, asset, amount);
         }
 
-        case "hold": {
-          const {asset, source, destination, amount} = operation;
+        case 'hold': {
+          const { asset, source, destination, amount } = operation;
           if (source.type !== 'finId') {
             throw new ValidationError('Only finId destination is supported in primary sale');
           }
           if (!destination) {
             throw new ValidationError('No destination in hold operation');
           }
-          return this.validateTransfer(idempotencyKey, source, destination, asset, amount)
+          return this.validateTransfer(idempotencyKey, source, destination, asset, amount);
         }
 
-        case "redeem": {
-          const {asset, source, destination, amount} = operation;
+        case 'redeem': {
+          const { asset, source, destination, amount } = operation;
           if (source.type !== 'finId') {
             throw new ValidationError('Only finId destination is supported in primary sale');
           }
-          return this.validateRedemption(idempotencyKey, source, destination, asset, amount)
+          return this.validateRedemption(idempotencyKey, source, destination, asset, amount);
         }
       }
     }
@@ -102,7 +104,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           plugin.asyncIface.validateIssuance(idempotencyKey, cid, destination, asset, amount)
             .then(() => {
             });
-          return Promise.resolve(pendingPlan(cid, {responseStrategy: 'callback'}));
+          return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
         } else {
           if (!plugin.syncIface) {
             throw new Error('No sync interface in plan approval plugin');
@@ -125,7 +127,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           const cid = uuid();
           plugin.asyncIface.validateTransfer(idempotencyKey, cid, source, destination, asset, amount).then(() => {
           });
-          return Promise.resolve(pendingPlan(cid, {responseStrategy: 'callback'}));
+          return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
         } else {
           if (!plugin.syncIface) {
             throw new Error('No sync interface in plan approval plugin');
@@ -148,7 +150,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           const cid = uuid();
           plugin.asyncIface.validateRedemption(idempotencyKey, cid, source, destination, asset, amount).then(() => {
           });
-          return Promise.resolve(pendingPlan(cid, {responseStrategy: 'callback'}));
+          return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
         } else {
           if (!plugin.syncIface) {
             throw new Error('No sync interface in plan approval plugin');
