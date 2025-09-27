@@ -75,7 +75,7 @@ export class FinAPIClient {
   }
 
   async importTransactions(transactions: OpComponents["schemas"]["transaction"][]) {
-    this.opClient.POST('/ledger/transaction/import', {
+    return this.opClient.POST('/ledger/transaction/import', {
       body: {transactions}
     })
   }
