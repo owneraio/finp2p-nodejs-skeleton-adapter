@@ -1,6 +1,6 @@
-import { AsyncPlanApprovalPlugin } from '../../lib/plugins/interfaces';
+import { AsyncPlanApprovalPlugin } from '../../lib/plugins';
 import { Asset, DestinationAccount, FinIdAccount } from '../../lib/services';
-import { AbstractPlugin } from '../../lib/plugins/abstract';
+import { AbstractPlugin } from '../../lib/plugins';
 
 
 async function sleep(ms: number): Promise<void> {
