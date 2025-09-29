@@ -1,4 +1,3 @@
-
 export type LedgerAssetInfo = {
   tokenId: string
   ledgerReference?: LedgerReference
@@ -55,9 +54,7 @@ export type OssAsset = {
 };
 
 export type OssAssetNodes = {
-  assets: {
-    nodes: OssAsset[]
-  }
+  assets: { nodes: OssAsset[] }
 };
 
 export type OssOwner = {
@@ -74,7 +71,7 @@ export type OssOwner = {
       expiry: number
     }[]
   }
-  holdings:  {
+  holdings: {
     nodes: {
       assetType: string,
       asset: { resourceId: string },
@@ -88,10 +85,17 @@ export type OssOwner = {
 };
 
 export type OssOwnerNodes = {
-  users: {
-    nodes: OssOwner[]
-  }
+  users: { nodes: OssOwner[] }
 };
+
+export type OssOrganization = {
+  id: string,
+  name: string
+}
+
+export type OssOrganizationNodes = {
+  organizations: { nodes: OssOrganization[] }
+}
 
 export type ProofDomain = {
   chainId: number,

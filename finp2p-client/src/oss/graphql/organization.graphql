@@ -1,0 +1,11 @@
+query GetOrganization($orgId: String!) {
+    organizations(filter: { key: "id", operator: EQ, value: $orgId }) {
+        nodes {
+            id
+            clusterId
+            name
+            finId
+            types
+        }
+    }
+}

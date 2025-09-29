@@ -7,11 +7,14 @@ import winston from 'winston';
 
 export abstract class AbstractPlugin implements LedgerCallbackService {
 
+  orgId: string;
+
   finP2PClient: FinP2PClient;
 
   logger: winston.Logger;
 
-  constructor(finP2PClient: FinP2PClient, logger: winston.Logger) {
+  constructor(orgId: string, finP2PClient: FinP2PClient, logger: winston.Logger) {
+    this.orgId = orgId;
     this.finP2PClient = finP2PClient;
     this.logger = logger;
   }
