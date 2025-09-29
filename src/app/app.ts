@@ -4,7 +4,7 @@ import { logger as expressLogger } from 'express-winston';
 import { format, transports } from 'winston';
 import process from 'process';
 import * as routes from '../lib/routes';
-import { PluginManager } from '../lib/plugins/manager';
+import { PluginManager } from '../lib/plugins';
 import { PlanApprovalServiceImpl, PaymentsServiceImpl, ProofProvider } from '../lib/services';
 import { TokenServiceImpl, EscrowServiceImpl, AccountService } from './services/inmemory';
 import { FinP2PClient } from '@owneraio/finp2p-client';
@@ -50,7 +50,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
 
   const pluginManager = new PluginManager();
   if (finP2PClient) {
-    pluginManager.registerPlanApprovalPlugin({ isAsync: true, asyncIface: new DelayedApprovals(finP2PClient, logger) });
+    pluginManager.registerPlanApprovalPlugin({ isAsync: true, asyncIface: new DelayedApprovals(orgId, finP2PClient, logger) });
   }
 
   const accountService = new AccountService();
