@@ -52,7 +52,7 @@ export class OssClient {
         value: finId
       }, includeCerts: true, includeHoldings: false
     });
-    if (resp.users.nodes.length > 0) {
+    if (resp.users.nodes.length == 0) {
       throw new ItemNotFoundError(finId, "Owner");
     }
     return resp.users.nodes[0];
