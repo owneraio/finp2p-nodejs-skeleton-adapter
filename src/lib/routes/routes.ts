@@ -153,7 +153,7 @@ export const register = (app: express.Application,
       const exCtx = executionContextOptFromAPI(executionContext);
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'transfer', src, dst, ast, quantity, sgn, exCtx);
-      const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx,);
+      const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
       pluginManager?.getTransactionHook()?.postTransaction(ik, 'transfer', src, dst, ast, quantity, sgn, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
