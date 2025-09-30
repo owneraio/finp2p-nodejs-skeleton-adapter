@@ -92,7 +92,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
       throw new Error(`unknown operation: ${operationId}`);
     }
     const { source: holdSrc } = hold;
-    this.accountService.credit(source.finId, quantity, asset.assetId);
+    this.accountService.credit(holdSrc.finId, quantity, asset.assetId);
 
     delete this.holdOperations[operationId];
 
