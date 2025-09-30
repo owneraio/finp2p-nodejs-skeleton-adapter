@@ -81,7 +81,7 @@ export class PaymentsServiceImpl implements PaymentService {
       return Promise.resolve(pendingReceiptOperation(cid, {responseStrategy: 'callback'}));
     } else {
       if (!plugin.syncIface) {
-        return Promise.resolve(failedReceiptOperation(1, 'No syncinterface in plan approval plugin'));
+        return Promise.resolve(failedReceiptOperation(1, 'No sync interface in plan approval plugin'));
       }
       return plugin.syncIface.payout(source.account, destination.account, asset, amount);
     }
