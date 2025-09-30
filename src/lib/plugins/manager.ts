@@ -3,7 +3,7 @@ import {
   AsyncAssetCreationPlugin,
   AsyncPaymentsPlugin,
   AsyncPlanApprovalPlugin, PaymentsPlugin,
-  PlanApprovalPlugin,
+  PlanApprovalPlugin, TransactionHook,
 } from './interfaces';
 import { Plugin } from './plugin';
 
@@ -15,6 +15,8 @@ export class PluginManager {
   private planApprovalPlugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null = null;
 
   private paymentsPlugin: Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null = null;
+
+  private transactionHook: TransactionHook | null = null;
 
   registerAssetCreationPlugin(plugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin>): void {
     this.assetCreationPlugin = plugin;
@@ -39,6 +41,15 @@ export class PluginManager {
 
   getPaymentsPlugin(): Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null {
     return this.paymentsPlugin;
+  }
+
+
+  registerTransactionHook(plugin: TransactionHook): void {
+    this.transactionHook = plugin;
+  }
+
+  getTransactionHook(): TransactionHook | null {
+    return this.transactionHook;
   }
 
 }

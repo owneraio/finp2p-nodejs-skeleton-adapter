@@ -50,10 +50,10 @@ export interface EscrowService {
     quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
-  release(idempotencyKey: string, destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
+  release(idempotencyKey: string, source: Source, destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
-  rollback(idempotencyKey: string, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
+  rollback(idempotencyKey: string, source: Source, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
 }

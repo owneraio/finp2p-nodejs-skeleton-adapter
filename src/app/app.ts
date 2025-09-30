@@ -67,6 +67,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
     tokenService,
     paymentsService,
     planApprovalService,
+    pluginManager,
   );
 
   return app;

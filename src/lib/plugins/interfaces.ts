@@ -3,10 +3,10 @@
 
 import {
   Asset, DepositAsset,
-  DepositOperation,
-  DestinationAccount,
+  DepositOperation, Destination,
+  DestinationAccount, ExecutionContext,
   FinIdAccount,
-  OperationStatus, PlanApprovalStatus, ReceiptOperation, Source,
+  OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature, Source,
 } from '../services';
 
 
@@ -58,6 +58,19 @@ export interface AsyncPaymentsPlugin {
   depositCustom(idempotencyKey: string, cid: string, owner: FinIdAccount, amount: string | undefined, details: any): Promise<void>;
 
   payout(idempotencyKey: string, cid: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<void>;
+}
+
+//------------------------------------------------------------
+
+
+export type TransactionType = 'issue' | 'transfer' | 'redeem' | 'hold' | 'release' | 'rollback';
+
+export interface TransactionHook {
+
+  preTransaction(idempotencyKey: string, type: TransactionType, source: Source | undefined, destination: Destination | undefined, asset: Asset, amount: string, sgn: Signature | undefined, exCtx: ExecutionContext | undefined): Promise<void>;
+
+  postTransaction(idempotencyKey: string, type: TransactionType, source: Source | undefined, destination: Destination | undefined, asset: Asset, amount: string, sgn: Signature | undefined, exCtx: ExecutionContext | undefined, status: OperationStatus): Promise<void>;
+
 }
 
 //------------------------------------------------------------
