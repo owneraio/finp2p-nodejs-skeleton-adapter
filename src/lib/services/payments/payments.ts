@@ -12,7 +12,7 @@ import {
   Signature,
   Source,
 } from '../index';
-import {PluginManager} from '../../plugins/manager';
+import {PluginManager} from '../../plugins';
 import {v4 as uuid} from 'uuid';
 import {logger} from '../../helpers';
 import {PluginError} from "../../plugins";
@@ -64,7 +64,7 @@ export class PaymentsServiceImpl implements PaymentService {
 
     if (plugin.isAsync) {
       if (!plugin.asyncIface) {
-        throw new Error('No async interface in plan approval plugin');
+        return Promise.resolve(failedReceiptOperation(1, 'No async interface in plan approval plugin'));
       }
       const cid = uuid();
       plugin.asyncIface.payout(idempotencyKey, cid, source.account, destination.account, asset, amount)
@@ -81,7 +81,7 @@ export class PaymentsServiceImpl implements PaymentService {
       return Promise.resolve(pendingReceiptOperation(cid, {responseStrategy: 'callback'}));
     } else {
       if (!plugin.syncIface) {
-        throw new Error('No sync interface in plan approval plugin');
+        return Promise.resolve(failedReceiptOperation(1, 'No sync interface in plan approval plugin'));
       }
       return plugin.syncIface.payout(source.account, destination.account, asset, amount);
     }
@@ -98,7 +98,7 @@ export class PaymentsServiceImpl implements PaymentService {
     }
     if (plugin.isAsync) {
       if (!plugin.asyncIface) {
-        throw new Error('No async interface in plan approval plugin');
+        return Promise.resolve(failedDepositOperation(1, 'No async interface in plan approval plugin'));
       }
       const cid = uuid();
       plugin.asyncIface.deposit(idempotencyKey, cid, owner, asset, amount)
@@ -106,6 +106,7 @@ export class PaymentsServiceImpl implements PaymentService {
         }).catch(e => {
         if (e instanceof PluginError) {
           logger.error(`Plugin error: ${e.code}, message=${e.message}`);
+
         } else if (e instanceof Error) {
           logger.error(`Error in async deposit: ${e.message}`);
         } else {
@@ -115,7 +116,7 @@ export class PaymentsServiceImpl implements PaymentService {
       return Promise.resolve(pendingDepositOperation(cid, {responseStrategy: 'callback'}));
     } else {
       if (!plugin.syncIface) {
-        throw new Error('No sync interface in plan approval plugin');
+        return Promise.resolve(failedDepositOperation(1, 'No sync interface in plan approval plugin'));
       }
       return plugin.syncIface.deposit(owner, asset, amount);
     }
@@ -132,7 +133,7 @@ export class PaymentsServiceImpl implements PaymentService {
     }
     if (plugin.isAsync) {
       if (!plugin.asyncIface) {
-        throw new Error('No async interface in plan approval plugin');
+        return Promise.resolve(failedDepositOperation(1, 'No async interface in plan approval plugin'));
       }
       const cid = uuid();
       plugin.asyncIface.depositCustom(idempotencyKey, cid, owner, amount, details)
@@ -149,7 +150,7 @@ export class PaymentsServiceImpl implements PaymentService {
       return Promise.resolve(pendingDepositOperation(cid, {responseStrategy: 'callback'}));
     } else {
       if (!plugin.syncIface) {
-        throw new Error('No sync interface in plan approval plugin');
+        return Promise.resolve(failedDepositOperation(1, 'No sync interface in plan approval plugin'));
       }
       return plugin.syncIface.depositCustom(owner, amount, details);
     }

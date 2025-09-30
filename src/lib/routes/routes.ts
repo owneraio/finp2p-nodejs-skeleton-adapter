@@ -20,6 +20,8 @@ import {
   PaymentService, Destination, Source,
 } from '../services';
 import {PluginManager} from "../plugins";
+import {logger} from "../helpers";
+import {errorHandler} from "./errors";
 
 const basePath = 'api';
 
@@ -33,17 +35,7 @@ export const register = (app: express.Application,
                          pluginManager: PluginManager | undefined
 ) => {
 
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || 500;
-    const message = err.message || 'Internal Server Error';
-
-    // Log the error (your logger instead of console)
-    console.error('Error middleware caught:', err);
-
-    res.status(status).json({
-      error: message,
-    });
-  });
+  app.use(errorHandler);
 
   app.get('/health/liveness', async (req, res) => {
       if (req.headers['skip-vendor'] !== 'true') {
@@ -82,7 +74,7 @@ export const register = (app: express.Application,
     LedgerAPI['schemas']['CreateAssetResponse'],
     LedgerAPI['schemas']['CreateAssetRequest']>(
     `/${basePath}/assets/create`,
-    async (req, res) => {
+    async (req, res, next) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
       const {asset, ledgerAssetBinding, metadata, name, issuerId, denomination, assetIdentifier} = req.body;
 
