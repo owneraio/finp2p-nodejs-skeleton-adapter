@@ -67,7 +67,7 @@ export class PaymentsServiceImpl implements PaymentService {
         return Promise.resolve(failedReceiptOperation(1, 'No async interface in plan approval plugin'));
       }
       const cid = uuid();
-      plugin.asyncIface?.payout(idempotencyKey, cid, source.account, destination.account, asset, amount)
+      plugin.asyncIface.payout(idempotencyKey, cid, source.account, destination.account, asset, amount)
         .then(() => {
         }).catch(e => {
         if (e instanceof PluginError) {
