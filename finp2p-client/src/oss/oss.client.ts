@@ -100,7 +100,13 @@ export class OssClient {
   }
 
   async getOrganization(orgId: string) {
-    const resp = await this.queryOss<OssOrganizationNodes>(ORGANIZATIONS, {orgId});
+    const resp = await this.queryOss<OssOrganizationNodes>(ORGANIZATIONS, {
+      filter: {
+        key: "id",
+        operator: "EQ",
+        value: orgId
+      }
+    });
     if (resp.organizations.nodes.length == 0) {
       throw new ItemNotFoundError(orgId, "Organization");
     }
