@@ -3,6 +3,7 @@ import {OssClient, parseProofDomain, Proof, ProofDomain, ProofPolicy} from "./os
 import {FinAPIClient} from "./finapi";
 import {components as FinAPIComponents, paths as FinAPIPaths} from "./finapi/model-gen";
 import {components as OpComponents, paths as OpPaths} from "./finapi/op-model-gen";
+import {ItemNotFoundError} from "./oss/errors";
 
 
 export class FinP2PClient {
@@ -54,13 +55,21 @@ export class FinP2PClient {
     return await this.finAPIClient.getExecutionPlan(planId);
   }
 
-  async waitForOperationCompletion(cid: string, timeoutMs: number):  Promise<FinAPIComponents["schemas"]["operationResponse"]> {
+  async waitForOperationCompletion(cid: string, timeoutMs: number): Promise<FinAPIComponents["schemas"]["operationResponse"]> {
     return await this.finAPIClient.waitForOperationCompletion(cid, timeoutMs)
   }
 
   // ------ OSS Client methods ------
 
-  async getAssetProofPolicy(assetCode: string, assetType: string): Promise<ProofPolicy> {
+  async getAssets() {
+    return await this.ossClient.getAssets();
+  }
+
+  async getAsset(assetId: string) {
+    return await this.ossClient.getAsset(assetId);
+  }
+
+  async getAssetProofPolicy(assetCode: string, assetType: string, paymentOrgId: string): Promise<ProofPolicy> {
     let proof: Proof;
     let domain: ProofDomain | null = null;
     let configRaw: string;
@@ -72,12 +81,13 @@ export class FinP2PClient {
       }
       case 'cryptocurrency':
       case 'fiat': {
-        const orgId = process.env.ORGANIZATION_ID || '';
-        const paymentAsset = await this.getPaymentAsset(orgId, assetCode);
-        if (paymentAsset) {
-          ({policies: {proof}} = paymentAsset);
-        } else {
-          return {type: 'NoProofPolicy'};
+        try {
+          ({policies: {proof}} = await this.getPaymentAsset(paymentOrgId, assetCode));
+        } catch (e) {
+          if (e instanceof ItemNotFoundError) {
+            return {type: 'NoProofPolicy'};
+          }
+          throw e;
         }
         break;
       }
@@ -94,16 +104,12 @@ export class FinP2PClient {
     }
   }
 
-  async getAsset(assetId: string) {
-    return await this.ossClient.getAsset(assetId);
+  async getPaymentAssets() {
+    return await this.ossClient.getPaymentAssets();
   }
 
   async getPaymentAsset(orgId: string, assetCode: string) {
     return await this.ossClient.getPaymentAsset(orgId, assetCode);
-  }
-
-  async getAssetsWithTokens() {
-    return await this.ossClient.getAssetsWithTokens()
   }
 
   async getOwnerByFinId(finId: string) {

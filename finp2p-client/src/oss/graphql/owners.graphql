@@ -1,9 +1,9 @@
 query GetOwners(
-    $userFilter: [Filter!],
+    $filter: [Filter!],
     $includeCerts: Boolean = true,
     $includeHoldings: Boolean = true
 ) {
-    users(filter: $userFilter) {
+    users(filter: $filter) {
         nodes {
             id
             finIds
@@ -45,7 +45,7 @@ query GetOwners(
 }
 
 fragment asset on AssetDetails {
-    __typename
+    type: __typename
     ... on Cryptocurrency {
         symbol
     }

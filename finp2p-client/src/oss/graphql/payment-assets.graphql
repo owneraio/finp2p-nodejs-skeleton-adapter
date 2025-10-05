@@ -1,0 +1,55 @@
+query GetPaymentAssets($filter: [Filter!]) {
+    escrows (filter: $filter) {
+        nodes {
+            orgId
+            paymentAssetId
+            paymentAsset {
+                id
+                accountType
+                orgId
+                version
+                assets {
+                    code
+                    type
+                    conversions {
+                        accountType {
+                            ... identifierInfo
+                        }
+                        symbols
+                    }
+                    policies {
+                        proof {
+                            ... proofInfo
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fragment identifierInfo on AccountIdentifier {
+    type: __typename
+    ...on CryptoWalletAccount {
+        address
+    }
+    ... on FinP2PAssetAccount {
+        finId
+        orgId
+    }
+    ... on Iban {
+        code
+    }
+}
+
+fragment proofInfo on ProofPolicy {
+    ... on NoProofPolicy {
+        type: __typename
+    }
+    ... on SignatureProofPolicy {
+        type: __typename
+        verifyingKey
+        signatureTemplate
+    }
+}
+

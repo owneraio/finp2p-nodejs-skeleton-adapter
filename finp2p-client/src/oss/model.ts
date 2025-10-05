@@ -4,7 +4,7 @@ export type LedgerAssetInfo = {
 }
 
 export type LedgerReference = {
-  __typename: string;
+  type: string;
   network: string;
   address: string;
   tokenStandard: string;
@@ -19,6 +19,33 @@ export type LedgerReference = {
 export type AssetIdentifier = {
   type: string
   value: string
+}
+
+
+export type ProofDomain = {
+  chainId: number,
+  verifyingContract: string
+};
+
+export type Proof = {
+  type: 'NoProofPolicy'
+} | {
+  type: 'SignatureProofPolicy',
+  verifyingKey: string,
+  signatureTemplate: string,
+};
+
+export type ProofPolicy = {
+  type: 'NoProofPolicy'
+} | {
+  type: 'SignatureProofPolicy',
+  verifyingKey: string,
+  signatureTemplate: string,
+  domain: ProofDomain | null
+};
+
+export type AssetPolicies = {
+  proof: Proof
 }
 
 export type OssAsset = {
@@ -38,9 +65,7 @@ export type OssAsset = {
     name: string,
     provider: string
   }[]
-  policies: {
-    proof: Proof
-  }
+  policies: AssetPolicies
   certificates: {
     nodes: {
       id: string,
@@ -56,6 +81,34 @@ export type OssAsset = {
 export type OssAssetNodes = {
   assets: { nodes: OssAsset[] }
 };
+
+export type OssPaymentAsset = {
+  id: string
+  accountType: string
+  orgId: string
+  version: number
+  assets: {
+    code: string
+    type: string
+    conversions: {
+      accountType: {
+
+      }
+      symbols: string[]
+    }[],
+    policies: AssetPolicies
+  }[]
+}
+
+export type OssEscrow = {
+  orgId: string
+  paymentAssetId: string
+  paymentAsset: OssPaymentAsset
+}
+
+export type OssEscrowNodes = {
+  escrows: { nodes: OssEscrow[] }
+}
 
 export type OssOwner = {
   id: string,
@@ -96,28 +149,6 @@ export type OssOrganization = {
 export type OssOrganizationNodes = {
   organizations: { nodes: OssOrganization[] }
 }
-
-export type ProofDomain = {
-  chainId: number,
-  verifyingContract: string
-};
-
-export type Proof = {
-  type: 'NoProofPolicy'
-} | {
-  type: 'SignatureProofPolicy',
-  verifyingKey: string,
-  signatureTemplate: string,
-};
-
-export type ProofPolicy = {
-  type: 'NoProofPolicy'
-} | {
-  type: 'SignatureProofPolicy',
-  verifyingKey: string,
-  signatureTemplate: string,
-  domain: ProofDomain | null
-};
 
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {
   const rawObject: unknown = JSON.parse(jsonString);
