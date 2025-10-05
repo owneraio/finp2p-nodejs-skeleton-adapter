@@ -1,18 +1,18 @@
-import { Receipt } from '../model';
-import { FinP2PClient } from '@owneraio/finp2p-client';
-import { DOMAIN_TYPE, RECEIPT_PROOF_TYPES } from '../eip712';
-import { EIP712_DOMAIN, hashEIP712, logger, signEIP712WithPrivateKey } from '../../helpers';
-import { receiptToEIP712Message } from './mappers';
+import {Receipt} from '../model';
+import {FinP2PClient} from '@owneraio/finp2p-client';
+import {DOMAIN_TYPE, RECEIPT_PROOF_TYPES} from '../eip712';
+import {EIP712_DOMAIN, hashEIP712, logger, signEIP712WithPrivateKey} from '../../helpers';
+import {receiptToEIP712Message} from './mappers';
 
 
 export class ProofProvider {
 
+  orgId: string
   finP2PClient: FinP2PClient | undefined;
-
   signerPrivateKey: string;
 
-
-  constructor(finP2PClient: FinP2PClient | undefined, signerPrivateKey: string) {
+  constructor(orgId: string, finP2PClient: FinP2PClient | undefined, signerPrivateKey: string) {
+    this.orgId = orgId;
     this.finP2PClient = finP2PClient;
     this.signerPrivateKey = signerPrivateKey;
   }
@@ -21,8 +21,9 @@ export class ProofProvider {
     if (this.finP2PClient === undefined) {
       return receipt;
     }
-    const { asset: { assetId, assetType } } = receipt;
-    const policy = await this.finP2PClient.getAssetProofPolicy(assetId, assetType);
+    const {asset: {assetId, assetType}} = receipt;
+    const paymentOrgId = this.orgId; // assuming we are the payment org
+    const policy = await this.finP2PClient.getAssetProofPolicy(assetId, assetType, paymentOrgId);
     switch (policy.type) {
       case 'NoProofPolicy':
         receipt.proof = {
@@ -31,23 +32,23 @@ export class ProofProvider {
         return receipt;
 
       case 'SignatureProofPolicy':
-        const { signatureTemplate, domain: policyDomain } = policy;
+        const {signatureTemplate, domain: policyDomain} = policy;
         if (signatureTemplate !== 'EIP712') {
           throw new Error(`Unsupported signature template: ${signatureTemplate}`);
         }
         if (policyDomain !== null) {
           logger.info('Using domain from asset metadata: ', policyDomain);
         }
-        const { chainId, verifyingContract } = EIP712_DOMAIN;
+        const {chainId, verifyingContract} = EIP712_DOMAIN;
         const types = RECEIPT_PROOF_TYPES;
         const message = receiptToEIP712Message(receipt);
         const primaryType = 'Receipt';
 
-        logger.info('Signing receipt with EIP712', { primaryType, types, message });
+        logger.info('Signing receipt with EIP712', {primaryType, types, message});
         const hash = hashEIP712(chainId, verifyingContract, types, message);
         const signature = await signEIP712WithPrivateKey(chainId, verifyingContract, types, message, this.signerPrivateKey);
 
-        logger.info('Receipt signed', { hash, signature });
+        logger.info('Receipt signed', {hash, signature});
 
         // ethers doesn't allow to pass an eip712 domain in a list of types, but the domain is required on a router side
         receipt.proof = {
@@ -56,7 +57,7 @@ export class ProofProvider {
             type: 'EIP712',
             primaryType,
             domain: EIP712_DOMAIN,
-            types: { ...DOMAIN_TYPE, ...types },
+            types: {...DOMAIN_TYPE, ...types},
             hash,
             message,
           },
