@@ -83,7 +83,7 @@ export class OssClient {
   async getPaymentAsset(orgId: string, assetCode: string) {
     const resp = await this.queryOss<OssEscrowNodes>(PAYMENT_ASSETS, {
       filter: {
-        key: "ordId",
+        key: "orgId",
         operator: "EQ",
         value: orgId
       }
