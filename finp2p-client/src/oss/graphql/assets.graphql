@@ -1,0 +1,70 @@
+query GetAssets($filter: [Filter!]) {
+    assets(filter: $filter) {
+        nodes {
+            id
+            name
+            type
+            organizationId
+            denomination {
+                code
+            }
+            issuerId
+            config
+            allowedIntents
+            assetIdentifier {
+                type,
+                value
+            }
+            certificates {
+                nodes {
+                    id
+                    profileId
+                    type
+                    data
+                    expiry
+                }
+            }
+            regulationVerifiers {
+                id,
+                name,
+                provider
+            }
+            policies {
+                proof {
+                    ... proofInfo
+                }
+            }
+            ledgerAssetInfo {
+                ...assetInfo
+            }
+        }
+    }
+}
+
+fragment proofInfo on ProofPolicy {
+    ... on NoProofPolicy {
+        type: __typename
+    }
+    ... on SignatureProofPolicy {
+        type: __typename
+        verifyingKey
+        signatureTemplate
+    }
+}
+
+fragment assetInfo on LedgerAssetInfo {
+    tokenId
+    ledgerReference {
+        ... on ContractDetails {
+            network
+            address
+            tokenStandard
+            additionalContractDetails {
+                finP2PEVMOperatorDetails {
+                    finP2POperatorContractAddress
+                    allowanceRequired
+                }
+            }
+        }
+    }
+}

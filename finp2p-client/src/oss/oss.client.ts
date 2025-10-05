@@ -1,12 +1,11 @@
 import 'graphql-import-node';
-import {DocumentNode} from 'graphql';
-import GET_OWNERS from './graphql/owners.graphql';
-import GET_ASSET from './graphql/asset.graphql';
-import GET_ORGANIZATION from './graphql/organization.graphql';
-import GET_ALL_ASSETS from './graphql/all-assets.graphql';
-import GET_PAYMENT_ASSET from './graphql/paymentAsset.graphql';
 import * as axios from 'axios';
-import {AssetIdentifier, LedgerAssetInfo, OssAssetNodes, OssOrganizationNodes, OssOwnerNodes} from './model';
+import {DocumentNode} from 'graphql';
+import OWNERS from './graphql/owners.graphql';
+import ORGANIZATIONS from './graphql/organization.graphql';
+import ASSETS from './graphql/assets.graphql';
+import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
+import {OssAssetNodes, OssEscrowNodes, OssOrganizationNodes, OssOwnerNodes} from './model';
 import {ItemNotFoundError} from "./errors";
 
 export class OssClient {
@@ -21,8 +20,7 @@ export class OssClient {
   }
 
   async getOwnerBalances(assetId: string) {
-    const resp = await this.queryOss<OssOwnerNodes>(GET_OWNERS, {
-      userFilter: undefined,
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
       includeCerts: false,
       includeHoldings: true
     });
@@ -31,8 +29,8 @@ export class OssClient {
   }
 
   async getOwnerById(ownerId: string) {
-    const resp = await this.queryOss<OssOwnerNodes>(GET_OWNERS, {
-      userFilter: {
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
+      filter: {
         key: 'id',
         operator: 'EQ',
         value: ownerId
@@ -45,8 +43,8 @@ export class OssClient {
   }
 
   async getOwnerByFinId(finId: string) {
-    const resp = await this.queryOss<OssOwnerNodes>(GET_OWNERS, {
-      userFilter: {
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
+      filter: {
         key: 'finIds',
         operator: 'CONTAINS',
         value: finId
@@ -58,42 +56,57 @@ export class OssClient {
     return resp.users.nodes[0];
   }
 
+  async getAssets() {
+    const resp = await this.queryOss<OssAssetNodes>(ASSETS, {});
+    return resp.assets.nodes;
+  }
+
   async getAsset(assetId: string) {
-    const resp = await this.queryOss<OssAssetNodes>(GET_ASSET, {assetId});
+    const resp = await this.queryOss<OssAssetNodes>(ASSETS, {
+      filter: {
+        key: "id",
+        operator: "EQ",
+        value: assetId
+      }
+    });
     if (resp.assets.nodes.length == 0) {
       throw new ItemNotFoundError(assetId, "Asset");
     }
     return resp.assets.nodes[0];
   }
 
+  async getPaymentAssets() {
+    const resp = await this.queryOss<OssEscrowNodes>(PAYMENT_ASSETS, {});
+    return resp.escrows.nodes.map(e => e.paymentAsset);
+  }
+
   async getPaymentAsset(orgId: string, assetCode: string) {
-    const resp = await this.queryOss<OssAssetNodes>(GET_PAYMENT_ASSET, {orgId});
-    if (resp.assets.nodes.length == 0) {
-      throw new ItemNotFoundError(`${orgId}: ${assetCode}`, "Payment asset");
+    const resp = await this.queryOss<OssEscrowNodes>(PAYMENT_ASSETS, {
+      filter: {
+        key: "ordId",
+        operator: "EQ",
+        value: orgId
+      }
+    });
+    if (resp.escrows.nodes.length == 0) {
+      throw new ItemNotFoundError(`${orgId}`, "Payment asset");
     }
-    return resp.assets.nodes[0];
+
+    const ast = resp.escrows.nodes[0].paymentAsset.assets.find(a => a.code === assetCode)
+    if (!ast) {
+      throw new ItemNotFoundError(`${orgId}:${assetCode}`, "Payment asset");
+    }
+    return ast;
   }
 
   async getOrganization(orgId: string) {
-    const resp = await this.queryOss<OssOrganizationNodes>(GET_ORGANIZATION, {orgId});
+    const resp = await this.queryOss<OssOrganizationNodes>(ORGANIZATIONS, {orgId});
     if (resp.organizations.nodes.length == 0) {
       throw new ItemNotFoundError(orgId, "Organization");
     }
     return resp.organizations.nodes[0];
   }
 
-  async getAssetsWithTokens(): Promise<{
-    assetId: string,
-    ledgerAssetInfo: LedgerAssetInfo,
-    identifier: AssetIdentifier
-  }[]> {
-    const resp = await this.queryOss<OssAssetNodes>(GET_ALL_ASSETS, {});
-    return resp.assets.nodes.filter(a => a.ledgerAssetInfo.tokenId.length > 0).map(a => ({
-      assetId: a.id,
-      ledgerAssetInfo: a.ledgerAssetInfo,
-      identifier: a.assetIdentifier
-    }));
-  }
 
   async queryOss<T>(queryDoc: DocumentNode, variables: Record<string, any>): Promise<T> {
     let headers = {
