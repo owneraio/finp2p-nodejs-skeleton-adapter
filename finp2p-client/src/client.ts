@@ -69,7 +69,7 @@ export class FinP2PClient {
     return await this.ossClient.getAsset(assetId);
   }
 
-  async getAssetProofPolicy(assetCode: string, assetType: string, payemntOrgId: string): Promise<ProofPolicy> {
+  async getAssetProofPolicy(assetCode: string, assetType: string, paymentOrgId: string): Promise<ProofPolicy> {
     let proof: Proof;
     let domain: ProofDomain | null = null;
     let configRaw: string;
@@ -82,7 +82,7 @@ export class FinP2PClient {
       case 'cryptocurrency':
       case 'fiat': {
         try {
-          ({policies: {proof}} = await this.getPaymentAsset(payemntOrgId, assetCode));
+          ({policies: {proof}} = await this.getPaymentAsset(paymentOrgId, assetCode));
         } catch (e) {
           if (e instanceof ItemNotFoundError) {
             return {type: 'NoProofPolicy'};
