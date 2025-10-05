@@ -25,7 +25,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-client": "^0.25.5",
+    "@owneraio/finp2p-client": "^0.25.10",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
     "express": "5.0.0",
