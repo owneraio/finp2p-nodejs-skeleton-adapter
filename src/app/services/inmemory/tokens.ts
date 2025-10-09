@@ -1,5 +1,5 @@
-import { v4 as uuid } from 'uuid';
-import { CommonServiceImpl } from './common';
+import {v4 as uuid} from 'uuid';
+import {CommonServiceImpl} from './common';
 import {
   AssetBind, AssetCreationStatus,
   AssetDenomination,
@@ -12,9 +12,9 @@ import {
   Asset, ExecutionContext,
   Signature,
 } from '../../../lib/services';
-import { logger } from '../../../lib/helpers';
-import { Transaction } from './model';
-import { AccountService } from './accounts';
+import {logger} from '../../../lib/helpers';
+import {Transaction} from './model';
+import {AccountService} from './accounts';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
@@ -26,8 +26,8 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async createAsset(idempotencyKey: string, asset: Asset,
-    assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
+                           assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
+                           assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
     logger.info(`Creating asset ${asset.assetId}`, {
       idempotencyKey,
       assetBind,
@@ -41,9 +41,9 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     if (!assetBind || !assetBind.tokenIdentifier) {
       tokenId = uuid();
     } else {
-      ({ tokenIdentifier: { tokenId } } = assetBind);
+      ({tokenIdentifier: {tokenId}} = assetBind);
     }
-    return successfulAssetCreation({ tokenId, reference: undefined });
+    return successfulAssetCreation({tokenId, reference: undefined});
   }
 
   public async balance(assetId: string, finId: string): Promise<Balance> {
@@ -60,7 +60,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-    const { finId } = to;
+    const {finId} = to;
     logger.info(`Issuing ${quantity} of ${asset.assetId} to ${finId}`);
 
     this.accountService.credit(finId, quantity, asset.assetId);
@@ -74,7 +74,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
-    quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+                        quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
@@ -94,7 +94,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
-    signature: Signature, exCtx: ExecutionContext | undefined,
+                      signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
 
@@ -103,7 +103,17 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
 
-    this.accountService.debit(source.finId, quantity, asset.assetId);
+    if (operationId) {
+      const hold = this.accountService.getHoldOperation(operationId);
+      if (hold === undefined) {
+        throw new Error(`unknown operation: ${operationId}`);
+      }
+      // do no movement, account is effected at hold time
+      this.accountService.removeHoldOperation(operationId);
+    } else {
+      this.accountService.debit(source.finId, quantity, asset.assetId);
+    }
+
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);
     this.registerTransaction(tx);
     let receipt = tx.toReceipt();
