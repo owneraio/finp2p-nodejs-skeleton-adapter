@@ -10,6 +10,14 @@ import {
 import { v4 as uuid } from 'uuid';
 
 
+export class ServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ServiceError';
+    Object.setPrototypeOf(this, ServiceError.prototype);
+  }
+}
+
 export class Transaction {
 
   id: string;
