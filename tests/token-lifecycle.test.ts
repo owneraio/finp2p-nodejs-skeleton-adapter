@@ -13,7 +13,7 @@ describe('Token Lifecycle', () => {
 
   beforeAll(async () => {
     // @ts-ignore
-    client = new LedgerAPIClient(global.serverAddress);
+    client = new LedgerAPIClient(global.serverAddress,true);
     // @ts-ignore
     orgId = global.orgId;
 

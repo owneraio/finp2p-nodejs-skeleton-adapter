@@ -1,5 +1,6 @@
 import {ClientBase} from "./base";
 import {LedgerAPI} from '../../src';
+import { OpenAPIValidator } from "../utils/openapi-validator";
 
 export class LedgerAPIClient {
 
@@ -7,12 +8,22 @@ export class LedgerAPIClient {
   public readonly escrow: EscrowLedgerAPI;
   public readonly payments: PaymentsLedgerAPI;
   public readonly common: CommonLedgerAPI;
+  private validator: OpenAPIValidator;
 
-  constructor(host: string) {
-    this.tokens = new TokensLedgerAPI(host);
-    this.escrow = new EscrowLedgerAPI(host);
-    this.payments = new PaymentsLedgerAPI(host);
-    this.common = new CommonLedgerAPI(host);
+  constructor(host: string, enableValidation: boolean = false) {
+    this.validator = new OpenAPIValidator('dlt-adapter-api.yaml', enableValidation);
+    this.tokens = new TokensLedgerAPI(host, this.validator);
+    this.escrow = new EscrowLedgerAPI(host, this.validator);
+    this.payments = new PaymentsLedgerAPI(host, this.validator);
+    this.common = new CommonLedgerAPI(host, this.validator);
+  }
+
+  enableValidation(): void {
+    this.validator.setEnabled(true);
+  }
+
+  disableValidation(): void {
+    this.validator.setEnabled(false);
   }
 
   async expectReceipt(status: any): Promise<LedgerAPI["schemas"]["receipt"]> {
@@ -32,8 +43,8 @@ export class LedgerAPIClient {
 
 export class TokensLedgerAPI extends ClientBase {
 
-  constructor(host: string) {
-    super(host);
+  constructor(host: string, validator?: OpenAPIValidator) {
+    super(host, validator);
   }
 
   public async createAsset(req: LedgerAPI["schemas"]["CreateAssetRequest"]): Promise<LedgerAPI["schemas"]["CreateAssetResponse"]> {
@@ -56,8 +67,8 @@ export class TokensLedgerAPI extends ClientBase {
 
 export class EscrowLedgerAPI extends ClientBase {
 
-  constructor(host: string) {
-    super(host);
+  constructor(host: string, validator?: OpenAPIValidator) {
+    super(host, validator);
   }
 
   public async hold(req: LedgerAPI["schemas"]["HoldOperationRequest"]): Promise<LedgerAPI["schemas"]["HoldOperationResponse"]> {
@@ -75,8 +86,8 @@ export class EscrowLedgerAPI extends ClientBase {
 
 export class PaymentsLedgerAPI extends ClientBase {
 
-  constructor(host: string) {
-    super(host);
+  constructor(host: string, validator?: OpenAPIValidator) {
+    super(host, validator);
   }
 
   public async getDepositInstruction(req: LedgerAPI["schemas"]["DepositInstructionRequest"]): Promise<LedgerAPI["schemas"]["DepositInstructionResponse"]> {
@@ -91,8 +102,8 @@ export class PaymentsLedgerAPI extends ClientBase {
 
 export class CommonLedgerAPI extends ClientBase {
 
-  constructor(host: string) {
-    super(host);
+  constructor(host: string, validator?: OpenAPIValidator) {
+    super(host, validator);
   }
 
   public async getReceipt(id: string): Promise<LedgerAPI["schemas"]["GetReceiptResponse"]> {
