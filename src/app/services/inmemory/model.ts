@@ -18,6 +18,11 @@ export class ServiceError extends Error {
   }
 }
 
+export type HoldOperation = {
+  finId: string
+  quantity: string
+}
+
 export class Transaction {
 
   id: string;

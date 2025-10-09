@@ -1,3 +1,6 @@
+import {HoldOperation} from "./model";
+import {Source} from "../../../lib/services";
+
 export class Account {
 
   balances: Record<string, number> = {};
@@ -23,6 +26,19 @@ export class Account {
 export class AccountService {
 
   accounts: Record<string, Account> = {};
+  holdOperations: Record<string, HoldOperation> = {};
+
+  saveHoldOperation(operationId: string, finId: string, quantity: string) {
+    this.holdOperations[operationId] = {finId, quantity}
+  }
+
+  getHoldOperation(operationId: string): HoldOperation | undefined {
+    return this.holdOperations[operationId];
+  }
+
+  removeHoldOperation(operationId: string) {
+    delete this.holdOperations[operationId];
+  }
 
   getBalance(finId: string, assetId: string): string {
     let account = this.accounts[finId];
@@ -33,15 +49,15 @@ export class AccountService {
     return `${balance}`;
   }
 
-  debit(from: string, quantity: string, assetId: string)  {
+  debit(from: string, quantity: string, assetId: string) {
     this.getAccount(from).debit(assetId, quantity);
   }
 
-  credit(to: string, quantity: string, assetId: string)  {
+  credit(to: string, quantity: string, assetId: string) {
     this.getOrCreateAccount(to).credit(assetId, quantity);
   }
 
-  move(from: string, to: string, quantity: string, assetId: string)  {
+  move(from: string, to: string, quantity: string, assetId: string) {
     this.getAccount(from).debit(assetId, quantity);
     this.getOrCreateAccount(to).credit(assetId, quantity);
   }

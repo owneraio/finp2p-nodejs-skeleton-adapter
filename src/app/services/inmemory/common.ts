@@ -5,7 +5,7 @@ import {
   ReceiptOperation,
   successfulReceiptOperation,
 } from '../../../lib/services';
-import { Transaction } from './model';
+import {HoldOperation, Transaction} from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {
 
