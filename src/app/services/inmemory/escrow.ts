@@ -1,29 +1,22 @@
-import { logger } from '../../../lib/helpers';
-import { CommonServiceImpl } from './common';
+import {logger} from '../../../lib/helpers';
+import {CommonServiceImpl} from './common';
 import {
   Asset,
   Destination, EscrowService,
-  ExecutionContext, failedReceiptOperation, ProofProvider,
+  ExecutionContext, failedReceiptOperation, FinIdAccount, ProofProvider,
   ReceiptOperation,
   Signature,
   Source,
   successfulReceiptOperation, verifySignature,
 } from '../../../lib/services';
 
-import { Transaction } from './model';
-import { AccountService } from './accounts';
+import {HoldOperation, Transaction} from './model';
+import {AccountService} from './accounts';
 
-interface HoldOperation {
-  id: string
-  source: Source
-  quantity: string
-}
 
 export class EscrowServiceImpl extends CommonServiceImpl implements EscrowService {
 
   proofProvider: ProofProvider | undefined;
-
-  holdOperations: Record<string, HoldOperation> = {};
 
 
   constructor(accountService: AccountService, proofProvider: ProofProvider | undefined) {
@@ -32,19 +25,15 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   }
 
   public async hold(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
-    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
+                    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
 
-    logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext: exCtx });
+    logger.info('Hold operation', {nonce, source, destination, asset, quantity, operationId, executionContext: exCtx});
     // const signer = source.finId;
     // if (!await verifySignature(signature, signer)) {
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
-    this.holdOperations[operationId] = {
-      id: operationId,
-      source,
-      quantity,
-    } as HoldOperation;
+    this.accountService.saveHoldOperation(operationId, source.finId, quantity);
 
     this.accountService.debit(source.finId, quantity, asset.assetId);
 
@@ -61,19 +50,18 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   public async release(idempotencyKey: string, source: Source, destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
 
-    logger.info('Release hold operation', { destination, asset, quantity, operationId, executionContext: exCtx });
+    logger.info('Release hold operation', {destination, asset, quantity, operationId, executionContext: exCtx});
 
-    const hold = this.holdOperations[operationId];
+    const hold = this.accountService.getHoldOperation(operationId);
     if (hold === undefined) {
       throw new Error(`unknown operation: ${operationId}`);
     }
-    const { source: holdSource } = hold;
-
     this.accountService.credit(destination.finId, quantity, asset.assetId);
 
-    delete this.holdOperations[operationId];
+    this.accountService.removeHoldOperation(operationId);
 
-    const tx = new Transaction(quantity, asset, holdSource.account, destination, exCtx, 'release', operationId);
+    const holdSource: FinIdAccount = {type: 'finId', finId: hold.finId};
+    const tx = new Transaction(quantity, asset, holdSource, destination, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
     let receipt = tx.toReceipt();
@@ -85,18 +73,18 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
   public async rollback(idempotencyKey: string, source: Source, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Rollback hold operation', { asset, quantity, operationId, exCtx });
+    logger.info('Rollback hold operation', {asset, quantity, operationId, exCtx});
 
-    const hold = this.holdOperations[operationId];
+    const hold = this.accountService.getHoldOperation(operationId);
     if (hold === undefined) {
       throw new Error(`unknown operation: ${operationId}`);
     }
-    const { source: holdSrc } = hold;
-    this.accountService.credit(holdSrc.finId, quantity, asset.assetId);
+    const holdSource: FinIdAccount = {type: 'finId', finId: hold.finId};
+    this.accountService.credit(hold.finId, quantity, asset.assetId);
 
-    delete this.holdOperations[operationId];
+    this.accountService.removeHoldOperation(operationId);
 
-    const tx = new Transaction(quantity, asset, holdSrc.account, undefined, exCtx, 'release', operationId);
+    const tx = new Transaction(quantity, asset, holdSource, undefined, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
     let receipt = tx.toReceipt();
