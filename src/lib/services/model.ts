@@ -195,7 +195,7 @@ export type ExecutionInstruction = {
 
 export type ExecutionPlan = {
   id: string;
-  intentType: IntentType;
+  intentType?: IntentType;
   contract: PlanContract;
   instructions: ExecutionInstruction[];
 };
