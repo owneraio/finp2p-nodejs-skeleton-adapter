@@ -264,7 +264,7 @@ export const executionFromAPI = (plan: OpComponents['schemas']['executionPlan'])
     instructions,
   } = plan;
 
-  let intentType: IntentType | undefined = undefined;
+  let intentType: IntentType | undefined;
   if (intent && intent.intent) {
     intentType = intent.intent.type;
   }
