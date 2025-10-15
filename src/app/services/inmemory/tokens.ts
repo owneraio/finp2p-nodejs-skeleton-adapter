@@ -14,14 +14,14 @@ import {
 } from '../../../lib/services';
 import { logger } from '../../../lib/helpers';
 import { Transaction } from './model';
-import { AccountService } from './accounts';
+import { Storage } from './storage';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
   proofProvider: ProofProvider | undefined;
 
-  constructor(accountService: AccountService, proofProvider: ProofProvider | undefined) {
-    super(accountService);
+  constructor(storage: Storage, proofProvider: ProofProvider | undefined) {
+    super(storage);
     this.proofProvider = proofProvider;
   }
 
@@ -40,6 +40,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     let tokenId: string;
     if (!assetBind || !assetBind.tokenIdentifier) {
       tokenId = uuid();
+      this.storage.createAsset(asset.assetId, asset);
     } else {
       ({ tokenIdentifier: { tokenId } } = assetBind);
     }
@@ -47,7 +48,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async balance(assetId: string, finId: string): Promise<Balance> {
-    const balance = this.accountService.getBalance(finId, assetId);
+    const balance = this.storage.getBalance(finId, assetId);
     return {
       current: balance,
       available: balance,
@@ -56,14 +57,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async getBalance(assetId: string, finId: string): Promise<string> {
-    return this.accountService.getBalance(finId, assetId);
+    return this.storage.getBalance(finId, assetId);
   }
 
   public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
     const { finId } = to;
     logger.info(`Issuing ${quantity} of ${asset.assetId} to ${finId}`);
 
-    this.accountService.credit(finId, quantity, asset.assetId);
+    this.storage.credit(finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, undefined, finIdDestination(finId), exCtx, 'issue', undefined);
     this.registerTransaction(tx);
     let receipt = tx.toReceipt();
@@ -83,7 +84,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
 
-    this.accountService.move(source.finId, destination.finId, quantity, asset.assetId);
+    this.storage.move(source.finId, destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
     this.registerTransaction(tx);
     let receipt = tx.toReceipt();
@@ -104,14 +105,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     // }
 
     if (operationId) {
-      const hold = this.accountService.getHoldOperation(operationId);
+      const hold = this.storage.getHoldOperation(operationId);
       if (hold === undefined) {
         throw new BusinessError(1, `unknown operation: ${operationId}`);
       }
       // do no movement, account is effected at hold time
-      this.accountService.removeHoldOperation(operationId);
+      this.storage.removeHoldOperation(operationId);
     } else {
-      this.accountService.debit(source.finId, quantity, asset.assetId);
+      this.storage.debit(source.finId, quantity, asset.assetId);
     }
 
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);

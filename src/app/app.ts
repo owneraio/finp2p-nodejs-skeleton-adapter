@@ -6,7 +6,7 @@ import process from 'process';
 import * as routes from '../lib/routes';
 import { PluginManager } from '../lib/plugins';
 import { PlanApprovalServiceImpl, PaymentsServiceImpl, ProofProvider } from '../lib/services';
-import { TokenServiceImpl, EscrowServiceImpl, AccountService } from './services/inmemory';
+import { TokenServiceImpl, EscrowServiceImpl, Storage } from './services/inmemory';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { DelayedApprovals } from './plugins/delayed-approvals';
 import { logger } from '../lib/helpers';
@@ -53,9 +53,9 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
     pluginManager.registerPlanApprovalPlugin({ isAsync: true, asyncIface: new DelayedApprovals(orgId, finP2PClient, logger) });
   }
 
-  const accountService = new AccountService();
-  const tokenService = new TokenServiceImpl(accountService, proofProvider);
-  const escrowService = new EscrowServiceImpl(accountService, proofProvider);
+  const storage = new Storage();
+  const tokenService = new TokenServiceImpl(storage, proofProvider);
+  const escrowService = new EscrowServiceImpl(storage, proofProvider);
   const paymentsService = new PaymentsServiceImpl(pluginManager);
   const planApprovalService = new PlanApprovalServiceImpl(orgId, pluginManager, finP2PClient);
 

@@ -1,4 +1,4 @@
-import { AccountService } from './accounts';
+import { Storage } from './storage';
 import { BusinessError, CommonService, HealthService, ValidationError } from '../../../lib/services';
 import {
   OperationStatus,
@@ -9,10 +9,10 @@ import { HoldOperation, Transaction } from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {
 
-  accountService: AccountService;
+  storage: Storage;
 
-  constructor(accountService: AccountService) {
-    this.accountService = accountService;
+  constructor(accountService: Storage) {
+    this.storage = accountService;
   }
 
   liveness(): Promise<void> {
