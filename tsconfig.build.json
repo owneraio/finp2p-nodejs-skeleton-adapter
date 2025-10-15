@@ -21,10 +21,10 @@
   },
   "include": [
     "src/**/*.ts",
+    "test/**/*.ts"
   ],
   "exclude": [
     "src/app",
-    "tests",
-    "**/*.test.ts"
+    "tests"
   ],
 }
