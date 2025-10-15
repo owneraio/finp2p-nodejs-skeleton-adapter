@@ -3,7 +3,7 @@ import {
   Asset,
   ExecutionInstruction,
   ExecutionPlan,
-  ExecutionPlanOperation,
+  ExecutionPlanOperation, IntentType,
   Leg,
   PlanContract,
   PlanInvestor,
@@ -259,10 +259,15 @@ const instructionFromAPI = (instruction: OpPlanInstruction): ExecutionInstructio
 export const executionFromAPI = (plan: OpComponents['schemas']['executionPlan']): ExecutionPlan => {
   const {
     id,
-    intent: { intent: { type: intentType } },
+    intent,
     contract,
     instructions,
   } = plan;
+
+  let intentType: IntentType | undefined;
+  if (intent && intent.intent) {
+    intentType = intent.intent.type;
+  }
 
   return {
     id, intentType,
