@@ -1,13 +1,15 @@
 import { HoldOperation } from './model';
-import {Asset, BusinessError} from '../../../lib/services';
-import {Account} from "./accounts";
+import { Asset, BusinessError } from '../../../lib/services';
+import { Account } from './accounts';
 
 
 
 export class Storage {
 
   assets: Record<string, Asset> = {};
+
   accounts: Record<string, Account> = {};
+
   holdOperations: Record<string, HoldOperation> = {};
 
   createAsset(assetId: string, asset: Asset) {

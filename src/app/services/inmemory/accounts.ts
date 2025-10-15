@@ -1,4 +1,4 @@
-import {BusinessError} from "../../../lib/services";
+import { BusinessError } from '../../../lib/services';
 
 
 export class Account {
