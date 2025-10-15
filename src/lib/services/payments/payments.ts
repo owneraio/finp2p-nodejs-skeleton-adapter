@@ -12,10 +12,10 @@ import {
   Signature,
   Source,
 } from '../index';
-import {PluginManager} from '../../plugins';
-import {v4 as uuid} from 'uuid';
-import {logger} from '../../helpers';
-import {PluginError} from "../../plugins";
+import { PluginManager } from '../../plugins';
+import { v4 as uuid } from 'uuid';
+import { logger } from '../../helpers';
+import { PluginError } from '../../plugins';
 
 
 export class PaymentsServiceImpl implements PaymentService {
@@ -27,7 +27,7 @@ export class PaymentsServiceImpl implements PaymentService {
   }
 
   public async getDepositInstruction(idempotencyKey: string, owner: Source, destination: Destination, asset: DepositAsset, amount: string | undefined, details: any | undefined,
-                                     nonce: string | unknown, signature: Signature): Promise<DepositOperation> {
+    nonce: string | unknown, signature: Signature): Promise<DepositOperation> {
 
     // const signer = owner.finId;
     // if (!await verifySignature(signature, signer)) {
@@ -43,8 +43,8 @@ export class PaymentsServiceImpl implements PaymentService {
   }
 
   public async payout(idempotencyKey: string, source: Source, destination: Destination | undefined, asset: Asset, amount: string,
-                      description: string | undefined, nonce: string | undefined,
-                      signature: Signature | undefined): Promise<ReceiptOperation> {
+    description: string | undefined, nonce: string | undefined,
+    signature: Signature | undefined): Promise<ReceiptOperation> {
     if (!this.pluginManager) {
       return Promise.resolve(failedReceiptOperation(1, 'Custom deposits are not supported'));
     }
@@ -70,15 +70,15 @@ export class PaymentsServiceImpl implements PaymentService {
       plugin.asyncIface.payout(idempotencyKey, cid, source.account, destination.account, asset, amount)
         .then(() => {
         }).catch(e => {
-        if (e instanceof PluginError) {
-          logger.error(`Plugin error: ${e.code}, message=${e.message}`);
-        } else if (e instanceof Error) {
-          logger.error(`Error in async deposit: ${e.message}`);
-        } else {
-          logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
-        }
-      });
-      return Promise.resolve(pendingReceiptOperation(cid, {responseStrategy: 'callback'}));
+          if (e instanceof PluginError) {
+            logger.error(`Plugin error: ${e.code}, message=${e.message}`);
+          } else if (e instanceof Error) {
+            logger.error(`Error in async deposit: ${e.message}`);
+          } else {
+            logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
+          }
+        });
+      return Promise.resolve(pendingReceiptOperation(cid, { responseStrategy: 'callback' }));
     } else {
       if (!plugin.syncIface) {
         return Promise.resolve(failedReceiptOperation(1, 'No sync interface in plan approval plugin'));
@@ -104,16 +104,16 @@ export class PaymentsServiceImpl implements PaymentService {
       plugin.asyncIface.deposit(idempotencyKey, cid, owner, asset, amount)
         .then(() => {
         }).catch(e => {
-        if (e instanceof PluginError) {
-          logger.error(`Plugin error: ${e.code}, message=${e.message}`);
+          if (e instanceof PluginError) {
+            logger.error(`Plugin error: ${e.code}, message=${e.message}`);
 
-        } else if (e instanceof Error) {
-          logger.error(`Error in async deposit: ${e.message}`);
-        } else {
-          logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
-        }
-      });
-      return Promise.resolve(pendingDepositOperation(cid, {responseStrategy: 'callback'}));
+          } else if (e instanceof Error) {
+            logger.error(`Error in async deposit: ${e.message}`);
+          } else {
+            logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
+          }
+        });
+      return Promise.resolve(pendingDepositOperation(cid, { responseStrategy: 'callback' }));
     } else {
       if (!plugin.syncIface) {
         return Promise.resolve(failedDepositOperation(1, 'No sync interface in plan approval plugin'));
@@ -139,15 +139,15 @@ export class PaymentsServiceImpl implements PaymentService {
       plugin.asyncIface.depositCustom(idempotencyKey, cid, owner, amount, details)
         .then(() => {
         }).catch(e => {
-        if (e instanceof PluginError) {
-          logger.error(`Plugin error: ${e.code}, message=${e.message}`);
-        } else if (e instanceof Error) {
-          logger.error(`Error in async deposit: ${e.message}`);
-        } else {
-          logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
-        }
-      });
-      return Promise.resolve(pendingDepositOperation(cid, {responseStrategy: 'callback'}));
+          if (e instanceof PluginError) {
+            logger.error(`Plugin error: ${e.code}, message=${e.message}`);
+          } else if (e instanceof Error) {
+            logger.error(`Error in async deposit: ${e.message}`);
+          } else {
+            logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
+          }
+        });
+      return Promise.resolve(pendingDepositOperation(cid, { responseStrategy: 'callback' }));
     } else {
       if (!plugin.syncIface) {
         return Promise.resolve(failedDepositOperation(1, 'No sync interface in plan approval plugin'));

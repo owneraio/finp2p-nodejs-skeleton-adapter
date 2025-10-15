@@ -1,6 +1,7 @@
-import {NextFunction, Request, Response} from "express";
-import {logger} from "../helpers";
-import {BusinessError, ValidationError} from "../services";
+import { NextFunction, Request, Response } from 'express';
+import { logger } from '../helpers';
+import { BusinessError, ValidationError } from '../services';
+import { components } from './model-gen';
 
 function isErrorWithStatusAndMessage(err: any): err is { status: number, message: string } {
   return (
@@ -14,16 +15,29 @@ function isErrorWithStatusAndMessage(err: any): err is { status: number, message
   );
 }
 
+type errorResponse = components['schemas']['OperationBase'] & {
+  error?: components['schemas']['receiptOperationErrorInformation']
+};
+
+const failureResponse = (code: number, message: string): errorResponse => {
+  return {
+    cid: '',
+    isCompleted: true,
+    error: {
+      code,
+      message,
+    },
+  };
+};
+
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ValidationError) {
-    console.error(`Got validation error: ${err.message}`);
-    return res.status(400).json({ error: err.message });
+    const { message } = err;
+    return res.status(400).json(failureResponse(1, message));
   } else if (err instanceof BusinessError) {
-    console.error(`Got business error: ${err.message}`);
-    return res.status(200).json({ error: err.message });
+    const { code, message } = err;
+    return res.status(200).json(failureResponse(code, message));
   }
-
-  console.error('Unexpected error:', err);
 
   if (isErrorWithStatusAndMessage(err)) {
     const status = err.status || 500;
@@ -31,11 +45,9 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 
     logger.warn('Error middleware caught:', err);
 
-    res.status(status).json({
-      error: message,
-    });
+    res.status(status).json(failureResponse(0, message));
   } else {
     logger.warn('Unexpected error:', err);
-    res.status(500).json({error: 'Internal Server Error'});
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-}
+};

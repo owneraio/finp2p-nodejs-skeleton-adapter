@@ -2,7 +2,7 @@ import { logger } from '../lib/helpers';
 import * as process from 'process';
 import createApp from './app';
 import { FinP2PClient } from '@owneraio/finp2p-client';
-import {ConfigurationError} from "../lib/services";
+import { ConfigurationError } from '../lib/services';
 
 const init = async () => {
   const port = process.env.PORT || '3000';
