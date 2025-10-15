@@ -1,7 +1,7 @@
-import {logger} from '../../../lib/helpers';
-import {CommonServiceImpl} from './common';
+import { logger } from '../../../lib/helpers';
+import { CommonServiceImpl } from './common';
 import {
-  Asset,
+  Asset, BusinessError,
   Destination, EscrowService,
   ExecutionContext, failedReceiptOperation, FinIdAccount, ProofProvider,
   ReceiptOperation,
@@ -10,8 +10,8 @@ import {
   successfulReceiptOperation, verifySignature,
 } from '../../../lib/services';
 
-import {HoldOperation, Transaction} from './model';
-import {AccountService} from './accounts';
+import { HoldOperation, Transaction } from './model';
+import { AccountService } from './accounts';
 
 
 export class EscrowServiceImpl extends CommonServiceImpl implements EscrowService {
@@ -25,10 +25,10 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   }
 
   public async hold(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
-                    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
+    quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
 
-    logger.info('Hold operation', {nonce, source, destination, asset, quantity, operationId, executionContext: exCtx});
+    logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext: exCtx });
     // const signer = source.finId;
     // if (!await verifySignature(signature, signer)) {
     //   return failedReceiptOperation(1, 'Signature verification failed');
@@ -50,17 +50,17 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   public async release(idempotencyKey: string, source: Source, destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
 
-    logger.info('Release hold operation', {destination, asset, quantity, operationId, executionContext: exCtx});
+    logger.info('Release hold operation', { destination, asset, quantity, operationId, executionContext: exCtx });
 
     const hold = this.accountService.getHoldOperation(operationId);
     if (hold === undefined) {
-      throw new Error(`unknown operation: ${operationId}`);
+      throw new BusinessError(1, `unknown operation: ${operationId}`);
     }
     this.accountService.credit(destination.finId, quantity, asset.assetId);
 
     this.accountService.removeHoldOperation(operationId);
 
-    const holdSource: FinIdAccount = {type: 'finId', finId: hold.finId};
+    const holdSource: FinIdAccount = { type: 'finId', finId: hold.finId };
     const tx = new Transaction(quantity, asset, holdSource, destination, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
@@ -73,13 +73,13 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
   public async rollback(idempotencyKey: string, source: Source, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Rollback hold operation', {asset, quantity, operationId, exCtx});
+    logger.info('Rollback hold operation', { asset, quantity, operationId, exCtx });
 
     const hold = this.accountService.getHoldOperation(operationId);
     if (hold === undefined) {
-      throw new Error(`unknown operation: ${operationId}`);
+      throw new BusinessError(1, `unknown operation: ${operationId}`);
     }
-    const holdSource: FinIdAccount = {type: 'finId', finId: hold.finId};
+    const holdSource: FinIdAccount = { type: 'finId', finId: hold.finId };
     this.accountService.credit(hold.finId, quantity, asset.assetId);
 
     this.accountService.removeHoldOperation(operationId);

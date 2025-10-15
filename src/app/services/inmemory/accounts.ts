@@ -1,5 +1,5 @@
-import {HoldOperation} from "./model";
-import {Source} from "../../../lib/services";
+import { HoldOperation } from './model';
+import { BusinessError, Source } from '../../../lib/services';
 
 export class Account {
 
@@ -11,7 +11,7 @@ export class Account {
 
   debit(assetCode: string, quantity: string) {
     if (this.balance(assetCode) < parseInt(quantity)) {
-      throw new Error(`Insufficient balance for asset ${assetCode}`);
+      throw new BusinessError(1, `Insufficient balance for asset ${assetCode}`);
     }
     const amount = parseInt(quantity);
     this.balances[assetCode] = (this.balances[assetCode] || 0) - amount;
@@ -26,10 +26,11 @@ export class Account {
 export class AccountService {
 
   accounts: Record<string, Account> = {};
+
   holdOperations: Record<string, HoldOperation> = {};
 
   saveHoldOperation(operationId: string, finId: string, quantity: string) {
-    this.holdOperations[operationId] = {finId, quantity}
+    this.holdOperations[operationId] = { finId, quantity };
   }
 
   getHoldOperation(operationId: string): HoldOperation | undefined {
@@ -65,7 +66,7 @@ export class AccountService {
   getAccount(finId: string): Account {
     let account = this.accounts[finId];
     if (account === undefined) {
-      throw new Error(`Account ${finId} not found`);
+      throw new BusinessError(1, `Account ${finId} not found`);
     }
     return account;
   }
