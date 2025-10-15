@@ -17,8 +17,6 @@ export class BusinessError extends Error {
     super(message);
     this.name = 'BusinessError';
     this.code = code;
-    this.message = message;
-
   }
 
 }
