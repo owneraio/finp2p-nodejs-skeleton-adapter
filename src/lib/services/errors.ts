@@ -7,3 +7,22 @@ export class ValidationError extends Error {
     this.name = 'ValidationError';
   }
 }
+
+export class BusinessError extends Error {
+
+  code: number;
+
+  constructor(code: number, message: string) {
+    super(message);
+    this.name = 'BusinessError';
+    this.code = code;
+  }
+
+}
+
+export class ConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigurationError';
+  }
+}

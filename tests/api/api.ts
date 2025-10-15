@@ -1,5 +1,6 @@
 import {ClientBase} from "./base";
 import {LedgerAPI} from '../../src';
+import {ClientError} from "../utils/error";
 import { OpenAPIValidator } from "../utils/openapi-validator";
 
 export class LedgerAPIClient {
@@ -127,11 +128,11 @@ export class CommonLedgerAPI extends ClientBase {
           return (status.operation).response!;
         }
       } else {
-        throw new Error(`wrong status type, deposit expected, got: ${status.type}`);
+        throw new ClientError(`wrong status type, deposit expected, got: ${status.type}`);
       }
       await new Promise((r) => setTimeout(r, 500));
     }
-    throw new Error(`no result after ${tries} retries`);
+    throw new ClientError(`no result after ${tries} retries`);
   }
 
   public async waitForCompletion(id: string, tries: number = 3000) {
@@ -142,7 +143,7 @@ export class CommonLedgerAPI extends ClientBase {
       }
       await new Promise((r) => setTimeout(r, 500));
     }
-    throw new Error(`no result after ${tries} retries`);
+    throw new ClientError(`no result after ${tries} retries`);
   }
 }
 

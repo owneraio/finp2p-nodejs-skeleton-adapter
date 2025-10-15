@@ -1,11 +1,11 @@
 import { AccountService } from './accounts';
-import { CommonService, HealthService } from '../../../lib/services';
+import { BusinessError, CommonService, HealthService, ValidationError } from '../../../lib/services';
 import {
   OperationStatus,
   ReceiptOperation,
   successfulReceiptOperation,
 } from '../../../lib/services';
-import { Transaction } from './model';
+import { HoldOperation, Transaction } from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {
 
@@ -32,7 +32,7 @@ export class CommonServiceImpl implements CommonService, HealthService {
   public async getReceipt(id: string): Promise<ReceiptOperation> {
     const tx = this.transactions[id];
     if (tx === undefined) {
-      throw new Error('transaction not found!');
+      throw new ValidationError('transaction not found!');
     }
     return successfulReceiptOperation(tx.toReceipt());
   }
@@ -40,7 +40,7 @@ export class CommonServiceImpl implements CommonService, HealthService {
   public async operationStatus(cid: string): Promise<OperationStatus> {
     const tx = this.transactions[cid];
     if (tx === undefined) {
-      throw new Error('transaction not found!');
+      throw new ValidationError('transaction not found!');
     }
     return successfulReceiptOperation(tx.toReceipt());
   }

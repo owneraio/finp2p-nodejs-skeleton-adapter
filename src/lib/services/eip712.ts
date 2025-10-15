@@ -1,3 +1,4 @@
+import { ValidationError } from './errors';
 
 
 export const enum LegType {
@@ -449,12 +450,12 @@ export const newInvestmentMessage = (
     case PrimaryType.Loan:
       types = LOAN_TYPES;
       if (!loan) {
-        throw new Error('Loan terms are required for loan intent');
+        throw new ValidationError('Loan terms are required for loan intent');
       }
       message = newLoanMessage(nonce, finId(sellerFinId), finId(buyerFinId), asset, settlement, loan);
       break;
     default:
-      throw new Error(`Unknown primary type: ${primaryType}`);
+      throw new ValidationError(`Unknown primary type: ${primaryType}`);
   }
   return { message, types };
 };

@@ -3,7 +3,7 @@ import { CommonServiceImpl } from './common';
 import {
   AssetBind, AssetCreationStatus,
   AssetDenomination,
-  AssetIdentifier, Balance, Destination, failedReceiptOperation,
+  AssetIdentifier, Balance, BusinessError, Destination, failedReceiptOperation,
   FinIdAccount,
   finIdDestination, ProofProvider, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
   TokenService, verifySignature,
@@ -103,7 +103,17 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
 
-    this.accountService.debit(source.finId, quantity, asset.assetId);
+    if (operationId) {
+      const hold = this.accountService.getHoldOperation(operationId);
+      if (hold === undefined) {
+        throw new BusinessError(1, `unknown operation: ${operationId}`);
+      }
+      // do no movement, account is effected at hold time
+      this.accountService.removeHoldOperation(operationId);
+    } else {
+      this.accountService.debit(source.finId, quantity, asset.assetId);
+    }
+
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);
     this.registerTransaction(tx);
     let receipt = tx.toReceipt();

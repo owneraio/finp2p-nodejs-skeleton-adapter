@@ -42,13 +42,13 @@ export class OssClient {
     return resp.users.nodes[0];
   }
 
-  async getOwnerByFinId(finId: string) {
+  async getOwnerByFinId(finId: string, includeCerts: boolean = true, includeHoldings: boolean = false) {
     const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
       filter: {
         key: 'finIds',
         operator: 'CONTAINS',
         value: finId
-      }, includeCerts: true, includeHoldings: false
+      }, includeCerts, includeHoldings
     });
     if (resp.users.nodes.length == 0) {
       throw new ItemNotFoundError(finId, "Owner");

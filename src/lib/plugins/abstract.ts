@@ -3,6 +3,7 @@ import { LedgerCallbackService } from './interfaces';
 import { OperationStatus } from '../services';
 import { operationToFinAPI } from './mappers';
 import winston from 'winston';
+import { PluginError } from './error';
 
 
 export abstract class AbstractPlugin implements LedgerCallbackService {
@@ -23,7 +24,7 @@ export abstract class AbstractPlugin implements LedgerCallbackService {
     const op = operationToFinAPI(operation);
     const { data, error } = await this.finP2PClient.sendCallback(cid, op);
     if (error) {
-      throw new Error(`Error sending callback for CID ${cid}: ${error}`);
+      throw new PluginError(1, `Error sending callback for CID ${cid}: ${error}`);
     }
     this.logger.info(`Callback sent for CID ${cid}: ${JSON.stringify(data)}`);
   }
