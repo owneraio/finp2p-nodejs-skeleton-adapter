@@ -33,15 +33,11 @@ const failureResponse = (code: number, message: string): errorResponse => {
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ValidationError) {
     const {message} = err;
-    console.error(`Got validation error: ${err.message}`);
     return res.status(400).json(failureResponse(1, message));
   } else if (err instanceof BusinessError) {
     const {code, message} = err;
-    console.error(`Got business error: ${err.message}`);
     return res.status(200).json(failureResponse(code, message));
   }
-
-  console.error('Unexpected error:', err);
 
   if (isErrorWithStatusAndMessage(err)) {
     const status = err.status || 500;
