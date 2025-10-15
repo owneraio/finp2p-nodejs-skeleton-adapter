@@ -9,7 +9,7 @@ import {
 import { v4 as uuid } from 'uuid';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { executionFromAPI } from './mapper';
-import { PluginManager } from '../../plugins/manager';
+import { PluginManager } from '../../plugins';
 
 export class PlanApprovalServiceImpl implements PlanApprovalService {
 

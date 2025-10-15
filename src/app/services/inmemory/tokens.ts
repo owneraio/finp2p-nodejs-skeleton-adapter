@@ -3,7 +3,7 @@ import {CommonServiceImpl} from './common';
 import {
   AssetBind, AssetCreationStatus,
   AssetDenomination,
-  AssetIdentifier, Balance, Destination, failedReceiptOperation,
+  AssetIdentifier, Balance, BusinessError, Destination, failedReceiptOperation,
   FinIdAccount,
   finIdDestination, ProofProvider, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
   TokenService, verifySignature,
@@ -106,7 +106,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     if (operationId) {
       const hold = this.accountService.getHoldOperation(operationId);
       if (hold === undefined) {
-        throw new Error(`unknown operation: ${operationId}`);
+        throw new BusinessError(1, `unknown operation: ${operationId}`);
       }
       // do no movement, account is effected at hold time
       this.accountService.removeHoldOperation(operationId);

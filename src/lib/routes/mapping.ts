@@ -10,7 +10,7 @@ import {
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
   FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, LedgerReference, AdditionalContractDetails,
-  AssetCreationResult, OperationMetadata,
+  AssetCreationResult, OperationMetadata, ValidationError,
 } from '../services';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -191,7 +191,7 @@ export const hashListTemplateFromAPI = (template: components['schemas']['hashLis
 
 const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712Types => {
   if (!types.definitions) {
-    throw new Error('EIP712 types definitions are missing');
+    throw new ValidationError('EIP712 types definitions are missing');
   }
   return types.definitions
     .filter(d => d.name !== 'EIP712Domain')

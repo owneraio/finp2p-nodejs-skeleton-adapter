@@ -1,7 +1,7 @@
 import {logger} from '../../../lib/helpers';
 import {CommonServiceImpl} from './common';
 import {
-  Asset,
+  Asset, BusinessError,
   Destination, EscrowService,
   ExecutionContext, failedReceiptOperation, FinIdAccount, ProofProvider,
   ReceiptOperation,
@@ -54,7 +54,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     const hold = this.accountService.getHoldOperation(operationId);
     if (hold === undefined) {
-      throw new Error(`unknown operation: ${operationId}`);
+      throw new BusinessError(1, `unknown operation: ${operationId}`);
     }
     this.accountService.credit(destination.finId, quantity, asset.assetId);
 
@@ -77,7 +77,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     const hold = this.accountService.getHoldOperation(operationId);
     if (hold === undefined) {
-      throw new Error(`unknown operation: ${operationId}`);
+      throw new BusinessError(1, `unknown operation: ${operationId}`);
     }
     const holdSource: FinIdAccount = {type: 'finId', finId: hold.finId};
     this.accountService.credit(hold.finId, quantity, asset.assetId);

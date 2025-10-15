@@ -1,4 +1,4 @@
-import express, {Request, Response, NextFunction} from 'express';
+import {Application} from 'express';
 import {components as LedgerAPI, operations as LedgerOperations} from './model-gen';
 import {
   assetFromAPI,
@@ -20,12 +20,11 @@ import {
   PaymentService, Destination, Source,
 } from '../services';
 import {PluginManager} from "../plugins";
-import {logger} from "../helpers";
 import {errorHandler} from "./errors";
 
 const basePath = 'api';
 
-export const register = (app: express.Application,
+export const register = (app: Application,
                          tokenService: TokenService,
                          escrowService: EscrowService,
                          commonService: CommonService,
@@ -35,7 +34,6 @@ export const register = (app: express.Application,
                          pluginManager: PluginManager | undefined
 ) => {
 
-  app.use(errorHandler);
 
   app.get('/health/liveness', async (req, res) => {
       if (req.headers['skip-vendor'] !== 'true') {
@@ -287,4 +285,7 @@ export const register = (app: express.Application,
       const status = await commonService.operationStatus(req.params.cid);
       res.json(operationStatusToAPI(status));
     });
+
+  app.use(errorHandler);
+
 };
