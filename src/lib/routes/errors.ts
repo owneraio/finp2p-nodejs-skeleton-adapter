@@ -1,6 +1,7 @@
 import {NextFunction, Request, Response} from "express";
 import {logger} from "../helpers";
 import {BusinessError, ValidationError} from "../services";
+import {components} from "./model-gen";
 
 function isErrorWithStatusAndMessage(err: any): err is { status: number, message: string } {
   return (
@@ -14,13 +15,30 @@ function isErrorWithStatusAndMessage(err: any): err is { status: number, message
   );
 }
 
+type errorResponse = components['schemas']['OperationBase'] & {
+  error?: components['schemas']['receiptOperationErrorInformation']
+}
+
+const failureResponse = (code: number, message: string): errorResponse => {
+  return {
+    cid: '',
+    isCompleted: true,
+    error: {
+      code,
+      message
+    }
+  };
+}
+
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ValidationError) {
+    const {message} = err;
     console.error(`Got validation error: ${err.message}`);
-    return res.status(400).json({ error: err.message });
+    return res.status(400).json(failureResponse(1, message));
   } else if (err instanceof BusinessError) {
+    const {code, message} = err;
     console.error(`Got business error: ${err.message}`);
-    return res.status(200).json({ error: err.message });
+    return res.status(200).json(failureResponse(code, message));
   }
 
   console.error('Unexpected error:', err);
@@ -31,9 +49,7 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
 
     logger.warn('Error middleware caught:', err);
 
-    res.status(status).json({
-      error: message,
-    });
+    res.status(status).json(failureResponse(0, message));
   } else {
     logger.warn('Unexpected error:', err);
     res.status(500).json({error: 'Internal Server Error'});
