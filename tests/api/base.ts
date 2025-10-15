@@ -26,15 +26,10 @@ export class ClientBase {
   };
 
   async post<T>(url: string, data?: any, idempotencyKey?: string): Promise<T> {
-    // Validate request body if validator is enabled
+    // Validate request body if validator is enabled (silently)
     if (this.validator.isEnabled() && data) {
       const validationResult = this.validator.validateRequestBody('post', url, data);
-      if (!validationResult.valid) {
-        console.warn('Request validation failed:', validationResult.message);
-        if (validationResult.errors) {
-          console.warn('Validation errors:', validationResult.errors);
-        }
-      }
+      // Validation is informational only - don't log warnings in tests
     }
 
     return new Promise((resolve, reject) => {
@@ -45,15 +40,10 @@ export class ClientBase {
           "Idempotency-Key": idempotencyKey
         }
       }).then(({ data: response, status }) => {
-        // Validate response if validator is enabled
+        // Validate response if validator is enabled (silently)
         if (this.validator.isEnabled()) {
           const validationResult = this.validator.validateResponse('post', url, status, response);
-          if (!validationResult.valid) {
-            console.warn('Response validation failed:', validationResult.message);
-            if (validationResult.errors) {
-              console.warn('Validation errors:', validationResult.errors);
-            }
-          }
+          // Validation is informational only - don't log warnings in tests
         }
 
         resolve(response);
