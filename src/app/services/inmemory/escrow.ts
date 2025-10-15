@@ -11,7 +11,7 @@ import {
 } from '../../../lib/services';
 
 import { HoldOperation, Transaction } from './model';
-import { AccountService } from './accounts';
+import { Storage } from './storage';
 
 
 export class EscrowServiceImpl extends CommonServiceImpl implements EscrowService {
@@ -19,7 +19,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   proofProvider: ProofProvider | undefined;
 
 
-  constructor(accountService: AccountService, proofProvider: ProofProvider | undefined) {
+  constructor(accountService: Storage, proofProvider: ProofProvider | undefined) {
     super(accountService);
     this.proofProvider = proofProvider;
   }
@@ -33,9 +33,9 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
     // if (!await verifySignature(signature, signer)) {
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
-    this.accountService.saveHoldOperation(operationId, source.finId, quantity);
+    this.storage.saveHoldOperation(operationId, source.finId, quantity);
 
-    this.accountService.debit(source.finId, quantity, asset.assetId);
+    this.storage.debit(source.finId, quantity, asset.assetId);
 
     const tx = new Transaction(quantity, asset, source.account, undefined, exCtx, 'hold', operationId);
     this.transactions[tx.id] = tx;
@@ -52,13 +52,16 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     logger.info('Release hold operation', { destination, asset, quantity, operationId, executionContext: exCtx });
 
-    const hold = this.accountService.getHoldOperation(operationId);
+    const hold = this.storage.getHoldOperation(operationId);
     if (hold === undefined) {
       throw new BusinessError(1, `unknown operation: ${operationId}`);
     }
-    this.accountService.credit(destination.finId, quantity, asset.assetId);
+    if (source.finId !== hold.finId) {
+      throw new BusinessError(1, `operation ${operationId} does not belong to source ${source.finId}`);
+    }
+    this.storage.credit(destination.finId, quantity, asset.assetId);
 
-    this.accountService.removeHoldOperation(operationId);
+    this.storage.removeHoldOperation(operationId);
 
     const holdSource: FinIdAccount = { type: 'finId', finId: hold.finId };
     const tx = new Transaction(quantity, asset, holdSource, destination, exCtx, 'release', operationId);
@@ -75,14 +78,14 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   ): Promise<ReceiptOperation> {
     logger.info('Rollback hold operation', { asset, quantity, operationId, exCtx });
 
-    const hold = this.accountService.getHoldOperation(operationId);
+    const hold = this.storage.getHoldOperation(operationId);
     if (hold === undefined) {
       throw new BusinessError(1, `unknown operation: ${operationId}`);
     }
     const holdSource: FinIdAccount = { type: 'finId', finId: hold.finId };
-    this.accountService.credit(hold.finId, quantity, asset.assetId);
+    this.storage.credit(hold.finId, quantity, asset.assetId);
 
-    this.accountService.removeHoldOperation(operationId);
+    this.storage.removeHoldOperation(operationId);
 
     const tx = new Transaction(quantity, asset, holdSource, undefined, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
