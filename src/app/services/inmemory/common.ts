@@ -1,11 +1,11 @@
 import { AccountService } from './accounts';
-import {BusinessError, CommonService, HealthService, ValidationError} from '../../../lib/services';
+import { BusinessError, CommonService, HealthService, ValidationError } from '../../../lib/services';
 import {
   OperationStatus,
   ReceiptOperation,
   successfulReceiptOperation,
 } from '../../../lib/services';
-import {HoldOperation, Transaction} from './model';
+import { HoldOperation, Transaction } from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {
 

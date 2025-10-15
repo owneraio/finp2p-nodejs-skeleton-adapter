@@ -1,5 +1,5 @@
-import {HoldOperation} from "./model";
-import {BusinessError, Source} from "../../../lib/services";
+import { HoldOperation } from './model';
+import { BusinessError, Source } from '../../../lib/services';
 
 export class Account {
 
@@ -26,10 +26,11 @@ export class Account {
 export class AccountService {
 
   accounts: Record<string, Account> = {};
+
   holdOperations: Record<string, HoldOperation> = {};
 
   saveHoldOperation(operationId: string, finId: string, quantity: string) {
-    this.holdOperations[operationId] = {finId, quantity}
+    this.holdOperations[operationId] = { finId, quantity };
   }
 
   getHoldOperation(operationId: string): HoldOperation | undefined {

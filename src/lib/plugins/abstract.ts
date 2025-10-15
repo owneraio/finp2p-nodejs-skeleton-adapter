@@ -3,7 +3,7 @@ import { LedgerCallbackService } from './interfaces';
 import { OperationStatus } from '../services';
 import { operationToFinAPI } from './mappers';
 import winston from 'winston';
-import {PluginError} from "./error";
+import { PluginError } from './error';
 
 
 export abstract class AbstractPlugin implements LedgerCallbackService {
