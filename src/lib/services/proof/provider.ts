@@ -3,6 +3,7 @@ import {FinP2PClient} from '@owneraio/finp2p-client';
 import {DOMAIN_TYPE, RECEIPT_PROOF_TYPES} from '../eip712';
 import {EIP712_DOMAIN, hashEIP712, logger, signEIP712WithPrivateKey} from '../../helpers';
 import {receiptToEIP712Message} from './mappers';
+import {ValidationError} from "../errors";
 
 
 export class ProofProvider {
@@ -34,7 +35,7 @@ export class ProofProvider {
       case 'SignatureProofPolicy':
         const {signatureTemplate, domain: policyDomain} = policy;
         if (signatureTemplate !== 'EIP712') {
-          throw new Error(`Unsupported signature template: ${signatureTemplate}`);
+          throw new ValidationError(`Unsupported signature template: ${signatureTemplate}`);
         }
         if (policyDomain !== null) {
           logger.info('Using domain from asset metadata: ', policyDomain);

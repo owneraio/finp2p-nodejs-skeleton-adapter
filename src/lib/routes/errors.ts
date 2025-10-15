@@ -1,6 +1,6 @@
 import {NextFunction, Request, Response} from "express";
 import {logger} from "../helpers";
-import {ValidationError} from "../services";
+import {BusinessError, ValidationError} from "../services";
 
 function isErrorWithStatusAndMessage(err: any): err is { status: number, message: string } {
   return (
@@ -16,8 +16,14 @@ function isErrorWithStatusAndMessage(err: any): err is { status: number, message
 
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ValidationError) {
+    console.error(`Got validation error: ${err.message}`);
     return res.status(400).json({ error: err.message });
+  } else if (err instanceof BusinessError) {
+    console.error(`Got business error: ${err.message}`);
+    return res.status(200).json({ error: err.message });
   }
+
+  console.error('Unexpected error:', err);
 
   if (isErrorWithStatusAndMessage(err)) {
     const status = err.status || 500;
