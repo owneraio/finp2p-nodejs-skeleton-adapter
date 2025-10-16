@@ -36,6 +36,8 @@ jobs:
       - name: adapter-tests install dependencies
         working-directory: ./adapter-tests
         run: npm clean-install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: adapter-tests build
         working-directory: ./adapter-tests

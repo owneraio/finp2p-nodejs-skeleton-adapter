@@ -1,12 +1,12 @@
 import 'graphql-import-node';
 import * as axios from 'axios';
-import {DocumentNode} from 'graphql';
+import { DocumentNode } from 'graphql';
 import OWNERS from './graphql/owners.graphql';
 import ORGANIZATIONS from './graphql/organization.graphql';
 import ASSETS from './graphql/assets.graphql';
 import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
-import {OssAssetNodes, OssEscrowNodes, OssOrganizationNodes, OssOwnerNodes} from './model';
-import {ItemNotFoundError} from "./errors";
+import { OssAssetNodes, OssEscrowNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
+import { ItemNotFoundError } from './errors';
 
 export class OssClient {
 
@@ -22,10 +22,10 @@ export class OssClient {
   async getOwnerBalances(assetId: string) {
     const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
       includeCerts: false,
-      includeHoldings: true
+      includeHoldings: true,
     });
     return resp.users.nodes.filter((o) => o.holdings.nodes.some(n => n.asset.resourceId === assetId))
-      .map(o => ({finId: o.finIds[0], balance: o.holdings.nodes.find(n => n.asset.resourceId === assetId)!.balance}));
+      .map(o => ({ finId: o.finIds[0], balance: o.holdings.nodes.find(n => n.asset.resourceId === assetId)!.balance }));
   }
 
   async getOwnerById(ownerId: string) {
@@ -33,11 +33,11 @@ export class OssClient {
       filter: {
         key: 'id',
         operator: 'EQ',
-        value: ownerId
-      }, includeCerts: true, includeHoldings: false
+        value: ownerId,
+      }, includeCerts: true, includeHoldings: false,
     });
     if (resp.users.nodes.length == 0) {
-      throw new ItemNotFoundError(ownerId, "Owner");
+      throw new ItemNotFoundError(ownerId, 'Owner');
     }
     return resp.users.nodes[0];
   }
@@ -47,11 +47,11 @@ export class OssClient {
       filter: {
         key: 'finIds',
         operator: 'CONTAINS',
-        value: finId
-      }, includeCerts, includeHoldings
+        value: finId,
+      }, includeCerts, includeHoldings,
     });
     if (resp.users.nodes.length == 0) {
-      throw new ItemNotFoundError(finId, "Owner");
+      throw new ItemNotFoundError(finId, 'Owner');
     }
     return resp.users.nodes[0];
   }
@@ -64,13 +64,13 @@ export class OssClient {
   async getAsset(assetId: string) {
     const resp = await this.queryOss<OssAssetNodes>(ASSETS, {
       filter: {
-        key: "id",
-        operator: "EQ",
-        value: assetId
-      }
+        key: 'id',
+        operator: 'EQ',
+        value: assetId,
+      },
     });
     if (resp.assets.nodes.length == 0) {
-      throw new ItemNotFoundError(assetId, "Asset");
+      throw new ItemNotFoundError(assetId, 'Asset');
     }
     return resp.assets.nodes[0];
   }
@@ -83,18 +83,18 @@ export class OssClient {
   async getPaymentAsset(orgId: string, assetCode: string) {
     const resp = await this.queryOss<OssEscrowNodes>(PAYMENT_ASSETS, {
       filter: {
-        key: "orgId",
-        operator: "EQ",
-        value: orgId
-      }
+        key: 'orgId',
+        operator: 'EQ',
+        value: orgId,
+      },
     });
     if (resp.escrows.nodes.length == 0) {
-      throw new ItemNotFoundError(`${orgId}`, "Payment asset");
+      throw new ItemNotFoundError(`${orgId}`, 'Payment asset');
     }
 
-    const ast = resp.escrows.nodes[0].paymentAsset.assets.find(a => a.code === assetCode)
+    const ast = resp.escrows.nodes[0].paymentAsset.assets.find(a => a.code === assetCode);
     if (!ast) {
-      throw new ItemNotFoundError(`${orgId}:${assetCode}`, "Payment asset");
+      throw new ItemNotFoundError(`${orgId}:${assetCode}`, 'Payment asset');
     }
     return ast;
   }
@@ -102,13 +102,13 @@ export class OssClient {
   async getOrganization(orgId: string) {
     const resp = await this.queryOss<OssOrganizationNodes>(ORGANIZATIONS, {
       filter: {
-        key: "id",
-        operator: "EQ",
-        value: orgId
-      }
+        key: 'id',
+        operator: 'EQ',
+        value: orgId,
+      },
     });
     if (resp.organizations.nodes.length == 0) {
-      throw new ItemNotFoundError(orgId, "Organization");
+      throw new ItemNotFoundError(orgId, 'Organization');
     }
     return resp.organizations.nodes[0];
   }

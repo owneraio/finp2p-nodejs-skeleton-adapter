@@ -4,777 +4,777 @@
  */
 
 export interface paths {
-    "/workflow/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+  '/workflow/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
          * Cancel workflow
          * @description Cancel workflow
          */
-        post: operations["cancelWorkflow"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['cancelWorkflow'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/operations/callback/{cid}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/operations/callback/{cid}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** callback operation */
-        post: operations["callback operation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** callback operation */
+    post: operations['callback operation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/ledger/transaction/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/ledger/transaction/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Import external transactions
          * @description Import transactions performed outside of FinP2P
          */
-        post: operations["import transactions"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['import transactions'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/execution/{planId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/execution/{planId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Get execution plan
          * @description Get execution plan
          */
-        get: operations["getExecutionPlan"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['getExecutionPlan'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/{policyId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/policies/{policyId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Get trading policy
          * @description Get trading policy
          */
-        get: operations["getPolicyById"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['getPolicyById'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/delete/{policyId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/policies/delete/{policyId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
          * Delete trading policy
          * @description Delete trading policy
          */
-        delete: operations["deletePolicyById"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    delete: operations['deletePolicyById'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/policies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Find trading policies
          * @description Find trading policies
          */
-        get: operations["findPolicies"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['findPolicies'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assets/{assetId}/policies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/assets/{assetId}/policies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Get trading policies of the asset
          * @description Get policies of the asset
          */
-        get: operations["getAssetPoliciesByAssetId"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['getAssetPoliciesByAssetId'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/update': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/policies/update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Update a policy
          * @description Update a policy
          */
-        post: operations["updatePolicy"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['updatePolicy'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/policies/create': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/policies/create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Create a policy
          * @description Create a policy
          */
-        post: operations["createPolicy"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+    post: operations['createPolicy'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        cancelWorkflow: {
-            /** Format: uuid */
-            workflowId: string;
-            reason?: string;
-        };
-        asset: components["schemas"]["cryptocurrencyAsset"] | components["schemas"]["fiatAsset"] | components["schemas"]["finp2pAsset"];
-        cryptocurrencyAsset: {
-            /**
+  schemas: {
+    cancelWorkflow: {
+      /** Format: uuid */
+      workflowId: string;
+      reason?: string;
+    };
+    asset: components['schemas']['cryptocurrencyAsset'] | components['schemas']['fiatAsset'] | components['schemas']['finp2pAsset'];
+    cryptocurrencyAsset: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "cryptocurrency";
-            /** @description unique identifier symbol of the cryptocurrency */
-            code: string;
-        };
-        fiatAsset: {
-            /**
+      type: 'cryptocurrency';
+      /** @description unique identifier symbol of the cryptocurrency */
+      code: string;
+    };
+    fiatAsset: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "fiat";
-            /** @description unique identifier code of the fiat currency - based on ISO-4217 */
-            code: string;
-        };
-        finp2pAsset: {
-            /**
+      type: 'fiat';
+      /** @description unique identifier code of the fiat currency - based on ISO-4217 */
+      code: string;
+    };
+    finp2pAsset: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "finp2p";
-            resourceId: components["schemas"]["assetId"];
-        };
-        /** @description describes destination for remote operations */
-        accountInformation: {
-            /** @description FinID, public key of the user */
-            finId: string;
-            account: components["schemas"]["finIdAccount"] | components["schemas"]["cryptoWalletAccount"] | components["schemas"]["fiatAccount"];
-        };
-        finIdAccount: {
-            /**
+      type: 'finp2p';
+      resourceId: components['schemas']['assetId'];
+    };
+    /** @description describes destination for remote operations */
+    accountInformation: {
+      /** @description FinID, public key of the user */
+      finId: string;
+      account: components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'];
+    };
+    finIdAccount: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "finId";
-            finId: string;
-            orgId?: string;
-        };
-        cryptoWalletAccount: {
-            /**
+      type: 'finId';
+      finId: string;
+      orgId?: string;
+    };
+    cryptoWalletAccount: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "cryptoWallet";
-            /** @description address of the cryptocurrency wallet */
-            address: string;
-        };
-        fiatAccount: {
-            /**
+      type: 'cryptoWallet';
+      /** @description address of the cryptocurrency wallet */
+      address: string;
+    };
+    fiatAccount: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "fiatAccount";
-            /** @description IBAN or other code to represent a fiat account */
-            code: string;
-        };
-        transaction: {
-            /** @description the receipt id */
-            id: string;
-            asset: components["schemas"]["asset"];
-            /** @description quantity of the assets */
-            quantity: string;
-            /**
+      type: 'fiatAccount';
+      /** @description IBAN or other code to represent a fiat account */
+      code: string;
+    };
+    transaction: {
+      /** @description the receipt id */
+      id: string;
+      asset: components['schemas']['asset'];
+      /** @description quantity of the assets */
+      quantity: string;
+      /**
              * Format: int64
              * @description transaction timestamp
              */
-            timestamp: number;
-            source?: components["schemas"]["accountInformation"];
-            destination?: components["schemas"]["accountInformation"];
-            transactionDetails: components["schemas"]["transactionDetails"];
-            /** @enum {string} */
-            operationType?: "issue" | "transfer" | "hold" | "release" | "redeem";
-            proof?: components["schemas"]["proofPolicy"];
-        };
-        /** @description Additional input and output details for UTXO supporting DLTs */
-        transactionDetails: {
-            operationId?: string;
-            /** @description Transaction id */
-            transactionId: string;
-            trade?: components["schemas"]["trade"];
-        };
-        trade: {
-            executionPlanId: components["schemas"]["executionPlanId"];
-            /**
+      timestamp: number;
+      source?: components['schemas']['accountInformation'];
+      destination?: components['schemas']['accountInformation'];
+      transactionDetails: components['schemas']['transactionDetails'];
+      /** @enum {string} */
+      operationType?: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem';
+      proof?: components['schemas']['proofPolicy'];
+    };
+    /** @description Additional input and output details for UTXO supporting DLTs */
+    transactionDetails: {
+      operationId?: string;
+      /** @description Transaction id */
+      transactionId: string;
+      trade?: components['schemas']['trade'];
+    };
+    trade: {
+      executionPlanId: components['schemas']['executionPlanId'];
+      /**
              * Format: uint32
              * @description Sequence number of the current instruction
              */
-            sequence?: number;
-        };
-        execution: {
-            plan: components["schemas"]["executionPlan"];
-            /** @description Approvals/signatures of participants */
-            approvals: components["schemas"]["executionPlanApproval"][];
-            /**
+      sequence?: number;
+    };
+    execution: {
+      plan: components['schemas']['executionPlan'];
+      /** @description Approvals/signatures of participants */
+      approvals: components['schemas']['executionPlanApproval'][];
+      /**
              * Format: int64
              * @description creation time in seconds since unix epoch
              */
-            creationTimestamp: number;
-            /** @description Represents a set of completed execution instructions */
-            instructionsCompletionEvents: components["schemas"]["instructionCompletionEvent"][];
-            /**
+      creationTimestamp: number;
+      /** @description Represents a set of completed execution instructions */
+      instructionsCompletionEvents: components['schemas']['instructionCompletionEvent'][];
+      /**
              * Format: uint32
              * @description Sequence number of the current instruction
              */
-            currentInstructionSequence: number;
-            /**
+      currentInstructionSequence: number;
+      /**
              * @description Current status of the execution plan
              * @enum {string}
              */
-            executionPlanStatus: "proposed" | "approved" | "rejected" | "failed" | "completed" | "halted" | "canceled";
-        };
-        executionPlan: {
-            id: components["schemas"]["executionPlanId"];
-            intent: components["schemas"]["assetIntent"];
-            instructions: components["schemas"]["executionInstruction"][];
-            participants: components["schemas"]["executionParticipant"][];
-            contract: components["schemas"]["contract"];
-        };
-        contract: {
-            investors?: components["schemas"]["investor"][];
-            contractDetails?: components["schemas"]["issuanceContractDetails"] | components["schemas"]["buyingContractDetails"] | components["schemas"]["sellingContractDetails"] | components["schemas"]["loanContractDetails"] | components["schemas"]["transferContractDetails"] | components["schemas"]["redeemContractDetails"] | components["schemas"]["privateOfferContractDetails"] | components["schemas"]["requestForTransferContractDetails"];
-        };
-        intentInstruction: {
-            sourceAccount?: components["schemas"]["account"];
-            destinationAccount?: components["schemas"]["account"];
-        };
-        assetOrder: {
-            term?: components["schemas"]["assetTerm"];
-            instruction?: components["schemas"]["intentInstruction"];
-        };
-        loanOrder: {
-            term?: components["schemas"]["assetTerm"];
-            instruction?: components["schemas"]["loanIntentAssetInstruction"];
-        };
-        assetOrderInstruction: {
-            source?: components["schemas"]["accountInformation"];
-            destination?: components["schemas"]["accountInformation"];
-        };
-        issuanceContractDetails: {
-            /**
+      executionPlanStatus: 'proposed' | 'approved' | 'rejected' | 'failed' | 'completed' | 'halted' | 'canceled';
+    };
+    executionPlan: {
+      id: components['schemas']['executionPlanId'];
+      intent: components['schemas']['assetIntent'];
+      instructions: components['schemas']['executionInstruction'][];
+      participants: components['schemas']['executionParticipant'][];
+      contract: components['schemas']['contract'];
+    };
+    contract: {
+      investors?: components['schemas']['investor'][];
+      contractDetails?: components['schemas']['issuanceContractDetails'] | components['schemas']['buyingContractDetails'] | components['schemas']['sellingContractDetails'] | components['schemas']['loanContractDetails'] | components['schemas']['transferContractDetails'] | components['schemas']['redeemContractDetails'] | components['schemas']['privateOfferContractDetails'] | components['schemas']['requestForTransferContractDetails'];
+    };
+    intentInstruction: {
+      sourceAccount?: components['schemas']['account'];
+      destinationAccount?: components['schemas']['account'];
+    };
+    assetOrder: {
+      term?: components['schemas']['assetTerm'];
+      instruction?: components['schemas']['intentInstruction'];
+    };
+    loanOrder: {
+      term?: components['schemas']['assetTerm'];
+      instruction?: components['schemas']['loanIntentAssetInstruction'];
+    };
+    assetOrderInstruction: {
+      source?: components['schemas']['accountInformation'];
+      destination?: components['schemas']['accountInformation'];
+    };
+    issuanceContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "issuance";
-            asset?: components["schemas"]["assetOrder"];
-            settlement?: components["schemas"]["assetOrder"];
-        };
-        buyingContractDetails: {
-            /**
+      type: 'issuance';
+      asset?: components['schemas']['assetOrder'];
+      settlement?: components['schemas']['assetOrder'];
+    };
+    buyingContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "buying";
-            asset?: components["schemas"]["assetOrder"];
-            settlement?: components["schemas"]["assetOrder"];
-        };
-        sellingContractDetails: {
-            /**
+      type: 'buying';
+      asset?: components['schemas']['assetOrder'];
+      settlement?: components['schemas']['assetOrder'];
+    };
+    sellingContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "selling";
-            asset?: components["schemas"]["assetOrder"];
-            settlement?: components["schemas"]["assetOrder"];
-        };
-        loanContractDetails: {
-            /**
+      type: 'selling';
+      asset?: components['schemas']['assetOrder'];
+      settlement?: components['schemas']['assetOrder'];
+    };
+    loanContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "loan";
-            asset?: components["schemas"]["loanOrder"];
-            settlement?: components["schemas"]["loanOrder"];
-            instruction?: components["schemas"]["loanInstruction"];
-        };
-        transferContractDetails: {
-            /**
+      type: 'loan';
+      asset?: components['schemas']['loanOrder'];
+      settlement?: components['schemas']['loanOrder'];
+      instruction?: components['schemas']['loanInstruction'];
+    };
+    transferContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "transfer";
-            asset?: components["schemas"]["assetOrder"];
-        };
-        redeemContractDetails: {
-            /**
+      type: 'transfer';
+      asset?: components['schemas']['assetOrder'];
+    };
+    redeemContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "redeem";
-            asset?: components["schemas"]["assetOrder"];
-            settlement?: components["schemas"]["assetOrder"];
-        };
-        privateOfferContractDetails: {
-            /**
+      type: 'redeem';
+      asset?: components['schemas']['assetOrder'];
+      settlement?: components['schemas']['assetOrder'];
+    };
+    privateOfferContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "privateOffer";
-            asset?: components["schemas"]["assetOrder"];
-            settlement?: components["schemas"]["assetOrder"];
-        };
-        requestForTransferContractDetails: {
-            /**
+      type: 'privateOffer';
+      asset?: components['schemas']['assetOrder'];
+      settlement?: components['schemas']['assetOrder'];
+    };
+    requestForTransferContractDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "requestForTransfer";
-            asset?: components["schemas"]["assetOrder"];
-        };
-        investor: {
-            investor?: string;
-            /** @enum {string} */
-            role?: "buyer" | "seller" | "lender" | "borrower" | "issuer";
-            signature?: components["schemas"]["signature"];
-        };
-        executionInstruction: {
-            /** Format: uint32 */
-            sequence: number;
-            organizations: string[];
-            executionPlanOperation: components["schemas"]["executionPlanOperation"];
-            /** Format: int32 */
-            timeout?: number;
-        };
-        executionPlanOperation: components["schemas"]["holdInstruction"] | components["schemas"]["releaseInstruction"] | components["schemas"]["issueInstruction"] | components["schemas"]["transferInstruction"] | components["schemas"]["awaitInstruction"] | components["schemas"]["revertHoldInstruction"] | components["schemas"]["redemptionInstruction"];
-        holdInstruction: {
-            /**
+      type: 'requestForTransfer';
+      asset?: components['schemas']['assetOrder'];
+    };
+    investor: {
+      investor?: string;
+      /** @enum {string} */
+      role?: 'buyer' | 'seller' | 'lender' | 'borrower' | 'issuer';
+      signature?: components['schemas']['signature'];
+    };
+    executionInstruction: {
+      /** Format: uint32 */
+      sequence: number;
+      organizations: string[];
+      executionPlanOperation: components['schemas']['executionPlanOperation'];
+      /** Format: int32 */
+      timeout?: number;
+    };
+    executionPlanOperation: components['schemas']['holdInstruction'] | components['schemas']['releaseInstruction'] | components['schemas']['issueInstruction'] | components['schemas']['transferInstruction'] | components['schemas']['awaitInstruction'] | components['schemas']['revertHoldInstruction'] | components['schemas']['redemptionInstruction'];
+    holdInstruction: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "hold";
-            source: components["schemas"]["accountInformation"];
-            destination: components["schemas"]["accountInformation"];
-            asset: components["schemas"]["asset"];
-            amount: string;
-            signature: components["schemas"]["signature"];
-        };
-        releaseInstruction: {
-            /**
+      type: 'hold';
+      source: components['schemas']['accountInformation'];
+      destination: components['schemas']['accountInformation'];
+      asset: components['schemas']['asset'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    releaseInstruction: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "release";
-            asset: components["schemas"]["asset"];
-            source: components["schemas"]["accountInformation"];
-            destination: components["schemas"]["accountInformation"];
-            amount: string;
-        };
-        issueInstruction: {
-            /**
+      type: 'release';
+      asset: components['schemas']['asset'];
+      source: components['schemas']['accountInformation'];
+      destination: components['schemas']['accountInformation'];
+      amount: string;
+    };
+    issueInstruction: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "issue";
-            asset: components["schemas"]["asset"];
-            destination: components["schemas"]["accountInformation"];
-            amount: string;
-            signature: components["schemas"]["signature"];
-        };
-        transferInstruction: {
-            /**
+      type: 'issue';
+      asset: components['schemas']['asset'];
+      destination: components['schemas']['accountInformation'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    transferInstruction: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "transfer";
-            asset: components["schemas"]["asset"];
-            source: components["schemas"]["accountInformation"];
-            destination: components["schemas"]["accountInformation"];
-            amount: string;
-            signature: components["schemas"]["signature"];
-        };
-        awaitInstruction: {
-            /**
+      type: 'transfer';
+      asset: components['schemas']['asset'];
+      source: components['schemas']['accountInformation'];
+      destination: components['schemas']['accountInformation'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    awaitInstruction: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "await";
-            /** Format: uint64 */
-            waitUntil: number;
-        };
-        revertHoldInstruction: {
-            /**
+      type: 'await';
+      /** Format: uint64 */
+      waitUntil: number;
+    };
+    revertHoldInstruction: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "revertHoldInstruction";
-            asset: components["schemas"]["asset"];
-            source?: components["schemas"]["accountInformation"];
-            destination: components["schemas"]["accountInformation"];
-        };
-        redemptionInstruction: {
-            /**
+      type: 'revertHoldInstruction';
+      asset: components['schemas']['asset'];
+      source?: components['schemas']['accountInformation'];
+      destination: components['schemas']['accountInformation'];
+    };
+    redemptionInstruction: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "redeem";
-            asset: components["schemas"]["asset"];
-            source: components["schemas"]["accountInformation"];
-            destination: components["schemas"]["accountInformation"];
-            amount: string;
-            signature: components["schemas"]["signature"];
-        };
-        executionParticipant: {
-            organizationId: string;
-            roles: ("contributor" | "observer")[];
-        };
-        executionPlanApproval: {
-            /** @description An Id of the organisation approved a plan */
-            organizationId: string;
-        };
-        instructionCompletionEvent: {
-            /**
+      type: 'redeem';
+      asset: components['schemas']['asset'];
+      source: components['schemas']['accountInformation'];
+      destination: components['schemas']['accountInformation'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    executionParticipant: {
+      organizationId: string;
+      roles: ('contributor' | 'observer')[];
+    };
+    executionPlanApproval: {
+      /** @description An Id of the organisation approved a plan */
+      organizationId: string;
+    };
+    instructionCompletionEvent: {
+      /**
              * Format: uint32
              * @description Sequence number of the instruction involved
              */
-            instructionSequenceNumber: number;
-            output?: components["schemas"]["receiptOutput"] | components["schemas"]["instructionCompletionError"];
-        };
-        assetIntent: {
-            /**
+      instructionSequenceNumber: number;
+      output?: components['schemas']['receiptOutput'] | components['schemas']['instructionCompletionError'];
+    };
+    assetIntent: {
+      /**
              * Format: int64
              * @description start time for intent, in epoch (seconds)
              */
-            start: number;
-            /**
+      start: number;
+      /**
              * Format: int64
              * @description end time for intent, in epoch (seconds)
              */
-            end: number;
-            intent: components["schemas"]["intent"];
-        };
-        intent: components["schemas"]["primarySale"] | components["schemas"]["buyingIntent"] | components["schemas"]["sellingIntent"] | components["schemas"]["loanIntent"] | components["schemas"]["redemptionIntent"] | components["schemas"]["privateOfferIntent"] | components["schemas"]["requestForTransferIntent"];
-        primarySale: {
-            /**
+      end: number;
+      intent: components['schemas']['intent'];
+    };
+    intent: components['schemas']['primarySale'] | components['schemas']['buyingIntent'] | components['schemas']['sellingIntent'] | components['schemas']['loanIntent'] | components['schemas']['redemptionIntent'] | components['schemas']['privateOfferIntent'] | components['schemas']['requestForTransferIntent'];
+    primarySale: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "primarySale";
-            issuer: components["schemas"]["ownerId"];
-            assetTerm: components["schemas"]["finp2pAssetTerm"];
-            assetInstruction: components["schemas"]["intentAssetInstruction"];
-            settlementTerm: components["schemas"]["settlementTerm"];
-            settlementInstruction?: components["schemas"]["sellingIntentSettlementInstruction"];
-        };
-        buyingIntent: {
-            /**
+      type: 'primarySale';
+      issuer: components['schemas']['ownerId'];
+      assetTerm: components['schemas']['finp2pAssetTerm'];
+      assetInstruction: components['schemas']['intentAssetInstruction'];
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction?: components['schemas']['sellingIntentSettlementInstruction'];
+    };
+    buyingIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "buyingIntent";
-            /** @description resource id of the buyer */
-            buyer: string;
-            assetTerm: components["schemas"]["finp2pAssetTerm"];
-            assetInstruction: components["schemas"]["intentAssetInstruction"];
-            settlementTerm: components["schemas"]["settlementTerm"];
-            settlementInstruction?: components["schemas"]["buyingIntentSettlementInstruction"];
-            signaturePolicy?: components["schemas"]["presignedBuyIntentSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-        };
-        sellingIntent: {
-            /**
+      type: 'buyingIntent';
+      /** @description resource id of the buyer */
+      buyer: string;
+      assetTerm: components['schemas']['finp2pAssetTerm'];
+      assetInstruction: components['schemas']['intentAssetInstruction'];
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction?: components['schemas']['buyingIntentSettlementInstruction'];
+      signaturePolicy?: components['schemas']['presignedBuyIntentSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+    };
+    sellingIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "sellingIntent";
-            seller: components["schemas"]["ownerId"];
-            assetTerm: components["schemas"]["finp2pAssetTerm"];
-            assetInstruction: components["schemas"]["intentAssetInstruction"];
-            settlementTerm: components["schemas"]["settlementTerm"];
-            signaturePolicy?: components["schemas"]["presignedSellIntentSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-            settlementInstruction?: components["schemas"]["sellingIntentSettlementInstruction"];
-        };
-        privateOfferIntent: {
-            /**
+      type: 'sellingIntent';
+      seller: components['schemas']['ownerId'];
+      assetTerm: components['schemas']['finp2pAssetTerm'];
+      assetInstruction: components['schemas']['intentAssetInstruction'];
+      settlementTerm: components['schemas']['settlementTerm'];
+      signaturePolicy?: components['schemas']['presignedSellIntentSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+      settlementInstruction?: components['schemas']['sellingIntentSettlementInstruction'];
+    };
+    privateOfferIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "privateOfferIntent";
-            buyer: components["schemas"]["ownerId"];
-            seller: components["schemas"]["ownerId"];
-            assetTerm: components["schemas"]["finp2pAssetTerm"];
-            assetInstruction: components["schemas"]["intentAssetInstruction"];
-            settlementTerm?: components["schemas"]["settlementTerm"];
-            signaturePolicy?: components["schemas"]["presignedPrivateOfferIntentSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-            settlementInstruction?: components["schemas"]["sellingIntentSettlementInstruction"];
-        };
-        requestForTransferIntent: {
-            /**
+      type: 'privateOfferIntent';
+      buyer: components['schemas']['ownerId'];
+      seller: components['schemas']['ownerId'];
+      assetTerm: components['schemas']['finp2pAssetTerm'];
+      assetInstruction: components['schemas']['intentAssetInstruction'];
+      settlementTerm?: components['schemas']['settlementTerm'];
+      signaturePolicy?: components['schemas']['presignedPrivateOfferIntentSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+      settlementInstruction?: components['schemas']['sellingIntentSettlementInstruction'];
+    };
+    requestForTransferIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "requestForTransferIntent";
-            creditor: components["schemas"]["ownerId"];
-            debitor: components["schemas"]["ownerId"];
-            assetTerm: components["schemas"]["finp2pAssetTerm"];
-            assetInstruction: components["schemas"]["intentAssetInstruction"];
-            signaturePolicy?: components["schemas"]["manualSignaturePolicy"];
-        };
-        loanIntent: {
-            /**
+      type: 'requestForTransferIntent';
+      creditor: components['schemas']['ownerId'];
+      debitor: components['schemas']['ownerId'];
+      assetTerm: components['schemas']['finp2pAssetTerm'];
+      assetInstruction: components['schemas']['intentAssetInstruction'];
+      signaturePolicy?: components['schemas']['manualSignaturePolicy'];
+    };
+    loanIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "loanIntent";
-            /** @enum {string} */
-            creatorType: "borrower" | "lender";
-            borrower: components["schemas"]["ownerId"];
-            lender: components["schemas"]["ownerId"];
-            assetTerm: components["schemas"]["finp2pAssetTerm"];
-            assetInstruction: components["schemas"]["loanIntentAssetInstruction"];
-            settlementTerm: components["schemas"]["settlementTerm"];
-            settlementInstruction?: components["schemas"]["loanIntentSettlementInstruction"];
-            loanInstruction?: components["schemas"]["loanInstruction"];
-            signaturePolicy?: components["schemas"]["presignedLoanIntentSignaturePolicy"];
-        };
-        loanIntentAssetInstruction: {
-            borrowerAccount: components["schemas"]["assetInstruction"];
-            lenderAccount: components["schemas"]["assetInstruction"];
-        };
-        redemptionIntent: {
-            /**
+      type: 'loanIntent';
+      /** @enum {string} */
+      creatorType: 'borrower' | 'lender';
+      borrower: components['schemas']['ownerId'];
+      lender: components['schemas']['ownerId'];
+      assetTerm: components['schemas']['finp2pAssetTerm'];
+      assetInstruction: components['schemas']['loanIntentAssetInstruction'];
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction?: components['schemas']['loanIntentSettlementInstruction'];
+      loanInstruction?: components['schemas']['loanInstruction'];
+      signaturePolicy?: components['schemas']['presignedLoanIntentSignaturePolicy'];
+    };
+    loanIntentAssetInstruction: {
+      borrowerAccount: components['schemas']['assetInstruction'];
+      lenderAccount: components['schemas']['assetInstruction'];
+    };
+    redemptionIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "redemptionIntent";
-            issuer: components["schemas"]["ownerId"];
-            assetTerm: components["schemas"]["finp2pAssetTerm"];
-            assetInstruction: components["schemas"]["intentAssetInstruction"];
-            settlementTerm: components["schemas"]["settlementTerm"];
-            settlementInstruction: components["schemas"]["redemptionIntentSettlementInstruction"];
-            conditions?: components["schemas"]["redemptionIntentConditions"];
-        };
-        settlementTerm: {
-            asset: components["schemas"]["asset"];
-            /** @description A unit value represented as a string, the value is a decimal number */
-            unitValue: string;
-        };
-        assetTerm: {
-            asset: components["schemas"]["asset"];
-            /** @description the total number of units */
-            amount: string;
-        };
-        transferRequestAssetOrderInstruction: {
-            sourceAccount: components["schemas"]["assetInstruction"];
-            destinationAccount: components["schemas"]["assetInstruction"];
-        };
-        /** @description Settlement information for the issuance request */
-        transferRequestSettlement: {
-            term: components["schemas"]["assetTerm"];
-            instruction: components["schemas"]["transferRequestSettlementInstruction"];
-        };
-        transferRequestSettlementInstruction: components["schemas"]["escrowSettlement"];
-        finp2pAssetTerm: {
-            asset: components["schemas"]["finp2pAsset"];
-            /** @description the total number of units */
-            amount: string;
-        };
-        intentAssetInstruction: {
-            account: components["schemas"]["assetInstruction"];
-        };
-        assetInstruction: {
-            account: components["schemas"]["assetInstructionAccount"];
-            asset: components["schemas"]["asset"];
-        };
-        assetInstructionAccount: components["schemas"]["finIdAccount"];
-        escrowSettlement: {
-            /**
+      type: 'redemptionIntent';
+      issuer: components['schemas']['ownerId'];
+      assetTerm: components['schemas']['finp2pAssetTerm'];
+      assetInstruction: components['schemas']['intentAssetInstruction'];
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction: components['schemas']['redemptionIntentSettlementInstruction'];
+      conditions?: components['schemas']['redemptionIntentConditions'];
+    };
+    settlementTerm: {
+      asset: components['schemas']['asset'];
+      /** @description A unit value represented as a string, the value is a decimal number */
+      unitValue: string;
+    };
+    assetTerm: {
+      asset: components['schemas']['asset'];
+      /** @description the total number of units */
+      amount: string;
+    };
+    transferRequestAssetOrderInstruction: {
+      sourceAccount: components['schemas']['assetInstruction'];
+      destinationAccount: components['schemas']['assetInstruction'];
+    };
+    /** @description Settlement information for the issuance request */
+    transferRequestSettlement: {
+      term: components['schemas']['assetTerm'];
+      instruction: components['schemas']['transferRequestSettlementInstruction'];
+    };
+    transferRequestSettlementInstruction: components['schemas']['escrowSettlement'];
+    finp2pAssetTerm: {
+      asset: components['schemas']['finp2pAsset'];
+      /** @description the total number of units */
+      amount: string;
+    };
+    intentAssetInstruction: {
+      account: components['schemas']['assetInstruction'];
+    };
+    assetInstruction: {
+      account: components['schemas']['assetInstructionAccount'];
+      asset: components['schemas']['asset'];
+    };
+    assetInstructionAccount: components['schemas']['finIdAccount'];
+    escrowSettlement: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "escrow";
-            sourceAccount: components["schemas"]["account"];
-            destinationAccount: components["schemas"]["account"];
-        };
-        buyingIntentSettlementInstruction: {
-            sourceAccount: components["schemas"]["account"];
-        };
-        sellingIntentSettlementInstruction: {
-            destinationAccounts: components["schemas"]["account"][];
-        };
-        loanIntentSettlementInstruction: {
-            borrowerAccount: components["schemas"]["account"];
-            lenderAccount: components["schemas"]["account"];
-        };
-        loanInstruction: {
-            /**
+      type: 'escrow';
+      sourceAccount: components['schemas']['account'];
+      destinationAccount: components['schemas']['account'];
+    };
+    buyingIntentSettlementInstruction: {
+      sourceAccount: components['schemas']['account'];
+    };
+    sellingIntentSettlementInstruction: {
+      destinationAccounts: components['schemas']['account'][];
+    };
+    loanIntentSettlementInstruction: {
+      borrowerAccount: components['schemas']['account'];
+      lenderAccount: components['schemas']['account'];
+    };
+    loanInstruction: {
+      /**
              * Format: int64
              * @description date and time operation starts, in epoch (seconds)
              */
-            openDate: number;
-            /**
+      openDate: number;
+      /**
              * Format: int64
              * @description date and time operation ends, in epoch (seconds)
              */
-            closeDate: number;
-            conditions: components["schemas"]["loanConditions"];
-        };
-        presignedSellIntentSignaturePolicy: {
-            /**
+      closeDate: number;
+      conditions: components['schemas']['loanConditions'];
+    };
+    presignedSellIntentSignaturePolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "presignedPolicy";
-        };
-        presignedPrivateOfferIntentSignaturePolicy: {
-            /**
+      type: 'presignedPolicy';
+    };
+    presignedPrivateOfferIntentSignaturePolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "presignedPolicy";
-        };
-        presignedBuyIntentSignaturePolicy: {
-            /**
+      type: 'presignedPolicy';
+    };
+    presignedBuyIntentSignaturePolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "presignedPolicy";
-        };
-        presignedLoanIntentSignaturePolicy: {
-            /**
+      type: 'presignedPolicy';
+    };
+    presignedLoanIntentSignaturePolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "presignedPolicy";
-        };
-        manualSignaturePolicy: {
-            /**
+      type: 'presignedPolicy';
+    };
+    manualSignaturePolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "manualPolicy";
-        };
-        loanConditions: components["schemas"]["repaymentTerm"] | components["schemas"]["interestRateTerm"] | components["schemas"]["closeAmountTerm"];
-        repaymentTerm: {
-            /**
+      type: 'manualPolicy';
+    };
+    loanConditions: components['schemas']['repaymentTerm'] | components['schemas']['interestRateTerm'] | components['schemas']['closeAmountTerm'];
+    repaymentTerm: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "repaymentTerm";
-            /** @description amount of funds payable at maturity */
-            closeAmount: string;
-            /** @description indicative annual interest rate of the operation */
-            interestRate?: string;
-        };
-        interestRateTerm: {
-            /**
+      type: 'repaymentTerm';
+      /** @description amount of funds payable at maturity */
+      closeAmount: string;
+      /** @description indicative annual interest rate of the operation */
+      interestRate?: string;
+    };
+    interestRateTerm: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "interestRateTerm";
-            /** @description indicative annual interest rate of the operation */
-            interestRate: string;
-        };
-        closeAmountTerm: {
-            /**
+      type: 'interestRateTerm';
+      /** @description indicative annual interest rate of the operation */
+      interestRate: string;
+    };
+    closeAmountTerm: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "closeAmountTerm";
-            /** @description amount of funds payable at maturity */
-            closeAmount: string;
-        };
-        /** @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
+      type: 'closeAmountTerm';
+      /** @description amount of funds payable at maturity */
+      closeAmount: string;
+    };
+    /** @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
          *
          *       const nonce = Buffer.alloc(32);
          *       nonce.fill(crypto.randomBytes(24), 0, 24);
@@ -783,1281 +783,1281 @@ export interface components {
          *       const t = BigInt(nowEpochSeconds);
          *       nonce.writeBigInt64BE(t, 24);
          *      */
-        nonce: string;
-        /** @description represent a signature template information */
-        signature: {
-            /** @description hex representation of the signature */
-            signature: string;
-            template: components["schemas"]["signatureTemplate"];
-            hashFunc: components["schemas"]["hashFunction"];
-        };
-        signatureTemplate: components["schemas"]["hashListTemplate"] | components["schemas"]["EIP712Template"];
-        /** @description ordered list of hash groups */
-        hashListTemplate: {
-            /**
+    nonce: string;
+    /** @description represent a signature template information */
+    signature: {
+      /** @description hex representation of the signature */
+      signature: string;
+      template: components['schemas']['signatureTemplate'];
+      hashFunc: components['schemas']['hashFunction'];
+    };
+    signatureTemplate: components['schemas']['hashListTemplate'] | components['schemas']['EIP712Template'];
+    /** @description ordered list of hash groups */
+    hashListTemplate: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "hashList";
-            hashGroups: components["schemas"]["hashGroup"][];
-            /** @description hex representation of the combined hash groups hash value */
-            hash: string;
-        };
-        /**
+      type: 'hashList';
+      hashGroups: components['schemas']['hashGroup'][];
+      /** @description hex representation of the combined hash groups hash value */
+      hash: string;
+    };
+    /**
          * @description hash function types
          * @enum {string}
          */
-        hashFunction: "unspecified" | "sha3_256" | "sha3-256" | "blake2b" | "keccak_256" | "keccak-256";
-        hashGroup: {
-            /** @description hex representation of the hash group hash value */
-            hash: string;
-            /** @description list of fields by order they appear in the hash group */
-            fields: components["schemas"]["field"][];
-        };
-        /** @description describing a field in the hash group */
-        field: {
-            /** @description name of field */
-            name: string;
-            /**
+    hashFunction: 'unspecified' | 'sha3_256' | 'sha3-256' | 'blake2b' | 'keccak_256' | 'keccak-256';
+    hashGroup: {
+      /** @description hex representation of the hash group hash value */
+      hash: string;
+      /** @description list of fields by order they appear in the hash group */
+      fields: components['schemas']['field'][];
+    };
+    /** @description describing a field in the hash group */
+    field: {
+      /** @description name of field */
+      name: string;
+      /**
              * @description type of field
              * @enum {string}
              */
-            type: "string" | "int" | "bytes";
-            /** @description hex representation of the field value */
-            value: string;
-        };
-        EIP712Domain: {
-            name?: string;
-            version?: string;
-            /** Format: uint64 */
-            chainId?: number;
-            /** Format: address */
-            verifyingContract?: string;
-        };
-        EIP712TypedValue: components["schemas"]["EIP712TypeString"] | components["schemas"]["EIP712TypeInteger"] | components["schemas"]["EIP712TypeBool"] | components["schemas"]["EIP712TypeByte"] | components["schemas"]["EIP712TypeObject"] /*| components["schemas"]["EIP712TypeArray"]*/;
-        EIP712Types: {
-            definitions?: components["schemas"]["EIP712TypeDefinition"][];
-        };
-        EIP712TypeDefinition: {
-            name?: string;
-            fields?: components["schemas"]["EIP712FieldDefinition"][];
-        };
-        EIP712FieldDefinition: {
-            name?: string;
-            type?: string;
-        };
-        EIP712Template: {
-            /**
+      type: 'string' | 'int' | 'bytes';
+      /** @description hex representation of the field value */
+      value: string;
+    };
+    EIP712Domain: {
+      name?: string;
+      version?: string;
+      /** Format: uint64 */
+      chainId?: number;
+      /** Format: address */
+      verifyingContract?: string;
+    };
+    EIP712TypedValue: components['schemas']['EIP712TypeString'] | components['schemas']['EIP712TypeInteger'] | components['schemas']['EIP712TypeBool'] | components['schemas']['EIP712TypeByte'] | components['schemas']['EIP712TypeObject'] /*| components["schemas"]["EIP712TypeArray"]*/;
+    EIP712Types: {
+      definitions?: components['schemas']['EIP712TypeDefinition'][];
+    };
+    EIP712TypeDefinition: {
+      name?: string;
+      fields?: components['schemas']['EIP712FieldDefinition'][];
+    };
+    EIP712FieldDefinition: {
+      name?: string;
+      type?: string;
+    };
+    EIP712Template: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "EIP712";
-            domain: components["schemas"]["EIP712Domain"];
-            message: {
-                [key: string]: components["schemas"]["EIP712TypedValue"];
-            };
-            types: components["schemas"]["EIP712Types"];
-            primaryType: string;
-            /** @description hex representation of template hash */
-            hash: string;
-        };
-        EIP712TypeString: string;
-        EIP712TypeByte: string;
-        EIP712TypeInteger: number;
-        EIP712TypeBool: boolean;
-        EIP712TypeObject: {
-            [key: string]: components["schemas"]["EIP712TypedValue"];
-        };
-        // EIP712TypeArray: components["schemas"]["EIP712TypedValue"][];
-        receiptOutput: {
-            /**
+      type: 'EIP712';
+      domain: components['schemas']['EIP712Domain'];
+      message: {
+        [key: string]: components['schemas']['EIP712TypedValue'];
+      };
+      types: components['schemas']['EIP712Types'];
+      primaryType: string;
+      /** @description hex representation of template hash */
+      hash: string;
+    };
+    EIP712TypeString: string;
+    EIP712TypeByte: string;
+    EIP712TypeInteger: number;
+    EIP712TypeBool: boolean;
+    EIP712TypeObject: {
+      [key: string]: components['schemas']['EIP712TypedValue'];
+    };
+    // EIP712TypeArray: components["schemas"]["EIP712TypedValue"][];
+    receiptOutput: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "receipt";
-            /** @description receipt id */
-            id: string;
-            asset: components["schemas"]["receiptAsset"];
-            source?: components["schemas"]["ownerId"];
-            destination?: components["schemas"]["ownerId"];
-            quantity: string;
-            tradeDetails?: components["schemas"]["receiptTradeDetails"];
-            details: components["schemas"]["receiptDetails"];
-            /** @enum {string} */
-            operationType?: "hold" | "issue" | "redeem" | "release" | "transfer" | "unknown";
-            operationRef?: string;
-            timestamp: number;
-            proof?: components["schemas"]["proofPolicy"];
-        };
-        proofPolicy: components["schemas"]["signatureProofPolicy"] | components["schemas"]["noProofPolicy"];
-        /** @description no proof validation required for this policy */
-        noProofPolicy: {
-            /**
+      type: 'receipt';
+      /** @description receipt id */
+      id: string;
+      asset: components['schemas']['receiptAsset'];
+      source?: components['schemas']['ownerId'];
+      destination?: components['schemas']['ownerId'];
+      quantity: string;
+      tradeDetails?: components['schemas']['receiptTradeDetails'];
+      details: components['schemas']['receiptDetails'];
+      /** @enum {string} */
+      operationType?: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'unknown';
+      operationRef?: string;
+      timestamp: number;
+      proof?: components['schemas']['proofPolicy'];
+    };
+    proofPolicy: components['schemas']['signatureProofPolicy'] | components['schemas']['noProofPolicy'];
+    /** @description no proof validation required for this policy */
+    noProofPolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "noProofPolicy";
-        };
-        signatureProofPolicy: {
-            /**
+      type: 'noProofPolicy';
+    };
+    signatureProofPolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "signatureProofPolicy";
-            signature: components["schemas"]["signature"];
-        };
-        receiptAsset: {
-            /** @description asset code */
-            code: string;
-            /** @description asset type */
-            type: string;
-        };
-        /**
+      type: 'signatureProofPolicy';
+      signature: components['schemas']['signature'];
+    };
+    receiptAsset: {
+      /** @description asset code */
+      code: string;
+      /** @description asset type */
+      type: string;
+    };
+    /**
          * @description The Owner resource id
          * @example bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
          */
-        ownerId: string;
-        receiptTradeDetails: {
-            intentId?: string;
-            intentVersion?: string;
-            executionContext?: components["schemas"]["receiptExecutionContext"];
-        };
-        receiptExecutionContext: {
-            executionPlanId: string;
-            instructionSequenceNumber: number;
-        };
-        receiptDetails: components["schemas"]["receiptAssetDetails"] | components["schemas"]["receiptPaymentDetails"];
-        receiptAssetDetails: {
-            /**
+    ownerId: string;
+    receiptTradeDetails: {
+      intentId?: string;
+      intentVersion?: string;
+      executionContext?: components['schemas']['receiptExecutionContext'];
+    };
+    receiptExecutionContext: {
+      executionPlanId: string;
+      instructionSequenceNumber: number;
+    };
+    receiptDetails: components['schemas']['receiptAssetDetails'] | components['schemas']['receiptPaymentDetails'];
+    receiptAssetDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "asset";
-            sourceFinId?: string;
-            destinationFinId?: string;
-            transactionDetails: components["schemas"]["receiptTransactionDetails"];
-        };
-        receiptPaymentDetails: {
-            /**
+      type: 'asset';
+      sourceFinId?: string;
+      destinationFinId?: string;
+      transactionDetails: components['schemas']['receiptTransactionDetails'];
+    };
+    receiptPaymentDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "payment";
-            source?: components["schemas"]["account"];
-            destination?: components["schemas"]["account"];
-            transactionDetails: components["schemas"]["receiptTransactionDetails"];
-        };
-        /** @description Additional input and output details for UTXO supporting DLTs */
-        receiptTransactionDetails: {
-            /** @description Transaction id */
-            transactionId: string;
-            /** @description Operation id */
-            operationId?: string;
-        };
-        /** @description describes account information */
-        account: {
-            account: components["schemas"]["finIdAccount"] | components["schemas"]["cryptoWalletAccount"] | components["schemas"]["fiatAccount"];
-            asset: components["schemas"]["asset"];
-        };
-        instructionCompletionError: {
-            /**
+      type: 'payment';
+      source?: components['schemas']['account'];
+      destination?: components['schemas']['account'];
+      transactionDetails: components['schemas']['receiptTransactionDetails'];
+    };
+    /** @description Additional input and output details for UTXO supporting DLTs */
+    receiptTransactionDetails: {
+      /** @description Transaction id */
+      transactionId: string;
+      /** @description Operation id */
+      operationId?: string;
+    };
+    /** @description describes account information */
+    account: {
+      account: components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'];
+      asset: components['schemas']['asset'];
+    };
+    instructionCompletionError: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "error";
-            /** @description 1 for failure in regApps validation, 2 for failure in intent validation, 3 failure in settlement, 4 failure in signature verification */
-            code: number;
-            message: string;
-        };
-        /**
+      type: 'error';
+      /** @description 1 for failure in regApps validation, 2 for failure in intent validation, 3 failure in settlement, 4 failure in signature verification */
+      code: number;
+      message: string;
+    };
+    /**
          * @description The execution plan  resource id
          * @example bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01
          */
-        executionPlanId: string;
-        /**
+    executionPlanId: string;
+    /**
          * @description The Asset resource id
          * @example bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
          */
-        assetId: string;
-        /**
+    assetId: string;
+    /**
          * @description The intent resource id
          * @example bank-x:105:f461a964-ae08-4e35-b690-24de06d973db
          */
-        intentId: string;
-        redemptionIntentSettlementInstruction: {
-            sourceAccounts: components["schemas"]["account"][];
-        };
-        redemptionIntentConditions: {
-            /**
+    intentId: string;
+    redemptionIntentSettlementInstruction: {
+      sourceAccounts: components['schemas']['account'][];
+    };
+    redemptionIntentConditions: {
+      /**
              * Format: int64
              * @description date and time until transfer has to take place, in epoch (seconds)
              */
-            transferDue?: number;
-        };
-        createPolicyResponse: {
-            /** @description unique policy id */
-            policyId: string;
-        };
-        updatePolicyResponse: {
-            /**
+      transferDue?: number;
+    };
+    createPolicyResponse: {
+      /** @description unique policy id */
+      policyId: string;
+    };
+    updatePolicyResponse: {
+      /**
              * Format: uint32
              * @description the updated policy version
              */
-            version: number;
-        };
-        tradingPolicy: {
-            /** @description unique policy id */
-            policyId: string;
-            /**
+      version: number;
+    };
+    tradingPolicy: {
+      /** @description unique policy id */
+      policyId: string;
+      /**
              * Format: uint32
              * @description priority of the policy
              */
-            priority: number;
-            intent: components["schemas"]["IntentType"];
-            /** @description description of the policy */
-            description: string;
-            /** @description whether policy should be applied to all assets */
-            isDefault: boolean;
-            /**
+      priority: number;
+      intent: components['schemas']['IntentType'];
+      /** @description description of the policy */
+      description: string;
+      /** @description whether policy should be applied to all assets */
+      isDefault: boolean;
+      /**
              * Format: uint32
              * @description version of the trading policy
              */
-            version?: number;
-            instructions: components["schemas"]["instruction"][];
-            assetMatchingCriteria?: components["schemas"]["assetMatchingCriteria"];
-            constraints?: components["schemas"]["constraints"];
-            settlementStrategy?: components["schemas"]["settlementStrategyType"];
-        };
-        createPolicyRequest: {
-            /** @description unique policy id */
-            policyId: string;
-            /**
+      version?: number;
+      instructions: components['schemas']['instruction'][];
+      assetMatchingCriteria?: components['schemas']['assetMatchingCriteria'];
+      constraints?: components['schemas']['constraints'];
+      settlementStrategy?: components['schemas']['settlementStrategyType'];
+    };
+    createPolicyRequest: {
+      /** @description unique policy id */
+      policyId: string;
+      /**
              * Format: uint32
              * @description priority of the policy
              */
-            priority: number;
-            intent: components["schemas"]["IntentType"];
-            /** @description description of the policy */
-            description: string;
-            /** @description whether policy should be applied to all assets */
-            isDefault?: boolean;
-            instructions: components["schemas"]["instruction"][];
-            assetMatchingCriteria?: components["schemas"]["assetMatchingCriteria"];
-            constraints?: components["schemas"]["constraints"];
-            settlementStrategy?: components["schemas"]["settlementStrategyType"];
-        };
-        updatePolicyRequest: {
-            /** @description unique policy id */
-            policyId: string;
-            /**
+      priority: number;
+      intent: components['schemas']['IntentType'];
+      /** @description description of the policy */
+      description: string;
+      /** @description whether policy should be applied to all assets */
+      isDefault?: boolean;
+      instructions: components['schemas']['instruction'][];
+      assetMatchingCriteria?: components['schemas']['assetMatchingCriteria'];
+      constraints?: components['schemas']['constraints'];
+      settlementStrategy?: components['schemas']['settlementStrategyType'];
+    };
+    updatePolicyRequest: {
+      /** @description unique policy id */
+      policyId: string;
+      /**
              * Format: uint32
              * @description priority of the policy
              */
-            priority: number;
-            /** @enum {string} */
-            intent: "primarySale" | "buyingIntent" | "sellingIntent" | "loanIntent" | "redemptionIntent" | "privateOfferIntent" | "requestForTransferIntent";
-            /** @description description of the policy */
-            description: string;
-            /** @description whether policy should be applied to all assets */
-            isDefault?: boolean;
-            instructions: components["schemas"]["instruction"][];
-            assetMatchingCriteria: components["schemas"]["assetMatchingCriteria"];
-            constraints?: components["schemas"]["constraints"];
-            /**
+      priority: number;
+      /** @enum {string} */
+      intent: 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent';
+      /** @description description of the policy */
+      description: string;
+      /** @description whether policy should be applied to all assets */
+      isDefault?: boolean;
+      instructions: components['schemas']['instruction'][];
+      assetMatchingCriteria: components['schemas']['assetMatchingCriteria'];
+      constraints?: components['schemas']['constraints'];
+      /**
              * Format: uint32
              * @description new version of the trading policy
              */
-            version: number;
-            settlementStrategy?: components["schemas"]["settlementStrategyType"];
-        };
-        /**
+      version: number;
+      settlementStrategy?: components['schemas']['settlementStrategyType'];
+    };
+    /**
          * @description type of settlement strategy
          * @enum {string}
          */
-        settlementStrategyType: "NOSETTLEMENT" | "PARTIAL" | "FULL";
-        constraints: {
-            allowedCounterOrganizations?: string[];
-            allowedCounterAssetTypes?: string[];
-        } | null;
-        assetMatchingCriteria: {
-            assetTypes: ("finp2p" | "fiat" | "cryptocurrency" | "custom")[];
-            assetNameRegexp?: string | null;
-            assetCodes?: string[];
-        } | null;
-        instruction: {
-            /** @enum {string} */
-            instruction: "Hold" | "Transfer" | "Release" | "Await" | "Issue" | "RevertHold" | "Redeem";
-            /** Format: uint32 */
-            sequence: number;
-            executors: ("self" | "counterparty")[];
-            timeout?: components["schemas"]["tolerance"];
-            onFailure?: components["schemas"]["transition"];
-            onSuccess: components["schemas"]["transition"];
-            onTimeout?: components["schemas"]["transition"];
-            details?: components["schemas"]["holdOperationDetails"] | components["schemas"]["transferOperationDetails"] | components["schemas"]["issueOperationDetails"] | components["schemas"]["releaseOperationDetails"] | components["schemas"]["awaitOperationDetails"] | components["schemas"]["revertHoldOperationDetails"];
-        };
-        holdOperationDetails: {
-            /**
+    settlementStrategyType: 'NOSETTLEMENT' | 'PARTIAL' | 'FULL';
+    constraints: {
+      allowedCounterOrganizations?: string[];
+      allowedCounterAssetTypes?: string[];
+    } | null;
+    assetMatchingCriteria: {
+      assetTypes: ('finp2p' | 'fiat' | 'cryptocurrency' | 'custom')[];
+      assetNameRegexp?: string | null;
+      assetCodes?: string[];
+    } | null;
+    instruction: {
+      /** @enum {string} */
+      instruction: 'Hold' | 'Transfer' | 'Release' | 'Await' | 'Issue' | 'RevertHold' | 'Redeem';
+      /** Format: uint32 */
+      sequence: number;
+      executors: ('self' | 'counterparty')[];
+      timeout?: components['schemas']['tolerance'];
+      onFailure?: components['schemas']['transition'];
+      onSuccess: components['schemas']['transition'];
+      onTimeout?: components['schemas']['transition'];
+      details?: components['schemas']['holdOperationDetails'] | components['schemas']['transferOperationDetails'] | components['schemas']['issueOperationDetails'] | components['schemas']['releaseOperationDetails'] | components['schemas']['awaitOperationDetails'] | components['schemas']['revertHoldOperationDetails'];
+    };
+    holdOperationDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "hold";
-            accountRole: string;
-        } | null;
-        releaseOperationDetails: {
-            /**
+      type: 'hold';
+      accountRole: string;
+    } | null;
+    releaseOperationDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "release";
-            /** Format: uin32 */
-            holdInstructionSequence?: number;
-            accountRole?: string;
-        } | null;
-        transferOperationDetails: {
-            /**
+      type: 'release';
+      /** Format: uin32 */
+      holdInstructionSequence?: number;
+      accountRole?: string;
+    } | null;
+    transferOperationDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "transfer";
-            accountRole: string;
-        } | null;
-        issueOperationDetails: {
-            /**
+      type: 'transfer';
+      accountRole: string;
+    } | null;
+    issueOperationDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "issue";
-            accountRole?: string;
-        } | null;
-        revertHoldOperationDetails: {
-            /**
+      type: 'issue';
+      accountRole?: string;
+    } | null;
+    revertHoldOperationDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "revertHold";
-            /** Format: uin32 */
-            holdInstructionSequence?: number;
-        } | null;
-        awaitOperationDetails: {
-            /**
+      type: 'revertHold';
+      /** Format: uin32 */
+      holdInstructionSequence?: number;
+    } | null;
+    awaitOperationDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "await";
-            /** @enum {string} */
-            awaitTarget?: "close" | "open";
-            awaitBackwardScheduling?: components["schemas"]["AwaitBackwardScheduling"];
-        } | null;
-        AwaitBackwardScheduling: {
-            /**
+      type: 'await';
+      /** @enum {string} */
+      awaitTarget?: 'close' | 'open';
+      awaitBackwardScheduling?: components['schemas']['AwaitBackwardScheduling'];
+    } | null;
+    AwaitBackwardScheduling: {
+      /**
              * Format: duration
              * @description duration in seconds (e.g., "3.045646s")
              */
-            maxAllowedDuration: string;
-            /**
+      maxAllowedDuration: string;
+      /**
              * Format: duration
              * @description duration in seconds (e.g., "3.045646s")
              */
-            schedule: string;
-        } | null;
-        /** @enum {string} */
-        IntentType: "primarySale" | "buyingIntent" | "sellingIntent" | "loanIntent" | "redemptionIntent" | "privateOfferIntent";
-        transition: (components["schemas"]["instructionTransition"] | components["schemas"]["statusTransition"]) | null;
-        statusTransition: {
-            /**
+      schedule: string;
+    } | null;
+    /** @enum {string} */
+    IntentType: 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent';
+    transition: (components['schemas']['instructionTransition'] | components['schemas']['statusTransition']) | null;
+    statusTransition: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "status";
-            /** @enum {string} */
-            status: "proposed" | "approved" | "rejected" | "completed" | "failed" | "halted";
-        } | null;
-        instructionTransition: {
-            /**
+      type: 'status';
+      /** @enum {string} */
+      status: 'proposed' | 'approved' | 'rejected' | 'completed' | 'failed' | 'halted';
+    } | null;
+    instructionTransition: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "instruction";
-            /** Format: uint32 */
-            sequence: number;
-        } | null;
-        tolerance: {
-            /** Format: uint32 */
-            value: number;
-            options?: components["schemas"]["toleranceOptions"];
-        } | null;
-        toleranceOptions: {
-            allowedValues?: number[];
-            /** Format: uint32 */
-            percentageDeviation?: number;
-            /** Format: uint32 */
-            absoluteDeviation?: number;
-        } & (unknown | unknown);
-        operationStatusCallback: components["schemas"]["operationStatus"];
-        AssetMetadataAndConfigError: {
-            /** @enum {integer} */
-            code: 4108;
-            /** @enum {string} */
-            message: "Asset metadata and config cannot be provided at the same time";
-        };
-        GeneralClientError: {
-            /** @enum {integer} */
-            code: 1000;
-            /** @enum {string} */
-            message: "General client error";
-        };
-        ApiErrorClient4XX: {
-            /** @enum {string} */
-            type: "error";
-            /** @enum {integer} */
-            status: 400 | 401 | 403 | 404 | 409;
-            errors: (components["schemas"]["AssetMetadataAndConfigError"] | components["schemas"]["GeneralClientError"])[];
-        };
-        GeneralServerError: {
-            /** @enum {integer} */
-            code: 2000;
-            /** @enum {string} */
-            message: "General server error";
-        };
-        ApiErrorServer5XX: {
-            /** @enum {string} */
-            type: "error";
-            /** @enum {integer} */
-            status: 500 | 502 | 503 | 504;
-            errors: components["schemas"]["GeneralServerError"][];
-        };
-        ApiAnyError: (components["schemas"]["ApiErrorClient4XX"] | components["schemas"]["ApiErrorServer5XX"]) & {
-            /** @enum {string} */
-            type: "error";
-        };
-        pollingResultsStrategy: {
-            /**
+      type: 'instruction';
+      /** Format: uint32 */
+      sequence: number;
+    } | null;
+    tolerance: {
+      /** Format: uint32 */
+      value: number;
+      options?: components['schemas']['toleranceOptions'];
+    } | null;
+    toleranceOptions: {
+      allowedValues?: number[];
+      /** Format: uint32 */
+      percentageDeviation?: number;
+      /** Format: uint32 */
+      absoluteDeviation?: number;
+    } & (unknown | unknown);
+    operationStatusCallback: components['schemas']['operationStatus'];
+    AssetMetadataAndConfigError: {
+      /** @enum {integer} */
+      code: 4108;
+      /** @enum {string} */
+      message: 'Asset metadata and config cannot be provided at the same time';
+    };
+    GeneralClientError: {
+      /** @enum {integer} */
+      code: 1000;
+      /** @enum {string} */
+      message: 'General client error';
+    };
+    ApiErrorClient4XX: {
+      /** @enum {string} */
+      type: 'error';
+      /** @enum {integer} */
+      status: 400 | 401 | 403 | 404 | 409;
+      errors: (components['schemas']['AssetMetadataAndConfigError'] | components['schemas']['GeneralClientError'])[];
+    };
+    GeneralServerError: {
+      /** @enum {integer} */
+      code: 2000;
+      /** @enum {string} */
+      message: 'General server error';
+    };
+    ApiErrorServer5XX: {
+      /** @enum {string} */
+      type: 'error';
+      /** @enum {integer} */
+      status: 500 | 502 | 503 | 504;
+      errors: components['schemas']['GeneralServerError'][];
+    };
+    ApiAnyError: (components['schemas']['ApiErrorClient4XX'] | components['schemas']['ApiErrorServer5XX']) & {
+      /** @enum {string} */
+      type: 'error';
+    };
+    pollingResultsStrategy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "random";
-            polling: components["schemas"]["randomPollingInterval"] | components["schemas"]["absolutePollingInterval"] | components["schemas"]["relativePollingInterval"];
-        };
-        absolutePollingInterval: {
-            /**
+      type: 'random';
+      polling: components['schemas']['randomPollingInterval'] | components['schemas']['absolutePollingInterval'] | components['schemas']['relativePollingInterval'];
+    };
+    absolutePollingInterval: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "absolute";
-            /** @description absolute time as epoch time seconds */
-            time: number;
-        };
-        relativePollingInterval: {
-            /**
+      type: 'absolute';
+      /** @description absolute time as epoch time seconds */
+      time: number;
+    };
+    relativePollingInterval: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "relative";
-            /**
+      type: 'relative';
+      /**
              * @description ISO-8601 duration format
              * @example PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
              */
-            duration: string;
-        };
-        randomPollingInterval: {
-            /**
+      duration: string;
+    };
+    randomPollingInterval: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "randomPollingInterval";
-        };
-        callbackEndpoint: {
-            /**
+      type: 'randomPollingInterval';
+    };
+    callbackEndpoint: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "endpoint";
-        };
-        callbackResultsStrategy: {
-            /**
+      type: 'endpoint';
+    };
+    callbackResultsStrategy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "callback";
-            callback: components["schemas"]["callbackEndpoint"];
-        };
-        /** @description additional metadata regarding the operation */
-        OperationMetadata: {
-            /** @description denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
+      type: 'callback';
+      callback: components['schemas']['callbackEndpoint'];
+    };
+    /** @description additional metadata regarding the operation */
+    OperationMetadata: {
+      /** @description denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
              *     optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
              *      */
-            operationResponseStrategy?: components["schemas"]["pollingResultsStrategy"] | components["schemas"]["callbackResultsStrategy"];
-        };
-        OperationBase: {
-            /** @description unique correlation id which identify the operation */
-            cid: string;
-            /**
+      operationResponseStrategy?: components['schemas']['pollingResultsStrategy'] | components['schemas']['callbackResultsStrategy'];
+    };
+    OperationBase: {
+      /** @description unique correlation id which identify the operation */
+      cid: string;
+      /**
              * @description flag indicating if the operation completed, if true then error or response must be present (but not both)
              * @default false
              */
-            isCompleted: boolean;
-            operationMetadata?: components["schemas"]["OperationMetadata"];
-        };
-        createAssetOperationErrorInformation: {
-            /** Format: uint32 */
-            code?: number;
-            message?: string;
-        };
-        ledgerTokenId: {
-            /**
+      isCompleted: boolean;
+      operationMetadata?: components['schemas']['OperationMetadata'];
+    };
+    createAssetOperationErrorInformation: {
+      /** Format: uint32 */
+      code?: number;
+      message?: string;
+    };
+    ledgerTokenId: {
+      /**
              * @description the type of the identifier
              * @enum {string}
              */
-            type: "tokenId";
-            /** @description the token id binding */
-            tokenId: string;
-        };
-        finP2PEVMOperatorDetails: {
-            /** @description The FinP2P Operator Contract Address */
-            FinP2POperatorContractAddress?: string;
-            /** @description Indicates if allowance is required */
-            allowanceRequired?: boolean;
-        };
-        contractDetails: {
-            /**
+      type: 'tokenId';
+      /** @description the token id binding */
+      tokenId: string;
+    };
+    finP2PEVMOperatorDetails: {
+      /** @description The FinP2P Operator Contract Address */
+      FinP2POperatorContractAddress?: string;
+      /** @description Indicates if allowance is required */
+      allowanceRequired?: boolean;
+    };
+    contractDetails: {
+      /**
              * @description the type of the identifier (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            type: "contractDetails";
-            /** @description the network */
-            network: string;
-            /** @description the address */
-            address: string;
-            /** @description The standard of the token (e.g., ERC20, ERC721) */
-            TokenStandard?: string;
-            additionalContractDetails?: components["schemas"]["finP2PEVMOperatorDetails"];
-        };
-        ledgerAssetInfo: {
-            ledgerTokenId: components["schemas"]["ledgerTokenId"];
-            ledgerReference?: components["schemas"]["contractDetails"];
-        };
-        assetCreateResponse: {
-            ledgerAssetInfo: components["schemas"]["ledgerAssetInfo"];
-        };
-        createAssetOperation: components["schemas"]["OperationBase"] & {
-            error?: components["schemas"]["createAssetOperationErrorInformation"];
-            response?: components["schemas"]["assetCreateResponse"];
-        };
-        operationStatusCreateAsset: {
-            /**
+      type: 'contractDetails';
+      /** @description the network */
+      network: string;
+      /** @description the address */
+      address: string;
+      /** @description The standard of the token (e.g., ERC20, ERC721) */
+      TokenStandard?: string;
+      additionalContractDetails?: components['schemas']['finP2PEVMOperatorDetails'];
+    };
+    ledgerAssetInfo: {
+      ledgerTokenId: components['schemas']['ledgerTokenId'];
+      ledgerReference?: components['schemas']['contractDetails'];
+    };
+    assetCreateResponse: {
+      ledgerAssetInfo: components['schemas']['ledgerAssetInfo'];
+    };
+    createAssetOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['createAssetOperationErrorInformation'];
+      response?: components['schemas']['assetCreateResponse'];
+    };
+    operationStatusCreateAsset: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "createAsset";
-            operation: components["schemas"]["createAssetOperation"];
-        };
-        depositOperationErrorInformation: Record<string, never>;
-        "schemas-finIdAccount": {
-            /**
+      type: 'createAsset';
+      operation: components['schemas']['createAssetOperation'];
+    };
+    depositOperationErrorInformation: Record<string, never>;
+    'schemas-finIdAccount': {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "finId";
-            /** @description FinID, public key of the user */
-            finId: string;
-        };
-        /** @description describes destination for remote operations operations */
-        destination: {
-            /** @description FinID, public key of the user */
-            finId: string;
-            account: components["schemas"]["schemas-finIdAccount"] | components["schemas"]["cryptoWalletAccount"] | components["schemas"]["fiatAccount"];
-        };
-        ibanAccountDetails: {
-            /**
+      type: 'finId';
+      /** @description FinID, public key of the user */
+      finId: string;
+    };
+    /** @description describes destination for remote operations operations */
+    destination: {
+      /** @description FinID, public key of the user */
+      finId: string;
+      account: components['schemas']['schemas-finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'];
+    };
+    ibanAccountDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "iban";
-            iban: string;
-        };
-        swiftAccountDetails: {
-            /**
+      type: 'iban';
+      iban: string;
+    };
+    swiftAccountDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "swift";
-            swiftCode: string;
-            accountNumber: string;
-        };
-        sortCodeDetails: {
-            /**
+      type: 'swift';
+      swiftCode: string;
+      accountNumber: string;
+    };
+    sortCodeDetails: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "sortCode";
-            /** @description sort code has XX-XX-XX format */
-            code: string;
-            accountNumber: string;
-        };
-        wireDetails: components["schemas"]["ibanAccountDetails"] | components["schemas"]["swiftAccountDetails"] | components["schemas"]["sortCodeDetails"];
-        wireTransfer: {
-            /**
+      type: 'sortCode';
+      /** @description sort code has XX-XX-XX format */
+      code: string;
+      accountNumber: string;
+    };
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireTransfer: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "wireTransfer";
-            accountHolderName: string;
-            bankName: string;
-            wireDetails: components["schemas"]["wireDetails"];
-            line1?: string;
-            city?: string;
-            postalCode?: string;
-            country?: string;
-        };
-        wireTransferUSA: {
-            /**
+      type: 'wireTransfer';
+      accountHolderName: string;
+      bankName: string;
+      wireDetails: components['schemas']['wireDetails'];
+      line1?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    wireTransferUSA: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "wireTransferUSA";
-            accountNumber: string;
-            routingNumber: string;
-            line1?: string;
-            city?: string;
-            postalCode?: string;
-            country?: string;
-            state?: string;
-        };
-        cryptoTransfer: {
-            /**
+      type: 'wireTransferUSA';
+      accountNumber: string;
+      routingNumber: string;
+      line1?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+      state?: string;
+    };
+    cryptoTransfer: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "cryptoTransfer";
-            network: string;
-            contractAddress: string;
-            walletAddress: string;
-        };
-        paymentInstructions: {
-            /**
+      type: 'cryptoTransfer';
+      network: string;
+      contractAddress: string;
+      walletAddress: string;
+    };
+    paymentInstructions: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "paymentInstructions";
-            instruction: string;
-        };
-        paymentMethod: {
-            description: string;
-            /** @description accepted currency for payment */
-            currency: string;
-            methodInstruction: components["schemas"]["wireTransfer"] | components["schemas"]["wireTransferUSA"] | components["schemas"]["cryptoTransfer"] | components["schemas"]["paymentInstructions"];
-        };
-        paymentMethods: components["schemas"]["paymentMethod"][];
-        depositInstruction: {
-            account: components["schemas"]["destination"];
-            /** @description Instructions for the deposit operation */
-            description?: string;
-            paymentOptions?: components["schemas"]["paymentMethods"];
-            /**
+      type: 'paymentInstructions';
+      instruction: string;
+    };
+    paymentMethod: {
+      description: string;
+      /** @description accepted currency for payment */
+      currency: string;
+      methodInstruction: components['schemas']['wireTransfer'] | components['schemas']['wireTransferUSA'] | components['schemas']['cryptoTransfer'] | components['schemas']['paymentInstructions'];
+    };
+    paymentMethods: components['schemas']['paymentMethod'][];
+    depositInstruction: {
+      account: components['schemas']['destination'];
+      /** @description Instructions for the deposit operation */
+      description?: string;
+      paymentOptions?: components['schemas']['paymentMethods'];
+      /**
              * @deprecated
              * @description Any addition deposit specific information, deprecated use "payment method options" instead fields
              */
-            details?: Record<string, never>;
-            /** @description operation id reference while will correlate with any receipt associated with the deposit operation */
-            operationId?: string;
-        };
-        depositOperation: components["schemas"]["OperationBase"] & {
-            error?: components["schemas"]["depositOperationErrorInformation"];
-            response?: components["schemas"]["depositInstruction"];
-        };
-        operationStatusDeposit: {
-            /**
+      details?: Record<string, never>;
+      /** @description operation id reference while will correlate with any receipt associated with the deposit operation */
+      operationId?: string;
+    };
+    depositOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['depositOperationErrorInformation'];
+      response?: components['schemas']['depositInstruction'];
+    };
+    operationStatusDeposit: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "deposit";
-            operation: components["schemas"]["depositOperation"];
-        };
-        RegulationError: {
-            /** @description the type of regulation */
-            regulationType: string;
-            /** @description actionable details of the error */
-            details: string;
-        };
-        receiptOperationErrorInformation: {
-            /**
+      type: 'deposit';
+      operation: components['schemas']['depositOperation'];
+    };
+    RegulationError: {
+      /** @description the type of regulation */
+      regulationType: string;
+      /** @description actionable details of the error */
+      details: string;
+    };
+    receiptOperationErrorInformation: {
+      /**
              * Format: uint32
              * @description 1 for failure in regApps validation, 4 failure in signature verification
              */
-            code: number;
-            message: string;
-            regulationErrorDetails?: components["schemas"]["RegulationError"][];
-        };
-        "schemas-finp2pAsset": {
-            /**
+      code: number;
+      message: string;
+      regulationErrorDetails?: components['schemas']['RegulationError'][];
+    };
+    'schemas-finp2pAsset': {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "finp2p";
-            /** @description Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format')
+      type: 'finp2p';
+      /** @description Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format')
              *      */
-            resourceId: string;
-        };
-        "schemas-asset": components["schemas"]["cryptocurrencyAsset"] | components["schemas"]["fiatAsset"] | components["schemas"]["schemas-finp2pAsset"];
-        source: {
-            /** @description FinID, public key of the user */
-            finId: string;
-            account: components["schemas"]["schemas-finIdAccount"];
-        };
-        /** @description additional ledger specific */
-        "schemas-transactionDetails": {
-            /** @description The Transaction id on the underlying ledger */
-            transactionId: string;
-            /** @description The Operation id */
-            operationId?: string;
-        };
-        /** @enum {string} */
-        operationType: "issue" | "transfer" | "hold" | "release" | "redeem";
-        "schemas-signatureProofPolicy": {
-            /**
+      resourceId: string;
+    };
+    'schemas-asset': components['schemas']['cryptocurrencyAsset'] | components['schemas']['fiatAsset'] | components['schemas']['schemas-finp2pAsset'];
+    source: {
+      /** @description FinID, public key of the user */
+      finId: string;
+      account: components['schemas']['schemas-finIdAccount'];
+    };
+    /** @description additional ledger specific */
+    'schemas-transactionDetails': {
+      /** @description The Transaction id on the underlying ledger */
+      transactionId: string;
+      /** @description The Operation id */
+      operationId?: string;
+    };
+    /** @enum {string} */
+    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem';
+    'schemas-signatureProofPolicy': {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "signatureProofPolicy";
-            signature?: components["schemas"]["signature"];
-        };
-        /** @description additional proof information attached to a receipt */
-        "schemas-proofPolicy": components["schemas"]["schemas-signatureProofPolicy"] | components["schemas"]["noProofPolicy"];
-        receipt: {
-            /** @description the receipt id */
-            id: string;
-            asset: components["schemas"]["schemas-asset"];
-            /** @description How many units of the asset tokens */
-            quantity: string;
-            /**
+      type: 'signatureProofPolicy';
+      signature?: components['schemas']['signature'];
+    };
+    /** @description additional proof information attached to a receipt */
+    'schemas-proofPolicy': components['schemas']['schemas-signatureProofPolicy'] | components['schemas']['noProofPolicy'];
+    receipt: {
+      /** @description the receipt id */
+      id: string;
+      asset: components['schemas']['schemas-asset'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+      /**
              * Format: int64
              * @description transaction timestamp
              */
-            timestamp: number;
-            source?: components["schemas"]["source"];
-            destination?: components["schemas"]["destination"];
-            transactionDetails?: components["schemas"]["schemas-transactionDetails"];
-            operationType?: components["schemas"]["operationType"];
-            tradeDetails: components["schemas"]["receiptTradeDetails"];
-            proof?: components["schemas"]["schemas-proofPolicy"];
-        };
-        receiptOperation: components["schemas"]["OperationBase"] & {
-            error?: components["schemas"]["receiptOperationErrorInformation"];
-            response?: components["schemas"]["receipt"];
-        };
-        operationStatusReceipt: {
-            /**
+      timestamp: number;
+      source?: components['schemas']['source'];
+      destination?: components['schemas']['destination'];
+      transactionDetails?: components['schemas']['schemas-transactionDetails'];
+      operationType?: components['schemas']['operationType'];
+      tradeDetails: components['schemas']['receiptTradeDetails'];
+      proof?: components['schemas']['schemas-proofPolicy'];
+    };
+    receiptOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['receipt'];
+    };
+    operationStatusReceipt: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "receipt";
-            operation: components["schemas"]["receiptOperation"];
-        };
-        PlanApproved: {
-            /**
+      type: 'receipt';
+      operation: components['schemas']['receiptOperation'];
+    };
+    PlanApproved: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            status: "approved";
-        };
-        ValidationFailure: {
-            /**
+      status: 'approved';
+    };
+    ValidationFailure: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            failureType: "validationFailure";
-            /**
+      failureType: 'validationFailure';
+      /**
              * Format: uint32
              * @description ledger error code for validation
              */
-            code: number;
-            message: string;
-        };
-        RegulationFailure: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            failureType: "regulationFailure";
-            errors: components["schemas"]["RegulationError"][];
-        };
-        PlanRejected: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            status: "rejected";
-            failure?: components["schemas"]["ValidationFailure"] | components["schemas"]["RegulationFailure"];
-        };
-        PlanApprovalResponse: {
-            approval?: components["schemas"]["PlanApproved"] | components["schemas"]["PlanRejected"];
-        };
-        ExecutionPlanApprovalOperation: components["schemas"]["OperationBase"] & components["schemas"]["PlanApprovalResponse"];
-        operationStatusApproval: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "approval";
-            operation: components["schemas"]["ExecutionPlanApprovalOperation"];
-        };
-        operationStatus: components["schemas"]["operationStatusCreateAsset"] | components["schemas"]["operationStatusDeposit"] | components["schemas"]["operationStatusReceipt"] | components["schemas"]["operationStatusApproval"];
+      code: number;
+      message: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    RegulationFailure: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      failureType: 'regulationFailure';
+      errors: components['schemas']['RegulationError'][];
+    };
+    PlanRejected: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      status: 'rejected';
+      failure?: components['schemas']['ValidationFailure'] | components['schemas']['RegulationFailure'];
+    };
+    PlanApprovalResponse: {
+      approval?: components['schemas']['PlanApproved'] | components['schemas']['PlanRejected'];
+    };
+    ExecutionPlanApprovalOperation: components['schemas']['OperationBase'] & components['schemas']['PlanApprovalResponse'];
+    operationStatusApproval: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'approval';
+      operation: components['schemas']['ExecutionPlanApprovalOperation'];
+    };
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'];
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    cancelWorkflow: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["cancelWorkflow"];
-            };
-        };
-        responses: {
-            /** @description workflow queued for cancelling */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Workflow not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description Precondition failed. E.g. workflow is already completed or in non cancellable state */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description System error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-        };
+  cancelWorkflow: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
     };
-    "callback operation": {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description correlation id of operation */
-                cid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["operationStatusCallback"];
-            };
-        };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description System error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['cancelWorkflow'];
+      };
     };
-    "import transactions": {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description workflow queued for cancelling */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    transactions: components["schemas"]["transaction"][];
-                };
-            };
+        content?: never;
+      };
+      /** @description Workflow not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Some transactions were not imported due to duplicate transaction IDs.
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description Precondition failed. E.g. workflow is already completed or in non cancellable state */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description System error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+    };
+  };
+  'callback operation': {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description correlation id of operation */
+        cid: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['operationStatusCallback'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description System error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  'import transactions': {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          transactions: components['schemas']['transaction'][];
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Some transactions were not imported due to duplicate transaction IDs.
              *      */
-            208: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Transaction not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description request with this idempotency key already in progress */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Invalid idempotency key or request with same idempotency key but different payload */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description System error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+      208: {
+        headers: {
+          [name: string]: unknown;
         };
+        content?: never;
+      };
+      /** @description Transaction not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description request with this idempotency key already in progress */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid idempotency key or request with same idempotency key but different payload */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description System error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
-    getExecutionPlan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the execution plan */
-                planId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["execution"];
-                };
-            };
-            /** @description Execution plan not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description System error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  getExecutionPlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the execution plan */
+        planId: string;
+      };
+      cookie?: never;
     };
-    getPolicyById: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the trading policy */
-                policyId: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description got the policy */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["tradingPolicy"];
-                };
-            };
-            /** @description Trading policy not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description Internal error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['execution'];
         };
+      };
+      /** @description Execution plan not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description System error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
-    deletePolicyById: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the trading policy */
-                policyId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description policy deleted */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Trading policy not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description Internal error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-        };
+  };
+  getPolicyById: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the trading policy */
+        policyId: string;
+      };
+      cookie?: never;
     };
-    findPolicies: {
-        parameters: {
-            query: {
-                /** @description asset matching type */
-                assetMatchingType: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description got the policy */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description found some policies */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        policies: components["schemas"]["tradingPolicy"][];
-                    };
-                };
-            };
-            /** @description Internal error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['tradingPolicy'];
         };
+      };
+      /** @description Trading policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
     };
-    getAssetPoliciesByAssetId: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the asset */
-                assetId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description found some policies */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        policies: components["schemas"]["tradingPolicy"][];
-                    };
-                };
-            };
-            /** @description Asset was not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  deletePolicyById: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the trading policy */
+        policyId: string;
+      };
+      cookie?: never;
     };
-    updatePolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description policy deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["updatePolicyRequest"];
-            };
+        content?: never;
+      };
+      /** @description Trading policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            /** @description successful update */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["updatePolicyResponse"];
-                };
-            };
-            /** @description Invalid Input */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description Policy not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description constraints violation */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description System error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
         };
+      };
+      /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
     };
-    createPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["createPolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description successful creation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["createPolicyResponse"];
-                };
-            };
-            /** @description Invalid Input */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description policy with given policy id already exists */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-            /** @description System error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiAnyError"];
-                };
-            };
-        };
+  };
+  findPolicies: {
+    parameters: {
+      query: {
+        /** @description asset matching type */
+        assetMatchingType: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    requestBody?: never;
+    responses: {
+      /** @description found some policies */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            policies: components['schemas']['tradingPolicy'][];
+          };
+        };
+      };
+      /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+    };
+  };
+  getAssetPoliciesByAssetId: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset */
+        assetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description found some policies */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            policies: components['schemas']['tradingPolicy'][];
+          };
+        };
+      };
+      /** @description Asset was not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updatePolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['updatePolicyRequest'];
+      };
+    };
+    responses: {
+      /** @description successful update */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['updatePolicyResponse'];
+        };
+      };
+      /** @description Invalid Input */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description Policy not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description constraints violation */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description System error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+    };
+  };
+  createPolicy: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['createPolicyRequest'];
+      };
+    };
+    responses: {
+      /** @description successful creation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['createPolicyResponse'];
+        };
+      };
+      /** @description Invalid Input */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description policy with given policy id already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+      /** @description System error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiAnyError'];
+        };
+      };
+    };
+  };
 }
