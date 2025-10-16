@@ -13,7 +13,7 @@ export const createCrypto = (): { private: Buffer, public: Buffer } => {
 
   // get the public key in a compressed format
   const pubKey = secp256k1.publicKeyCreate(privKey, true);
-  return {private: privKey, public: pubKey};
+  return {private: privKey, public: Buffer.from(pubKey)};
 };
 
 export const generateNonce = () => {
@@ -33,8 +33,3 @@ export const generateNonce = () => {
 export const randomResourceId = (orgId: string, resourceType: number) => {
   return `${orgId}:${resourceType}:${uuidv4()}`;
 };
-
-export const randomPort = () => {
-  return Math.floor(Math.random() * 10000) + 10000;
-}
-

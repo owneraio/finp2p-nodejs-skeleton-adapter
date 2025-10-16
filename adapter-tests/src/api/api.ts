@@ -1,5 +1,5 @@
 import {ClientBase} from "./base";
-import {LedgerAPI} from '../../src';
+import {LedgerAPI} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import {ClientError} from "../utils/error";
 
 export class LedgerAPIClient {

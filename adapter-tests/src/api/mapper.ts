@@ -7,8 +7,8 @@ import {
   hashEIP712,
   LedgerAPI, SettlementGroup,
   signEIP712WithPrivateKey
-} from "../../src";
-import {hashBufferValues, hashValues, signSecp} from "../../src/lib/helpers/hashList";
+} from "@owneraio/finp2p-nodejs-skeleton-adapter";
+import {hashBufferValues, hashValues, signSecp} from "@owneraio/finp2p-nodejs-skeleton-adapter/dist/lib/helpers/hashList";
 
 export const eip712Signature = async (chainId: number,
                                       verifyingContract: string, primaryType: string,

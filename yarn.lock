@@ -1040,6 +1040,15 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@owneraio/adapter-tests@^0.1.2":
+  version "0.1.2"
+  resolved "https://npm.pkg.github.com/download/@owneraio/adapter-tests/0.1.2/333bb474a80e661af40e26c14b2bb5a512f15b24"
+  integrity sha512-i2Hf6kp45xDC/0VA9J7bBTKSb7OJLwWKm8ryuRUvVL827xXPunhw0rkCuzeSWsRQzESquZjYV+Hv829YrnzcEg==
+  dependencies:
+    "@owneraio/finp2p-nodejs-skeleton-adapter" "0.25.17"
+    yaml "^2.8.1"
+    zod "^4.1.12"
+
 "@owneraio/finp2p-client@^0.25.10":
   version "0.25.10"
   resolved "https://npm.pkg.github.com/download/@owneraio/finp2p-client/0.25.10/a9aced63f7602281cf8cefb56ae635077d13d31d"
@@ -1049,6 +1058,22 @@
     graphql "^16.8.1"
     graphql-import-node "^0.0.5"
     openapi-fetch "0.14.0"
+
+"@owneraio/finp2p-nodejs-skeleton-adapter@0.25.17":
+  version "0.25.17"
+  resolved "https://npm.pkg.github.com/download/@owneraio/finp2p-nodejs-skeleton-adapter/0.25.17/11cc3246640b7e619a584dca55958ecaad160804"
+  integrity sha512-99Lo1vWTL4BW58scjo3HJq8JY0iRz1X5kEvq3bQvnKwPUtMPc2OyHl0M+pbQ4CxrtqvK6wrfzAlu9icgKyIodg==
+  dependencies:
+    "@owneraio/finp2p-client" "^0.25.10"
+    axios "1.11.0"
+    ethers "^6.11.1"
+    express "5.0.0"
+    express-validator "^6.14.0"
+    express-winston "^4.2.0"
+    keccak "^3.0.2"
+    secp256k1 "^3.7.1"
+    uuid "^9.0.0"
+    winston "^3.3.3"
 
 "@redocly/ajv@^8.11.2":
   version "8.11.3"
