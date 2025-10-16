@@ -1,6 +1,5 @@
 import * as secp256k1 from 'secp256k1';
 import * as crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 
 export const ASSET = 102;
 
@@ -35,5 +34,9 @@ export const generateNonce = () => {
 };
 
 export const randomResourceId = (orgId: string, resourceType: number) => {
-  return `${orgId}:${resourceType}:${uuidv4()}`;
+  return `${orgId}:${resourceType}:${generateId()}`;
 };
+
+export function generateId(): string {
+  return `${Date.now()}${Math.floor(Math.random() * 10000)}`;
+}

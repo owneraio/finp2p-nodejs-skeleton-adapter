@@ -1,8 +1,8 @@
-import { v4 as uuidv4 } from 'uuid';
 import { LedgerAPIClient } from '../api/api';
 import { TestActor, TestDataBuilder } from './test-builders';
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { TestHelpers } from './test-assertions';
+import {generateId} from "./utils";
 
 /**
  * High-level test fixtures for common test scenarios
@@ -40,7 +40,7 @@ export class TestFixtures {
         destination: params.actor.source.account,
         asset: params.asset,
         quantity: params.balance,
-        settlementRef: uuidv4(),
+        settlementRef: generateId(),
       });
 
       await TestHelpers.issueAndGetReceipt(this.client, issueRequest);
@@ -138,7 +138,7 @@ export class TestFixtures {
           type: 'finp2p',
         },
         quantity: params.initialBalance,
-        settlementRef: uuidv4(),
+        settlementRef: generateId(),
       });
 
       const setBalanceStatus = await this.client.tokens.issue(issueRequest);
@@ -173,7 +173,7 @@ export class TestFixtures {
       operationId: string;
       holdReceipt: LedgerAPI['schemas']['receipt'];
     }> {
-    const operationId = params.operationId || uuidv4();
+    const operationId = params.operationId || generateId();
 
     const holdRequest = await this.builder.buildSignedHoldRequest({
       source: params.source,
