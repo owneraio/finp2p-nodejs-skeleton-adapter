@@ -2,7 +2,7 @@ import { LedgerAPIClient } from './api/api';
 import { TestDataBuilder } from './utils/test-builders';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
-import { v4 as uuidv4 } from 'uuid';
+import {generateId} from "./utils/utils";
 
 export function insufficientBalanceTest() {
   describe('Insufficient Balance - Negative Tests', () => {
@@ -123,7 +123,7 @@ export function insufficientBalanceTest() {
 
         // Attempt to redeem MORE than available
         const excessiveRedeemAmount = initialBalance + 50;
-        const operationId = uuidv4();
+        const operationId = generateId();
 
         const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
           investor,
@@ -161,7 +161,7 @@ export function insufficientBalanceTest() {
         await client.expectBalance(investor.source, asset, 0);
 
         // Try to redeem from zero balance
-        const operationId = uuidv4();
+        const operationId = generateId();
         const { holdRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
@@ -200,7 +200,7 @@ export function insufficientBalanceTest() {
 
         // Attempt to hold MORE than available
         const excessiveHoldAmount = initialBalance + 500;
-        const operationId = uuidv4();
+        const operationId = generateId();
         const assetId = builder.buildFinP2PAsset().resourceId;
 
         const holdRequest = await builder.buildSignedHoldRequest({
@@ -237,7 +237,7 @@ export function insufficientBalanceTest() {
         await client.expectBalance(buyer.source, asset, 0);
 
         // Try to hold any amount from zero balance
-        const operationId = uuidv4();
+        const operationId = generateId();
         const assetId = builder.buildFinP2PAsset().resourceId;
 
         const holdRequest = await builder.buildSignedHoldRequest({
@@ -274,7 +274,7 @@ export function insufficientBalanceTest() {
         });
 
         // First hold: 800 (should succeed)
-        const firstOperationId = uuidv4();
+        const firstOperationId = generateId();
         const assetId = builder.buildFinP2PAsset().resourceId;
 
         const firstHoldRequest = await builder.buildSignedHoldRequest({
@@ -294,7 +294,7 @@ export function insufficientBalanceTest() {
 
         // Remaining available: 200
         // Now try to hold 300 (should fail)
-        const secondOperationId = uuidv4();
+        const secondOperationId = generateId();
         const secondHoldRequest = await builder.buildSignedHoldRequest({
           source: buyer,
           destination: seller,

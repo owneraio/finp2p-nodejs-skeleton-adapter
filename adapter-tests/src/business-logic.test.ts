@@ -3,7 +3,7 @@ import { TestDataBuilder } from './utils/test-builders';
 import { TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
-import { v4 as uuidv4 } from 'uuid';
+import {generateId} from "./utils/utils";
 
 export function businessLogicTests() {
   describe('Business Logic - Negative Tests', () => {
@@ -38,7 +38,7 @@ export function businessLogicTests() {
         });
 
         // Hold funds
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -77,7 +77,7 @@ export function businessLogicTests() {
         });
 
         // Try to rollback with fake operationId
-        const fakeOperationId = uuidv4();
+        const fakeOperationId = generateId();
         const rollbackRequest = {
           operationId: fakeOperationId,
           source: buyer.source,
@@ -105,7 +105,7 @@ export function businessLogicTests() {
         });
 
         // Hold funds
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -157,7 +157,7 @@ export function businessLogicTests() {
         });
 
         // Hold and redeem
-        const operationId = uuidv4();
+        const operationId = generateId();
         const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
@@ -201,7 +201,7 @@ export function businessLogicTests() {
         });
 
         // Hold funds
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -241,7 +241,7 @@ export function businessLogicTests() {
           issueAmount: 100,
         });
 
-        const operationId = uuidv4();
+        const operationId = generateId();
         const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
@@ -272,7 +272,7 @@ export function businessLogicTests() {
           initialBalance: 1000,
         });
 
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -312,7 +312,7 @@ export function businessLogicTests() {
         });
 
         // Try to release without holding first
-        const fakeOperationId = uuidv4();
+        const fakeOperationId = generateId();
         const releaseRequest = builder.buildReleaseRequest({
           source: buyer,
           destination: seller,
@@ -338,7 +338,7 @@ export function businessLogicTests() {
         });
 
         // Try to redeem without holding first
-        const fakeOperationId = uuidv4();
+        const fakeOperationId = generateId();
         const { redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
@@ -365,7 +365,7 @@ export function businessLogicTests() {
         });
 
         // Hold with one operationId
-        const holdOperationId = uuidv4();
+        const holdOperationId = generateId();
         const { holdRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
@@ -378,7 +378,7 @@ export function businessLogicTests() {
         await client.escrow.hold(holdRequest);
 
         // Try to redeem with different operationId
-        const differentOperationId = uuidv4();
+        const differentOperationId = generateId();
         const { redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
@@ -403,7 +403,7 @@ export function businessLogicTests() {
           destination: actor.source.account,
           asset: nonExistentAsset,
           quantity: 100,
-          settlementRef: uuidv4(),
+          settlementRef: generateId(),
         });
 
         const issueStatus = await client.tokens.issue(issueRequest);
@@ -431,7 +431,7 @@ export function businessLogicTests() {
           destination: issuer.source.account,
           asset,
           quantity: 100,
-          settlementRef: uuidv4(),
+          settlementRef: generateId(),
         });
 
         const issueStatus = await client.tokens.issue(issueRequest);
@@ -516,7 +516,7 @@ export function businessLogicTests() {
         });
 
         // Try to hold 0 amount
-        const operationId = uuidv4();
+        const operationId = generateId();
         const holdRequest = await builder.buildSignedHoldRequest({
           source: buyer,
           destination: seller,
@@ -551,7 +551,7 @@ export function businessLogicTests() {
         });
 
         // Hold funds from buyer
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -628,7 +628,7 @@ export function businessLogicTests() {
         });
 
         // Hold 500
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,

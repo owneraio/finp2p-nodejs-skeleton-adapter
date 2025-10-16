@@ -3,7 +3,7 @@ import { TestDataBuilder } from './utils/test-builders';
 import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
-import { v4 as uuidv4 } from 'uuid';
+import {generateId} from "./utils/utils";
 
 describe('Escrow Operations', () => {
 
@@ -39,7 +39,7 @@ describe('Escrow Operations', () => {
     await client.expectBalance(seller.source, asset, 0);
 
     // Step 1: Hold funds in escrow
-    const operationId = uuidv4();
+    const operationId = generateId();
     const assetId = builder.buildFinP2PAsset().resourceId;
 
     const { holdReceipt } = await fixtures.setupEscrowHold({
@@ -102,7 +102,7 @@ describe('Escrow Operations', () => {
     });
 
     // Step 1: Hold tokens for redemption
-    const operationId = uuidv4();
+    const operationId = generateId();
     const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
       investor,
       issuer,
