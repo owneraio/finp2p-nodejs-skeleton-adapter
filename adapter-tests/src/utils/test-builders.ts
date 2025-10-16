@@ -1,5 +1,5 @@
 import { createCrypto, generateNonce, randomResourceId, ASSET } from "./utils";
-import { LedgerAPI } from "../../src";
+import { LedgerAPI } from "@owneraio/finp2p-nodejs-skeleton-adapter";
 import { eip712Signature } from "../api/mapper";
 import {
   EIP712PrimarySaleMessage,
@@ -11,7 +11,7 @@ import {
   PRIMARY_SALE_TYPES,
   REDEMPTION_TYPES,
   SELLING_TYPES
-} from "../../src";
+} from "@owneraio/finp2p-nodejs-skeleton-adapter";
 
 /**
  * Represents a test actor (user/participant) with cryptographic keys and account info

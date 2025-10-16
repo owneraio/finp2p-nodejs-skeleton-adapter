@@ -12,19 +12,13 @@
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
-    "baseUrl": ".",
     "paths": {
       "*": [
-        "node_modules/*"
+        "./adapter-test/node_modules/*"
       ]
     }
   },
   "include": [
     "src/**/*.ts",
-  ],
-  "exclude": [
-    "src/app",
-    "tests",
-    "**/*.test.ts"
-  ],
+  ]
 }

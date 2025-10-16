@@ -9,3 +9,4 @@ node_modules
 /finp2p-client/dist/
 /finp2p-client/node_modules/
 /.npmrc
+/adapter-tests/.npmrc

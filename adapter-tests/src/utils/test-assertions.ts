@@ -1,4 +1,4 @@
-import { LedgerAPI } from "../../src";
+import { LedgerAPI } from "@owneraio/finp2p-nodejs-skeleton-adapter";
 import { TestActor } from "./test-builders";
 
 /**
