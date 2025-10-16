@@ -2,11 +2,10 @@ import { logger } from '../../helpers';
 import {
   approvedPlan, Asset, DestinationAccount,
   ExecutionPlan,
-  FinIdAccount, pendingPlan,
+  FinIdAccount, generateCid, pendingPlan,
   PlanApprovalService,
   PlanApprovalStatus, rejectedPlan,
 } from '../index';
-import { v4 as uuid } from 'uuid';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { executionFromAPI } from './mapper';
 import { PluginManager } from '../../plugins';
@@ -99,7 +98,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           if (!plugin.asyncIface) {
             return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
           }
-          const cid = uuid();
+          const cid = generateCid();
           plugin.asyncIface.validateIssuance(idempotencyKey, cid, destination, asset, amount)
             .then(() => {
             });
@@ -123,7 +122,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           if (!plugin.asyncIface) {
             return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
           }
-          const cid = uuid();
+          const cid = generateCid();
           plugin.asyncIface.validateTransfer(idempotencyKey, cid, source, destination, asset, amount).then(() => {
           });
           return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
@@ -146,7 +145,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           if (!plugin.asyncIface) {
             return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
           }
-          const cid = uuid();
+          const cid = generateCid();
           plugin.asyncIface.validateRedemption(idempotencyKey, cid, source, destination, asset, amount).then(() => {
           });
           return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
