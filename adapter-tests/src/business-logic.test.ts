@@ -3,7 +3,7 @@ import { TestDataBuilder } from './utils/test-builders';
 import { TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
-import {generateId} from "./utils/utils";
+import { generateId } from './utils/utils';
 
 export function businessLogicTests() {
   describe('Business Logic - Negative Tests', () => {

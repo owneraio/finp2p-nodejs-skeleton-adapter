@@ -3,7 +3,7 @@ import { TestDataBuilder } from './utils/test-builders';
 import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
-import {generateId} from "./utils/utils";
+import { generateId } from './utils/utils';
 
 describe('Escrow Operations', () => {
 

@@ -2,7 +2,7 @@ import { LedgerAPIClient } from './api/api';
 import { TestDataBuilder } from './utils/test-builders';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
-import {generateId} from "./utils/utils";
+import { generateId } from './utils/utils';
 
 export function insufficientBalanceTest() {
   describe('Insufficient Balance - Negative Tests', () => {

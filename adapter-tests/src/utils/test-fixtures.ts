@@ -2,7 +2,7 @@ import { LedgerAPIClient } from '../api/api';
 import { TestActor, TestDataBuilder } from './test-builders';
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { TestHelpers } from './test-assertions';
-import {generateId} from "./utils";
+import { generateId } from './utils';
 
 /**
  * High-level test fixtures for common test scenarios
