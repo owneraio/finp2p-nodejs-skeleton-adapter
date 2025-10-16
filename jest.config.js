@@ -11,10 +11,10 @@ module.exports = {
   testTimeout: 120000,
   "roots": [
     "<rootDir>/src",
-    "<rootDir>/adapter-tests"
+    "<rootDir>/tests"
   ],
   "testMatch": [
-    "<rootDir>/adapter-tests/**/*.test.+(ts|tsx|js)"
+    "<rootDir>/tests/**/*.test.+(ts|tsx|js)"
   ],
   "transform": {
     "^.+\\.(ts|tsx)$": "ts-jest"
