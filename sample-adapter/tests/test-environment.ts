@@ -3,9 +3,14 @@ import { EnvironmentContext, JestEnvironmentConfig } from "@jest/environment";
 import createApp from "../src/app";
 import * as http from "http";
 import * as console from "console";
-import { AdapterParameters } from "./models";
-import { randomPort } from "./utils";
 
+const randomPort = () => {
+  return Math.floor(Math.random() * 10000) + 10000;
+}
+
+type AdapterParameters = {
+  url: string,
+}
 
 class CustomTestEnvironment extends NodeEnvironment {
 
