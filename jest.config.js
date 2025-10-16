@@ -1,6 +1,6 @@
 module.exports = {
   preset: "ts-jest",
-  testEnvironment: "./tests/utils/test-environment.ts",
+  testEnvironment: "./tests/test-environment.ts",
   testEnvironmentOptions: {
     orgId: "bank-id",
     hashFunction: "sha3-256",
