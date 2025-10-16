@@ -1,6 +1,6 @@
 import NodeEnvironment from "jest-environment-node";
 import { EnvironmentContext, JestEnvironmentConfig } from "@jest/environment";
-import createApp from "../sample-adapter/src/app";
+import createApp from "../src/app";
 import * as http from "http";
 import * as console from "console";
 import { AdapterParameters } from "./models";

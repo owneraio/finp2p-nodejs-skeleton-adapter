@@ -6,7 +6,7 @@ import {
   ReceiptOperation,
   Signature,
   Source,
-  successfulReceiptOperation, verifySignature, logger
+  successfulReceiptOperation, verifySignature, logger,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
 import { HoldOperation, Transaction } from './model';
