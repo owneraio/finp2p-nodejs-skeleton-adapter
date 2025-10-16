@@ -12,7 +12,6 @@
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
-    "types": ["jest"],
     "paths": {
       "*": [
         "./adapter-test/node_modules/*"

@@ -18,6 +18,7 @@
     "@owneraio/finp2p-nodejs-skeleton-adapter": "0.25.17"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/secp256k1": "^4.0.7",
     "@types/uuid": "^8.3.4",
     "eslint": "^8.4.1",
