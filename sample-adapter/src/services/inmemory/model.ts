@@ -6,7 +6,7 @@ import {
   OperationType,
   Receipt,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { v4 as uuid } from 'uuid';
+import {generateId} from "./utils";
 
 
 export class ServiceError extends Error {
@@ -48,7 +48,7 @@ export class Transaction {
     executionContext: ExecutionContext | undefined,
     operationType: OperationType,
     operationId: string | undefined) {
-    this.id = uuid();
+    this.id = generateId();
     this.source = source;
     this.destination = destination;
     this.quantity = quantity;

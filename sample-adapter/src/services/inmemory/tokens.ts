@@ -1,4 +1,3 @@
-import { v4 as uuid } from 'uuid';
 import { CommonServiceImpl } from './common';
 import {
   AssetBind, AssetCreationStatus,
@@ -13,6 +12,7 @@ import {
 import { logger } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';
+import {generateId} from "./utils";
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
@@ -37,7 +37,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     });
     let tokenId: string;
     if (!assetBind || !assetBind.tokenIdentifier) {
-      tokenId = uuid();
+      tokenId = generateId();
       this.storage.createAsset(asset.assetId, asset);
     } else {
       ({ tokenIdentifier: { tokenId } } = assetBind);
