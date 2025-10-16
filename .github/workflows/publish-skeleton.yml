@@ -6,7 +6,7 @@ on:
       - "v*"
 
 jobs:
-  publish-adapter:
+  publish-skeleton:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -23,7 +23,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: npm run build-lib
+      - run: npm run build
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

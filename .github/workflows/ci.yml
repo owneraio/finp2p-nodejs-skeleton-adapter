@@ -10,7 +10,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -28,13 +27,32 @@ jobs:
         working-directory: ./finp2p-client
         run: npm clean-install
 
+        # ----------------------------------
+
+
+      - name: Skeleton npm clean-install
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skeleton npm run build
+        run: npm run build
+
+      - name: Skeleton npm test
+        run: npm test
+
+        # ----------------------------------
+
       - name: Adapter npm clean-install
+        working-directory: ./sample-adapter
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Adapter npm run build
+        working-directory: ./sample-adapter
         run: npm run build
 
       - name: Adapter npm test
+        working-directory: ./sample-adapter
         run: npm test

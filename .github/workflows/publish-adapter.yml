@@ -1,0 +1,34 @@
+name: Publish Package
+
+on:
+  push:
+    tags:
+      - "sample-adapter-v*"
+
+jobs:
+  publish-adapter:
+    defaults:
+      run:
+        working-directory: ./sample-adapter
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@owneraio"
+
+      - name: Install Dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: npm run build
+
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

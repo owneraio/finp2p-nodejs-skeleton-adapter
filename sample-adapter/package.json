@@ -1,8 +1,11 @@
 {
-  "name": "sample-adapter",
-  "version": "1.0.0",
+  "name": "@owneraio/sample-adapter",
+  "version": "0.1,0",
   "description": "",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc",
@@ -12,6 +15,9 @@
   },
   "author": "",
   "license": "ISC",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "dependencies": {
     "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.25.17",
     "@owneraio/finp2p-client": "^0.25.10",
