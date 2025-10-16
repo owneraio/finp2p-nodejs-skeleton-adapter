@@ -1,13 +1,5 @@
 .idea
+.npmrc
 node_modules
-/dist/
-/cache/
-/finp2p-contracts/artifacts/
-/finp2p-contracts/typechain-types/
-/finp2p-contracts/dist/
-/finp2p-contracts/cache/
-/finp2p-client/dist/
-/finp2p-client/node_modules/
-/.npmrc
-/adapter-tests/.npmrc
-/sample-adapter/.npmrc
+dist
+cache

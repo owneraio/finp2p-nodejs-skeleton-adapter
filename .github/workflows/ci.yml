@@ -27,32 +27,44 @@ jobs:
         working-directory: ./finp2p-client
         run: npm clean-install
 
+      - name: finp2p-client build
+        working-directory: ./finp2p-client
+        run: npm run build
+
         # ----------------------------------
 
+      - name: adapter-tests install dependencies
+        working-directory: ./adapter-tests
+        run: npm clean-install
 
-      - name: Skeleton npm clean-install
+      - name: adapter-tests build
+        working-directory: ./adapter-tests
+        run: npm run build
+
+        # ----------------------------------
+
+      - name: skeleton install dependencies
+        working-directory: ./skeleton
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Skeleton npm run build
+      - name: skeleton build
+        working-directory: ./skeleton
         run: npm run build
-
-      - name: Skeleton npm test
-        run: npm test
 
         # ----------------------------------
 
-      - name: Adapter npm clean-install
+      - name: sample-adapter install dependencies
         working-directory: ./sample-adapter
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Adapter npm run build
+      - name: sample-adapter build
         working-directory: ./sample-adapter
         run: npm run build
 
-      - name: Adapter npm test
+      - name: sample-adapter test
         working-directory: ./sample-adapter
         run: npm test

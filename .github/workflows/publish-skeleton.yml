@@ -8,6 +8,9 @@ on:
 jobs:
   publish-skeleton:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./skeleton
     permissions:
       packages: write
       contents: read
