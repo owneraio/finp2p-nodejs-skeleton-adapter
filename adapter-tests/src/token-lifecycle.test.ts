@@ -1,8 +1,8 @@
-import { LedgerAPIClient } from "./api/api";
-import { TestDataBuilder } from "./utils/test-builders";
-import { ReceiptAssertions, TestHelpers } from "./utils/test-assertions";
-import { TestFixtures } from "./utils/test-fixtures";
-import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from "./utils/test-constants";
+import { LedgerAPIClient } from './api/api';
+import { TestDataBuilder } from './utils/test-builders';
+import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
+import { TestFixtures } from './utils/test-fixtures';
+import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
 
 export function tokenLifecycleTests() {
   describe('Token Lifecycle', () => {
@@ -32,19 +32,19 @@ export function tokenLifecycleTests() {
       const scenario = SCENARIOS.ISSUE_TRANSFER_REDEEM;
 
       // Step 1: Setup issued tokens
-      const {receipt: issueReceipt} = await fixtures.setupIssuedTokens({
+      const { receipt: issueReceipt } = await fixtures.setupIssuedTokens({
         issuer,
         buyer: primaryBuyer,
         asset,
         amount: scenario.ISSUE_AMOUNT,
-        settlementAmount: scenario.ISSUE_SETTLEMENT
+        settlementAmount: scenario.ISSUE_SETTLEMENT,
       });
 
       // Verify issue receipt
       ReceiptAssertions.expectIssueReceipt(issueReceipt, {
         asset,
         quantity: scenario.ISSUE_AMOUNT,
-        destinationFinId: issuer.finId
+        destinationFinId: issuer.finId,
       });
 
       // Step 2: Transfer tokens to secondary buyer
@@ -53,7 +53,7 @@ export function tokenLifecycleTests() {
         buyer: secondaryBuyer,
         asset,
         amount: scenario.TRANSFER_AMOUNT,
-        settlementAmount: scenario.TRANSFER_SETTLEMENT
+        settlementAmount: scenario.TRANSFER_SETTLEMENT,
       });
 
       const transferReceipt = await TestHelpers.transferAndGetReceipt(client, transferRequest);
@@ -63,7 +63,7 @@ export function tokenLifecycleTests() {
         asset,
         quantity: scenario.TRANSFER_AMOUNT,
         sourceFinId: issuer.finId,
-        destinationFinId: secondaryBuyer.finId
+        destinationFinId: secondaryBuyer.finId,
       });
 
       // Verify final balances

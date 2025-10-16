@@ -1,8 +1,8 @@
-import { LedgerAPIClient } from "./api/api";
-import { TestDataBuilder } from "./utils/test-builders";
-import { TestFixtures } from "./utils/test-fixtures";
-import { ADDRESSES, ACTOR_NAMES } from "./utils/test-constants";
-import { v4 as uuidv4 } from "uuid";
+import { LedgerAPIClient } from './api/api';
+import { TestDataBuilder } from './utils/test-builders';
+import { TestFixtures } from './utils/test-fixtures';
+import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
+import { v4 as uuidv4 } from 'uuid';
 
 export function insufficientBalanceTest() {
   describe('Insufficient Balance - Negative Tests', () => {
@@ -37,7 +37,7 @@ export function insufficientBalanceTest() {
           buyer: builder.buildActor('primaryBuyer'),
           asset,
           amount: initialBalance,
-          settlementAmount: 1000
+          settlementAmount: 1000,
         });
 
         // Verify initial balance
@@ -51,7 +51,7 @@ export function insufficientBalanceTest() {
           buyer: buyer,
           asset,
           amount: excessiveAmount,
-          settlementAmount: excessiveAmount * 10
+          settlementAmount: excessiveAmount * 10,
         });
 
         // Execute transfer and expect it to fail
@@ -79,7 +79,7 @@ export function insufficientBalanceTest() {
           buyer: builder.buildActor('primaryBuyer'),
           asset,
           amount: exactBalance,
-          settlementAmount: 5000
+          settlementAmount: 5000,
         });
 
         // Try to transfer one more than balance
@@ -88,7 +88,7 @@ export function insufficientBalanceTest() {
           buyer: buyer,
           asset,
           amount: exactBalance + 1,
-          settlementAmount: (exactBalance + 1) * 10
+          settlementAmount: (exactBalance + 1) * 10,
         });
 
         const transferStatus = await client.tokens.transfer(transferRequest);
@@ -115,7 +115,7 @@ export function insufficientBalanceTest() {
           investor,
           issuer,
           asset,
-          issueAmount: initialBalance
+          issueAmount: initialBalance,
         });
 
         // Verify balance before redemption attempt
@@ -125,13 +125,13 @@ export function insufficientBalanceTest() {
         const excessiveRedeemAmount = initialBalance + 50;
         const operationId = uuidv4();
 
-        const {holdRequest, redeemRequest} = await builder.buildRedeemRequests({
+        const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
           asset,
           amount: excessiveRedeemAmount,
           settlementAmount: excessiveRedeemAmount * 10,
-          operationId
+          operationId,
         });
 
         // Try to hold more than balance
@@ -154,7 +154,7 @@ export function insufficientBalanceTest() {
           investor,
           issuer,
           asset,
-          issueAmount: 0
+          issueAmount: 0,
         });
 
         // Verify zero balance
@@ -162,13 +162,13 @@ export function insufficientBalanceTest() {
 
         // Try to redeem from zero balance
         const operationId = uuidv4();
-        const {holdRequest} = await builder.buildRedeemRequests({
+        const { holdRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
           asset,
           amount: 10,
           settlementAmount: 100,
-          operationId
+          operationId,
         });
 
         const holdStatus = await client.escrow.hold(holdRequest);
@@ -189,10 +189,10 @@ export function insufficientBalanceTest() {
         const initialBalance = 1000;
 
         // Setup fiat asset with limited balance
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: initialBalance
+          fiatCode: 'USD',
+          initialBalance: initialBalance,
         });
 
         // Verify initial balance
@@ -210,7 +210,7 @@ export function insufficientBalanceTest() {
           assetId,
           amount: 100,
           settlementAmount: excessiveHoldAmount,
-          operationId
+          operationId,
         });
 
         const holdStatus = await client.escrow.hold(holdRequest);
@@ -227,10 +227,10 @@ export function insufficientBalanceTest() {
         const seller = builder.buildActor(ACTOR_NAMES.SELLER);
 
         // Create fiat asset with zero balance
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: 0
+          fiatCode: 'USD',
+          initialBalance: 0,
         });
 
         // Verify zero balance
@@ -247,7 +247,7 @@ export function insufficientBalanceTest() {
           assetId,
           amount: 10,
           settlementAmount: 100,
-          operationId
+          operationId,
         });
 
         const holdStatus = await client.escrow.hold(holdRequest);
@@ -267,10 +267,10 @@ export function insufficientBalanceTest() {
         const firstHoldAmount = 800;
 
         // Setup fiat asset with balance
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: initialBalance
+          fiatCode: 'USD',
+          initialBalance: initialBalance,
         });
 
         // First hold: 800 (should succeed)
@@ -284,7 +284,7 @@ export function insufficientBalanceTest() {
           assetId,
           amount: 80,
           settlementAmount: firstHoldAmount,
-          operationId: firstOperationId
+          operationId: firstOperationId,
         });
 
         const firstHoldStatus = await client.escrow.hold(firstHoldRequest);
@@ -302,7 +302,7 @@ export function insufficientBalanceTest() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 30,
           settlementAmount: 300,
-          operationId: secondOperationId
+          operationId: secondOperationId,
         });
 
         const secondHoldStatus = await client.escrow.hold(secondHoldRequest);
@@ -327,7 +327,7 @@ export function insufficientBalanceTest() {
           buyer: builder.buildActor('primaryBuyer'),
           asset,
           amount: totalBalance,
-          settlementAmount: 1000
+          settlementAmount: 1000,
         });
 
         // First transfer: 60 tokens (should succeed)
@@ -336,7 +336,7 @@ export function insufficientBalanceTest() {
           buyer: recipient1,
           asset,
           amount: 60,
-          settlementAmount: 600
+          settlementAmount: 600,
         });
 
         const firstStatus = await client.tokens.transfer(firstTransfer);
@@ -352,7 +352,7 @@ export function insufficientBalanceTest() {
           buyer: recipient2,
           asset,
           amount: 50,
-          settlementAmount: 500
+          settlementAmount: 500,
         });
 
         const secondStatus = await client.tokens.transfer(secondTransfer);

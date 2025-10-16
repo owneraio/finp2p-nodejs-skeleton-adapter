@@ -1,8 +1,8 @@
-import { v4 as uuidv4 } from "uuid";
-import { LedgerAPIClient } from "../api/api";
-import { TestActor, TestDataBuilder } from "./test-builders";
-import { LedgerAPI } from "@owneraio/finp2p-nodejs-skeleton-adapter";
-import { TestHelpers } from "./test-assertions";
+import { v4 as uuidv4 } from 'uuid';
+import { LedgerAPIClient } from '../api/api';
+import { TestActor, TestDataBuilder } from './test-builders';
+import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { TestHelpers } from './test-assertions';
 
 /**
  * High-level test fixtures for common test scenarios
@@ -12,7 +12,7 @@ export class TestFixtures {
 
   constructor(
     private client: LedgerAPIClient,
-    private builder: TestDataBuilder
+    private builder: TestDataBuilder,
   ) {}
 
   /**
@@ -21,17 +21,17 @@ export class TestFixtures {
    */
   async setupAssetWithBalance(params: {
     actor: TestActor;
-    asset: LedgerAPI["schemas"]["asset"];
+    asset: LedgerAPI['schemas']['asset'];
     balance: number;
   }): Promise<{
-    actor: TestActor;
-    asset: LedgerAPI["schemas"]["asset"];
-    balance: number;
-  }> {
+      actor: TestActor;
+      asset: LedgerAPI['schemas']['asset'];
+      balance: number;
+    }> {
     // Create the asset
     await TestHelpers.createAssetAndWait(
       this.client,
-      this.builder.buildCreateAssetRequest({ asset: params.asset })
+      this.builder.buildCreateAssetRequest({ asset: params.asset }),
     );
 
     // Issue tokens if balance > 0
@@ -40,7 +40,7 @@ export class TestFixtures {
         destination: params.actor.source.account,
         asset: params.asset,
         quantity: params.balance,
-        settlementRef: uuidv4()
+        settlementRef: uuidv4(),
       });
 
       await TestHelpers.issueAndGetReceipt(this.client, issueRequest);
@@ -52,7 +52,7 @@ export class TestFixtures {
     return {
       actor: params.actor,
       asset: params.asset,
-      balance: params.balance
+      balance: params.balance,
     };
   }
 
@@ -62,19 +62,19 @@ export class TestFixtures {
   async setupIssuedTokens(params: {
     issuer: TestActor;
     buyer: TestActor;
-    asset: LedgerAPI["schemas"]["finp2pAsset"];
+    asset: LedgerAPI['schemas']['finp2pAsset'];
     amount: number;
     settlementAmount: number;
   }): Promise<{
-    issuer: TestActor;
-    buyer: TestActor;
-    asset: LedgerAPI["schemas"]["finp2pAsset"];
-    receipt: LedgerAPI["schemas"]["receipt"];
-  }> {
+      issuer: TestActor;
+      buyer: TestActor;
+      asset: LedgerAPI['schemas']['finp2pAsset'];
+      receipt: LedgerAPI['schemas']['receipt'];
+    }> {
     // Create asset
     await TestHelpers.createAssetAndWait(
       this.client,
-      this.builder.buildCreateAssetRequest({ asset: params.asset })
+      this.builder.buildCreateAssetRequest({ asset: params.asset }),
     );
 
     // Issue tokens
@@ -83,7 +83,7 @@ export class TestFixtures {
       issuer: params.issuer,
       asset: params.asset,
       amount: params.amount,
-      settlementAmount: params.settlementAmount
+      settlementAmount: params.settlementAmount,
     });
 
     const receipt = await TestHelpers.issueAndGetReceipt(this.client, issueRequest);
@@ -95,7 +95,7 @@ export class TestFixtures {
       issuer: params.issuer,
       buyer: params.buyer,
       asset: params.asset,
-      receipt
+      receipt,
     };
   }
 
@@ -107,23 +107,23 @@ export class TestFixtures {
     fiatCode: string;
     initialBalance: number;
   }): Promise<{
-    owner: TestActor;
-    asset: LedgerAPI["schemas"]["fiatAsset"];
-    balance: number;
-  }> {
+      owner: TestActor;
+      asset: LedgerAPI['schemas']['fiatAsset'];
+      balance: number;
+    }> {
     const asset = this.builder.buildFiatAsset(params.fiatCode);
 
     // Create asset
     await TestHelpers.createAssetAndWait(
       this.client,
-      this.builder.buildCreateAssetRequest({ asset })
+      this.builder.buildCreateAssetRequest({ asset }),
     );
 
     // Get deposit instruction
     const depositRequest = this.builder.buildDepositInstructionRequest({
       owner: params.owner,
       destination: params.owner,
-      asset: asset as LedgerAPI["schemas"]["depositAsset"]
+      asset: asset as LedgerAPI['schemas']['depositAsset'],
     });
 
     const depositStatus = await this.client.payments.getDepositInstruction(depositRequest);
@@ -135,10 +135,10 @@ export class TestFixtures {
         destination: params.owner.source.account,
         asset: {
           resourceId: asset.code,
-          type: "finp2p"
+          type: 'finp2p',
         },
         quantity: params.initialBalance,
-        settlementRef: uuidv4()
+        settlementRef: uuidv4(),
       });
 
       const setBalanceStatus = await this.client.tokens.issue(issueRequest);
@@ -151,7 +151,7 @@ export class TestFixtures {
     return {
       owner: params.owner,
       asset,
-      balance: params.initialBalance
+      balance: params.initialBalance,
     };
   }
 
@@ -161,18 +161,18 @@ export class TestFixtures {
   async setupEscrowHold(params: {
     source: TestActor;
     destination: TestActor;
-    asset: LedgerAPI["schemas"]["asset"];
+    asset: LedgerAPI['schemas']['asset'];
     assetId: string;
     amount: number;
     settlementAmount: number;
     operationId?: string;
   }): Promise<{
-    source: TestActor;
-    destination: TestActor;
-    asset: LedgerAPI["schemas"]["asset"];
-    operationId: string;
-    holdReceipt: LedgerAPI["schemas"]["receipt"];
-  }> {
+      source: TestActor;
+      destination: TestActor;
+      asset: LedgerAPI['schemas']['asset'];
+      operationId: string;
+      holdReceipt: LedgerAPI['schemas']['receipt'];
+    }> {
     const operationId = params.operationId || uuidv4();
 
     const holdRequest = await this.builder.buildSignedHoldRequest({
@@ -182,7 +182,7 @@ export class TestFixtures {
       assetId: params.assetId,
       amount: params.amount,
       settlementAmount: params.settlementAmount,
-      operationId
+      operationId,
     });
 
     const holdReceipt = await TestHelpers.holdAndGetReceipt(this.client, holdRequest);
@@ -192,7 +192,7 @@ export class TestFixtures {
       destination: params.destination,
       asset: params.asset,
       operationId,
-      holdReceipt
+      holdReceipt,
     };
   }
 
@@ -202,25 +202,25 @@ export class TestFixtures {
   async setupRedemptionScenario(params: {
     investor: TestActor;
     issuer: TestActor;
-    asset: LedgerAPI["schemas"]["finp2pAsset"];
+    asset: LedgerAPI['schemas']['finp2pAsset'];
     issueAmount: number;
   }): Promise<{
-    investor: TestActor;
-    issuer: TestActor;
-    asset: LedgerAPI["schemas"]["finp2pAsset"];
-    issueAmount: number;
-  }> {
+      investor: TestActor;
+      issuer: TestActor;
+      asset: LedgerAPI['schemas']['finp2pAsset'];
+      issueAmount: number;
+    }> {
     // Create asset
     await TestHelpers.createAssetAndWait(
       this.client,
-      this.builder.buildCreateAssetRequest({ asset: params.asset })
+      this.builder.buildCreateAssetRequest({ asset: params.asset }),
     );
 
     // Issue tokens to investor
     const issueRequest = this.builder.buildIssueRequest({
       destination: params.investor.source.account,
       asset: params.asset,
-      quantity: params.issueAmount
+      quantity: params.issueAmount,
     });
 
     await TestHelpers.issueAndGetReceipt(this.client, issueRequest);
@@ -233,7 +233,7 @@ export class TestFixtures {
       investor: params.investor,
       issuer: params.issuer,
       asset: params.asset,
-      issueAmount: params.issueAmount
+      issueAmount: params.issueAmount,
     };
   }
 }

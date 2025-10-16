@@ -1,8 +1,12 @@
-import * as secp256k1 from "secp256k1";
-import * as crypto from "crypto";
-import {v4 as uuidv4} from "uuid";
+import * as secp256k1 from 'secp256k1';
+import * as crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 export const ASSET = 102;
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export const createCrypto = (): { private: Buffer, public: Buffer } => {
   // generate privKey
@@ -13,7 +17,7 @@ export const createCrypto = (): { private: Buffer, public: Buffer } => {
 
   // get the public key in a compressed format
   const pubKey = secp256k1.publicKeyCreate(privKey, true);
-  return {private: privKey, public: Buffer.from(pubKey)};
+  return { private: privKey, public: Buffer.from(pubKey) };
 };
 
 export const generateNonce = () => {

@@ -1,9 +1,9 @@
-import { LedgerAPIClient } from "./api/api";
-import { TestDataBuilder } from "./utils/test-builders";
-import { ReceiptAssertions, TestHelpers } from "./utils/test-assertions";
-import { TestFixtures } from "./utils/test-fixtures";
-import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from "./utils/test-constants";
-import { v4 as uuidv4 } from "uuid";
+import { LedgerAPIClient } from './api/api';
+import { TestDataBuilder } from './utils/test-builders';
+import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
+import { TestFixtures } from './utils/test-fixtures';
+import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
+import { v4 as uuidv4 } from 'uuid';
 
 describe('Escrow Operations', () => {
 
@@ -14,7 +14,7 @@ describe('Escrow Operations', () => {
 
   beforeAll(async () => {
     // @ts-ignore
-    client = new LedgerAPIClient(global.serverAddress,true);
+    client = new LedgerAPIClient(global.serverAddress, true);
     // @ts-ignore
     orgId = global.orgId;
 
@@ -31,8 +31,8 @@ describe('Escrow Operations', () => {
 
     const { asset } = await fixtures.setupFiatAssetWithBalance({
       owner: buyer,
-      fiatCode: "USD",
-      initialBalance: scenario.INITIAL_BALANCE
+      fiatCode: 'USD',
+      initialBalance: scenario.INITIAL_BALANCE,
     });
 
     // Verify seller has zero balance
@@ -49,14 +49,14 @@ describe('Escrow Operations', () => {
       assetId,
       amount: scenario.HOLD_AMOUNT,
       settlementAmount: scenario.SETTLEMENT_AMOUNT,
-      operationId
+      operationId,
     });
 
     // Verify hold receipt
     ReceiptAssertions.expectHoldReceipt(holdReceipt, {
       asset,
       quantity: scenario.SETTLEMENT_AMOUNT,
-      sourceFinId: buyer.finId
+      sourceFinId: buyer.finId,
     });
 
     // Verify balance after hold
@@ -68,7 +68,7 @@ describe('Escrow Operations', () => {
       destination: seller,
       asset,
       quantity: scenario.SETTLEMENT_AMOUNT,
-      operationId
+      operationId,
     });
 
     const releaseReceipt = await TestHelpers.releaseAndGetReceipt(client, releaseRequest);
@@ -78,7 +78,7 @@ describe('Escrow Operations', () => {
       asset,
       quantity: scenario.SETTLEMENT_AMOUNT,
       sourceFinId: buyer.finId,
-      destinationFinId: seller.finId
+      destinationFinId: seller.finId,
     });
 
     // Verify final balance
@@ -98,7 +98,7 @@ describe('Escrow Operations', () => {
       investor,
       issuer,
       asset,
-      issueAmount: scenario.ISSUE_AMOUNT
+      issueAmount: scenario.ISSUE_AMOUNT,
     });
 
     // Step 1: Hold tokens for redemption
@@ -109,7 +109,7 @@ describe('Escrow Operations', () => {
       asset,
       amount: scenario.REDEEM_AMOUNT,
       settlementAmount: scenario.SETTLEMENT_AMOUNT,
-      operationId
+      operationId,
     });
 
     const holdReceipt = await TestHelpers.holdAndGetReceipt(client, holdRequest);
@@ -118,7 +118,7 @@ describe('Escrow Operations', () => {
     ReceiptAssertions.expectHoldReceipt(holdReceipt, {
       asset,
       quantity: scenario.REDEEM_AMOUNT,
-      sourceFinId: investor.finId
+      sourceFinId: investor.finId,
     });
 
     // Verify balance after hold (but before redeem)
@@ -131,7 +131,7 @@ describe('Escrow Operations', () => {
     ReceiptAssertions.expectRedeemReceipt(redeemReceipt, {
       asset,
       quantity: scenario.REDEEM_AMOUNT,
-      sourceFinId: investor.finId
+      sourceFinId: investor.finId,
     });
 
     // Verify final balances (tokens are burned)

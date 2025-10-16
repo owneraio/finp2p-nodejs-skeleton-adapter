@@ -32,16 +32,16 @@ export const TEST_AMOUNTS = {
  * Settlement and currency codes
  */
 export const CURRENCIES = {
-  USD: "USD",
-  EUR: "EUR",
-  GBP: "GBP",
+  USD: 'USD',
+  EUR: 'EUR',
+  GBP: 'GBP',
 } as const;
 
 /**
  * Common blockchain addresses
  */
 export const ADDRESSES = {
-  ZERO_ADDRESS: "0x0000000000000000000000000000000000000000",
+  ZERO_ADDRESS: '0x0000000000000000000000000000000000000000',
 } as const;
 
 /**
@@ -58,13 +58,13 @@ export const CHAIN_IDS = {
  * Common actor names for test scenarios
  */
 export const ACTOR_NAMES = {
-  ISSUER: "issuer",
-  BUYER: "buyer",
-  SELLER: "seller",
-  INVESTOR: "investor",
-  ALICE: "alice",
-  BOB: "bob",
-  CHARLIE: "charlie",
+  ISSUER: 'issuer',
+  BUYER: 'buyer',
+  SELLER: 'seller',
+  INVESTOR: 'investor',
+  ALICE: 'alice',
+  BOB: 'bob',
+  CHARLIE: 'charlie',
 } as const;
 
 /**

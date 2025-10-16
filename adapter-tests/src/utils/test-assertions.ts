@@ -1,5 +1,6 @@
-import { LedgerAPI } from "@owneraio/finp2p-nodejs-skeleton-adapter";
-import { TestActor } from "./test-builders";
+import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { TestActor } from './test-builders';
+import { LedgerAPIClient } from '../api/api';
 
 /**
  * Helper class for common receipt assertions
@@ -11,49 +12,49 @@ export class ReceiptAssertions {
    * Asserts that a receipt matches expected issue operation details
    */
   static expectIssueReceipt(
-    receipt: LedgerAPI["schemas"]["receipt"],
+    receipt: LedgerAPI['schemas']['receipt'],
     expected: {
-      asset: LedgerAPI["schemas"]["asset"];
+      asset: LedgerAPI['schemas']['asset'];
       quantity: number;
       destinationFinId: string;
-    }
+    },
   ) {
     expect(receipt.asset).toStrictEqual(expected.asset);
     expect(parseInt(receipt.quantity)).toBe(expected.quantity);
     expect(receipt.destination?.finId).toBe(expected.destinationFinId);
-    expect(receipt.operationType).toBe("issue");
+    expect(receipt.operationType).toBe('issue');
   }
 
   /**
    * Asserts that a receipt matches expected transfer operation details
    */
   static expectTransferReceipt(
-    receipt: LedgerAPI["schemas"]["receipt"],
+    receipt: LedgerAPI['schemas']['receipt'],
     expected: {
-      asset: LedgerAPI["schemas"]["asset"];
+      asset: LedgerAPI['schemas']['asset'];
       quantity: number;
       sourceFinId: string;
       destinationFinId: string;
-    }
+    },
   ) {
     expect(receipt.asset).toStrictEqual(expected.asset);
     expect(parseInt(receipt.quantity)).toBe(expected.quantity);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
     expect(receipt.destination?.finId).toBe(expected.destinationFinId);
-    expect(receipt.operationType).toBe("transfer");
+    expect(receipt.operationType).toBe('transfer');
   }
 
   /**
    * Asserts that a receipt matches expected hold operation details
    */
   static expectHoldReceipt(
-    receipt: LedgerAPI["schemas"]["receipt"],
+    receipt: LedgerAPI['schemas']['receipt'],
     expected: {
-      asset: LedgerAPI["schemas"]["asset"];
+      asset: LedgerAPI['schemas']['asset'];
       quantity: number;
       sourceFinId: string;
       destinationShouldBeUndefined?: boolean;
-    }
+    },
   ) {
     expect(receipt.asset).toStrictEqual(expected.asset);
     expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
@@ -63,44 +64,44 @@ export class ReceiptAssertions {
       expect(receipt.destination).toBeUndefined();
     }
 
-    expect(receipt.operationType).toBe("hold");
+    expect(receipt.operationType).toBe('hold');
   }
 
   /**
    * Asserts that a receipt matches expected release operation details
    */
   static expectReleaseReceipt(
-    receipt: LedgerAPI["schemas"]["receipt"],
+    receipt: LedgerAPI['schemas']['receipt'],
     expected: {
-      asset: LedgerAPI["schemas"]["asset"];
+      asset: LedgerAPI['schemas']['asset'];
       quantity: number;
       sourceFinId: string;
       destinationFinId: string;
-    }
+    },
   ) {
     expect(receipt.asset).toStrictEqual(expected.asset);
     expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
     expect(receipt.destination?.finId).toBe(expected.destinationFinId);
-    expect(receipt.operationType).toBe("release");
+    expect(receipt.operationType).toBe('release');
   }
 
   /**
    * Asserts that a receipt matches expected redeem operation details
    */
   static expectRedeemReceipt(
-    receipt: LedgerAPI["schemas"]["receipt"],
+    receipt: LedgerAPI['schemas']['receipt'],
     expected: {
-      asset: LedgerAPI["schemas"]["asset"];
+      asset: LedgerAPI['schemas']['asset'];
       quantity: number;
       sourceFinId: string;
-    }
+    },
   ) {
     expect(receipt.asset).toStrictEqual(expected.asset);
     expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
     expect(receipt.destination).toBeUndefined();
-    expect(receipt.operationType).toBe("redeem");
+    expect(receipt.operationType).toBe('redeem');
   }
 
   /**
@@ -120,10 +121,10 @@ export class BalanceAssertions {
    * Asserts that an actor has the expected balance for an asset
    */
   static async expectBalance(
-    client: any,
+    client: LedgerAPIClient,
     actor: TestActor,
-    asset: LedgerAPI["schemas"]["asset"],
-    expectedAmount: number
+    asset: LedgerAPI['schemas']['asset'],
+    expectedAmount: number,
   ) {
     await client.expectBalance(actor.source, asset, expectedAmount);
   }
@@ -132,12 +133,12 @@ export class BalanceAssertions {
    * Asserts multiple balances at once
    */
   static async expectBalances(
-    client: any,
+    client: LedgerAPIClient,
     balances: Array<{
       actor: TestActor;
-      asset: LedgerAPI["schemas"]["asset"];
+      asset: LedgerAPI['schemas']['asset'];
       amount: number;
-    }>
+    }>,
   ) {
     for (const { actor, asset, amount } of balances) {
       await client.expectBalance(actor.source, asset, amount);
@@ -153,7 +154,7 @@ export class TestHelpers {
   /**
    * Waits for an operation to complete and returns the response
    */
-  static async waitForCompletion(client: any, status: any) {
+  static async waitForCompletion(client: LedgerAPIClient, status: any) {
     if (!status.isCompleted) {
       await client.common.waitForCompletion(status.cid);
     }
@@ -162,16 +163,16 @@ export class TestHelpers {
   /**
    * Expects a receipt from a status, waiting if necessary
    */
-  static async expectReceipt(client: any, status: any): Promise<LedgerAPI["schemas"]["receipt"]> {
-    return await client.expectReceipt(status);
+  static async expectReceipt(client: LedgerAPIClient, status: any): Promise<LedgerAPI['schemas']['receipt']> {
+    return client.expectReceipt(status);
   }
 
   /**
    * Creates an asset and waits for completion
    */
   static async createAssetAndWait(
-    client: any,
-    request: LedgerAPI["schemas"]["CreateAssetRequest"]
+    client: LedgerAPIClient,
+    request: LedgerAPI['schemas']['CreateAssetRequest'],
   ) {
     const status = await client.tokens.createAsset(request);
     await TestHelpers.waitForCompletion(client, status);
@@ -182,54 +183,54 @@ export class TestHelpers {
    * Issues tokens and waits for receipt
    */
   static async issueAndGetReceipt(
-    client: any,
-    request: LedgerAPI["schemas"]["IssueAssetsRequest"]
-  ): Promise<LedgerAPI["schemas"]["receipt"]> {
+    client: LedgerAPIClient,
+    request: LedgerAPI['schemas']['IssueAssetsRequest'],
+  ): Promise<LedgerAPI['schemas']['receipt']> {
     const status = await client.tokens.issue(request);
-    return await TestHelpers.expectReceipt(client, status);
+    return TestHelpers.expectReceipt(client, status);
   }
 
   /**
    * Transfers tokens and waits for receipt
    */
   static async transferAndGetReceipt(
-    client: any,
-    request: LedgerAPI["schemas"]["TransferAssetRequest"]
-  ): Promise<LedgerAPI["schemas"]["receipt"]> {
+    client: LedgerAPIClient,
+    request: LedgerAPI['schemas']['TransferAssetRequest'],
+  ): Promise<LedgerAPI['schemas']['receipt']> {
     const status = await client.tokens.transfer(request);
-    return await TestHelpers.expectReceipt(client, status);
+    return TestHelpers.expectReceipt(client, status);
   }
 
   /**
    * Holds assets in escrow and waits for receipt
    */
   static async holdAndGetReceipt(
-    client: any,
-    request: LedgerAPI["schemas"]["HoldOperationRequest"]
-  ): Promise<LedgerAPI["schemas"]["receipt"]> {
+    client: LedgerAPIClient,
+    request: LedgerAPI['schemas']['HoldOperationRequest'],
+  ): Promise<LedgerAPI['schemas']['receipt']> {
     const status = await client.escrow.hold(request);
-    return await TestHelpers.expectReceipt(client, status);
+    return TestHelpers.expectReceipt(client, status);
   }
 
   /**
    * Releases escrowed assets and waits for receipt
    */
   static async releaseAndGetReceipt(
-    client: any,
-    request: LedgerAPI["schemas"]["ReleaseOperationRequest"]
-  ): Promise<LedgerAPI["schemas"]["receipt"]> {
+    client: LedgerAPIClient,
+    request: LedgerAPI['schemas']['ReleaseOperationRequest'],
+  ): Promise<LedgerAPI['schemas']['receipt']> {
     const status = await client.escrow.release(request);
-    return await TestHelpers.expectReceipt(client, status);
+    return TestHelpers.expectReceipt(client, status);
   }
 
   /**
    * Redeems tokens and waits for receipt
    */
   static async redeemAndGetReceipt(
-    client: any,
-    request: LedgerAPI["schemas"]["RedeemAssetsRequest"]
-  ): Promise<LedgerAPI["schemas"]["receipt"]> {
+    client: LedgerAPIClient,
+    request: LedgerAPI['schemas']['RedeemAssetsRequest'],
+  ): Promise<LedgerAPI['schemas']['receipt']> {
     const status = await client.tokens.redeem(request);
-    return await TestHelpers.expectReceipt(client, status);
+    return TestHelpers.expectReceipt(client, status);
   }
 }

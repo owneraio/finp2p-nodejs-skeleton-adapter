@@ -43,6 +43,7 @@ interface OpenAPISpec {
  */
 export class OpenAPIValidator implements IApiValidator {
   private spec: OpenAPISpec | null = null;
+
   private enabled: boolean;
 
   constructor(specPath: string = 'dlt-adapter-api.yaml', enabled: boolean = true) {
@@ -53,7 +54,7 @@ export class OpenAPIValidator implements IApiValidator {
         this.spec = parse(readFileSync(specPath, 'utf-8'));
         console.log(`Loaded OpenAPI spec: ${specPath}`);
       } catch (error) {
-        console.warn(`Failed to load OpenAPI spec:`, error);
+        console.warn('Failed to load OpenAPI spec:', error);
       }
     }
   }
@@ -160,8 +161,8 @@ export class OpenAPIValidator implements IApiValidator {
           return schema.enum.length === 1
             ? z.literal(schema.enum[0])
             : schema.enum.every(v => typeof v === 'string')
-            ? z.enum(schema.enum as any)
-            : z.union(schema.enum.map(v => z.literal(v)) as any);
+              ? z.enum(schema.enum as any)
+              : z.union(schema.enum.map(v => z.literal(v)) as any);
         } catch {
           return z.any();
         }
@@ -255,7 +256,7 @@ export class OpenAPIValidator implements IApiValidator {
     if (actualParts.length !== patternParts.length) return false;
 
     return patternParts.every((part, i) =>
-      part.startsWith('{') && part.endsWith('}') || part === actualParts[i]
+      part.startsWith('{') && part.endsWith('}') || part === actualParts[i],
     );
   }
 
