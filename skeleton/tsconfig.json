@@ -15,7 +15,7 @@
     "baseUrl": ".",
     "paths": {
       "*": [
-        "node_modules/*"
+        "./skeleton/node_modules/*"
       ]
     }
   },

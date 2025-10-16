@@ -15,7 +15,7 @@
     "baseUrl": ".",
     "paths": {
       "*": [
-        "node_modules/*"
+        "./sample-adapter/node_modules/*"
       ]
     }
   },
