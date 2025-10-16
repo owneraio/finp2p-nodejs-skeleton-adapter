@@ -1,9 +1,9 @@
-import {LedgerAPIClient} from "./api/api";
-import {TestDataBuilder} from "./utils/test-builders";
-import {TestHelpers} from "./utils/test-assertions";
-import {TestFixtures} from "./utils/test-fixtures";
-import {ADDRESSES, ACTOR_NAMES} from "./utils/test-constants";
-import {v4 as uuidv4} from "uuid";
+import { LedgerAPIClient } from './api/api';
+import { TestDataBuilder } from './utils/test-builders';
+import { TestHelpers } from './utils/test-assertions';
+import { TestFixtures } from './utils/test-fixtures';
+import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
+import { generateId } from './utils/utils';
 
 export function businessLogicTests() {
   describe('Business Logic - Negative Tests', () => {
@@ -31,14 +31,14 @@ export function businessLogicTests() {
         const initialBalance = 1000;
         const holdAmount = 500;
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: initialBalance
+          fiatCode: 'USD',
+          initialBalance: initialBalance,
         });
 
         // Hold funds
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -46,7 +46,7 @@ export function businessLogicTests() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 50,
           settlementAmount: holdAmount,
-          operationId
+          operationId,
         });
 
         // Verify balance after hold (should be reduced)
@@ -57,7 +57,7 @@ export function businessLogicTests() {
           operationId: operationId,
           source: buyer.source,
           quantity: `${holdAmount}`,
-          asset: asset
+          asset: asset,
         };
 
         const rollbackStatus = await client.escrow.rollback(rollbackRequest);
@@ -70,19 +70,19 @@ export function businessLogicTests() {
       test('should fail when rolling back non-existent hold', async () => {
         const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: 1000
+          fiatCode: 'USD',
+          initialBalance: 1000,
         });
 
         // Try to rollback with fake operationId
-        const fakeOperationId = uuidv4();
+        const fakeOperationId = generateId();
         const rollbackRequest = {
           operationId: fakeOperationId,
           source: buyer.source,
-          quantity: "100",
-          asset: asset
+          quantity: '100',
+          asset: asset,
         };
 
         const rollbackStatus = await client.escrow.rollback(rollbackRequest);
@@ -98,14 +98,14 @@ export function businessLogicTests() {
         const initialBalance = 1000;
         const holdAmount = 500;
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: initialBalance
+          fiatCode: 'USD',
+          initialBalance: initialBalance,
         });
 
         // Hold funds
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -113,7 +113,7 @@ export function businessLogicTests() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 50,
           settlementAmount: holdAmount,
-          operationId
+          operationId,
         });
 
         // Release funds
@@ -122,7 +122,7 @@ export function businessLogicTests() {
           destination: seller,
           asset,
           quantity: holdAmount,
-          operationId
+          operationId,
         });
 
         const releaseStatus = await client.escrow.release(releaseRequest);
@@ -133,7 +133,7 @@ export function businessLogicTests() {
           operationId: operationId,
           source: buyer.source,
           quantity: `${holdAmount}`,
-          asset: asset
+          asset: asset,
         };
 
         const rollbackStatus = await client.escrow.rollback(rollbackRequest);
@@ -153,18 +153,18 @@ export function businessLogicTests() {
           investor,
           issuer,
           asset,
-          issueAmount: initialBalance
+          issueAmount: initialBalance,
         });
 
         // Hold and redeem
-        const operationId = uuidv4();
-        const {holdRequest, redeemRequest} = await builder.buildRedeemRequests({
+        const operationId = generateId();
+        const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
           asset,
           amount: 50,
           settlementAmount: 500,
-          operationId
+          operationId,
         });
 
         await client.escrow.hold(holdRequest);
@@ -175,8 +175,8 @@ export function businessLogicTests() {
         const rollbackRequest = {
           operationId: operationId,
           source: investor.source,
-          quantity: "50",
-          asset: asset
+          quantity: '50',
+          asset: asset,
         };
 
         const rollbackStatus = await client.escrow.rollback(rollbackRequest);
@@ -194,14 +194,14 @@ export function businessLogicTests() {
         const initialBalance = 1000;
         const holdAmount = 500;
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: initialBalance
+          fiatCode: 'USD',
+          initialBalance: initialBalance,
         });
 
         // Hold funds
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -209,7 +209,7 @@ export function businessLogicTests() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 50,
           settlementAmount: holdAmount,
-          operationId
+          operationId,
         });
 
         const releaseRequest = builder.buildReleaseRequest({
@@ -217,7 +217,7 @@ export function businessLogicTests() {
           destination: seller,
           asset,
           quantity: holdAmount,
-          operationId
+          operationId,
         });
 
         // First release (should succeed)
@@ -238,17 +238,17 @@ export function businessLogicTests() {
           investor,
           issuer,
           asset,
-          issueAmount: 100
+          issueAmount: 100,
         });
 
-        const operationId = uuidv4();
-        const {holdRequest, redeemRequest} = await builder.buildRedeemRequests({
+        const operationId = generateId();
+        const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
           asset,
           amount: 50,
           settlementAmount: 500,
-          operationId
+          operationId,
         });
 
         await client.escrow.hold(holdRequest);
@@ -266,13 +266,13 @@ export function businessLogicTests() {
         const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
         const seller = builder.buildActor(ACTOR_NAMES.SELLER);
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: 1000
+          fiatCode: 'USD',
+          initialBalance: 1000,
         });
 
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -280,14 +280,14 @@ export function businessLogicTests() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 50,
           settlementAmount: 500,
-          operationId
+          operationId,
         });
 
         const rollbackRequest = {
           operationId: operationId,
           source: buyer.source,
-          quantity: "500",
-          asset: asset
+          quantity: '500',
+          asset: asset,
         };
 
         // First rollback (should succeed)
@@ -305,20 +305,20 @@ export function businessLogicTests() {
         const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
         const seller = builder.buildActor(ACTOR_NAMES.SELLER);
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: 1000
+          fiatCode: 'USD',
+          initialBalance: 1000,
         });
 
         // Try to release without holding first
-        const fakeOperationId = uuidv4();
+        const fakeOperationId = generateId();
         const releaseRequest = builder.buildReleaseRequest({
           source: buyer,
           destination: seller,
           asset,
           quantity: 100,
-          operationId: fakeOperationId
+          operationId: fakeOperationId,
         });
 
         const releaseStatus = await client.escrow.release(releaseRequest);
@@ -334,18 +334,18 @@ export function businessLogicTests() {
           investor,
           issuer,
           asset,
-          issueAmount: 100
+          issueAmount: 100,
         });
 
         // Try to redeem without holding first
-        const fakeOperationId = uuidv4();
-        const {redeemRequest} = await builder.buildRedeemRequests({
+        const fakeOperationId = generateId();
+        const { redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
           asset,
           amount: 50,
           settlementAmount: 500,
-          operationId: fakeOperationId
+          operationId: fakeOperationId,
         });
 
         const redeemStatus = await client.tokens.redeem(redeemRequest);
@@ -361,31 +361,31 @@ export function businessLogicTests() {
           investor,
           issuer,
           asset,
-          issueAmount: 100
+          issueAmount: 100,
         });
 
         // Hold with one operationId
-        const holdOperationId = uuidv4();
-        const {holdRequest} = await builder.buildRedeemRequests({
+        const holdOperationId = generateId();
+        const { holdRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
           asset,
           amount: 50,
           settlementAmount: 500,
-          operationId: holdOperationId
+          operationId: holdOperationId,
         });
 
         await client.escrow.hold(holdRequest);
 
         // Try to redeem with different operationId
-        const differentOperationId = uuidv4();
-        const {redeemRequest} = await builder.buildRedeemRequests({
+        const differentOperationId = generateId();
+        const { redeemRequest } = await builder.buildRedeemRequests({
           investor,
           issuer,
           asset,
           amount: 50,
           settlementAmount: 500,
-          operationId: differentOperationId
+          operationId: differentOperationId,
         });
 
         const redeemStatus = await client.tokens.redeem(redeemRequest);
@@ -403,7 +403,7 @@ export function businessLogicTests() {
           destination: actor.source.account,
           asset: nonExistentAsset,
           quantity: 100,
-          settlementRef: uuidv4()
+          settlementRef: generateId(),
         });
 
         const issueStatus = await client.tokens.issue(issueRequest);
@@ -421,7 +421,7 @@ export function businessLogicTests() {
         // Create asset first
         const createStatus = await TestHelpers.createAssetAndWait(
           client,
-          builder.buildCreateAssetRequest({asset})
+          builder.buildCreateAssetRequest({ asset }),
         );
 
         expect(createStatus.error).toBeUndefined();
@@ -431,7 +431,7 @@ export function businessLogicTests() {
           destination: issuer.source.account,
           asset,
           quantity: 100,
-          settlementRef: uuidv4()
+          settlementRef: generateId(),
         });
 
         const issueStatus = await client.tokens.issue(issueRequest);
@@ -449,7 +449,7 @@ export function businessLogicTests() {
           buyer: builder.buildActor('buyer1'),
           asset: asset1,
           amount: 100,
-          settlementAmount: 1000
+          settlementAmount: 1000,
         });
 
         // Setup second asset with tokens
@@ -458,7 +458,7 @@ export function businessLogicTests() {
           buyer: builder.buildActor('buyer2'),
           asset: asset2,
           amount: 200,
-          settlementAmount: 2000
+          settlementAmount: 2000,
         });
 
         // Verify independent balances
@@ -480,7 +480,7 @@ export function businessLogicTests() {
           buyer: builder.buildActor('primaryBuyer'),
           asset,
           amount: initialBalance,
-          settlementAmount: 1000
+          settlementAmount: 1000,
         });
 
         // Try to transfer 0 tokens
@@ -489,7 +489,7 @@ export function businessLogicTests() {
           buyer: buyer,
           asset,
           amount: 0,
-          settlementAmount: 0
+          settlementAmount: 0,
         });
 
         const transferStatus = await client.tokens.transfer(transferRequest);
@@ -509,14 +509,14 @@ export function businessLogicTests() {
         const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
         const seller = builder.buildActor(ACTOR_NAMES.SELLER);
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: 1000
+          fiatCode: 'USD',
+          initialBalance: 1000,
         });
 
         // Try to hold 0 amount
-        const operationId = uuidv4();
+        const operationId = generateId();
         const holdRequest = await builder.buildSignedHoldRequest({
           source: buyer,
           destination: seller,
@@ -524,7 +524,7 @@ export function businessLogicTests() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 0,
           settlementAmount: 0,
-          operationId
+          operationId,
         });
 
         const holdStatus = await client.escrow.hold(holdRequest);
@@ -544,14 +544,14 @@ export function businessLogicTests() {
         const seller = builder.buildActor(ACTOR_NAMES.SELLER);
         const attacker = builder.buildActor('attacker');
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: 1000
+          fiatCode: 'USD',
+          initialBalance: 1000,
         });
 
         // Hold funds from buyer
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -559,7 +559,7 @@ export function businessLogicTests() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 50,
           settlementAmount: 500,
-          operationId
+          operationId,
         });
 
         // Try to release with different source (attacker)
@@ -568,7 +568,7 @@ export function businessLogicTests() {
           destination: seller,
           asset,
           quantity: 500,
-          operationId
+          operationId,
         });
 
         const releaseStatus = await client.escrow.release(releaseRequest);
@@ -589,7 +589,7 @@ export function businessLogicTests() {
           buyer: builder.buildActor('buyer'),
           asset,
           amount: 100,
-          settlementAmount: 1000
+          settlementAmount: 1000,
         });
 
         // Attacker tries to transfer owner's tokens
@@ -598,7 +598,7 @@ export function businessLogicTests() {
           buyer: recipient,
           asset,
           amount: 50,
-          settlementAmount: 500
+          settlementAmount: 500,
         });
 
         // In real implementation, signature verification should fail
@@ -621,14 +621,14 @@ export function businessLogicTests() {
         const initialBalance = 1000;
         const holdAmount = 500;
 
-        const {asset} = await fixtures.setupFiatAssetWithBalance({
+        const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
-          fiatCode: "USD",
-          initialBalance: initialBalance
+          fiatCode: 'USD',
+          initialBalance: initialBalance,
         });
 
         // Hold 500
-        const operationId = uuidv4();
+        const operationId = generateId();
         await fixtures.setupEscrowHold({
           source: buyer,
           destination: seller,
@@ -636,7 +636,7 @@ export function businessLogicTests() {
           assetId: builder.buildFinP2PAsset().resourceId,
           amount: 50,
           settlementAmount: holdAmount,
-          operationId
+          operationId,
         });
 
         // Release only 300 (partial)
@@ -645,7 +645,7 @@ export function businessLogicTests() {
           destination: seller,
           asset,
           quantity: 300,
-          operationId
+          operationId,
         });
 
         const releaseStatus = await client.escrow.release(partialReleaseRequest);

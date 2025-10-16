@@ -1,8 +1,9 @@
-import axios from "axios";
-import { OpenAPIValidator } from "../utils/openapi-validator";
+import axios from 'axios';
+import { OpenAPIValidator } from '../utils/openapi-validator';
 
 export class ClientBase {
   host: string;
+
   protected validator: OpenAPIValidator;
 
   constructor(host: string, validator?: OpenAPIValidator) {
@@ -14,16 +15,16 @@ export class ClientBase {
     return new Promise((resolve, reject) => {
       axios.get(`${this.host}${url}`, {
         headers: {
-          "Accept": "application/json"
-        }
+          'Accept': 'application/json',
+        },
       }).then(({ data: response }) => {
         resolve(response);
       }).catch((error: Error) => {
-        console.log("error", error);
+        console.log('error', error);
         reject(error.message);
       });
     });
-  };
+  }
 
   async post<T>(url: string, data?: any, idempotencyKey?: string): Promise<T> {
     // Validate request body if validator is enabled (silently)
@@ -35,10 +36,10 @@ export class ClientBase {
     return new Promise((resolve, reject) => {
       axios.post(`${this.host}${url}`, data, {
         headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Idempotency-Key": idempotencyKey
-        }
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
       }).then(({ data: response, status }) => {
         // Validate response if validator is enabled (silently)
         if (this.validator.isEnabled()) {
@@ -48,7 +49,7 @@ export class ClientBase {
 
         resolve(response);
       }).catch((error: Error) => {
-        console.log("error", error);
+        console.log('error', error);
         reject(error.message);
       });
     });

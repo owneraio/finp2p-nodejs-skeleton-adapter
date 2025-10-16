@@ -26,7 +26,7 @@ export type AccountInstruction = {
 export enum ActionType {
   Request = 'request',
   Send = 'send',
-  Unknown = 'unknown'
+  Unknown = 'unknown',
 }
 
 export type AdditionalContractDetails = {
@@ -48,7 +48,7 @@ export enum AggregateFunc {
   Count = 'COUNT',
   Max = 'MAX',
   Min = 'MIN',
-  Sum = 'SUM'
+  Sum = 'SUM',
 }
 
 /** Result of Aggregation function applied on an Object numeric field. */
@@ -64,7 +64,7 @@ export type AggregateResult = {
 export enum ApprovalStatus {
   Approved = 'Approved',
   Rejected = 'Rejected',
-  Unknown = 'Unknown'
+  Unknown = 'Unknown',
 }
 
 /** Represents an Asset in the network. */
@@ -150,7 +150,7 @@ export enum AssetIdentifierType {
   Figi = 'FIGI',
   Isin = 'ISIN',
   Sedol = 'SEDOL',
-  Unspecified = 'UNSPECIFIED'
+  Unspecified = 'UNSPECIFIED',
 }
 
 export type AssetInstruction = {
@@ -174,7 +174,7 @@ export enum AssetOrderField {
   /** Assets order by determined by Name field */
   Name = 'NAME',
   /** Assets order by determined by OrganizationId field */
-  Organization = 'ORGANIZATION'
+  Organization = 'ORGANIZATION',
 }
 
 export type AssetPolicies = {
@@ -192,7 +192,7 @@ export type AssetTerm = {
 export enum AssetType {
   Cryptocurrency = 'cryptocurrency',
   Fiat = 'fiat',
-  Finp2p = 'finp2p'
+  Finp2p = 'finp2p',
 }
 
 /** Results for asset query. */
@@ -274,7 +274,7 @@ export type CertificateOrder = {
 
 export enum CertificateOrderField {
   /** certificates order by determined by Id field */
-  Id = 'ID'
+  Id = 'ID',
 }
 
 /** Results for certificates query. */
@@ -443,7 +443,7 @@ export enum ExecutionPlanInstructionStatus {
   Failed = 'Failed',
   Pending = 'Pending',
   Rejected = 'Rejected',
-  Unknown = 'Unknown'
+  Unknown = 'Unknown',
 }
 
 export type ExecutionPlanInstructions = {
@@ -459,7 +459,7 @@ export type ExecutionPlanOrder = {
 export enum ExecutionPlanOrderField {
   CreationTimestamp = 'CREATION_TIMESTAMP',
   /** plan order by PlanId field */
-  PlanId = 'PLAN_ID'
+  PlanId = 'PLAN_ID',
 }
 
 export enum ExecutionPlanStatus {
@@ -471,7 +471,7 @@ export enum ExecutionPlanStatus {
   InProgress = 'InProgress',
   Pending = 'Pending',
   Rejected = 'Rejected',
-  Unknown = 'Unknown'
+  Unknown = 'Unknown',
 }
 
 export type ExecutionsPlans = {
@@ -583,7 +583,7 @@ export enum HoldingFields {
   SyncedAvailableBalance = 'SyncedAvailableBalance',
   SyncedBalance = 'SyncedBalance',
   SyncedHeldBalance = 'SyncedHeldBalance',
-  WithheldBalance = 'WithheldBalance'
+  WithheldBalance = 'WithheldBalance',
 }
 
 export type Holdings = {
@@ -663,7 +663,7 @@ export enum IntentStatus {
   Completed = 'COMPLETED',
   Expired = 'EXPIRED',
   NonActive = 'NON_ACTIVE',
-  Rejected = 'REJECTED'
+  Rejected = 'REJECTED',
 }
 
 export enum IntentTypes {
@@ -672,7 +672,7 @@ export enum IntentTypes {
   PrimarySale = 'PRIMARY_SALE',
   PrivateOffer = 'PRIVATE_OFFER',
   RequestForTransfer = 'REQUEST_FOR_TRANSFER',
-  Selling = 'SELLING'
+  Selling = 'SELLING',
 }
 
 /** Results for itents query. */
@@ -734,7 +734,7 @@ export type IssuerOrder = {
 
 export enum IssuerOrderField {
   /** issuers order by determined by Id field */
-  Id = 'ID'
+  Id = 'ID',
 }
 
 /** Results for issuers query. */
@@ -849,7 +849,7 @@ export enum OperationType {
   Redeem = 'Redeem',
   Release = 'Release',
   Transfer = 'Transfer',
-  Unknown = 'Unknown'
+  Unknown = 'Unknown',
 }
 
 /** Operators available to be used  */
@@ -871,7 +871,7 @@ export enum Operator {
   /** Not Equals */
   Neq = 'NEQ',
   /** Not In */
-  Nin = 'NIN'
+  Nin = 'NIN',
 }
 
 /** Organization's information. */
@@ -921,7 +921,7 @@ export type OrganizationOrder = {
 
 export enum OrganizationOrderField {
   /** organizations order by determined by Id field */
-  Id = 'ID'
+  Id = 'ID',
 }
 
 /** Results for Organization query. */
@@ -1017,7 +1017,7 @@ export type PlanApprovals = {
 
 /** Fields to subscribe on */
 export enum PlanField {
-  Status = 'Status'
+  Status = 'Status',
 }
 
 export type PresignedBuyingIntentSignaturePolicy = {
@@ -1241,7 +1241,7 @@ export type ReceiptOrder = {
 
 export enum ReceiptOrderField {
   /** receipt order by determined by Id field */
-  Id = 'ID'
+  Id = 'ID',
 }
 
 export type ReceiptState = {
@@ -1252,7 +1252,7 @@ export type ReceiptState = {
 export enum ReceiptStatus {
   Invalid = 'Invalid',
   Unknown = 'Unknown',
-  Valid = 'Valid'
+  Valid = 'Valid',
 }
 
 /** Results for receipts query. */
@@ -1397,7 +1397,7 @@ export type Signature = {
 
 export enum SignaturePolicyType {
   ManualPolicy = 'ManualPolicy',
-  PresignedPolicy = 'PresignedPolicy'
+  PresignedPolicy = 'PresignedPolicy',
 }
 
 export type SignatureProof = {
@@ -1414,12 +1414,12 @@ export type SignatureProofPolicy = {
 export enum SignatureTemplate {
   Eip712 = 'EIP712',
   HashList = 'HashList',
-  Unknown = 'Unknown'
+  Unknown = 'Unknown',
 }
 
 export enum SortOrder {
   Asc = 'ASC',
-  Desc = 'DESC'
+  Desc = 'DESC',
 }
 
 export type StatusTransition = {
@@ -1563,7 +1563,7 @@ export type UserOrder = {
 
 export enum UserOrderField {
   /** users order by determined by Id field */
-  Id = 'ID'
+  Id = 'ID',
 }
 
 /** Results for asset query. */
@@ -1626,7 +1626,7 @@ export enum WorkflowOrderField {
   /** workflow order */
   Name = 'NAME',
   ReferenceId = 'REFERENCE_ID',
-  Status = 'STATUS'
+  Status = 'STATUS',
 }
 
 export type Workflows = {
@@ -1638,5 +1638,5 @@ export type Workflows = {
 
 export enum TemplateType {
   Eip712Template = 'EIP712Template',
-  HashListTemplate = 'HashListTemplate'
+  HashListTemplate = 'HashListTemplate',
 }

@@ -1,6 +1,6 @@
-import { createCrypto, generateNonce, randomResourceId, ASSET } from "./utils";
-import { LedgerAPI } from "@owneraio/finp2p-nodejs-skeleton-adapter";
-import { eip712Signature } from "../api/mapper";
+import { createCrypto, generateNonce, randomResourceId, ASSET } from './utils';
+import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { eip712Signature } from '../api/mapper';
 import {
   EIP712PrimarySaleMessage,
   EIP712SellingMessage,
@@ -10,8 +10,8 @@ import {
   newSellingMessage,
   PRIMARY_SALE_TYPES,
   REDEMPTION_TYPES,
-  SELLING_TYPES
-} from "@owneraio/finp2p-nodejs-skeleton-adapter";
+  SELLING_TYPES,
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
 /**
  * Represents a test actor (user/participant) with cryptographic keys and account info
@@ -20,7 +20,7 @@ export interface TestActor {
   name: string;
   privateKey: string;
   finId: string;
-  source: LedgerAPI["schemas"]["source"];
+  source: LedgerAPI['schemas']['source'];
 }
 
 /**
@@ -34,7 +34,7 @@ export class TestDataBuilder {
   constructor(
     private orgId: string,
     private chainId: number,
-    private verifyingContract: string
+    private verifyingContract: string,
   ) {}
 
   // ========== Data Builders (creates supporting objects) ==========
@@ -45,8 +45,8 @@ export class TestDataBuilder {
    */
   buildActor(name: string = 'actor'): TestActor {
     const { private: privateKeyBytes, public: publicKey } = createCrypto();
-    const privateKey = privateKeyBytes.toString("hex");
-    const finIdStr = publicKey.toString("hex");
+    const privateKey = privateKeyBytes.toString('hex');
+    const finIdStr = publicKey.toString('hex');
 
     return {
       name,
@@ -55,10 +55,10 @@ export class TestDataBuilder {
       source: {
         finId: finIdStr,
         account: {
-          type: "finId",
-          finId: finIdStr
-        }
-      } as LedgerAPI["schemas"]["source"]
+          type: 'finId',
+          finId: finIdStr,
+        },
+      } as LedgerAPI['schemas']['source'],
     };
   }
 
@@ -66,11 +66,11 @@ export class TestDataBuilder {
    * Creates a FinP2P asset with a random resource ID
    * @example const asset = builder.buildFinP2PAsset();
    */
-  buildFinP2PAsset(): LedgerAPI["schemas"]["finp2pAsset"] {
+  buildFinP2PAsset(): LedgerAPI['schemas']['finp2pAsset'] {
     const assetId = randomResourceId(this.orgId, ASSET);
     return {
-      type: "finp2p",
-      resourceId: assetId
+      type: 'finp2p',
+      resourceId: assetId,
     };
   }
 
@@ -78,10 +78,10 @@ export class TestDataBuilder {
    * Creates a fiat asset (e.g., USD, EUR)
    * @example const usd = builder.buildFiatAsset('USD');
    */
-  buildFiatAsset(code: string = "USD"): LedgerAPI["schemas"]["fiatAsset"] {
+  buildFiatAsset(code: string = 'USD'): LedgerAPI['schemas']['fiatAsset'] {
     return {
-      type: "fiat",
-      code
+      type: 'fiat',
+      code,
     };
   }
 
@@ -92,10 +92,10 @@ export class TestDataBuilder {
    * @example await client.tokens.createAsset(builder.buildCreateAssetRequest({ asset }));
    */
   buildCreateAssetRequest(params: {
-    asset: LedgerAPI["schemas"]["asset"];
-  }): LedgerAPI["schemas"]["CreateAssetRequest"] {
+    asset: LedgerAPI['schemas']['asset'];
+  }): LedgerAPI['schemas']['CreateAssetRequest'] {
     return {
-      asset: params.asset
+      asset: params.asset,
     };
   }
 
@@ -106,24 +106,24 @@ export class TestDataBuilder {
   async buildSignedIssueRequest(params: {
     buyer: TestActor;
     issuer: TestActor;
-    asset: LedgerAPI["schemas"]["finp2pAsset"];
+    asset: LedgerAPI['schemas']['finp2pAsset'];
     amount: number;
     settlementAmount: number;
     settlementAssetCode?: string;
-  }): Promise<LedgerAPI["schemas"]["IssueAssetsRequest"]> {
-    const nonce = generateNonce().toString("hex");
-    const settlementAssetCode = params.settlementAssetCode || "USD";
+  }): Promise<LedgerAPI['schemas']['IssueAssetsRequest']> {
+    const nonce = generateNonce().toString('hex');
+    const settlementAssetCode = params.settlementAssetCode || 'USD';
 
     return {
       nonce,
       destination: params.issuer.source.account,
       quantity: `${params.amount}`,
       asset: params.asset,
-      settlementRef: "",
+      settlementRef: '',
       signature: await eip712Signature(
         this.chainId,
         this.verifyingContract,
-        "PrimarySale",
+        'PrimarySale',
         PRIMARY_SALE_TYPES,
         {
           nonce,
@@ -131,17 +131,17 @@ export class TestDataBuilder {
           issuer: { idkey: params.issuer.finId },
           asset: {
             assetId: params.asset.resourceId,
-            assetType: "finp2p",
-            amount: `${params.amount}`
+            assetType: 'finp2p',
+            amount: `${params.amount}`,
           },
           settlement: {
             assetId: settlementAssetCode,
-            assetType: "fiat",
-            amount: `${params.settlementAmount}`
-          }
+            assetType: 'fiat',
+            amount: `${params.settlementAmount}`,
+          },
         } as EIP712PrimarySaleMessage,
-        params.buyer.privateKey
-      )
+        params.buyer.privateKey,
+      ),
     };
   }
 
@@ -150,18 +150,18 @@ export class TestDataBuilder {
    * @example await client.tokens.issue(builder.buildIssueRequest({ ... }));
    */
   buildIssueRequest(params: {
-    destination: LedgerAPI["schemas"]["finIdAccount"];
-    asset: LedgerAPI["schemas"]["asset"];
+    destination: LedgerAPI['schemas']['finIdAccount'];
+    asset: LedgerAPI['schemas']['asset'];
     quantity: number;
     settlementRef?: string;
-  }): LedgerAPI["schemas"]["IssueAssetsRequest"] {
+  }): LedgerAPI['schemas']['IssueAssetsRequest'] {
     return {
-      nonce: generateNonce().toString("hex"),
+      nonce: generateNonce().toString('hex'),
       destination: params.destination,
       quantity: `${params.quantity}`,
-      asset: params.asset as LedgerAPI["schemas"]["finp2pAsset"],
-      settlementRef: params.settlementRef || "",
-      signature: {} as LedgerAPI["schemas"]["signature"]
+      asset: params.asset as LedgerAPI['schemas']['finp2pAsset'],
+      settlementRef: params.settlementRef || '',
+      signature: {} as LedgerAPI['schemas']['signature'],
     };
   }
 
@@ -172,13 +172,13 @@ export class TestDataBuilder {
   async buildSignedTransferRequest(params: {
     seller: TestActor;
     buyer: TestActor;
-    asset: LedgerAPI["schemas"]["finp2pAsset"];
+    asset: LedgerAPI['schemas']['finp2pAsset'];
     amount: number;
     settlementAmount: number;
     settlementAssetCode?: string;
-  }): Promise<LedgerAPI["schemas"]["TransferAssetRequest"]> {
-    const nonce = generateNonce().toString("hex");
-    const settlementAssetCode = params.settlementAssetCode || "USD";
+  }): Promise<LedgerAPI['schemas']['TransferAssetRequest']> {
+    const nonce = generateNonce().toString('hex');
+    const settlementAssetCode = params.settlementAssetCode || 'USD';
 
     return {
       nonce,
@@ -186,11 +186,11 @@ export class TestDataBuilder {
       destination: params.buyer.source,
       quantity: `${params.amount}`,
       asset: params.asset,
-      settlementRef: "",
+      settlementRef: '',
       signature: await eip712Signature(
         this.chainId,
         this.verifyingContract,
-        "Selling",
+        'Selling',
         SELLING_TYPES,
         {
           nonce,
@@ -198,17 +198,17 @@ export class TestDataBuilder {
           buyer: { idkey: params.buyer.finId },
           asset: {
             assetId: params.asset.resourceId,
-            assetType: "finp2p",
-            amount: `${params.amount}`
+            assetType: 'finp2p',
+            amount: `${params.amount}`,
           },
           settlement: {
             assetId: settlementAssetCode,
-            assetType: "fiat",
-            amount: `${params.settlementAmount}`
-          }
+            assetType: 'fiat',
+            amount: `${params.settlementAmount}`,
+          },
         } as EIP712SellingMessage,
-        params.seller.privateKey
-      )
+        params.seller.privateKey,
+      ),
     };
   }
 
@@ -219,14 +219,14 @@ export class TestDataBuilder {
   async buildSignedHoldRequest(params: {
     source: TestActor;
     destination: TestActor;
-    asset: LedgerAPI["schemas"]["asset"];
+    asset: LedgerAPI['schemas']['asset'];
     assetId: string;
     amount: number;
     settlementAmount: number;
     operationId: string;
     expiry?: number;
-  }): Promise<LedgerAPI["schemas"]["HoldOperationRequest"]> {
-    const nonce = generateNonce().toString("hex");
+  }): Promise<LedgerAPI['schemas']['HoldOperationRequest']> {
+    const nonce = generateNonce().toString('hex');
 
     return {
       nonce,
@@ -239,17 +239,17 @@ export class TestDataBuilder {
       signature: await eip712Signature(
         this.chainId,
         this.verifyingContract,
-        "Selling",
+        'Selling',
         SELLING_TYPES,
         newSellingMessage(
           nonce,
           finId(params.source.finId),
           finId(params.destination.finId),
-          eip712Term(params.assetId, "finp2p", `${params.amount}`),
-          eip712Term("USD", "fiat", `${params.settlementAmount}`)
+          eip712Term(params.assetId, 'finp2p', `${params.amount}`),
+          eip712Term('USD', 'fiat', `${params.settlementAmount}`),
         ),
-        params.source.privateKey
-      )
+        params.source.privateKey,
+      ),
     };
   }
 
@@ -260,29 +260,29 @@ export class TestDataBuilder {
   async buildRedeemRequests(params: {
     investor: TestActor;
     issuer: TestActor;
-    asset: LedgerAPI["schemas"]["finp2pAsset"];
+    asset: LedgerAPI['schemas']['finp2pAsset'];
     amount: number;
     settlementAmount: number;
     operationId: string;
   }): Promise<{
-    holdRequest: LedgerAPI["schemas"]["HoldOperationRequest"];
-    redeemRequest: LedgerAPI["schemas"]["RedeemAssetsRequest"];
-  }> {
-    const nonce = generateNonce().toString("hex");
+      holdRequest: LedgerAPI['schemas']['HoldOperationRequest'];
+      redeemRequest: LedgerAPI['schemas']['RedeemAssetsRequest'];
+    }> {
+    const nonce = generateNonce().toString('hex');
 
     const signature = await eip712Signature(
       this.chainId,
       this.verifyingContract,
-      "Redemption",
+      'Redemption',
       REDEMPTION_TYPES,
       newRedemptionMessage(
         nonce,
         finId(params.issuer.finId),
         finId(params.investor.finId),
-        eip712Term(params.asset.resourceId, "finp2p", `${params.amount}`),
-        eip712Term("USD", "fiat", `${params.settlementAmount}`)
+        eip712Term(params.asset.resourceId, 'finp2p', `${params.amount}`),
+        eip712Term('USD', 'fiat', `${params.settlementAmount}`),
       ),
-      params.investor.privateKey
+      params.investor.privateKey,
     );
 
     return {
@@ -293,7 +293,7 @@ export class TestDataBuilder {
         quantity: `${params.amount}`,
         asset: params.asset,
         expiry: 0,
-        signature
+        signature,
       },
       redeemRequest: {
         nonce,
@@ -301,9 +301,9 @@ export class TestDataBuilder {
         source: params.investor.source.account,
         quantity: `${params.amount}`,
         asset: params.asset,
-        settlementRef: "",
-        signature
-      }
+        settlementRef: '',
+        signature,
+      },
     };
   }
 
@@ -314,16 +314,16 @@ export class TestDataBuilder {
   buildReleaseRequest(params: {
     source: TestActor;
     destination: TestActor;
-    asset: LedgerAPI["schemas"]["asset"];
+    asset: LedgerAPI['schemas']['asset'];
     quantity: number;
     operationId: string;
-  }): LedgerAPI["schemas"]["ReleaseOperationRequest"] {
+  }): LedgerAPI['schemas']['ReleaseOperationRequest'] {
     return {
       operationId: params.operationId,
       source: params.source.source,
       destination: params.destination.source,
       quantity: `${params.quantity}`,
-      asset: params.asset
+      asset: params.asset,
     };
   }
 
@@ -334,12 +334,12 @@ export class TestDataBuilder {
   buildDepositInstructionRequest(params: {
     owner: TestActor;
     destination: TestActor;
-    asset: LedgerAPI["schemas"]["depositAsset"];
-  }): LedgerAPI["schemas"]["DepositInstructionRequest"] {
+    asset: LedgerAPI['schemas']['depositAsset'];
+  }): LedgerAPI['schemas']['DepositInstructionRequest'] {
     return {
       owner: params.owner.source,
       destination: params.destination.source,
-      asset: params.asset
+      asset: params.asset,
     };
   }
 }

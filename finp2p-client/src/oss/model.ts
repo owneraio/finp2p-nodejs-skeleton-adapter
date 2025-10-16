@@ -1,7 +1,7 @@
 export type LedgerAssetInfo = {
   tokenId: string
   ledgerReference?: LedgerReference
-}
+};
 
 export type LedgerReference = {
   type: string;
@@ -19,7 +19,7 @@ export type LedgerReference = {
 export type AssetIdentifier = {
   type: string
   value: string
-}
+};
 
 
 export type ProofDomain = {
@@ -46,7 +46,7 @@ export type ProofPolicy = {
 
 export type AssetPolicies = {
   proof: Proof
-}
+};
 
 export type OssAsset = {
   id: string,
@@ -98,17 +98,17 @@ export type OssPaymentAsset = {
     }[],
     policies: AssetPolicies
   }[]
-}
+};
 
 export type OssEscrow = {
   orgId: string
   paymentAssetId: string
   paymentAsset: OssPaymentAsset
-}
+};
 
 export type OssEscrowNodes = {
   escrows: { nodes: OssEscrow[] }
-}
+};
 
 export type OssOwner = {
   id: string,
@@ -144,11 +144,11 @@ export type OssOwnerNodes = {
 export type OssOrganization = {
   id: string,
   name: string
-}
+};
 
 export type OssOrganizationNodes = {
   organizations: { nodes: OssOrganization[] }
-}
+};
 
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {
   const rawObject: unknown = JSON.parse(jsonString);
