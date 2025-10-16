@@ -1040,6 +1040,13 @@
     "@nodelib/fs.scandir" "2.1.5"
     "fastq" "^1.6.0"
 
+"@owneraio/adapter-tests@^0.1.0":
+  "integrity" "sha512-29q15/NWAg5oXNJ/EolBLyEstbrEzTbZnllRs5OfNlTspBTPLduv9y9QxJQ83XX7Yco94w4/ziWeySZQKbWBWQ=="
+  "resolved" "https://npm.pkg.github.com/download/@owneraio/adapter-tests/0.1.0/9baccb129437e0a53f4e4e2a8b3a3d52b3a1df86"
+  "version" "0.1.0"
+  dependencies:
+    "@owneraio/finp2p-nodejs-skeleton-adapter" "0.25.17"
+
 "@owneraio/finp2p-client@^0.25.10":
   "integrity" "sha512-eOuNiwi6ZYlYgaCr94hDacp7aL41CIGgz6ogWiuazmbQqRB78sNta1T8OJnBNm4EC1rKa2+ltPI+xqsGy0LqIw=="
   "resolved" "https://npm.pkg.github.com/download/@owneraio/finp2p-client/0.25.10/a9aced63f7602281cf8cefb56ae635077d13d31d"
@@ -1049,6 +1056,22 @@
     "graphql" "^16.8.1"
     "graphql-import-node" "^0.0.5"
     "openapi-fetch" "0.14.0"
+
+"@owneraio/finp2p-nodejs-skeleton-adapter@0.25.17":
+  "integrity" "sha512-99Lo1vWTL4BW58scjo3HJq8JY0iRz1X5kEvq3bQvnKwPUtMPc2OyHl0M+pbQ4CxrtqvK6wrfzAlu9icgKyIodg=="
+  "resolved" "https://npm.pkg.github.com/download/@owneraio/finp2p-nodejs-skeleton-adapter/0.25.17/11cc3246640b7e619a584dca55958ecaad160804"
+  "version" "0.25.17"
+  dependencies:
+    "@owneraio/finp2p-client" "^0.25.10"
+    "axios" "1.11.0"
+    "ethers" "^6.11.1"
+    "express" "5.0.0"
+    "express-validator" "^6.14.0"
+    "express-winston" "^4.2.0"
+    "keccak" "^3.0.2"
+    "secp256k1" "^3.7.1"
+    "uuid" "^9.0.0"
+    "winston" "^3.3.3"
 
 "@redocly/ajv@^8.11.2":
   "integrity" "sha512-4P3iZse91TkBiY+Dx5DUgxQ9GXkVJf++cmI0MOyLDxV9b5MUBI4II6ES8zA5JCbO72nKAJxWrw4PUPW+YP3ZDQ=="
