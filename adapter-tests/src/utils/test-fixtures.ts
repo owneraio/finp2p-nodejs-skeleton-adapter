@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { LedgerAPIClient } from "../api/api";
 import { TestActor, TestDataBuilder } from "./test-builders";
-import { LedgerAPI } from "../../src";
+import { LedgerAPI } from "@owneraio/finp2p-nodejs-skeleton-adapter";
 import { TestHelpers } from "./test-assertions";
 
 /**

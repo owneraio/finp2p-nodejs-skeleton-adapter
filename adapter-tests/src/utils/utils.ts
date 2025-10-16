@@ -33,8 +33,3 @@ export const generateNonce = () => {
 export const randomResourceId = (orgId: string, resourceType: number) => {
   return `${orgId}:${resourceType}:${uuidv4()}`;
 };
-
-export const randomPort = () => {
-  return Math.floor(Math.random() * 10000) + 10000;
-}
-
