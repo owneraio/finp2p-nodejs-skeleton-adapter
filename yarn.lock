@@ -1040,13 +1040,14 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@owneraio/adapter-tests@^0.1.1":
-  version "0.1.1"
-  resolved "https://npm.pkg.github.com/download/@owneraio/adapter-tests/0.1.1/53fd8b68ae71b82a5a5880ad473abd72f37bfeb0"
-  integrity sha512-uCquq8f7a85zNwYT/aCPmWbJSKZ7aDfnbti5gpSJgQU7J1iXJkOEMjMFO0W+IkJlJ7dST0wI7UeWIP3WaIFahw==
+"@owneraio/adapter-tests@^0.1.2":
+  version "0.1.2"
+  resolved "https://npm.pkg.github.com/download/@owneraio/adapter-tests/0.1.2/333bb474a80e661af40e26c14b2bb5a512f15b24"
+  integrity sha512-i2Hf6kp45xDC/0VA9J7bBTKSb7OJLwWKm8ryuRUvVL827xXPunhw0rkCuzeSWsRQzESquZjYV+Hv829YrnzcEg==
   dependencies:
     "@owneraio/finp2p-nodejs-skeleton-adapter" "0.25.17"
     yaml "^2.8.1"
+    zod "^4.1.12"
 
 "@owneraio/finp2p-client@^0.25.10":
   version "0.25.10"
@@ -4612,3 +4613,8 @@ yocto-queue@^0.1.0:
   version "0.1.0"
   resolved "https://registry.npmjs.org/yocto-queue/-/yocto-queue-0.1.0.tgz"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
+
+zod@^4.1.12:
+  version "4.1.12"
+  resolved "https://registry.npmjs.org/zod/-/zod-4.1.12.tgz"
+  integrity sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==
