@@ -3,8 +3,8 @@ import { businessLogicTests } from './business-logic.test';
 import { tokenLifecycleTests } from './token-lifecycle.test';
 import { insufficientBalanceTest } from './insufficient-balance.test';
 
-export function runSkeletonTests() {
-  describe('FinP2P Skeleton Conformance Suite', () => {
+export function runAdapterTests(/*TODO: test configuration */) {
+  describe('FinP2P Adapter Test Suite', () => {
     businessLogicTests();
     tokenLifecycleTests();
     insufficientBalanceTest();
