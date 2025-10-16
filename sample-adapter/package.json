@@ -1,0 +1,21 @@
+{
+  "name": "sample-adapter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "prebuild": "eslint ./src --ext .ts --fix",
+    "build": "tsc",
+    "test": "jest",
+    "start-debug": "ts-node sample-adapter/src/index.ts",
+    "start": "node ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.25.17"
+  },
+  "devDependencies": {
+    "@owneraio/adapter-tests": "^0.1.2"
+  }
+}

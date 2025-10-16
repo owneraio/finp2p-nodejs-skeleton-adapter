@@ -1,4 +1,3 @@
-import { logger } from '../../../lib/helpers';
 import { CommonServiceImpl } from './common';
 import {
   Asset, BusinessError,
@@ -7,8 +6,8 @@ import {
   ReceiptOperation,
   Signature,
   Source,
-  successfulReceiptOperation, verifySignature,
-} from '../../../lib/services';
+  successfulReceiptOperation, verifySignature, logger
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
 import { HoldOperation, Transaction } from './model';
 import { Storage } from './storage';

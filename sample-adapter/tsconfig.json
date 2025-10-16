@@ -21,10 +21,6 @@
   },
   "include": [
     "src/**/*.ts",
-  ],
-  "exclude": [
-    "src/app",
-    "tests",
-    "**/*.test.ts"
-  ],
+    "test/**/*.ts"
+  ]
 }

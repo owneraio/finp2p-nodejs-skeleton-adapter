@@ -1,5 +1,5 @@
+import { Asset, BusinessError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { HoldOperation } from './model';
-import { Asset, BusinessError } from '../../../lib/services';
 import { Account } from './accounts';
 
 

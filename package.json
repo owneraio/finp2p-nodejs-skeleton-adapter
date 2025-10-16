@@ -12,11 +12,7 @@
     "clean": "rm -rf dist",
     "api-generate": "npx openapi-typescript dlt-adapter-api.yaml -o src/lib/routes/model-gen.ts",
     "prebuild": "eslint ./src --ext .ts --fix",
-    "build": "tsc",
-    "build-lib": "tsc -p tsconfig.build.json",
-    "test": "jest",
-    "start-debug": "ts-node ./src/app/index.ts",
-    "start": "node ."
+    "build": "tsc"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
@@ -37,7 +33,6 @@
     "winston": "^3.3.3"
   },
   "devDependencies": {
-    "@owneraio/adapter-tests": "^0.1.2",
     "@babel/core": "^7.19.3",
     "@babel/preset-env": "^7.19.4",
     "@types/express": "^4.17.13",

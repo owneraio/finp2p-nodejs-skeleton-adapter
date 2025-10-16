@@ -3,13 +3,11 @@ import { Wallet } from 'ethers';
 import { logger as expressLogger } from 'express-winston';
 import { format, transports } from 'winston';
 import process from 'process';
-import * as routes from '../lib/routes';
-import { PluginManager } from '../lib/plugins';
-import { PlanApprovalServiceImpl, PaymentsServiceImpl, ProofProvider } from '../lib/services';
+import * as routes from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { logger, PluginManager,PlanApprovalServiceImpl, PaymentsServiceImpl, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { TokenServiceImpl, EscrowServiceImpl, Storage } from './services/inmemory';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { DelayedApprovals } from './plugins/delayed-approvals';
-import { logger } from '../lib/helpers';
 
 function configureLogging(app: Application) {
   app.use(

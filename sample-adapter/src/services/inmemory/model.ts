@@ -5,8 +5,7 @@ import {
   FinIdAccount,
   OperationType,
   Receipt,
-  Source,
-} from '../../../lib/services';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { v4 as uuid } from 'uuid';
 
 

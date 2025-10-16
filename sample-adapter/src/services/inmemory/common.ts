@@ -1,11 +1,11 @@
-import { Storage } from './storage';
-import { BusinessError, CommonService, HealthService, ValidationError } from '../../../lib/services';
+import {Storage} from './storage';
 import {
+  BusinessError, CommonService, HealthService, ValidationError,
   OperationStatus,
   ReceiptOperation,
   successfulReceiptOperation,
-} from '../../../lib/services';
-import { HoldOperation, Transaction } from './model';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import {HoldOperation, Transaction} from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {
 

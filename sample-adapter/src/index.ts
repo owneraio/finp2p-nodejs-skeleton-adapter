@@ -1,8 +1,7 @@
-import { logger } from '../lib/helpers';
 import * as process from 'process';
-import createApp from './app';
+import { logger, ConfigurationError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { FinP2PClient } from '@owneraio/finp2p-client';
-import { ConfigurationError } from '../lib/services';
+import createApp from './app';
 
 const init = async () => {
   const port = process.env.PORT || '3000';
