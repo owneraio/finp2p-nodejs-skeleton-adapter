@@ -1,6 +1,6 @@
 import {
   failedDepositOperation,
-  FinIdAccount,
+  FinIdAccount, generateCid,
   PaymentService,
   pendingDepositOperation, pendingReceiptOperation,
 } from '../index';
@@ -13,7 +13,6 @@ import {
   Source,
 } from '../index';
 import { PluginManager } from '../../plugins';
-import { v4 as uuid } from 'uuid';
 import { logger } from '../../helpers';
 import { PluginError } from '../../plugins';
 
@@ -66,7 +65,7 @@ export class PaymentsServiceImpl implements PaymentService {
       if (!plugin.asyncIface) {
         return Promise.resolve(failedReceiptOperation(1, 'No async interface in plan approval plugin'));
       }
-      const cid = uuid();
+      const cid = generateCid();
       plugin.asyncIface.payout(idempotencyKey, cid, source.account, destination.account, asset, amount)
         .then(() => {
         }).catch(e => {
@@ -100,7 +99,7 @@ export class PaymentsServiceImpl implements PaymentService {
       if (!plugin.asyncIface) {
         return Promise.resolve(failedDepositOperation(1, 'No async interface in plan approval plugin'));
       }
-      const cid = uuid();
+      const cid = generateCid();
       plugin.asyncIface.deposit(idempotencyKey, cid, owner, asset, amount)
         .then(() => {
         }).catch(e => {
@@ -135,7 +134,7 @@ export class PaymentsServiceImpl implements PaymentService {
       if (!plugin.asyncIface) {
         return Promise.resolve(failedDepositOperation(1, 'No async interface in plan approval plugin'));
       }
-      const cid = uuid();
+      const cid = generateCid();
       plugin.asyncIface.depositCustom(idempotencyKey, cid, owner, amount, details)
         .then(() => {
         }).catch(e => {
