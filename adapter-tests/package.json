@@ -4,6 +4,9 @@
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "adapter-tests": "./dist/cli.js"
+  },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
