@@ -1,6 +1,6 @@
-import {FinP2PClient} from '@owneraio/finp2p-client';
-import {LedgerCallbackService, OperationStatus, PluginError, Logger} from '@owneraio/finp2p-adapter-models';
-import {operationToFinAPI} from './mappers';
+import { FinP2PClient } from '@owneraio/finp2p-client';
+import { LedgerCallbackService, OperationStatus, PluginError, Logger } from '@owneraio/finp2p-adapter-models';
+import { operationToFinAPI } from './mappers';
 
 
 export abstract class AbstractPlugin implements LedgerCallbackService {
@@ -19,7 +19,7 @@ export abstract class AbstractPlugin implements LedgerCallbackService {
 
   async sendOperationResult(cid: string, operation: OperationStatus): Promise<void> {
     const op = operationToFinAPI(operation);
-    const {data, error} = await this.finP2PClient.sendCallback(cid, op);
+    const { data, error } = await this.finP2PClient.sendCallback(cid, op);
     if (error) {
       throw new PluginError(1, `Error sending callback for CID ${cid}: ${error}`);
     }

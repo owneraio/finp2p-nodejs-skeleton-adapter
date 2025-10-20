@@ -7,7 +7,7 @@ import {
   Leg,
   PlanContract,
   PlanInvestor,
-  ValidationError
+  ValidationError,
 } from '@owneraio/finp2p-adapter-models';
 import { OpComponents } from '@owneraio/finp2p-client';
 

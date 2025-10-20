@@ -1,6 +1,6 @@
 import { hashEIP712, verifyEIP712 } from '../helpers';
 import { logger } from '../helpers';
-import { Signature } from './index';
+import { Signature } from '@owneraio/finp2p-adapter-models';
 import { verifySecp } from '../helpers';
 
 
