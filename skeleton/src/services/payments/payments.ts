@@ -3,15 +3,13 @@ import {
   FinIdAccount, generateCid,
   PaymentService,
   pendingDepositOperation, pendingReceiptOperation,
-} from '../index';
-import {
   Asset,
   DepositAsset,
   DepositOperation,
   Destination, failedReceiptOperation, ReceiptOperation,
   Signature,
   Source,
-} from '../index';
+} from '@owneraio/finp2p-adapter-models';
 import { PluginManager } from '../../plugins';
 import { logger } from '../../helpers';
 import { PluginError } from '../../plugins';

@@ -4,8 +4,8 @@ import {
   AsyncPaymentsPlugin,
   AsyncPlanApprovalPlugin, PaymentsPlugin,
   PlanApprovalPlugin, TransactionHook,
-} from './interfaces';
-import { Plugin } from './plugin';
+} from '../../../finp2p-adapter-models/src/plugins/interfaces';
+import { Plugin } from '../../../finp2p-adapter-models/src/plugins/plugin';
 
 
 export class PluginManager {
