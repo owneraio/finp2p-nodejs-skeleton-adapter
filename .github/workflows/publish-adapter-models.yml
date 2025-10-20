@@ -3,7 +3,7 @@ name: Publish Package
 on:
   push:
     tags:
-      - "finp2p-models-v*"
+      - "finp2p-adapter-models-v*"
 
 jobs:
   publish-adapter:
