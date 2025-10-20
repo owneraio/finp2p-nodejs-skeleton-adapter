@@ -1,5 +1,5 @@
 import {
-  Receipt
+  Receipt,
   eip712Asset,
   eip712ExecutionContext,
   EIP712ReceiptMessage,
