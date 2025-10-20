@@ -15,7 +15,7 @@
     "baseUrl": ".",
     "paths": {
       "*": [
-        "./finp2p-model/node_modules/*"
+        "./finp2p-adapter-models/node_modules/*"
       ]
     }
   },
