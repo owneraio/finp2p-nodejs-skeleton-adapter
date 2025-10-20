@@ -1,7 +1,7 @@
 import { hashEIP712, verifyEIP712 } from '../helpers';
 import { logger } from '../helpers';
 import { Signature } from './index';
-import { verifySecp } from '../helpers/hashList';
+import { verifySecp } from '../helpers';
 
 
 export const verifySignature = async (sgn: Signature, signerFinId: string): Promise<boolean> => {
