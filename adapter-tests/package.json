@@ -15,7 +15,8 @@
   ],
   "scripts": {
     "prebuild": "eslint ./src --ext .ts --fix",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "node --test ./dist/cli.js"
   },
   "dependencies": {
     "@owneraio/finp2p-nodejs-skeleton-adapter": "0.25.17",
