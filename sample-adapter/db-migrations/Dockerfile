@@ -20,6 +20,6 @@ RUN --mount=type=secret,id=npm_token \
 FROM alpine:latest
 WORKDIR /usr/app
 COPY --from=builder /go/bin/goose /usr/bin/
-COPY --from=migrations /usr/app/node_modules/@owneraio/finp2p-nodejs-skeleton-adapter/migrations/*.sql ./
+#COPY --from=migrations /usr/app/node_modules/@owneraio/finp2p-nodejs-skeleton-adapter/migrations/*.sql ./
 
 CMD ["/usr/bin/goose", "up"]

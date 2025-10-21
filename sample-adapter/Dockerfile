@@ -7,13 +7,19 @@ FROM base AS builder
 COPY \
     .eslintrc.json \
     package.json \
+    package-lock.json \
     tsconfig.json \
     jest.config.js \
     ./
 
 COPY src ./src
 
-RUN npm install
+RUN --mount=type=secret,id=npm_token \
+    NPM_TOKEN="$(cat /run/secrets/npm_token)" && \
+    echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" > .npmrc && \
+    echo "@owneraio:registry=https://npm.pkg.github.com" >> .npmrc && \
+    npm clean-install && \
+    rm .npmrc
 RUN npm run build
 
 # ------- Release ----------
