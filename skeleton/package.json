@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "migrations/*.sql"
   ],
   "scripts": {
     "clean": "rm -rf dist",
