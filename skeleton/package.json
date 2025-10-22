@@ -29,6 +29,8 @@
     "express-validator": "^6.14.0",
     "express-winston": "^4.2.0",
     "keccak": "^3.0.2",
+    "knex": "^3.1.0",
+    "pg": "^8.16.3",
     "secp256k1": "^3.7.1",
     "winston": "^3.3.3"
   },
