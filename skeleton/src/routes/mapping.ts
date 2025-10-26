@@ -11,7 +11,7 @@ import {
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
   FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, LedgerReference, AdditionalContractDetails,
   AssetCreationResult, OperationMetadata, ValidationError,
-} from '../services';
+} from '@owneraio/finp2p-adapter-models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
 

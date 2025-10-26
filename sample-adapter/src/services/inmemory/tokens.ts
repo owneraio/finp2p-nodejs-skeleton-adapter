@@ -4,15 +4,17 @@ import {
   AssetDenomination,
   AssetIdentifier, Balance, BusinessError, Destination, failedReceiptOperation,
   FinIdAccount,
-  finIdDestination, ProofProvider, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
-  TokenService, verifySignature,
+  finIdDestination, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
+  TokenService,
   Asset, ExecutionContext,
   Signature,
-} from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { logger } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+} from '@owneraio/finp2p-adapter-models';
+import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';
-import {generateId} from "./utils";
+import {
+  generateId,
+} from './utils';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 

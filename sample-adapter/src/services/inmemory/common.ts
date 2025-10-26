@@ -4,7 +4,7 @@ import {
   OperationStatus,
   ReceiptOperation,
   successfulReceiptOperation,
-} from '@owneraio/finp2p-nodejs-skeleton-adapter';
+} from '@owneraio/finp2p-adapter-models';
 import { HoldOperation, Transaction } from './model';
 
 export class CommonServiceImpl implements CommonService, HealthService {

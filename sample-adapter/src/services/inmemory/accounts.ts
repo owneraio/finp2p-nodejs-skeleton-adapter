@@ -1,4 +1,4 @@
-import { BusinessError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { BusinessError } from '@owneraio/finp2p-adapter-models';
 
 
 export class Account {

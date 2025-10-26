@@ -15,10 +15,10 @@ import {
   CommonService,
   EscrowService,
   HealthService,
-  PlanApprovalService,
   TokenService,
+  PlanApprovalService,
   PaymentService, Destination, Source,
-} from '../services';
+} from '@owneraio/finp2p-adapter-models';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
 

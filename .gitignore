@@ -1,5 +1,6 @@
 .idea
-.npmrc
+skeleton/.npmrc
 node_modules
 dist
 cache
+/adapter-tests/.npmrc

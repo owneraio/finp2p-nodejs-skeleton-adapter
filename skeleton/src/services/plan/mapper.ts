@@ -7,9 +7,9 @@ import {
   Leg,
   PlanContract,
   PlanInvestor,
-} from '../model';
+  ValidationError,
+} from '@owneraio/finp2p-adapter-models';
 import { OpComponents } from '@owneraio/finp2p-client';
-import { ValidationError } from '../errors';
 
 
 export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => {
