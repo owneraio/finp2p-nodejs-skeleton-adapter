@@ -2,15 +2,16 @@ import { CommonServiceImpl } from './common';
 import {
   Asset, BusinessError,
   Destination, EscrowService,
-  ExecutionContext, failedReceiptOperation, FinIdAccount, ProofProvider,
+  ExecutionContext, failedReceiptOperation, FinIdAccount,
   ReceiptOperation,
   Signature,
   Source,
-  successfulReceiptOperation, verifySignature, logger,
-} from '@owneraio/finp2p-nodejs-skeleton-adapter';
+  successfulReceiptOperation,
+} from '@owneraio/finp2p-adapter-models';
 
 import { HoldOperation, Transaction } from './model';
 import { Storage } from './storage';
+import { logger, ProofProvider } from '@owneraio/finp2p-adapter-models';
 
 
 export class EscrowServiceImpl extends CommonServiceImpl implements EscrowService {

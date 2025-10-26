@@ -12,18 +12,12 @@
     "sourceMap": true,
     "strict": true,
     "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "*": [
-        "./skeleton/node_modules/*"
-      ]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src/**/*.ts",
   ],
   "exclude": [
-    "src/app",
     "**/*.test.ts"
   ],
 }

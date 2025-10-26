@@ -1,4 +1,3 @@
-import { logger } from '../../helpers';
 import {
   approvedPlan, Asset, DestinationAccount,
   ExecutionPlan,
@@ -9,6 +8,7 @@ import {
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { executionFromAPI } from './mapper';
 import { PluginManager } from '../../plugins';
+import { logger } from '../../helpers';
 
 export class PlanApprovalServiceImpl implements PlanApprovalService {
 

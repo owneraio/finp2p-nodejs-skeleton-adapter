@@ -9,10 +9,10 @@ import {
   Destination, failedReceiptOperation, ReceiptOperation,
   Signature,
   Source,
+  PluginError,
 } from '@owneraio/finp2p-adapter-models';
-import { PluginManager } from '../../plugins';
 import { logger } from '../../helpers';
-import { PluginError } from '../../plugins';
+import { PluginManager } from '../../plugins';
 
 
 export class PaymentsServiceImpl implements PaymentService {
