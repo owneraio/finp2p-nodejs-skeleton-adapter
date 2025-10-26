@@ -6,7 +6,9 @@ import {
   OperationType,
   Receipt,
 } from '@owneraio/finp2p-adapter-models';
-import { generateId } from './utils';
+import {
+  generateId,
+} from './utils';
 
 
 export class ServiceError extends Error {
