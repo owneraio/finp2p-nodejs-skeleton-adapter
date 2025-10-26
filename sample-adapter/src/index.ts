@@ -1,5 +1,5 @@
 import * as process from 'process';
-import {ConfigurationError} from "@owneraio/finp2p-adapter-models";
+import {ConfigurationError} from '@owneraio/finp2p-adapter-models';
 import {logger} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import {FinP2PClient} from '@owneraio/finp2p-client';
 import createApp from './app';
