@@ -3,9 +3,11 @@ import {
   Asset,
   DestinationAccount,
   FinIdAccount,
+} from '@owneraio/finp2p-adapter-models';
+
+import {
   AbstractPlugin,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -9,7 +9,7 @@ import {
   Asset, ExecutionContext,
   Signature,
 } from '@owneraio/finp2p-adapter-models';
-import { ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';
 import { generateId } from './utils';

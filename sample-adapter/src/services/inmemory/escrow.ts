@@ -11,7 +11,7 @@ import {
 
 import { HoldOperation, Transaction } from './model';
 import { Storage } from './storage';
-import { logger, ProofProvider } from '@owneraio/finp2p-adapter-models';
+import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
 
 export class EscrowServiceImpl extends CommonServiceImpl implements EscrowService {
