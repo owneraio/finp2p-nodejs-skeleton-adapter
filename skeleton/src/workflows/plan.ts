@@ -1,9 +1,6 @@
 import {
-  Asset,
   CommonService,
-  DepositAsset,
   DepositOperation,
-  Destination,
   EscrowService,
   HealthService,
   OperationStatus,
@@ -11,11 +8,9 @@ import {
   PlanApprovalService,
   PlanApprovalStatus,
   ReceiptOperation,
-  Signature,
-  Source,
   TokenService,
 } from "../services";
-import { WorkflowStorage, Operation as StorageOperation } from "./storage";
+import { Operation as StorageOperation, WorkflowStorage } from "./storage";
 
 export class WorkflowPlanApprovalService
   implements PlanApprovalService, CommonService, PaymentService
