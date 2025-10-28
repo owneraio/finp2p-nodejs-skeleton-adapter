@@ -12,7 +12,7 @@ import {
 import { logger } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';
-import {generateId} from "./utils";
+import { generateId } from './utils';
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 

@@ -1,3 +1,9 @@
+# ---- compile goose (migration tool) ----
+FROM golang:1.24.5-alpine AS migrator
+
+RUN apk update && apk add make gcc git build-base
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+
 FROM node:20-alpine AS base
 WORKDIR /usr/app
 
@@ -22,12 +28,26 @@ RUN --mount=type=secret,id=npm_token \
     rm .npmrc
 RUN npm run build
 
+# ---- Only production dependencies
+FROM base as productionDeps
+
+COPY package.json package-lock.json ./
+
+RUN --mount=type=secret,id=npm_token \
+    NPM_TOKEN="$(cat /run/secrets/npm_token)" && \
+    echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" > .npmrc && \
+    echo "@owneraio:registry=https://npm.pkg.github.com" >> .npmrc && \
+    npm clean-install --production && \
+    rm .npmrc
+
 # ------- Release ----------
 FROM base as release
 LABEL org.opencontainers.image.source=https://github.com/owneraio/nodejs_ledger_adapter_skeleton
 
-COPY --from=builder /usr/app/node_modules ./node_modules
+COPY --from=productionDeps /usr/app/node_modules ./node_modules
 COPY --from=builder /usr/app/dist ./dist
-COPY --from=builder /usr/app/package.json ./
+COPY --from=builder /usr/app/package.json /usr/app/package-lock.json ./
+COPY --from=migrator /go/bin/goose /usr/bin/goose
 
-CMD [ "node", "/usr/app/dist/src/app/index.js" ]
+
+CMD [ "node", "/usr/app/dist/index.js" ]

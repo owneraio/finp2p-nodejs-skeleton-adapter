@@ -6,7 +6,7 @@ import {
   OperationType,
   Receipt,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import {generateId} from "./utils";
+import { generateId } from './utils';
 
 
 export class ServiceError extends Error {
