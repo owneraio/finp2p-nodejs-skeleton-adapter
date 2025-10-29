@@ -9,21 +9,21 @@ import {
   PlanApprovalStatus,
   ReceiptOperation,
   TokenService,
-} from '../services';
-import { Operation as StorageOperation, WorkflowStorage } from './storage';
+} from "../services";
+import { Operation as StorageOperation, WorkflowStorage } from "./storage";
 
 const planApprovalStatusToDb = (
   planStatus: PlanApprovalStatus,
-): StorageOperation['status'] => {
+): StorageOperation["status"] => {
   switch (planStatus.type) {
-    case 'pending':
-      return 'in_progress';
-    case 'rejected':
-      return 'succeeded';
-    case 'approved':
-      return 'succeeded';
+    case "pending":
+      return "in_progress";
+    case "rejected":
+      return "succeeded";
+    case "approved":
+      return "succeeded";
     default:
-      return 'unknown';
+      return "unknown";
   }
 };
 
@@ -32,10 +32,10 @@ const planApprovalCidMapper = (
   planStatus: PlanApprovalStatus,
 ): PlanApprovalStatus => {
   switch (planStatus.type) {
-    case 'approved':
-    case 'rejected':
+    case "approved":
+    case "rejected":
       return planStatus;
-    case 'pending':
+    case "pending":
       return {
         ...planStatus,
         correlationId: storage.cid,
@@ -45,16 +45,16 @@ const planApprovalCidMapper = (
 
 const depositOperationStatusToDb = (
   result: DepositOperation,
-): StorageOperation['status'] => {
+): StorageOperation["status"] => {
   switch (result.type) {
-    case 'pending':
-      return 'in_progress';
-    case 'failure':
-      return 'failed';
-    case 'success':
-      return 'succeeded';
+    case "pending":
+      return "in_progress";
+    case "failure":
+      return "failed";
+    case "success":
+      return "succeeded";
     default:
-      return 'unknown';
+      return "unknown";
   }
 };
 
@@ -63,10 +63,10 @@ const depositOperationCidMapper = (
   result: DepositOperation,
 ): DepositOperation => {
   switch (result.type) {
-    case 'success':
-    case 'failure':
+    case "success":
+    case "failure":
       return result;
-    case 'pending':
+    case "pending":
       return {
         ...result,
         correlationId: storage.cid,
@@ -76,16 +76,16 @@ const depositOperationCidMapper = (
 
 const receiptOperationStatusToDb = (
   result: ReceiptOperation,
-): StorageOperation['status'] => {
+): StorageOperation["status"] => {
   switch (result.type) {
-    case 'success':
-      return 'succeeded';
-    case 'pending':
-      return 'in_progress';
-    case 'failure':
-      return 'failed';
+    case "success":
+      return "succeeded";
+    case "pending":
+      return "in_progress";
+    case "failure":
+      return "failed";
     default:
-      return 'unknown';
+      return "unknown";
   }
 };
 
@@ -94,10 +94,10 @@ const receiptOperationCidMapper = (
   result: ReceiptOperation,
 ): ReceiptOperation => {
   switch (result.type) {
-    case 'failure':
-    case 'success':
+    case "failure":
+    case "success":
       return result;
-    case 'pending':
+    case "pending":
       return {
         ...result,
         correlationId: storage.cid,
@@ -105,7 +105,9 @@ const receiptOperationCidMapper = (
   }
 };
 
-export class WorkflowPlanApprovalService implements PlanApprovalService, CommonService, PaymentService {
+export class WorkflowService
+  implements PlanApprovalService, CommonService, PaymentService
+{
   constructor(
     private storage: WorkflowStorage,
     private commonService: CommonService,
@@ -117,15 +119,15 @@ export class WorkflowPlanApprovalService implements PlanApprovalService, CommonS
   ) {}
 
   async getDepositInstruction(
-    ...args: Parameters<PaymentService['getDepositInstruction']>
-  ): ReturnType<PaymentService['getDepositInstruction']> {
+    ...args: Parameters<PaymentService["getDepositInstruction"]>
+  ): ReturnType<PaymentService["getDepositInstruction"]> {
     return this.callMethod(
       this.paymentService,
       this.paymentService.getDepositInstruction,
       {
         args,
         idempotencyKey: args[0],
-        dbMethod: 'getDepositInstruction',
+        dbMethod: "getDepositInstruction",
         dbStatus: depositOperationStatusToDb,
         cidMapper: depositOperationCidMapper,
       },
@@ -133,12 +135,12 @@ export class WorkflowPlanApprovalService implements PlanApprovalService, CommonS
   }
 
   async payout(
-    ...args: Parameters<PaymentService['payout']>
-  ): ReturnType<PaymentService['payout']> {
+    ...args: Parameters<PaymentService["payout"]>
+  ): ReturnType<PaymentService["payout"]> {
     return this.callMethod(this.paymentService, this.paymentService.payout, {
       args,
       idempotencyKey: args[0],
-      dbMethod: 'payout',
+      dbMethod: "payout",
       dbStatus: receiptOperationStatusToDb,
       cidMapper: receiptOperationCidMapper,
     });
@@ -154,43 +156,46 @@ export class WorkflowPlanApprovalService implements PlanApprovalService, CommonS
       throw new Error(`Operation with CID ${cid} not found`);
 
     switch (storageOperation.method) {
-      case 'approvePlan':
+      case "approvePlan":
         const approvePlan = await this.commonService.operationStatus(
           (storageOperation.outputs as { correlationId: string }).correlationId,
         );
-        if (approvePlan.operation !== 'approval')
+        if (approvePlan.operation !== "approval")
           throw new Error(
             `Expected PlanApprovalStatus, but found ${approvePlan.operation}`,
           );
-        await this.storage.changeStatus(
+        await this.storage.update(
           cid,
           planApprovalStatusToDb(approvePlan),
+          approvePlan
         );
         return planApprovalCidMapper(storageOperation, approvePlan);
-      case 'getDepositInstruction':
+      case "getDepositInstruction":
         const deposit = await this.commonService.operationStatus(
           (storageOperation.outputs as { correlationId: string }).correlationId,
         );
-        if (deposit.operation !== 'deposit')
+        if (deposit.operation !== "deposit")
           throw new Error(
             `Expected DepositOperation, but found ${deposit.operation}`,
           );
-        await this.storage.changeStatus(
+        await this.storage.update(
           cid,
           depositOperationStatusToDb(deposit),
+          deposit
         );
         return depositOperationCidMapper(storageOperation, deposit);
-      case 'payout':
+      case "payout":
         const payout = await this.commonService.operationStatus(
           (storageOperation.outputs as { correlationId: string }).correlationId,
         );
-        if (payout.operation !== 'receipt')
+        if (payout.operation !== "receipt")
           throw new Error(
             `Expected DepositOperation, but found ${payout.operation}`,
           );
-        await this.storage.changeStatus(
+        await this.storage.update(
           cid,
           receiptOperationStatusToDb(payout),
+          payout
         );
         return receiptOperationCidMapper(storageOperation, payout);
       default:
@@ -199,12 +204,12 @@ export class WorkflowPlanApprovalService implements PlanApprovalService, CommonS
   }
 
   async approvePlan(
-    ...args: Parameters<PlanApprovalService['approvePlan']>
-  ): ReturnType<PlanApprovalService['approvePlan']> {
+    ...args: Parameters<PlanApprovalService["approvePlan"]>
+  ): ReturnType<PlanApprovalService["approvePlan"]> {
     return this.callMethod(this.planService, this.planService.approvePlan, {
       args,
       idempotencyKey: args[0],
-      dbMethod: 'approvePlan',
+      dbMethod: "approvePlan",
       dbStatus: planApprovalStatusToDb,
       cidMapper: planApprovalCidMapper,
     });
@@ -223,19 +228,24 @@ export class WorkflowPlanApprovalService implements PlanApprovalService, CommonS
         storage: StorageOperation,
         result: Awaited<ReturnType<F>>,
       ) => Awaited<ReturnType<F>>;
-      dbStatus: (obj: Awaited<ReturnType<F>>) => StorageOperation['status'];
+      dbStatus: (obj: Awaited<ReturnType<F>>) => StorageOperation["status"];
       dbMethod: string;
     },
   ): Promise<Awaited<ReturnType<F>>> {
-    const result = await fn.apply(obj, opts.args);
-    const status = opts.dbStatus(result);
-    const storageOperation = await this.storage.insert({
+    let storageOperation = await this.storage.insert({
       idempotency_key: opts.idempotencyKey,
       inputs: opts.args,
       method: opts.dbMethod,
-      outputs: result,
-      status,
+      outputs: {},
+      status: "queued",
     });
+    const result = await fn.apply(obj, opts.args);
+    const status = opts.dbStatus(result);
+    storageOperation = await this.storage.update(
+      storageOperation.cid,
+      status,
+      result,
+    );
 
     return opts.cidMapper(storageOperation, result);
   }

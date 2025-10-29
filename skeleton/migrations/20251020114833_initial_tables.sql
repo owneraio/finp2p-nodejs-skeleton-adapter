@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TYPE OperationStatus as ENUM('in_progress', 'succeeded', 'failed', 'unknown');
+CREATE TYPE OperationStatus as ENUM('queued', 'in_progress', 'succeeded', 'failed', 'unknown');
 CREATE SEQUENCE operation_cid_seq;
 
 CREATE TABLE operations(
