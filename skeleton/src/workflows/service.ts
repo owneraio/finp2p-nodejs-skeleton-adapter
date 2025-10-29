@@ -9,7 +9,7 @@ import {
   PlanApprovalStatus,
   ReceiptOperation,
   TokenService,
-} from "../services";
+} from "@owneraio/finp2p-adapter-models";
 import { Operation as StorageOperation, WorkflowStorage } from "./storage";
 
 const planApprovalStatusToDb = (
