@@ -1,4 +1,5 @@
 import knex from 'knex';
+import { WorkflowStorageConfig } from './config';
 
 export interface Operation {
   cid: string;
@@ -14,7 +15,7 @@ export interface Operation {
 export class WorkflowStorage {
   private k: knex.Knex;
 
-  constructor(config: { connectionString: string }) {
+  constructor(config: WorkflowStorageConfig) {
     this.k = knex({ client: 'pg', connection: config.connectionString });
   }
 
@@ -45,7 +46,7 @@ export class WorkflowStorage {
   }
 
   async operations(filter: Pick<Operation, 'status' | 'method'>): Promise<Operation[]> {
-    return await this.tableOperations().where(filter)
+    return this.tableOperations().where(filter);
   }
 
   async changeStatus(

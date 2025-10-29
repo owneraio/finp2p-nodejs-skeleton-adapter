@@ -9,12 +9,103 @@ import {
   PlanApprovalStatus,
   ReceiptOperation,
   TokenService,
-} from "../services";
-import { Operation as StorageOperation, WorkflowStorage } from "./storage";
+} from '../services';
+import { Operation as StorageOperation, WorkflowStorage } from './storage';
 
-export class WorkflowPlanApprovalService
-  implements PlanApprovalService, CommonService, PaymentService
-{
+const planApprovalStatusToDb = (
+  planStatus: PlanApprovalStatus,
+): StorageOperation['status'] => {
+  switch (planStatus.type) {
+    case 'pending':
+      return 'in_progress';
+    case 'rejected':
+      return 'succeeded';
+    case 'approved':
+      return 'succeeded';
+    default:
+      return 'unknown';
+  }
+};
+
+const planApprovalCidMapper = (
+  storage: StorageOperation,
+  planStatus: PlanApprovalStatus,
+): PlanApprovalStatus => {
+  switch (planStatus.type) {
+    case 'approved':
+    case 'rejected':
+      return planStatus;
+    case 'pending':
+      return {
+        ...planStatus,
+        correlationId: storage.cid,
+      };
+  }
+};
+
+const depositOperationStatusToDb = (
+  result: DepositOperation,
+): StorageOperation['status'] => {
+  switch (result.type) {
+    case 'pending':
+      return 'in_progress';
+    case 'failure':
+      return 'failed';
+    case 'success':
+      return 'succeeded';
+    default:
+      return 'unknown';
+  }
+};
+
+const depositOperationCidMapper = (
+  storage: StorageOperation,
+  result: DepositOperation,
+): DepositOperation => {
+  switch (result.type) {
+    case 'success':
+    case 'failure':
+      return result;
+    case 'pending':
+      return {
+        ...result,
+        correlationId: storage.cid,
+      };
+  }
+};
+
+const receiptOperationStatusToDb = (
+  result: ReceiptOperation,
+): StorageOperation['status'] => {
+  switch (result.type) {
+    case 'success':
+      return 'succeeded';
+    case 'pending':
+      return 'in_progress';
+    case 'failure':
+      return 'failed';
+    default:
+      return 'unknown';
+  }
+};
+
+const receiptOperationCidMapper = (
+  storage: StorageOperation,
+  result: ReceiptOperation,
+): ReceiptOperation => {
+  switch (result.type) {
+    case 'failure':
+    case 'success':
+      return result;
+    case 'pending':
+      return {
+        ...result,
+        correlationId: storage.cid,
+      };
+  }
+};
+
+export class WorkflowPlanApprovalService implements PlanApprovalService, CommonService, PaymentService {
   constructor(
     private storage: WorkflowStorage,
     private commonService: CommonService,
@@ -26,15 +117,15 @@ export class WorkflowPlanApprovalService
   ) {}
 
   async getDepositInstruction(
-    ...args: Parameters<PaymentService["getDepositInstruction"]>
-  ): ReturnType<PaymentService["getDepositInstruction"]> {
-    return await this.callMethod(
+    ...args: Parameters<PaymentService['getDepositInstruction']>
+  ): ReturnType<PaymentService['getDepositInstruction']> {
+    return this.callMethod(
       this.paymentService,
       this.paymentService.getDepositInstruction,
       {
         args,
         idempotencyKey: args[0],
-        dbMethod: "getDepositInstruction",
+        dbMethod: 'getDepositInstruction',
         dbStatus: depositOperationStatusToDb,
         cidMapper: depositOperationCidMapper,
       },
@@ -42,23 +133,19 @@ export class WorkflowPlanApprovalService
   }
 
   async payout(
-    ...args: Parameters<PaymentService["payout"]>
-  ): ReturnType<PaymentService["payout"]> {
-    return await this.callMethod(
-      this.paymentService,
-      this.paymentService.payout,
-      {
-        args,
-        idempotencyKey: args[0],
-        dbMethod: "payout",
-        dbStatus: receiptOperationStatusToDb,
-        cidMapper: receiptOperationCidMapper,
-      },
-    );
+    ...args: Parameters<PaymentService['payout']>
+  ): ReturnType<PaymentService['payout']> {
+    return this.callMethod(this.paymentService, this.paymentService.payout, {
+      args,
+      idempotencyKey: args[0],
+      dbMethod: 'payout',
+      dbStatus: receiptOperationStatusToDb,
+      cidMapper: receiptOperationCidMapper,
+    });
   }
 
   async getReceipt(id: string): Promise<ReceiptOperation> {
-    return await this.commonService.getReceipt(id);
+    return this.commonService.getReceipt(id);
   }
 
   async operationStatus(cid: string): Promise<OperationStatus> {
@@ -67,11 +154,11 @@ export class WorkflowPlanApprovalService
       throw new Error(`Operation with CID ${cid} not found`);
 
     switch (storageOperation.method) {
-      case "approvePlan":
+      case 'approvePlan':
         const approvePlan = await this.commonService.operationStatus(
           (storageOperation.outputs as { correlationId: string }).correlationId,
         );
-        if (approvePlan.operation !== "approval")
+        if (approvePlan.operation !== 'approval')
           throw new Error(
             `Expected PlanApprovalStatus, but found ${approvePlan.operation}`,
           );
@@ -80,11 +167,11 @@ export class WorkflowPlanApprovalService
           planApprovalStatusToDb(approvePlan),
         );
         return planApprovalCidMapper(storageOperation, approvePlan);
-      case "getDepositInstruction":
+      case 'getDepositInstruction':
         const deposit = await this.commonService.operationStatus(
           (storageOperation.outputs as { correlationId: string }).correlationId,
         );
-        if (deposit.operation !== "deposit")
+        if (deposit.operation !== 'deposit')
           throw new Error(
             `Expected DepositOperation, but found ${deposit.operation}`,
           );
@@ -93,11 +180,11 @@ export class WorkflowPlanApprovalService
           depositOperationStatusToDb(deposit),
         );
         return depositOperationCidMapper(storageOperation, deposit);
-      case "payout":
+      case 'payout':
         const payout = await this.commonService.operationStatus(
           (storageOperation.outputs as { correlationId: string }).correlationId,
         );
-        if (payout.operation !== "receipt")
+        if (payout.operation !== 'receipt')
           throw new Error(
             `Expected DepositOperation, but found ${payout.operation}`,
           );
@@ -112,19 +199,15 @@ export class WorkflowPlanApprovalService
   }
 
   async approvePlan(
-    ...args: Parameters<PlanApprovalService["approvePlan"]>
-  ): ReturnType<PlanApprovalService["approvePlan"]> {
-    return await this.callMethod(
-      this.planService,
-      this.planService.approvePlan,
-      {
-        args,
-        idempotencyKey: args[0],
-        dbMethod: "approvePlan",
-        dbStatus: planApprovalStatusToDb,
-        cidMapper: planApprovalCidMapper,
-      },
-    );
+    ...args: Parameters<PlanApprovalService['approvePlan']>
+  ): ReturnType<PlanApprovalService['approvePlan']> {
+    return this.callMethod(this.planService, this.planService.approvePlan, {
+      args,
+      idempotencyKey: args[0],
+      dbMethod: 'approvePlan',
+      dbStatus: planApprovalStatusToDb,
+      cidMapper: planApprovalCidMapper,
+    });
   }
 
   protected async callMethod<
@@ -140,7 +223,7 @@ export class WorkflowPlanApprovalService
         storage: StorageOperation,
         result: Awaited<ReturnType<F>>,
       ) => Awaited<ReturnType<F>>;
-      dbStatus: (obj: Awaited<ReturnType<F>>) => StorageOperation["status"];
+      dbStatus: (obj: Awaited<ReturnType<F>>) => StorageOperation['status'];
       dbMethod: string;
     },
   ): Promise<Awaited<ReturnType<F>>> {
@@ -157,96 +240,3 @@ export class WorkflowPlanApprovalService
     return opts.cidMapper(storageOperation, result);
   }
 }
-
-const planApprovalStatusToDb = (
-  planStatus: PlanApprovalStatus,
-): StorageOperation["status"] => {
-  switch (planStatus.type) {
-    case "pending":
-      return "in_progress";
-    case "rejected":
-      return "succeeded";
-    case "approved":
-      return "succeeded";
-    default:
-      return "unknown";
-  }
-};
-
-const planApprovalCidMapper = (
-  storage: StorageOperation,
-  planStatus: PlanApprovalStatus,
-): PlanApprovalStatus => {
-  switch (planStatus.type) {
-    case "approved":
-    case "rejected":
-      return planStatus;
-    case "pending":
-      return {
-        ...planStatus,
-        correlationId: storage.cid,
-      };
-  }
-};
-
-const depositOperationStatusToDb = (
-  result: DepositOperation,
-): StorageOperation["status"] => {
-  switch (result.type) {
-    case "pending":
-      return "in_progress";
-    case "failure":
-      return "failed";
-    case "success":
-      return "succeeded";
-    default:
-      return "unknown";
-  }
-};
-
-const depositOperationCidMapper = (
-  storage: StorageOperation,
-  result: DepositOperation,
-): DepositOperation => {
-  switch (result.type) {
-    case "success":
-    case "failure":
-      return result;
-    case "pending":
-      return {
-        ...result,
-        correlationId: storage.cid,
-      };
-  }
-};
-
-const receiptOperationStatusToDb = (
-  result: ReceiptOperation,
-): StorageOperation["status"] => {
-  switch (result.type) {
-    case "success":
-      return "succeeded";
-    case "pending":
-      return "in_progress";
-    case "failure":
-      return "failed";
-    default:
-      return "unknown";
-  }
-};
-
-const receiptOperationCidMapper = (
-  storage: StorageOperation,
-  result: ReceiptOperation,
-): ReceiptOperation => {
-  switch (result.type) {
-    case "failure":
-    case "success":
-      return result;
-    case "pending":
-      return {
-        ...result,
-        correlationId: storage.cid,
-      };
-  }
-};
