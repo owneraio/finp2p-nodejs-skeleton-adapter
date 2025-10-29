@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { logger } from '../helpers';
-import { BusinessError, ValidationError } from '../services';
+import { BusinessError, ValidationError } from '@owneraio/finp2p-adapter-models';
 import { components } from './model-gen';
 
 function isErrorWithStatusAndMessage(err: any): err is { status: number, message: string } {

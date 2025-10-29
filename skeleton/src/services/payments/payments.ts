@@ -3,18 +3,16 @@ import {
   FinIdAccount, generateCid,
   PaymentService,
   pendingDepositOperation, pendingReceiptOperation,
-} from '../index';
-import {
   Asset,
   DepositAsset,
   DepositOperation,
   Destination, failedReceiptOperation, ReceiptOperation,
   Signature,
   Source,
-} from '../index';
-import { PluginManager } from '../../plugins';
+  PluginError,
+} from '@owneraio/finp2p-adapter-models';
 import { logger } from '../../helpers';
-import { PluginError } from '../../plugins';
+import { PluginManager } from '../../plugins';
 
 
 export class PaymentsServiceImpl implements PaymentService {

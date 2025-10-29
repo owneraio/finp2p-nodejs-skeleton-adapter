@@ -1,7 +1,5 @@
-import { hashEIP712, verifyEIP712 } from '../helpers';
-import { logger } from '../helpers';
-import { Signature } from './index';
-import { verifySecp } from '../helpers/hashList';
+import { Signature } from '@owneraio/finp2p-adapter-models';
+import { logger, hashEIP712, verifyEIP712, verifySecp } from '../helpers';
 
 
 export const verifySignature = async (sgn: Signature, signerFinId: string): Promise<boolean> => {

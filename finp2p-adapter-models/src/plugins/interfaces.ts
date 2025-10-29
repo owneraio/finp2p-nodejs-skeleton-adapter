@@ -1,5 +1,3 @@
-// TODO: that is an PoC interface for plan approval
-
 
 import {
   Asset, DepositAsset,
@@ -7,7 +5,7 @@ import {
   DestinationAccount, ExecutionContext,
   FinIdAccount,
   OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature, Source,
-} from '../services';
+} from '../model';
 
 
 export interface AssetCreationPlugin {

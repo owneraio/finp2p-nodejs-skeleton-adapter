@@ -5,8 +5,10 @@ import {
   FinIdAccount,
   OperationType,
   Receipt,
-} from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { generateId } from './utils';
+} from '@owneraio/finp2p-adapter-models';
+import {
+  generateId,
+} from './utils';
 
 
 export class ServiceError extends Error {

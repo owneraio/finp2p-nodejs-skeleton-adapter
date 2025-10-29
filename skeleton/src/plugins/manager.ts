@@ -2,10 +2,12 @@ import {
   AssetCreationPlugin,
   AsyncAssetCreationPlugin,
   AsyncPaymentsPlugin,
-  AsyncPlanApprovalPlugin, PaymentsPlugin,
-  PlanApprovalPlugin, TransactionHook,
-} from './interfaces';
-import { Plugin } from './plugin';
+  AsyncPlanApprovalPlugin,
+  PaymentsPlugin,
+  PlanApprovalPlugin,
+  TransactionHook,
+  Plugin,
+} from '@owneraio/finp2p-adapter-models';
 
 
 export class PluginManager {

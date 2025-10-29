@@ -33,6 +33,16 @@ jobs:
 
         # ----------------------------------
 
+      - name: finp2p-adapter-models install dependencies
+        working-directory: ./finp2p-adapter-models
+        run: npm clean-install
+
+      - name: finp2p-adapter-models build
+        working-directory: ./finp2p-adapter-models
+        run: npm run build
+
+        # ----------------------------------
+
       - name: adapter-tests install dependencies
         working-directory: ./adapter-tests
         run: npm clean-install

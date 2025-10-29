@@ -1,9 +1,6 @@
 import { FinP2PClient } from '@owneraio/finp2p-client';
-import { LedgerCallbackService } from './interfaces';
-import { OperationStatus } from '../services';
+import { LedgerCallbackService, OperationStatus, PluginError, Logger } from '@owneraio/finp2p-adapter-models';
 import { operationToFinAPI } from './mappers';
-import winston from 'winston';
-import { PluginError } from './error';
 
 
 export abstract class AbstractPlugin implements LedgerCallbackService {
@@ -12,9 +9,9 @@ export abstract class AbstractPlugin implements LedgerCallbackService {
 
   finP2PClient: FinP2PClient;
 
-  logger: winston.Logger;
+  logger: Logger;
 
-  constructor(orgId: string, finP2PClient: FinP2PClient, logger: winston.Logger) {
+  constructor(orgId: string, finP2PClient: FinP2PClient, logger: Logger) {
     this.orgId = orgId;
     this.finP2PClient = finP2PClient;
     this.logger = logger;
