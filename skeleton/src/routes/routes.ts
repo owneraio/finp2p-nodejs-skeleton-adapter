@@ -21,10 +21,14 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
+import { MigrationConfig, WorkflowStorageConfig } from '../workflows/config';
+import { migrateIfNeeded } from '../workflows/migrator';
+import { WorkflowService } from 'src/workflows/service';
+import { WorkflowStorage } from 'src/workflows/storage';
 
 const basePath = 'api';
 
-export const register = (app: Application,
+const registerWithHealthcheckJob = (app: Application,
   tokenService: TokenService,
   escrowService: EscrowService,
   commonService: CommonService,
@@ -32,9 +36,9 @@ export const register = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
+  healthcheckJob: Promise<void>,
+  workflowsConfig?: { migration: MigrationConfig, storage: WorkflowStorageConfig },
 ) => {
-
-
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.liveness();
@@ -44,6 +48,7 @@ export const register = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
+    await healthcheckJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
@@ -288,4 +293,24 @@ export const register = (app: Application,
 
   app.use(errorHandler);
 
+};
+
+export const register = (app: Application,
+  tokenService: TokenService,
+  escrowService: EscrowService,
+  commonService: CommonService,
+  healthService: HealthService,
+  paymentService: PaymentService,
+  planService: PlanApprovalService,
+  pluginManager: PluginManager | undefined,
+  workflowsConfig?: { migration: MigrationConfig, storage: WorkflowStorageConfig },
+) => {
+  let migrationJob: Promise<void> = Promise.resolve();
+  let workflowService: WorkflowService | null = null;
+  if (workflowsConfig !== undefined) {
+    migrationJob = migrateIfNeeded(workflowsConfig.migration);
+    workflowService = new WorkflowService(new WorkflowStorage(workflowsConfig.storage), commonService, escrowService, healthService, paymentService, planService, tokenService);
+  }
+
+  registerWithHealthcheckJob(app, tokenService, escrowService, workflowService ?? commonService, healthService, paymentService, planService, pluginManager, migrationJob);
 };
