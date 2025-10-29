@@ -290,7 +290,7 @@ export function insufficientBalanceTest() {
         const firstHoldStatus = await client.escrow.hold(firstHoldRequest);
 
         // First hold should succeed
-        expect(firstHoldStatus.error).toBeUndefined();
+        expect(firstHoldStatus.error).toBeNull();
 
         // Remaining available: 200
         // Now try to hold 300 (should fail)
@@ -340,7 +340,7 @@ export function insufficientBalanceTest() {
         });
 
         const firstStatus = await client.tokens.transfer(firstTransfer);
-        expect(firstStatus.error).toBeUndefined();
+        expect(firstStatus.error).toBeNull();
 
         // Verify balances after first transfer
         await client.expectBalance(owner.source, asset, 40);

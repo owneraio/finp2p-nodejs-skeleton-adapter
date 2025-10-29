@@ -61,7 +61,7 @@ export function businessLogicTests() {
         };
 
         const rollbackStatus = await client.escrow.rollback(rollbackRequest);
-        expect(rollbackStatus.error).toBeUndefined();
+        expect(rollbackStatus.error).toBeNull();
 
         // Verify funds are fully restored
         await client.expectBalance(buyer.source, asset, initialBalance);
@@ -126,7 +126,7 @@ export function businessLogicTests() {
         });
 
         const releaseStatus = await client.escrow.release(releaseRequest);
-        expect(releaseStatus.error).toBeUndefined();
+        expect(releaseStatus.error).toBeNull();
 
         // Try to rollback already released hold
         const rollbackRequest = {
@@ -169,7 +169,7 @@ export function businessLogicTests() {
 
         await client.escrow.hold(holdRequest);
         const redeemStatus = await client.tokens.redeem(redeemRequest);
-        expect(redeemStatus.error).toBeUndefined();
+        expect(redeemStatus.error).toBeNull();
 
         // Try to rollback already redeemed hold
         const rollbackRequest = {
@@ -222,7 +222,7 @@ export function businessLogicTests() {
 
         // First release (should succeed)
         const firstRelease = await client.escrow.release(releaseRequest);
-        expect(firstRelease.error).toBeUndefined();
+        expect(firstRelease.error).toBeNull();
 
         // Second release (should fail)
         const secondRelease = await client.escrow.release(releaseRequest);
@@ -255,7 +255,7 @@ export function businessLogicTests() {
 
         // First redeem (should succeed)
         const firstRedeem = await client.tokens.redeem(redeemRequest);
-        expect(firstRedeem.error).toBeUndefined();
+        expect(firstRedeem.error).toBeNull();
 
         // Second redeem (should fail)
         const secondRedeem = await client.tokens.redeem(redeemRequest);
@@ -292,7 +292,7 @@ export function businessLogicTests() {
 
         // First rollback (should succeed)
         const firstRollback = await client.escrow.rollback(rollbackRequest);
-        expect(firstRollback.error).toBeUndefined();
+        expect(firstRollback.error).toBeNull();
 
         // Second rollback (should fail)
         const secondRollback = await client.escrow.rollback(rollbackRequest);
@@ -424,7 +424,7 @@ export function businessLogicTests() {
           builder.buildCreateAssetRequest({ asset }),
         );
 
-        expect(createStatus.error).toBeUndefined();
+        expect(createStatus.error).toBeNull();
 
         // Now issue should work
         const issueRequest = builder.buildIssueRequest({
@@ -435,7 +435,7 @@ export function businessLogicTests() {
         });
 
         const issueStatus = await client.tokens.issue(issueRequest);
-        expect(issueStatus.error).toBeUndefined();
+        expect(issueStatus.error).toBeNull();
       });
 
       test('should handle multiple assets independently', async () => {
