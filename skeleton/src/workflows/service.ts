@@ -152,8 +152,10 @@ export class WorkflowService
 
   async operationStatus(cid: string): Promise<OperationStatus> {
     const storageOperation = await this.storage.operation(cid);
-    if (!storageOperation)
-      throw new Error(`Operation with CID ${cid} not found`);
+    if (!storageOperation) {
+      console.warn(`Stored operation with CID ${cid} not found. Relaying to the original`)
+      return await this.commonService.operationStatus(cid)
+    }
 
     switch (storageOperation.method) {
       case 'approvePlan':

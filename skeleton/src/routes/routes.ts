@@ -28,7 +28,7 @@ import { WorkflowStorage } from 'src/workflows/storage';
 
 const basePath = 'api';
 
-const registerWithHealthcheckJob = (app: Application,
+const registerWithReadinessJob = (app: Application,
   tokenService: TokenService,
   escrowService: EscrowService,
   commonService: CommonService,
@@ -36,7 +36,7 @@ const registerWithHealthcheckJob = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
-  healthcheckJob: Promise<void>,
+  readinessJob: Promise<void>,
   workflowsConfig?: { migration: MigrationConfig, storage: WorkflowStorageConfig },
 ) => {
   app.get('/health/liveness', async (req, res) => {
@@ -48,7 +48,7 @@ const registerWithHealthcheckJob = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
-    await healthcheckJob;
+    await readinessJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
@@ -305,12 +305,22 @@ export const register = (app: Application,
   pluginManager: PluginManager | undefined,
   workflowsConfig?: { migration: MigrationConfig, storage: WorkflowStorageConfig },
 ) => {
-  let migrationJob: Promise<void> = Promise.resolve();
+  let readinessJob: Promise<void> = Promise.resolve();
   let workflowService: WorkflowService | null = null;
   if (workflowsConfig !== undefined) {
-    migrationJob = migrateIfNeeded(workflowsConfig.migration);
+    readinessJob = migrateIfNeeded(workflowsConfig.migration);
     workflowService = new WorkflowService(new WorkflowStorage(workflowsConfig.storage), commonService, escrowService, healthService, paymentService, planService, tokenService);
   }
 
-  registerWithHealthcheckJob(app, tokenService, escrowService, workflowService ?? commonService, healthService, paymentService, planService, pluginManager, migrationJob);
+  registerWithReadinessJob(
+    app,
+    tokenService,
+    escrowService,
+    workflowService ?? commonService,
+    healthService,
+    paymentService,
+    workflowService ?? planService,
+    pluginManager,
+    readinessJob,
+  );
 };
