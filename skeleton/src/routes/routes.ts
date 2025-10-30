@@ -22,9 +22,7 @@ import {
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
 import { MigrationConfig, WorkflowStorageConfig } from '../workflows/config';
-import { migrateIfNeeded } from '../workflows/migrator';
-import { WorkflowService } from 'src/workflows/service';
-import { WorkflowStorage } from 'src/workflows/storage';
+import { migrateIfNeeded, WorkflowService, WorkflowStorage } from '../workflows';
 
 const basePath = 'api';
 
