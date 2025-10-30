@@ -20,7 +20,7 @@ export class WorkflowStorage {
   }
 
   private tableOperations() {
-    return this.k<Operation>('operations');
+    return this.k<Operation>('finp2p_nodejs_skeleton.operations');
   }
 
   async operation(cid: string): Promise<Operation | undefined> {

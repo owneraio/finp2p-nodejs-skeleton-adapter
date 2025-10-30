@@ -52,9 +52,11 @@ function executeProcess(
     });
   });
 }
+
 export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
+  console.debug('Running migrations...');
   const defaultGoosePath = '/usr/bin/goose';
-  const migrationsDir = path.join(__dirname, '..', 'migrations');
+  const migrationsDir = path.join(__dirname, '..', '..', 'migrations');
   const result = await executeProcess(
     config.gooseExecutablePath ?? defaultGoosePath,
     ['-table', config.migrationListTableName, '-dir', migrationsDir, 'up'],
@@ -65,4 +67,7 @@ export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
       },
     },
   );
+  if (result.code === null || result.code !== 0) {
+    throw new Error(`Migration didn't finish successfully: ${result.stderr}`);
+  }
 }

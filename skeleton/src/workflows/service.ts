@@ -105,9 +105,7 @@ const receiptOperationCidMapper = (
   }
 };
 
-export class WorkflowService
-  implements PlanApprovalService, CommonService, PaymentService
-{
+export class WorkflowService implements PlanApprovalService, CommonService, PaymentService {
   constructor(
     private storage: WorkflowStorage,
     private commonService: CommonService,
