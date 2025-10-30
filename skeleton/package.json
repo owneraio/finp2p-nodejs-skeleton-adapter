@@ -1,12 +1,13 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.25.21",
+  "version": "0.26.6",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "migrations/*.sql"
   ],
   "scripts": {
     "clean": "rm -rf dist",
@@ -29,6 +30,8 @@
     "express-validator": "^6.14.0",
     "express-winston": "^4.2.0",
     "keccak": "^3.0.2",
+    "knex": "^3.1.0",
+    "pg": "^8.16.3",
     "secp256k1": "^3.7.1",
     "winston": "^3.3.3"
   },
