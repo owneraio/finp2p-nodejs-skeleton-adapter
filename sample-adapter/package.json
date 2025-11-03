@@ -19,9 +19,9 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
+    "@owneraio/finp2p-adapter-models": "^0.25.0",
     "@owneraio/finp2p-client": "^0.25.10",
     "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.25.21",
-    "@owneraio/finp2p-adapter-models": "^0.25.0",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
     "express": "5.0.0",
@@ -40,6 +40,7 @@
     "eslint-config-airbnb-typescript": "^16.1.0",
     "eslint-plugin-import": "^2.25.4",
     "prettier": "2.5.1",
+    "testcontainers": "^11.7.2",
     "ts-jest": "^29.0.3"
   }
 }

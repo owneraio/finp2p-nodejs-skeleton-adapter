@@ -1,12 +1,10 @@
-import NodeEnvironment from "jest-environment-node";
 import { EnvironmentContext, JestEnvironmentConfig } from "@jest/environment";
-import createApp from "../src/app";
-import * as http from "http";
 import * as console from "console";
-
-const randomPort = () => {
-  return Math.floor(Math.random() * 10000) + 10000;
-}
+import * as http from "http";
+import NodeEnvironment from "jest-environment-node";
+import { exec } from 'node:child_process';
+import { GenericContainer, RandomPortGenerator, StartedTestContainer, Wait } from "testcontainers";
+import createApp from "../src/app";
 
 type AdapterParameters = {
   url: string,
@@ -16,6 +14,7 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   adapter: AdapterParameters | undefined;
   httpServer: http.Server | undefined;
+  postgresContainer: StartedTestContainer | undefined;
 
   constructor(config: JestEnvironmentConfig, context: EnvironmentContext) {
     super(config, context);
@@ -42,10 +41,17 @@ class CustomTestEnvironment extends NodeEnvironment {
     } catch (err) {
       console.error("Error stopping server:", err);
     }
+
+    try {
+      await this.postgresContainer?.stop()
+    } catch (err) {
+      console.error("Error stopping postgres:", err)
+    }
   }
 
   private async startApp() {
-    const port = randomPort();
+    const port = await new RandomPortGenerator().generatePort()
+    const dbConnectionString = `postgresql://finp2p_nodejs:abc@${this.postgresContainer?.getHost()}:${this.postgresContainer?.getFirstMappedPort()}`
     const app = createApp("my-org", undefined);
     console.log("App created successfully.");
 
@@ -55,7 +61,43 @@ class CustomTestEnvironment extends NodeEnvironment {
 
     return `http://localhost:${port}/api`;
   }
-}
 
+  private async startPostgresContainer() {
+    console.log('Starting postgres container...')
+    const exposedPort = await new RandomPortGenerator().generatePort()
+    const startedContainer = await new GenericContainer("postgres:14.19-alpine3.21")
+      .withEnvironment({
+        POSTGRES_USER: 'finp2p_nodejs',
+        POSTGRES_PASSWORD: 'abc'
+      })
+      .withWaitStrategy(Wait.forLogMessage('database system is ready to accept connections'))
+      .withExposedPorts({
+        host: exposedPort,
+        container: 5432
+      })
+      .start()
+    console.log('Postgres container started successfully')
+    this.postgresContainer = startedContainer
+  }
+
+  private async whichGoose() {
+    return new Promise<string>((resolve, reject) => {
+      exec('which goose', (err, stdout, stderr) => {
+        if (err) {
+          reject(err)
+          return
+        }
+
+        const path = stdout.trim()
+        if (path.length === 0) {
+          reject(new Error('which goose returned an empty path'))
+          return
+        }
+
+        resolve(path)
+      })
+    })
+  }
+}
 
 module.exports = CustomTestEnvironment;
