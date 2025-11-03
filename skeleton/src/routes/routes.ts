@@ -35,7 +35,6 @@ const registerWithReadinessJob = (app: Application,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
   readinessJob: Promise<void>,
-  workflowsConfig?: WorkflowConfig,
 ) => {
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {
@@ -301,7 +300,7 @@ export const register = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
-  workflowsConfig?: { migration: MigrationConfig, storage: WorkflowStorageConfig },
+  workflowsConfig?: WorkflowConfig,
 ) => {
   let readinessJob: Promise<void> = Promise.resolve();
   let workflowService: WorkflowService | null = null;
