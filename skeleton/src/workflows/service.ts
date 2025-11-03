@@ -151,7 +151,7 @@ export class WorkflowService implements PlanApprovalService, CommonService, Paym
   async operationStatus(cid: string): Promise<OperationStatus> {
     const storageOperation = await this.storage.operation(cid);
     if (!storageOperation) {
-      console.warn(`Stored operation with CID ${cid} not found. Relaying to the original`);
+      console.debug(`Stored operation with CID ${cid} not found. Relaying to the original`);
       return this.commonService.operationStatus(cid);
     }
 
