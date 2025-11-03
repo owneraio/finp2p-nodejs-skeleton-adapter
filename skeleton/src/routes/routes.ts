@@ -21,7 +21,7 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
-import { MigrationConfig, WorkflowStorageConfig } from '../workflows/config';
+import { WorkflowConfig } from '../workflows/config';
 import { migrateIfNeeded, WorkflowService, WorkflowStorage } from '../workflows';
 
 const basePath = 'api';
@@ -35,7 +35,7 @@ const registerWithReadinessJob = (app: Application,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
   readinessJob: Promise<void>,
-  workflowsConfig?: { migration: MigrationConfig, storage: WorkflowStorageConfig },
+  workflowsConfig?: WorkflowConfig,
 ) => {
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {

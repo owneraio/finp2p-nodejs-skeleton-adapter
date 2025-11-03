@@ -1,5 +1,5 @@
 import knex from 'knex';
-import { WorkflowStorageConfig } from './config';
+import { StorageConfig } from './config';
 
 export interface Operation {
   cid: string;
@@ -15,7 +15,7 @@ export interface Operation {
 export class WorkflowStorage {
   private k: knex.Knex;
 
-  constructor(config: WorkflowStorageConfig) {
+  constructor(config: StorageConfig) {
     this.k = knex({ client: 'pg', connection: config.connectionString });
   }
 
