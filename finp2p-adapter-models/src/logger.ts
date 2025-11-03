@@ -3,6 +3,7 @@ export interface Logger {
   info(...args: unknown[]): void;
   warn(...args: unknown[]): void;
   error(...args: unknown[]): void;
+  alert(...args: unknown[]): void;
 }
 
 export class ConsoleLogger implements Logger {
@@ -33,4 +34,9 @@ export class ConsoleLogger implements Logger {
   error(...args: unknown[]): void {
     if (this.shouldLog('error')) console.error('[ERROR]', ...args);
   }
+
+  alert(...args: unknown[]): void {
+    if (this.shouldLog('error')) console.error('[ALERT]', ...args);
+  }
+
 }
