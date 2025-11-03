@@ -43,11 +43,11 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
     const status = err.status || 500;
     const message = err.message || 'Internal Server Error';
 
-    logger.warn('Error middleware caught:', err);
+    logger.warning('Error middleware caught:', err);
 
     res.status(status).json(failureResponse(0, message));
   } else {
-    logger.warn('Unexpected error:', err);
+    logger.warning('Unexpected error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
