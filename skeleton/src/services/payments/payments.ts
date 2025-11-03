@@ -68,11 +68,11 @@ export class PaymentsServiceImpl implements PaymentService {
         .then(() => {
         }).catch(e => {
           if (e instanceof PluginError) {
-            logger.error(`Plugin error: ${e.code}, message=${e.message}`);
+            logger.warn(`Plugin error: ${e.code}, message=${e.message}`);
           } else if (e instanceof Error) {
-            logger.error(`Error in async deposit: ${e.message}`);
+            logger.warn(`Error in async deposit: ${e.message}`);
           } else {
-            logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
+            logger.warn(`Error in async deposit: ${JSON.stringify(e)}`);
           }
         });
       return Promise.resolve(pendingReceiptOperation(cid, { responseStrategy: 'callback' }));
@@ -102,12 +102,12 @@ export class PaymentsServiceImpl implements PaymentService {
         .then(() => {
         }).catch(e => {
           if (e instanceof PluginError) {
-            logger.error(`Plugin error: ${e.code}, message=${e.message}`);
+            logger.warn(`Plugin error: ${e.code}, message=${e.message}`);
 
           } else if (e instanceof Error) {
-            logger.error(`Error in async deposit: ${e.message}`);
+            logger.warn(`Error in async deposit: ${e.message}`);
           } else {
-            logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
+            logger.warn(`Error in async deposit: ${JSON.stringify(e)}`);
           }
         });
       return Promise.resolve(pendingDepositOperation(cid, { responseStrategy: 'callback' }));
@@ -137,11 +137,11 @@ export class PaymentsServiceImpl implements PaymentService {
         .then(() => {
         }).catch(e => {
           if (e instanceof PluginError) {
-            logger.error(`Plugin error: ${e.code}, message=${e.message}`);
+            logger.warn(`Plugin error: ${e.code}, message=${e.message}`);
           } else if (e instanceof Error) {
-            logger.error(`Error in async deposit: ${e.message}`);
+            logger.warn(`Error in async deposit: ${e.message}`);
           } else {
-            logger.error(`Error in async deposit: ${JSON.stringify(e)}`);
+            logger.warn(`Error in async deposit: ${JSON.stringify(e)}`);
           }
         });
       return Promise.resolve(pendingDepositOperation(cid, { responseStrategy: 'callback' }));
