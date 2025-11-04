@@ -1,5 +1,5 @@
 import * as winston from 'winston';
-import {Logger} from "@owneraio/finp2p-adapter-models";
+import { Logger } from '@owneraio/finp2p-adapter-models';
 
 export const logger: Logger = winston.createLogger({
   levels: winston.config.syslog.levels,
@@ -23,5 +23,7 @@ export const logger: Logger = winston.createLogger({
   defaultMeta: {},
   transports: [new winston.transports.Console({})],
   exitOnError: false,
-});
-
+}) as Pick<
+winston.Logger,
+'emerg' | 'alert' | 'crit' | 'error' | 'warning' | 'notice' | 'info' | 'debug'
+>;

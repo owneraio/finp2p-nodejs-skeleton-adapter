@@ -21,6 +21,7 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
+import { logger } from '../helpers';
 
 const basePath = 'api';
 
