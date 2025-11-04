@@ -19,8 +19,10 @@ export const logger = winston.createLogger({
     })(),
     winston.format.json(),
   ),
-  defaultMeta: {  },
+  defaultMeta: {},
   transports: [new winston.transports.Console({})],
   exitOnError: false,
-});
-
+}) as Pick<
+winston.Logger,
+'emerg' | 'alert' | 'crit' | 'error' | 'warning' | 'notice' | 'info' | 'debug'
+>;
