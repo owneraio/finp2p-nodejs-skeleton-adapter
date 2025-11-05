@@ -52,7 +52,7 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   private async startApp() {
     const port = await new RandomPortGenerator().generatePort()
-    const dbConnectionString = `postgresql://finp2p_nodejs:abc@${this.postgresContainer?.getHost()}:${this.postgresContainer?.getFirstMappedPort()}`
+    const dbConnectionString = `postgresql://finp2p_nodejs:abc@${this.postgresContainer?.getHost()}:${this.postgresContainer?.getFirstMappedPort()}/finp2p`
     const app = createApp("my-org", undefined);
     console.log("App created successfully.");
 
@@ -69,7 +69,8 @@ class CustomTestEnvironment extends NodeEnvironment {
     const startedContainer = await new GenericContainer("postgres:14.19-alpine3.21")
       .withEnvironment({
         POSTGRES_USER: 'finp2p_nodejs',
-        POSTGRES_PASSWORD: 'abc'
+        POSTGRES_PASSWORD: 'abc',
+        POSTGRES_DB: 'finp2p'
       })
       .withWaitStrategy(Wait.forLogMessage('database system is ready to accept connections'))
       .withExposedPorts({

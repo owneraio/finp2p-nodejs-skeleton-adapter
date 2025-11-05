@@ -1,5 +1,5 @@
 export interface MigrationConfig {
-  gooseExecutablePath?: string
+  gooseExecutablePath: string
   migrationListTableName: string
   connectionString: string
 }
