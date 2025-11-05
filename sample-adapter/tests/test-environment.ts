@@ -1,9 +1,10 @@
 import { EnvironmentContext, JestEnvironmentConfig } from "@jest/environment";
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import * as console from "console";
 import * as http from "http";
 import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
-import { GenericContainer, RandomPortGenerator, StartedTestContainer, Wait } from "testcontainers";
+import { RandomPortGenerator } from "testcontainers";
 import createApp from "../src/app";
 
 type AdapterParameters = {
@@ -14,7 +15,7 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   adapter: AdapterParameters | undefined;
   httpServer: http.Server | undefined;
-  postgresContainer: StartedTestContainer | undefined;
+  postgresContainer: StartedPostgreSqlContainer | undefined;
 
   constructor(config: JestEnvironmentConfig, context: EnvironmentContext) {
     super(config, context);
@@ -52,7 +53,7 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   private async startApp() {
     const port = await new RandomPortGenerator().generatePort()
-    const dbConnectionString = `postgresql://finp2p_nodejs:abc@${this.postgresContainer?.getHost()}:${this.postgresContainer?.getFirstMappedPort()}/finp2p`
+    const connectionString = this.postgresContainer.getConnectionUri()
     const app = createApp("my-org", undefined);
     console.log("App created successfully.");
 
@@ -66,18 +67,7 @@ class CustomTestEnvironment extends NodeEnvironment {
   private async startPostgresContainer() {
     console.log('Starting postgres container...')
     const exposedPort = await new RandomPortGenerator().generatePort()
-    const startedContainer = await new GenericContainer("postgres:14.19-alpine3.21")
-      .withEnvironment({
-        POSTGRES_USER: 'finp2p_nodejs',
-        POSTGRES_PASSWORD: 'abc',
-        POSTGRES_DB: 'finp2p'
-      })
-      .withWaitStrategy(Wait.forLogMessage('database system is ready to accept connections'))
-      .withExposedPorts({
-        host: exposedPort,
-        container: 5432
-      })
-      .start()
+    const startedContainer = await new PostgreSqlContainer("postgres:14.19").start()
     console.log('Postgres container started successfully')
     this.postgresContainer = startedContainer
   }
