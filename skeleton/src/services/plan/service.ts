@@ -29,7 +29,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
     if (this.finP2P) {
       const { data } = await this.finP2P.getExecutionPlan(planId);
       if (!data) {
-        logger.warn(`No plan ${planId} found`);
+        logger.warning(`No plan ${planId} found`);
         return rejectedPlan(1, `No plan ${planId} found`);
       }
       const plan = executionFromAPI(data.plan);

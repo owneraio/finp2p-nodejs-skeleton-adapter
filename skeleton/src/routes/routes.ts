@@ -23,6 +23,7 @@ import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
 import { WorkflowConfig } from '../workflows/config';
 import { migrateIfNeeded, WorkflowService, WorkflowStorage } from '../workflows';
+import { logger } from '../helpers';
 
 const basePath = 'api';
 

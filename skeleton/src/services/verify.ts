@@ -11,12 +11,12 @@ export const verifySignature = async (sgn: Signature, signerFinId: string): Prom
 
       const expectedHash = hashEIP712(chainId, verifyingContract, types, message);
       if (actualHash !== expectedHash) {
-        logger.warn(`EIP712 hash mismatch: expected ${expectedHash}, got ${actualHash}`);
+        logger.warning(`EIP712 hash mismatch: expected ${expectedHash}, got ${actualHash}`);
         return false;
       }
 
       if (!verifyEIP712(chainId, verifyingContract, types, message, signerFinId, `0x${signature}`)) {
-        logger.warn('EIP712 signature not verified');
+        logger.warning('EIP712 signature not verified');
         return false;
       }
       return true;
@@ -29,7 +29,7 @@ export const verifySignature = async (sgn: Signature, signerFinId: string): Prom
         Buffer.from(signature, 'hex'),
         Buffer.from(signerFinId, 'hex'),
       )) {
-        logger.warn('hashList signature not verified');
+        logger.warning('hashList signature not verified');
         return false;
       }
 
