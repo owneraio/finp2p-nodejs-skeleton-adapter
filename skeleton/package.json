@@ -39,6 +39,7 @@
   "devDependencies": {
     "@babel/core": "^7.19.3",
     "@babel/preset-env": "^7.19.4",
+    "@testcontainers/postgresql": "^11.8.0",
     "@types/express": "^4.17.13",
     "@types/jest": "^29.2.0",
     "@types/keccak": "^3.0.4",

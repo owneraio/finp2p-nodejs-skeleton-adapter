@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
-import * as fs from 'node:fs';
+import fs from 'node:fs';
 import path from 'node:path';
-import { MigrationConfig } from './config';
+import { URL } from 'node:url';
 import { logger } from '../helpers';
+import { MigrationConfig } from './config';
 
 interface ProcessResult {
   stdout: string;
@@ -55,7 +56,8 @@ function executeProcess(
 }
 
 export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
-  logger.debug(`running migration tool goose at: ${config.gooseExecutablePath}`);
+  const url = new URL(config.connectionString)
+  logger.debug(`running migration tool goose at: ${config.gooseExecutablePath} db at: ${url.protocol}://${url.hostname}:${url.port}`);
   const defaultGoosePath = '/usr/bin/goose';
   const migrationsDir = path.join(__dirname, '..', '..', 'migrations');
   const result = await executeProcess(

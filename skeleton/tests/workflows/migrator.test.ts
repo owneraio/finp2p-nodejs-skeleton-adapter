@@ -2,14 +2,19 @@ import * as migrator from '../../src/workflows/migrator'
 
 describe('Postgres migrator should work properly', () => {
   test('Migrator runs without error when everything provided', async () => {
+    // @ts-ignore
+    const container = (await global.startPostgresContainer()) as { connectionString: string, cleanup: () => Promise<void> }
+
+    console.log('migrating', container.connectionString)
     await expect(
       migrator.migrateIfNeeded({
+        connectionString: container.connectionString,
         // @ts-ignore
-        connectionString: global.DB_CONNECTION_STRING,
-        // @ts-ignore
-        gooseExecutablePath: global.GOOSE_PATH,
+        gooseExecutablePath: await global.whichGoose(),
         migrationListTableName: "js_migration_tables"
       })
     ).resolves.toBeUndefined()
+
+    await container.cleanup()
   })
 })
