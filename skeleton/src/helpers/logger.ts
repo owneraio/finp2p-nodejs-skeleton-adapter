@@ -1,6 +1,7 @@
 import * as winston from 'winston';
+import { Logger } from '@owneraio/finp2p-adapter-models';
 
-export const logger = winston.createLogger({
+export const logger: Logger = winston.createLogger({
   levels: winston.config.syslog.levels,
   level: process.env.LOG_LEVEL || 'debug',
   format: winston.format.combine(
