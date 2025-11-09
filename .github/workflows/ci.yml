@@ -65,6 +65,10 @@ jobs:
         working-directory: ./skeleton
         run: npm run build
 
+      - name: install skeleton migration tool
+        working-directory: ./skeleton
+        run: go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+
       - name: skeleton test
         working-directory: ./skeleton
         run: npm run test
@@ -84,3 +88,7 @@ jobs:
       - name: sample-adapter test
         working-directory: ./sample-adapter
         run: npm test
+
+      - name: sample-adapter dockerfile test
+        working-directory: ./sample-adapter
+        run: ./build-docker.sh
