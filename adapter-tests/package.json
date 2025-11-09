@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.25.1",
+  "version": "0.25.2-0",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",

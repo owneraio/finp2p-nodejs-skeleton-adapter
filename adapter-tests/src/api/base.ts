@@ -38,7 +38,7 @@ export class ClientBase {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Idempotency-Key': idempotencyKey,
+          'Idempotency-Key': idempotencyKey ?? Math.random().toString(36).substring(2),
         },
       }).then(({ data: response, status }) => {
         // Validate response if validator is enabled (silently)
