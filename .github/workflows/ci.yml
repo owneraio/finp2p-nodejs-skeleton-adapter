@@ -65,6 +65,10 @@ jobs:
         working-directory: ./skeleton
         run: npm run build
 
+      - name: skeleton test
+        working-directory: ./skeleton
+        run: npm run test
+
         # ----------------------------------
 
       - name: sample-adapter install dependencies
