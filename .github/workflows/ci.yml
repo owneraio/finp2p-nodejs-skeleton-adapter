@@ -67,7 +67,9 @@ jobs:
 
       - name: install skeleton migration tool
         working-directory: ./skeleton
-        run: go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+        run: |
+          go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: skeleton test
         working-directory: ./skeleton
