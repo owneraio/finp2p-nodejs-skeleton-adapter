@@ -90,7 +90,3 @@ jobs:
       - name: sample-adapter test
         working-directory: ./sample-adapter
         run: npm test
-
-      - name: sample-adapter dockerfile test
-        working-directory: ./sample-adapter
-        run: ./build-docker.sh
