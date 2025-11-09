@@ -30,7 +30,13 @@ export class WorkflowStorage {
   async insert(
     ix: Omit<Operation, 'cid' | 'created_at' | 'updated_at'>,
   ): Promise<Operation> {
-    const c = await this.tableOperations().insert(ix, [
+    const c = await this.tableOperations().insert(
+      {
+        ...ix,
+        cid: undefined,
+        created_at: undefined,
+        updated_at: undefined,
+      }, [
       'cid',
       'created_at',
       'updated_at',
