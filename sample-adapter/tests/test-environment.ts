@@ -53,7 +53,7 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   private async startApp() {
     const port = await new RandomPortGenerator().generatePort()
-    const connectionString = this.postgresContainer.getConnectionUri()
+    const connectionString = this.postgresContainer?.getConnectionUri()
     const app = createApp("my-org", undefined);
     console.log("App created successfully.");
 
