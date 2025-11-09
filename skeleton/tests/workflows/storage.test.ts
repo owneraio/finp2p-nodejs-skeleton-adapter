@@ -1,7 +1,8 @@
-import { migrateIfNeeded } from '../../src'
+import { migrateIfNeeded, WorkflowStorage } from '../../src'
 
 describe('Storage operations', () => {
   let container: { connectionString: string, cleanup: () => Promise<void> } = { connectionString: "", cleanup: () => Promise.resolve() }
+  let storage = () => new WorkflowStorage(container)
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer()
@@ -14,11 +15,21 @@ describe('Storage operations', () => {
   })
   afterEach(() => container.cleanup())
 
-  test('check', () => {
-    console.log('check')
+  test('check autopopulation of optional fields', async () => {
+    const ix = {
+      inputs: { value: 32 },
+      outputs: { signature: { tx: "hash" } },
+      method: "nonExistent",
+      status: 'unknown' as const,
+      idempotency_key: 'ownera'
+    }
+
+    const row = await storage().insert(ix)
+    expect(row.cid).toEqual(expect.any(String))
+    expect(row.status).toEqual(ix.status)
+    expect(row.idempotency_key).toEqual(ix.idempotency_key)
   })
 
   test('other check', () => {
-    console.log('other check')
   })
 })
