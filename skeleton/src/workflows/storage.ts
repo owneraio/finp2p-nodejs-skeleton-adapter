@@ -37,10 +37,10 @@ export class WorkflowStorage {
         created_at: undefined,
         updated_at: undefined,
       }, [
-      'cid',
-      'created_at',
-      'updated_at',
-    ]);
+        'cid',
+        'created_at',
+        'updated_at',
+      ]);
     if (c.length === 0)
       throw new Error('It seems like operation did not insert');
     return {

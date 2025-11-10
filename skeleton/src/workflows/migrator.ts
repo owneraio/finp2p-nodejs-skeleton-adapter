@@ -56,7 +56,7 @@ function executeProcess(
 }
 
 export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
-  const url = new URL(config.connectionString)
+  const url = new URL(config.connectionString);
   logger.debug(`running migration tool goose at: ${config.gooseExecutablePath} db at: ${url.protocol}://${url.hostname}:${url.port}`);
   const defaultGoosePath = '/usr/bin/goose';
   const migrationsDir = path.join(__dirname, '..', '..', 'migrations');
