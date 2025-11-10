@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { OpenAPIValidator } from '../utils/openapi-validator';
+import { generateIdempotencyKey } from '../utils/utils';
 
 export class ClientBase {
   host: string;
@@ -38,7 +39,7 @@ export class ClientBase {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Idempotency-Key': idempotencyKey,
+          'Idempotency-Key': idempotencyKey ?? generateIdempotencyKey(),
         },
       }).then(({ data: response, status }) => {
         // Validate response if validator is enabled (silently)

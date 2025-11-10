@@ -40,3 +40,5 @@ export const generateNonce = () => {
 export const randomResourceId = (orgId: string, resourceType: number) => {
   return `${orgId}:${resourceType}:${generateId()}`;
 };
+
+export const generateIdempotencyKey = () => crypto.randomUUID();
