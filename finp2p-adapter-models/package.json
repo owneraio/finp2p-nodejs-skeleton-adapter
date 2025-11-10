@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-adapter-models",
-  "version": "0.25.3",
+  "version": "0.25.4",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,7 @@
     "dist/**/*"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "scripts": {
     "prebuild": "eslint ./src --ext .ts --fix",
