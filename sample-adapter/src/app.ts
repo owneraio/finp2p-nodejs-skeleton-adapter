@@ -37,7 +37,7 @@ function configureLogging(app: Application) {
   );
 }
 
-function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
+function createApp(orgId: string, finP2PClient?: FinP2PClient, worflowStorageConfig?: routes.WorkflowConfig) {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
@@ -66,6 +66,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
     paymentsService,
     planApprovalService,
     pluginManager,
+    worflowStorageConfig,
   );
 
   return app;

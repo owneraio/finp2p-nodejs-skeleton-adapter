@@ -21,11 +21,13 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
+import { WorkflowConfig } from '../workflows/config';
+import { migrateIfNeeded, WorkflowService, WorkflowStorage } from '../workflows';
 import { logger } from '../helpers';
 
 const basePath = 'api';
 
-export const register = (app: Application,
+const registerWithReadinessJob = (app: Application,
   tokenService: TokenService,
   escrowService: EscrowService,
   commonService: CommonService,
@@ -33,9 +35,8 @@ export const register = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
+  readinessJob: Promise<void>,
 ) => {
-
-
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.liveness();
@@ -45,6 +46,7 @@ export const register = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
+    await readinessJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
@@ -289,4 +291,34 @@ export const register = (app: Application,
 
   app.use(errorHandler);
 
+};
+
+export const register = (app: Application,
+  tokenService: TokenService,
+  escrowService: EscrowService,
+  commonService: CommonService,
+  healthService: HealthService,
+  paymentService: PaymentService,
+  planService: PlanApprovalService,
+  pluginManager: PluginManager | undefined,
+  workflowsConfig?: WorkflowConfig,
+) => {
+  let readinessJob: Promise<void> = Promise.resolve();
+  let workflowService: WorkflowService | null = null;
+  if (workflowsConfig !== undefined) {
+    readinessJob = migrateIfNeeded(workflowsConfig.migration);
+    workflowService = new WorkflowService(new WorkflowStorage(workflowsConfig.storage), commonService, escrowService, healthService, paymentService, planService, tokenService);
+  }
+
+  registerWithReadinessJob(
+    app,
+    tokenService,
+    escrowService,
+    workflowService ?? commonService,
+    healthService,
+    paymentService,
+    workflowService ?? planService,
+    pluginManager,
+    readinessJob,
+  );
 };
