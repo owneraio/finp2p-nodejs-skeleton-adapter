@@ -53,13 +53,28 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   private async startApp() {
     const port = await new RandomPortGenerator().generatePort()
-    const connectionString = this.postgresContainer?.getConnectionUri()
-    const app = createApp("my-org", undefined);
+    const connectionString = this.postgresContainer?.getConnectionUri() ?? ""
+    const app = createApp("my-org", undefined, {
+      migration: {
+        connectionString,
+        migrationListTableName: "finp2p_nodejs_skeleton",
+        gooseExecutablePath: await this.whichGoose()
+      },
+      storage: {
+        connectionString
+      }
+    })
     console.log("App created successfully.");
 
     this.httpServer = app.listen(port, () => {
       console.log(`Server listening on port ${port}`);
     });
+
+    const readiness = await fetch(`http://localhost:${port}/health/readiness`)
+    if (!readiness.ok) {
+      throw new Error('Error while starting up the server')
+      console.error(await readiness.text())
+    }
 
     return `http://localhost:${port}/api`;
   }
