@@ -8,7 +8,7 @@
     "dist/**/*"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "scripts": {
     "prebuild": "eslint ./src --ext .ts --fix",
