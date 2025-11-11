@@ -11,7 +11,7 @@ import {
   PRIMARY_SALE_TYPES,
   REDEMPTION_TYPES,
   SELLING_TYPES,
-} from '@owneraio/finp2p-nodejs-skeleton-adapter';
+} from '@owneraio/finp2p-adapter-models';
 
 /**
  * Represents a test actor (user/participant) with cryptographic keys and account info

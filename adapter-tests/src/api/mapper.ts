@@ -1,14 +1,11 @@
+import { AssetGroup, EIP712Message, EIP712Types, SettlementGroup } from '@owneraio/finp2p-adapter-models';
 import {
-  AssetGroup,
-  EIP712Message,
   eip712MessageToAPI,
-  EIP712Types,
-  eip712TypesToAPI,
-  hashEIP712,
-  LedgerAPI, SettlementGroup,
-  signEIP712WithPrivateKey,
+  eip712TypesToAPI, hashBufferValues,
+  hashEIP712, hashValues,
+  LedgerAPI,
+  signEIP712WithPrivateKey, signSecp,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { hashBufferValues, hashValues, signSecp } from '@owneraio/finp2p-nodejs-skeleton-adapter/dist/lib/helpers/hashList';
 
 export const eip712Signature = async (chainId: number,
   verifyingContract: string, primaryType: string,
