@@ -15,7 +15,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "0.25.17",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "0.26.0",
     "axios": "^1.12.2",
     "secp256k1": "^3.7.1",
     "yaml": "^2.8.1",
