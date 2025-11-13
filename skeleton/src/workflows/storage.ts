@@ -1,5 +1,8 @@
 import knex from 'knex';
 import { StorageConfig } from './config';
+import { randomBytes } from 'node:crypto';
+
+export const generateCid = (): string => randomBytes(64).toString('base64');
 
 export interface Operation {
   cid: string;
@@ -33,7 +36,6 @@ export class WorkflowStorage {
     const c = await this.tableOperations().insert(
       {
         ...ix,
-        cid: undefined,
         created_at: undefined,
         updated_at: undefined,
       }, [

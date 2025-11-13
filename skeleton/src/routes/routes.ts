@@ -1,33 +1,38 @@
-import { Application } from 'express';
-import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import {
-  assetFromAPI,
-  createAssetOperationToAPI,
-  destinationFromAPI,
-  signatureFromAPI,
-  sourceFromAPI,
-  receiptOperationToAPI, balanceToAPI, destinationOptFromAPI, operationStatusToAPI, planApprovalOperationToAPI,
-  depositOperationToAPI, signatureOptFromAPI, depositAssetFromAPI, executionContextOptFromAPI, finIdAccountFromAPI,
-  assetBindingOptFromAPI, assetDenominationOptFromAPI,
-  assetIdentifierOptFromAPI,
-} from './mapping';
 import {
   CommonService,
+  Destination,
   EscrowService,
   HealthService,
-  TokenService,
+  PaymentService,
   PlanApprovalService,
-  PaymentService, Destination, Source,
+  Source,
+  TokenService,
 } from '@owneraio/finp2p-adapter-models';
+import { Application } from 'express';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
-import { WorkflowConfig } from '../workflows/config';
-import { migrateIfNeeded, WorkflowService, WorkflowStorage } from '../workflows';
-import { logger } from '../helpers';
+import {
+  assetBindingOptFromAPI, assetDenominationOptFromAPI,
+  assetFromAPI,
+  assetIdentifierOptFromAPI,
+  balanceToAPI,
+  createAssetOperationToAPI,
+  depositAssetFromAPI,
+  depositOperationToAPI,
+  destinationFromAPI,
+  destinationOptFromAPI,
+  executionContextOptFromAPI, finIdAccountFromAPI,
+  operationStatusToAPI, planApprovalOperationToAPI,
+  receiptOperationToAPI,
+  signatureFromAPI,
+  signatureOptFromAPI,
+  sourceFromAPI,
+} from './mapping';
+import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 
 const basePath = 'api';
 
-const registerWithReadinessJob = (app: Application,
+export const register = (app: Application,
   tokenService: TokenService,
   escrowService: EscrowService,
   commonService: CommonService,
@@ -35,7 +40,6 @@ const registerWithReadinessJob = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
-  readinessJob: Promise<void>,
 ) => {
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {
@@ -46,7 +50,6 @@ const registerWithReadinessJob = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
-    await readinessJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
@@ -291,34 +294,4 @@ const registerWithReadinessJob = (app: Application,
 
   app.use(errorHandler);
 
-};
-
-export const register = (app: Application,
-  tokenService: TokenService,
-  escrowService: EscrowService,
-  commonService: CommonService,
-  healthService: HealthService,
-  paymentService: PaymentService,
-  planService: PlanApprovalService,
-  pluginManager: PluginManager | undefined,
-  workflowsConfig?: WorkflowConfig,
-) => {
-  let readinessJob: Promise<void> = Promise.resolve();
-  let workflowService: WorkflowService | null = null;
-  if (workflowsConfig !== undefined) {
-    readinessJob = migrateIfNeeded(workflowsConfig.migration);
-    workflowService = new WorkflowService(new WorkflowStorage(workflowsConfig.storage), commonService, escrowService, healthService, paymentService, planService, tokenService);
-  }
-
-  registerWithReadinessJob(
-    app,
-    tokenService,
-    escrowService,
-    workflowService ?? commonService,
-    healthService,
-    paymentService,
-    workflowService ?? planService,
-    pluginManager,
-    readinessJob,
-  );
 };

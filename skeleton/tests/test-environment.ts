@@ -1,4 +1,4 @@
-import { PostgreSqlContainer } from "@testcontainers/postgresql";
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import * as console from "console";
 import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
@@ -23,7 +23,7 @@ class CustomTestEnvironment extends NodeEnvironment {
       connectionString,
       cleanup: async () => {
         console.log('cleanup', connectionString)
-        await startedContainer.stop({ timeout: 10_000 })
+        await startedContainer.stop()
       }
     }
   }

@@ -1,5 +1,6 @@
 import { migrateIfNeeded, WorkflowStorage } from '../../src'
 import { expectDateToBeClose } from '../expectDateToBeClose'
+import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
 
 describe('Storage operations', () => {
   let container: { connectionString: string, cleanup: () => Promise<void> } = { connectionString: "", cleanup: () => Promise.resolve() }
@@ -7,14 +8,16 @@ describe('Storage operations', () => {
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer()
-    return migrateIfNeeded({
+    await migrateIfNeeded({
       connectionString: container.connectionString,
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations"
     })
   })
-  afterEach(() => container.cleanup())
+  afterEach(async () => {
+    await container.cleanup()
+  })
 
   test('check autopopulation of optional fields', async () => {
     const ix = {
@@ -36,7 +39,7 @@ describe('Storage operations', () => {
     expectDateToBeClose(row.updated_at, creationDate)
   })
 
-  test('providing optional fields may be reset', async () => {
+  test('providing optional fields may be reset except cid', async () => {
     const ix = {
       inputs: { value: 32 },
       outputs: { signature: { tx: "hash" } },
@@ -51,7 +54,7 @@ describe('Storage operations', () => {
 
     const row = await storage().insert(ix)
     expect(row.cid).toEqual(expect.any(String))
-    expect(row.cid).not.toEqual('should be overriden')
+    expect(row.cid).toEqual('should be overriden')
     expect(row.status).toEqual(ix.status)
     expect(row.idempotency_key).toEqual(ix.idempotency_key)
     expectDateToBeClose(row.created_at, creationDate)
@@ -69,7 +72,7 @@ describe('Storage operations', () => {
     const creationDate = new Date()
 
     const row = await storage().insert(ix)
-    await new Promise(resolve => setTimeout(resolve, 20_000))
+    await setTimeoutPromise(20_000)
 
     const updateDate = new Date()
     const urow = await storage().update(row.cid, "failed", { assetBalance: { name: 'USDC', value: 12345 } })
