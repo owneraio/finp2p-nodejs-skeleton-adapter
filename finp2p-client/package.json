@@ -17,9 +17,6 @@
     "graphql-gen": "graphql-codegen --config grahpqlgen.ts",
     "generate-all": "npm run api-generate && npm run op-api-generate && npm run graphql-gen"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "author": "",
   "license": "ISC",
   "dependencies": {
