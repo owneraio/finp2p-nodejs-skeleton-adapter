@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE SCHEMA IF NOT EXISTS finp2p_nodejs_skeleton;
-CREATE TYPE finp2p_nodejs_skeleton.operation_status as ENUM('queued', 'in_progress', 'succeeded', 'failed', 'unknown');
+CREATE TYPE finp2p_nodejs_skeleton.operation_status as ENUM('queued', 'in_progress', 'succeeded', 'failed', 'crashed', 'unknown');
 CREATE SEQUENCE finp2p_nodejs_skeleton.operation_cid_seq;
 
 CREATE TABLE finp2p_nodejs_skeleton.operations(

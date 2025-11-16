@@ -57,6 +57,13 @@ export const register = (app: Application,
         operation: 'approval',
       },
     );
+
+    tokenService = createServiceProxy(storage, undefined, tokenService,
+      {
+        name: 'createAsset',
+        operation: 'createAsset',
+      },
+    );
   }
 
   app.get('/health/liveness', async (req, res) => {

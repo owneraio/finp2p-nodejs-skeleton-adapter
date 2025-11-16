@@ -20,12 +20,9 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
 
   proofProvider: ProofProvider | undefined;
 
-  migrationJob: Promise<void> | undefined;
-
-  constructor(storage: Storage, proofProvider: ProofProvider | undefined, migrationJob?: Promise<void>) {
+  constructor(storage: Storage, proofProvider: ProofProvider | undefined) {
     super(storage);
     this.proofProvider = proofProvider;
-    this.migrationJob = migrationJob;
   }
 
   public async createAsset(idempotencyKey: string, asset: Asset,
@@ -125,11 +122,6 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       receipt = await this.proofProvider.ledgerProof(receipt);
     }
     return successfulReceiptOperation(receipt);
-  }
-
-  public async readiness(): Promise<void> {
-    await (this.migrationJob ?? Promise.resolve());
-    return super.readiness();
   }
 }
 

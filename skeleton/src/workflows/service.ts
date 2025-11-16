@@ -1,8 +1,10 @@
-import {
-  OperationStatus,
-} from '@owneraio/finp2p-adapter-models';
+import { OperationStatus } from '@owneraio/finp2p-adapter-models';
 import { FinP2PClient } from '@owneraio/finp2p-client';
-import { Operation as StorageOperation, WorkflowStorage, generateCid } from './storage';
+import {
+  Operation as StorageOperation,
+  WorkflowStorage,
+  generateCid,
+} from './storage';
 
 const dbStatus = <
   T extends
@@ -24,16 +26,14 @@ const dbStatus = <
   }
 };
 
-export type MethodToProxy = {
-  name: string;
-  operation: 'receipt' | 'createAsset' | 'deposit' | 'approval'
-};
-
 export function createServiceProxy<T extends object>(
   storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined, // TODO: switch to callback oriented when tests are ready
   service: T,
-  ...methodsToProxy: MethodToProxy[]
+  ...methodsToProxy: {
+    name: keyof T;
+    operation: 'receipt' | 'createAsset' | 'deposit' | 'approval';
+  }[]
 ): T {
   return new Proxy(service, {
     get(target: T, prop: string | symbol, receiver: any) {
@@ -42,7 +42,7 @@ export function createServiceProxy<T extends object>(
       if (typeof originalMethod !== 'function') {
         return originalMethod;
       }
-      const m = methodsToProxy.find(m => m.name === String(prop));
+      const m = methodsToProxy.find((m) => m.name === String(prop));
       if (!m) {
         return originalMethod;
       }
@@ -58,13 +58,20 @@ export function createServiceProxy<T extends object>(
 
         // TODO: switch to callback oriented when tests are ready
         return new Promise((resolve: (o: OperationStatus) => void, reject) => {
-          const status = originalMethod.apply(this === receiver ? target : this, args) as OperationStatus;
+          const status = originalMethod.apply(
+            this === receiver ? target : this,
+            args,
+          ) as OperationStatus;
           resolve(status);
-        }).then(op => {
-          return storage.update(correlationId, dbStatus(op), op).then(() => op);
-        }).catch(e => {
-          storage.update(correlationId, 'failed', e);
-        });
+        })
+          .then((op) => {
+            return storage
+              .update(correlationId, dbStatus(op), op)
+              .then(() => op);
+          })
+          .catch((e) => {
+            return storage.update(correlationId, 'crashed', e.toString());
+          });
       };
     },
   });

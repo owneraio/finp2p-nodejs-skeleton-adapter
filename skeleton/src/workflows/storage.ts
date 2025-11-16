@@ -9,7 +9,7 @@ export interface Operation {
   created_at: Date;
   updated_at: Date;
   method: string;
-  status: 'in_progress' | 'succeeded' | 'failed' | 'queued' | 'unknown';
+  status: 'in_progress' | 'succeeded' | 'failed' | 'queued' | 'crashed' | 'unknown';
   inputs: any;
   outputs: any;
 }
@@ -35,6 +35,8 @@ export class WorkflowStorage {
     const c = await this.tableOperations().insert(
       {
         ...ix,
+        inputs: JSON.stringify(ix.inputs),
+        outputs: JSON.stringify(ix.outputs),
         created_at: undefined,
         updated_at: undefined,
       }, [
@@ -58,6 +60,10 @@ export class WorkflowStorage {
     return this.tableOperations().where(filter);
   }
 
+  async operationsAll(): Promise<Operation[]> {
+    return this.tableOperations().select();
+  }
+
   async update(
     cid: string,
     status: Operation['status'],
@@ -67,7 +73,7 @@ export class WorkflowStorage {
       .where('cid', cid)
       .update(
         {
-          outputs,
+          outputs: JSON.stringify(outputs),
           status,
           updated_at: this.k.fn.now(),
         },
