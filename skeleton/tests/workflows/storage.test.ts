@@ -21,31 +21,29 @@ describe('Storage operations', () => {
 
   test('check autopopulation of optional fields', async () => {
     const ix = {
+      cid: '123',
       inputs: { value: 32 },
       outputs: { signature: { tx: "hash" } },
       method: "nonExistent",
       status: 'unknown' as const,
-      idempotency_key: 'ownera'
     }
     const creationDate = new Date()
 
     const row = await storage().insert(ix)
-    expect(row.cid).toEqual(expect.any(String))
+    expect(row.cid).toEqual('123')
     expect(row.status).toEqual(ix.status)
     expect(row.inputs).toEqual({ value: 32 })
     expect(row.outputs).toEqual({ signature: { tx: 'hash' } })
-    expect(row.idempotency_key).toEqual(ix.idempotency_key)
     expectDateToBeClose(row.created_at, creationDate)
     expectDateToBeClose(row.updated_at, creationDate)
   })
 
-  test('providing optional fields may be reset except cid', async () => {
+  test('providing optional fields may be reset', async () => {
     const ix = {
       inputs: { value: 32 },
       outputs: { signature: { tx: "hash" } },
       method: "nonExistent",
       status: 'unknown' as const,
-      idempotency_key: 'ownera',
       cid: 'should be overriden',
       created_at: new Date(2000, 1, 2, 3, 4, 5),
       updated_at: new Date(1990, 1, 2, 3, 4, 5),
@@ -53,21 +51,19 @@ describe('Storage operations', () => {
     const creationDate = new Date()
 
     const row = await storage().insert(ix)
-    expect(row.cid).toEqual(expect.any(String))
     expect(row.cid).toEqual('should be overriden')
     expect(row.status).toEqual(ix.status)
-    expect(row.idempotency_key).toEqual(ix.idempotency_key)
     expectDateToBeClose(row.created_at, creationDate)
     expectDateToBeClose(row.updated_at, creationDate)
   })
 
   test('updating row should autopopulate updated_at field but not created_at', async () => {
     const ix = {
+      cid: Math.random().toString(),
       inputs: { value: 32 },
       outputs: { signature: { tx: "hash" } },
       method: "nonExistent",
       status: 'unknown' as const,
-      idempotency_key: 'ownera'
     }
     const creationDate = new Date()
 

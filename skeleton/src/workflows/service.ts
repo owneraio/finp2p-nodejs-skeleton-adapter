@@ -1,5 +1,5 @@
 import {
-  OperationStatus
+  OperationStatus,
 } from '@owneraio/finp2p-adapter-models';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { Operation as StorageOperation, WorkflowStorage, generateCid } from './storage';
@@ -9,8 +9,8 @@ const dbStatus = <
   | { type: 'success' | 'pending' | 'failure' }
   | { type: 'approved' | 'rejected' | 'pending' },
 >(
-  obj: T,
-): StorageOperation['status'] => {
+    obj: T,
+  ): StorageOperation['status'] => {
   switch (obj.type) {
     case 'success':
     case 'approved':
@@ -26,8 +26,8 @@ const dbStatus = <
 
 export type MethodToProxy = {
   name: string;
-  operation: "receipt" | "createAsset" | "deposit" | "approval"
-}
+  operation: 'receipt' | 'createAsset' | 'deposit' | 'approval'
+};
 
 export function createServiceProxy<T extends object>(
   storage: WorkflowStorage,
@@ -42,18 +42,18 @@ export function createServiceProxy<T extends object>(
       if (typeof originalMethod !== 'function') {
         return originalMethod;
       }
-      const m = methodsToProxy.find(m => m.name === String(prop))
+      const m = methodsToProxy.find(m => m.name === String(prop));
       if (!m) {
         return originalMethod;
       }
-      return async function(this: any, ...args: any[]) {
-        const correlationId = generateCid()
+      return async function (this: any, ...args: any[]) {
+        const correlationId = generateCid();
         const storageOperation = await storage.insert({
           inputs: args, // <- already contains idempotency key
           method: String(prop),
           outputs: {},
           cid: correlationId,
-          status: "queued",
+          status: 'queued',
         });
 
         // TODO: switch to callback oriented when tests are ready
@@ -61,11 +61,11 @@ export function createServiceProxy<T extends object>(
           const status = originalMethod.apply(this === receiver ? target : this, args) as OperationStatus;
           resolve(status);
         }).then(op => {
-          return storage.update(correlationId, dbStatus(op), op).then(() => op)
+          return storage.update(correlationId, dbStatus(op), op).then(() => op);
         }).catch(e => {
-          storage.update(correlationId, 'failed', e)
+          storage.update(correlationId, 'failed', e);
         });
       };
-    }
+    },
   });
 }

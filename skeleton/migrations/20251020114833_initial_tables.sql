@@ -8,7 +8,6 @@ CREATE TABLE finp2p_nodejs_skeleton.operations(
   cid VARCHAR(255) PRIMARY KEY DEFAULT ('CID-' || nextval('finp2p_nodejs_skeleton.operation_cid_seq')),
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  idempotency_key VARCHAR(255) UNIQUE NOT NULL,
   method VARCHAR(255) NOT NULL,
   status finp2p_nodejs_skeleton.operation_status NOT NULL,
   inputs JSONB NOT NULL,
