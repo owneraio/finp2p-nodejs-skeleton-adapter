@@ -37,7 +37,7 @@ function configureLogging(app: Application) {
   );
 }
 
-function createApp(orgId: string, finP2PClient?: FinP2PClient, worflowStorageConfig?: routes.WorkflowConfig) {
+function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrationsConfig: routes.WorkflowConfig) {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
@@ -52,7 +52,9 @@ function createApp(orgId: string, finP2PClient?: FinP2PClient, worflowStorageCon
   }
 
   const storage = new Storage();
-  const tokenService = new TokenServiceImpl(storage, proofProvider);
+  const migration = routes.migrateIfNeeded(migrationsConfig.migration);
+  const workflowStorage = new routes.WorkflowStorage(migrationsConfig.storage);
+  const tokenService = new TokenServiceImpl(storage, proofProvider, migration);
   const escrowService = new EscrowServiceImpl(storage, proofProvider);
   const paymentsService = new PaymentsServiceImpl(pluginManager);
   const planApprovalService = new PlanApprovalServiceImpl(orgId, pluginManager, finP2PClient);
@@ -66,7 +68,6 @@ function createApp(orgId: string, finP2PClient?: FinP2PClient, worflowStorageCon
     paymentsService,
     planApprovalService,
     pluginManager,
-    worflowStorageConfig,
   );
 
   return app;

@@ -8,7 +8,6 @@ export interface Operation {
   cid: string;
   created_at: Date;
   updated_at: Date;
-  idempotency_key: string;
   method: string;
   status: 'in_progress' | 'succeeded' | 'failed' | 'queued' | 'unknown';
   inputs: any;
@@ -31,7 +30,7 @@ export class WorkflowStorage {
   }
 
   async insert(
-    ix: Omit<Operation, 'cid' | 'created_at' | 'updated_at'>,
+    ix: Omit<Operation,  'created_at' | 'updated_at'>,
   ): Promise<Operation> {
     const c = await this.tableOperations().insert(
       {
