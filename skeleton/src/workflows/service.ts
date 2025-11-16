@@ -31,7 +31,7 @@ export type MethodToProxy = {
 
 export function createServiceProxy<T extends object>(
   storage: WorkflowStorage,
-  finP2PClient: FinP2PClient,
+  finP2PClient: FinP2PClient | undefined, // TODO: switch to callback oriented when tests are ready
   service: T,
   ...methodsToProxy: MethodToProxy[]
 ): T {

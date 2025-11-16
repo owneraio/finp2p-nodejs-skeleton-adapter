@@ -29,8 +29,14 @@ import {
   sourceFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
+import { WorkflowConfig, migrateIfNeeded, createServiceProxy, WorkflowStorage } from '../workflows';
 
 const basePath = 'api';
+
+const mapIfDefined = <T, R>(value: T | undefined, mapper: (val: T) => R): R | undefined => {
+  if (value === undefined) return undefined;
+  return mapper(value);
+};
 
 export const register = (app: Application,
   tokenService: TokenService,
@@ -40,7 +46,19 @@ export const register = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
+  workflowConfig: WorkflowConfig | undefined,
 ) => {
+  const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
+  const storage = mapIfDefined(workflowConfig, (c) => new WorkflowStorage(c.storage));
+  if (storage) {
+    planService = createServiceProxy(storage, undefined, planService,
+      {
+        name: 'approvePlan',
+        operation: 'approval',
+      },
+    );
+  }
+
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.liveness();
@@ -50,6 +68,7 @@ export const register = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
+    await migrationJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
