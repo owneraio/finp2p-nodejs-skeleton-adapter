@@ -19,16 +19,7 @@ const init = async () => {
     logger.info('FinP2PClient initialized');
   }
 
-  const app = createApp(orgId, finP2PClient, {
-    migration: {
-      connectionString: '',
-      gooseExecutablePath: '',
-      migrationListTableName: '',
-    },
-    storage: {
-      connectionString: '',
-    },
-  });
+  const app = createApp(orgId, finP2PClient, undefined);
   app.listen(port, () => {
     logger.info(`listening at http://localhost:${port}`);
   });
