@@ -6,6 +6,7 @@ import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
 import { RandomPortGenerator } from "testcontainers";
 import createApp from "../src/app";
+import { WorkflowStorage } from "@owneraio/finp2p-nodejs-skeleton-adapter"
 
 type AdapterParameters = {
   url: string,
@@ -39,6 +40,7 @@ class CustomTestEnvironment extends NodeEnvironment {
   async teardown() {
     try {
       this.httpServer?.close();
+      await WorkflowStorage.closeAllConnections()
       console.log("Server stopped successfully.");
     } catch (err) {
       console.error("Error stopping server:", err);
