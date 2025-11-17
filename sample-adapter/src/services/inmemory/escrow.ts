@@ -18,7 +18,6 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
   proofProvider: ProofProvider | undefined;
 
-
   constructor(accountService: Storage, proofProvider: ProofProvider | undefined) {
     super(accountService);
     this.proofProvider = proofProvider;
@@ -27,7 +26,6 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
   public async hold(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
     quantity: string, signature: Signature, operationId: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-
     logger.info('Hold operation', { nonce, source, destination, asset, quantity, operationId, executionContext: exCtx });
     // const signer = source.finId;
     // if (!await verifySignature(signature, signer)) {
