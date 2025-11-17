@@ -29,7 +29,7 @@ import {
   sourceFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import { WorkflowConfig, migrateIfNeeded, createServiceProxy, WorkflowStorage } from '../workflows';
+import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
 
 const basePath = 'api';
 
@@ -46,10 +46,10 @@ export const register = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
-  workflowConfig: WorkflowConfig | undefined,
+  workflowConfig: Config | undefined,
 ) => {
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
-  const storage = mapIfDefined(workflowConfig, (c) => new WorkflowStorage(c.storage));
+  const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage) {
     planService = createServiceProxy(storage, undefined, planService,
       {

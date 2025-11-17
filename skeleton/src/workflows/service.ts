@@ -2,7 +2,7 @@ import { OperationStatus } from '@owneraio/finp2p-adapter-models';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import {
   Operation as StorageOperation,
-  WorkflowStorage,
+  Storage,
   generateCid,
 } from './storage';
 
@@ -25,8 +25,12 @@ const dbStatus = <
   }
 };
 
+export const isDuplicatedInputsError = (error: unknown): boolean => (
+   String(error).includes('duplicate key value violates unique constraint "operations_inputs_key"')
+)
+
 export function createServiceProxy<T extends object>(
-  storage: WorkflowStorage,
+  storage: Storage,
   finP2PClient: FinP2PClient | undefined, // TODO: switch to callback oriented when tests are ready
   service: T,
   ...methodsToProxy: {

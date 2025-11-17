@@ -8,7 +8,7 @@ export interface StorageConfig {
   connectionString: string
 }
 
-export interface WorkflowConfig {
+export interface Config {
   migration: MigrationConfig
   storage: StorageConfig
 }

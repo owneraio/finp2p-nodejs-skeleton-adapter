@@ -5,9 +5,10 @@ import {
 } from "@owneraio/finp2p-adapter-models";
 import {
   createServiceProxy,
+  isDuplicatedInputsError,
   migrateIfNeeded,
-  WorkflowStorage,
-} from "../../src";
+  Storage,
+} from "../../src/workflows";
 import { expectDateToBeClose } from "../expectDateToBeClose";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 
@@ -16,7 +17,7 @@ describe("Service operation tests", () => {
     connectionString: "",
     cleanup: () => Promise.resolve(),
   };
-  let storage = (): WorkflowStorage => { throw new Error('Not initialized yet') };
+  let storage = (): Storage => { throw new Error('Not initialized yet') };
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
@@ -26,7 +27,7 @@ describe("Service operation tests", () => {
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
     });
-    const s = new WorkflowStorage(container)
+    const s = new Storage(container)
     storage = () => s
   });
   afterEach(async () => {
@@ -105,4 +106,26 @@ describe("Service operation tests", () => {
     expect(operation.status).toEqual("failed");
     expect(operation.outputs).toMatch("connect to RPC");
   });
+
+  test('check for UNIQUE constrain failure', async () => {
+    const row1 = await storage().insert({
+      cid: 'cid-1',
+      status: 'in_progress',
+      method: 'approvePlan',
+      inputs: ['idempotency-key-1', 'plan-id-1'],
+      outputs: {}
+    })
+
+    try {
+    const row2 = await storage().insert({
+      cid: 'cid-2',
+      status: 'in_progress',
+      method: 'approvePlan',
+      inputs: ['idempotency-key-1', 'plan-id-1'],
+      outputs: {}
+    })
+    } catch (error) {
+      expect(isDuplicatedInputsError(error)).toBe(true)
+    }
+  })
 });

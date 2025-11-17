@@ -16,7 +16,7 @@ export interface Operation {
 
 const openConnections = [] as WeakRef<knex.Knex>[];
 
-export class WorkflowStorage {
+export class Storage {
   private k: knex.Knex;
 
   constructor(config: StorageConfig) {
