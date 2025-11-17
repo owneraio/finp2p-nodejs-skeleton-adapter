@@ -106,24 +106,41 @@ describe("Service operation tests", () => {
     expect(operation.outputs).toMatch("connect to RPC");
   });
 
-  test('insert same inputs returns older CID', async () => {
-    const row1 = await storage().insert({
-      cid: 'cid-1',
-      status: 'in_progress',
-      method: 'approvePlan',
-      inputs: ['idempotency-key-1', 'plan-id-1'],
-      outputs: {}
-    })
+  test('calling the same inputs will result cached response', async () => {
+    class Service {
+      callCount = new Map<string, number>()
 
-    const row2 = await storage().insert({
-      cid: 'cid-2',
-      status: 'in_progress',
-      method: 'approvePlan',
-      inputs: ['idempotency-key-1', 'plan-id-1'],
-      outputs: {}
-    })
+      async approve(idempotencyKey: string, planId: string): Promise<OperationStatus> {
+        const pseudoKey = JSON.stringify([idempotencyKey, planId])
+        const value = this.callCount.get(pseudoKey) ?? 0
+        this.callCount.set(pseudoKey, value + 1)
+        return approvedPlan()
+      }
+    }
 
-    expect(row2.cid).not.toEqual('cid-2')
-    expect(row2).toEqual(row1)
+    const service = new Service()
+    const proxied = createServiceProxy(storage(), undefined, service, {
+      name: 'approve', operation: 'approval' })
+
+    const idempotencyKey = Math.random().toString(36)
+    const planId = Math.random().toString()
+    expect(service.callCount.get(JSON.stringify([idempotencyKey, planId]))).toBeUndefined()
+    await expect(proxied.approve(idempotencyKey, planId)).resolves.toBeDefined()
+    expect(service.callCount.get(JSON.stringify([idempotencyKey, planId]))).toBe(1)
+
+    // Duplicating the request
+    await expect(proxied.approve(idempotencyKey, planId)).resolves.toBeDefined()
+    expect(service.callCount.get(JSON.stringify([idempotencyKey, planId]))).toBe(1)
+
+    const otherIdempotencyKey = Math.random().toString(36)
+    expect(service.callCount.get(JSON.stringify([otherIdempotencyKey, planId]))).toBeUndefined()
+    await expect(proxied.approve(otherIdempotencyKey, planId)).resolves.toBeDefined()
+    expect(service.callCount.get(JSON.stringify([otherIdempotencyKey, planId]))).toBe(1)
+
+    // Duplicating the earlier request
+    await expect(proxied.approve(idempotencyKey, planId)).resolves.toBeDefined()
+    expect(service.callCount.get(JSON.stringify([idempotencyKey, planId]))).toBe(1)
+
+    expect(service.callCount.size).toBe(2)
   })
 });
