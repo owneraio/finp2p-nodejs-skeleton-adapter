@@ -1,6 +1,6 @@
-import { StorageConfig } from './config';
 import { randomBytes } from 'node:crypto';
-import { Pool } from 'pg'
+import { Pool } from 'pg';
+import { StorageConfig } from './config';
 
 export const generateCid = (): string => randomBytes(64).toString('base64');
 
@@ -17,10 +17,10 @@ export interface Operation {
 const openConnections = [] as WeakRef<Pool>[];
 
 export class Storage {
-  private c: Pool
+  private c: Pool;
 
   constructor(config: StorageConfig) {
-    this.c = new Pool({ connectionString: config.connectionString })
+    this.c = new Pool({ connectionString: config.connectionString });
     openConnections.push(new WeakRef(this.c));
   }
 
@@ -31,12 +31,12 @@ export class Storage {
   }
 
   async closeConnections() {
-    await this.c.end()
+    await this.c.end();
   }
 
   async operation(cid: string): Promise<Operation | undefined> {
-    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations WHERE cid = $1', [cid])
-    return result.rows.at(0)
+    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations WHERE cid = $1', [cid]);
+    return result.rows.at(0);
   }
 
   async insert(
@@ -55,19 +55,19 @@ export class Storage {
         ix.method,
         ix.status,
         JSON.stringify(ix.inputs),
-        JSON.stringify(ix.outputs)
-      ]
-    )
+        JSON.stringify(ix.outputs),
+      ],
+    );
     if (c.rows.length === 0)
       throw new Error('It seems like operation did not insert');
     return {
-      ...c.rows[0]
+      ...c.rows[0],
     };
   }
 
   async operationsAll(): Promise<Operation[]> {
-    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations')
-    return result.rows
+    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations');
+    return result.rows;
   }
 
   async update(
@@ -81,9 +81,9 @@ export class Storage {
       WHERE cid = $3
       RETURNING *;`,
       [
-        status, JSON.stringify(outputs), cid
-      ]
-    )
+        status, JSON.stringify(outputs), cid,
+      ],
+    );
     if (result.rows.length === 0)
       throw new Error('It seems like operation did not update');
 

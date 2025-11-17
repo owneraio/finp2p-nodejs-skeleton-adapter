@@ -46,7 +46,7 @@ export function createServiceProxy<T extends object>(
         return originalMethod;
       }
       return async function (this: any, ...args: any[]) {
-        const correlationId = generateCid()
+        const correlationId = generateCid();
         const storageOperation = await storage.insert({
           inputs: args, // <- already contains idempotency key
           method: String(prop),
@@ -57,7 +57,7 @@ export function createServiceProxy<T extends object>(
 
         if (correlationId !== storageOperation.cid) {
           // inputs already exist in DB
-          return storageOperation.outputs
+          return storageOperation.outputs;
         }
 
         // TODO: switch to callback oriented when tests are ready
