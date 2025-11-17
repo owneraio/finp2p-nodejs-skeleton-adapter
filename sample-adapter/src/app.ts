@@ -37,7 +37,7 @@ function configureLogging(app: Application) {
   );
 }
 
-function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrationsConfig: routes.WorkflowConfig | undefined) {
+function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrationsConfig: routes.workflows.Config | undefined) {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
