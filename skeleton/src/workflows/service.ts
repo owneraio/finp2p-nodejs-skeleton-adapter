@@ -25,10 +25,6 @@ const dbStatus = <
   }
 };
 
-export const isDuplicatedInputsError = (error: unknown): boolean => (
-   String(error).includes('duplicate key value violates unique constraint "operations_inputs_key"')
-)
-
 export function createServiceProxy<T extends object>(
   storage: Storage,
   finP2PClient: FinP2PClient | undefined, // TODO: switch to callback oriented when tests are ready
@@ -50,7 +46,7 @@ export function createServiceProxy<T extends object>(
         return originalMethod;
       }
       return async function (this: any, ...args: any[]) {
-        const correlationId = generateCid();
+        const correlationId = generateCid()
         const storageOperation = await storage.insert({
           inputs: args, // <- already contains idempotency key
           method: String(prop),
@@ -58,6 +54,11 @@ export function createServiceProxy<T extends object>(
           cid: correlationId,
           status: 'in_progress',
         });
+
+        if (correlationId !== storageOperation.cid) {
+          // inputs already exist in DB
+          return storageOperation.outputs
+        }
 
         // TODO: switch to callback oriented when tests are ready
         return new Promise((resolve: (o: OperationStatus) => void, reject) => {

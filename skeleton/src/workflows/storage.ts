@@ -1,6 +1,6 @@
-import knex from 'knex';
 import { StorageConfig } from './config';
 import { randomBytes } from 'node:crypto';
+import { Pool } from 'pg'
 
 export const generateCid = (): string => randomBytes(64).toString('base64');
 
@@ -14,67 +14,60 @@ export interface Operation {
   outputs: any;
 }
 
-const openConnections = [] as WeakRef<knex.Knex>[];
+const openConnections = [] as WeakRef<Pool>[];
 
 export class Storage {
-  private k: knex.Knex;
+  private c: Pool
 
   constructor(config: StorageConfig) {
-    this.k = knex({ client: 'pg', connection: config.connectionString });
-    openConnections.push(new WeakRef(this.k));
+    this.c = new Pool({ connectionString: config.connectionString })
+    openConnections.push(new WeakRef(this.c));
   }
 
   static async closeAllConnections() {
     for (let weakRef of openConnections) {
-      await (weakRef.deref()?.destroy() ?? Promise.resolve());
+      await (weakRef.deref()?.end() ?? Promise.resolve());
     }
   }
 
   async closeConnections() {
-    await this.k.destroy();
-  }
-
-  private tableOperations() {
-    return this.k<Operation>('finp2p_nodejs_skeleton.operations');
+    await this.c.end()
   }
 
   async operation(cid: string): Promise<Operation | undefined> {
-    return this.tableOperations().where('cid', cid).first();
+    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations WHERE cid = $1', [cid])
+    return result.rows.at(0)
   }
 
   async insert(
-    ix: Omit<Operation,  'created_at' | 'updated_at'>,
+    ix: Omit<Operation, 'created_at' | 'updated_at'>,
   ): Promise<Operation> {
-    const c = await this.tableOperations().insert(
-      {
-        ...ix,
-        inputs: JSON.stringify(ix.inputs),
-        outputs: JSON.stringify(ix.outputs),
-        created_at: undefined,
-        updated_at: undefined,
-      }, [
-        'cid',
-        'created_at',
-        'updated_at',
-      ]);
-    if (c.length === 0)
+    const c = await this.c.query(
+      `INSERT INTO finp2p_nodejs_skeleton.operations (cid, method, status, inputs, outputs)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT(inputs) DO UPDATE
+      -- no-op
+      SET inputs = finp2p_nodejs_skeleton.operations.inputs
+      RETURNING finp2p_nodejs_skeleton.operations.*;
+      `,
+      [
+        ix.cid,
+        ix.method,
+        ix.status,
+        JSON.stringify(ix.inputs),
+        JSON.stringify(ix.outputs)
+      ]
+    )
+    if (c.rows.length === 0)
       throw new Error('It seems like operation did not insert');
     return {
-      ...ix,
-      cid: c[0].cid,
-      created_at: c[0].created_at,
-      updated_at: c[0].updated_at,
+      ...c.rows[0]
     };
   }
 
-  async operations(
-    filter: Pick<Operation, 'status' | 'method'>,
-  ): Promise<Operation[]> {
-    return this.tableOperations().where(filter);
-  }
-
   async operationsAll(): Promise<Operation[]> {
-    return this.tableOperations().select();
+    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations')
+    return result.rows
   }
 
   async update(
@@ -82,20 +75,18 @@ export class Storage {
     status: Operation['status'],
     outputs: Operation['outputs'],
   ): Promise<Operation> {
-    const result = await this.tableOperations()
-      .where('cid', cid)
-      .update(
-        {
-          outputs: JSON.stringify(outputs),
-          status,
-          updated_at: this.k.fn.now(),
-        },
-        '*',
-      );
-
-    if (result.length === 0)
+    const result = await this.c.query(
+      `UPDATE finp2p_nodejs_skeleton.operations
+      SET status = $1, outputs = $2, updated_at = NOW()
+      WHERE cid = $3
+      RETURNING *;`,
+      [
+        status, JSON.stringify(outputs), cid
+      ]
+    )
+    if (result.rows.length === 0)
       throw new Error('It seems like operation did not update');
 
-    return result[0];
+    return result.rows[0];
   }
 }

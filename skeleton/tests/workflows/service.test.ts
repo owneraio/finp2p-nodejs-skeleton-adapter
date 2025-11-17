@@ -5,7 +5,6 @@ import {
 } from "@owneraio/finp2p-adapter-models";
 import {
   createServiceProxy,
-  isDuplicatedInputsError,
   migrateIfNeeded,
   Storage,
 } from "../../src/workflows";
@@ -107,7 +106,7 @@ describe("Service operation tests", () => {
     expect(operation.outputs).toMatch("connect to RPC");
   });
 
-  test('check for UNIQUE constrain failure', async () => {
+  test('insert same inputs returns older CID', async () => {
     const row1 = await storage().insert({
       cid: 'cid-1',
       status: 'in_progress',
@@ -116,7 +115,6 @@ describe("Service operation tests", () => {
       outputs: {}
     })
 
-    try {
     const row2 = await storage().insert({
       cid: 'cid-2',
       status: 'in_progress',
@@ -124,8 +122,8 @@ describe("Service operation tests", () => {
       inputs: ['idempotency-key-1', 'plan-id-1'],
       outputs: {}
     })
-    } catch (error) {
-      expect(isDuplicatedInputsError(error)).toBe(true)
-    }
+
+    expect(row2.cid).not.toEqual('cid-2')
+    expect(row2).toEqual(row1)
   })
 });
