@@ -20,9 +20,8 @@ const dbStatus = <
     case 'pending':
       return 'in_progress';
     case 'failure':
-      return 'failed';
     default:
-      return 'unknown';
+      return 'failed';
   }
 };
 
@@ -53,7 +52,7 @@ export function createServiceProxy<T extends object>(
           method: String(prop),
           outputs: {},
           cid: correlationId,
-          status: 'queued',
+          status: 'in_progress',
         });
 
         // TODO: switch to callback oriented when tests are ready
@@ -70,7 +69,7 @@ export function createServiceProxy<T extends object>(
               .then(() => op);
           })
           .catch((e) => {
-            return storage.update(correlationId, 'crashed', e.toString());
+            return storage.update(correlationId, 'failed', e.toString());
           });
       };
     },

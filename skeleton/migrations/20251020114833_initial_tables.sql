@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE SCHEMA IF NOT EXISTS finp2p_nodejs_skeleton;
-CREATE TYPE finp2p_nodejs_skeleton.operation_status as ENUM('queued', 'in_progress', 'succeeded', 'failed', 'crashed', 'unknown');
+CREATE TYPE finp2p_nodejs_skeleton.operation_status as ENUM('in_progress', 'succeeded', 'failed');
 CREATE SEQUENCE finp2p_nodejs_skeleton.operation_cid_seq;
 
 CREATE TABLE finp2p_nodejs_skeleton.operations(
@@ -10,7 +10,7 @@ CREATE TABLE finp2p_nodejs_skeleton.operations(
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   method VARCHAR(255) NOT NULL,
   status finp2p_nodejs_skeleton.operation_status NOT NULL,
-  inputs JSONB NOT NULL,
+  inputs JSONB NOT NULL UNIQUE,
   outputs JSONB NOT NULL
 );
 CREATE INDEX operations_status_idx ON finp2p_nodejs_skeleton.operations(status);

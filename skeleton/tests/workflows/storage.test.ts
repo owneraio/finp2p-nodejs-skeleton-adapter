@@ -28,7 +28,7 @@ describe('Storage operations', () => {
       inputs: { value: 32 },
       outputs: { signature: { tx: "hash" } },
       method: "nonExistent",
-      status: 'unknown' as const,
+      status: 'in_progress' as const,
     }
     const creationDate = new Date()
 
@@ -46,7 +46,7 @@ describe('Storage operations', () => {
       inputs: { value: 32 },
       outputs: { signature: { tx: "hash" } },
       method: "nonExistent",
-      status: 'unknown' as const,
+      status: 'in_progress' as const,
       cid: 'should be overriden',
       created_at: new Date(2000, 1, 2, 3, 4, 5),
       updated_at: new Date(1990, 1, 2, 3, 4, 5),
@@ -66,7 +66,7 @@ describe('Storage operations', () => {
       inputs: { value: 32 },
       outputs: { signature: { tx: "hash" } },
       method: "nonExistent",
-      status: 'unknown' as const,
+      status: 'in_progress' as const,
     }
     const creationDate = new Date()
 

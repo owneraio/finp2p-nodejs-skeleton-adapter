@@ -9,7 +9,7 @@ export interface Operation {
   created_at: Date;
   updated_at: Date;
   method: string;
-  status: 'in_progress' | 'succeeded' | 'failed' | 'queued' | 'crashed' | 'unknown';
+  status: 'in_progress' | 'succeeded' | 'failed';
   inputs: any;
   outputs: any;
 }

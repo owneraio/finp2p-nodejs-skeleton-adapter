@@ -102,7 +102,7 @@ describe("Service operation tests", () => {
     expect((await storage().operationsAll()).length).toBe(2);
     operation = (await storage().operationsAll())[1];
 
-    expect(operation.status).toEqual("crashed");
+    expect(operation.status).toEqual("failed");
     expect(operation.outputs).toMatch("connect to RPC");
   });
 });
