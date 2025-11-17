@@ -4,7 +4,7 @@ import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
 
 describe('Storage operations', () => {
   let container: { connectionString: string, cleanup: () => Promise<void> } = { connectionString: "", cleanup: () => Promise.resolve() }
-  let storage = () => new WorkflowStorage(container)
+  let storage = (): WorkflowStorage => { throw new Error('Not initialized yet') }
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer()
@@ -14,8 +14,11 @@ describe('Storage operations', () => {
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations"
     })
+    const s = new WorkflowStorage(container)
+    storage = () => s
   })
   afterEach(async () => {
+    await storage().closeConnections()
     await container.cleanup()
   })
 

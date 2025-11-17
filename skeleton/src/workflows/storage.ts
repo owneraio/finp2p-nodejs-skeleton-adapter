@@ -14,11 +14,24 @@ export interface Operation {
   outputs: any;
 }
 
+const openConnections = [] as WeakRef<knex.Knex>[];
+
 export class WorkflowStorage {
   private k: knex.Knex;
 
   constructor(config: StorageConfig) {
     this.k = knex({ client: 'pg', connection: config.connectionString });
+    openConnections.push(new WeakRef(this.k));
+  }
+
+  static async closeAllConnections() {
+    for (let weakRef of openConnections) {
+      await (weakRef.deref()?.destroy() ?? Promise.resolve());
+    }
+  }
+
+  async closeConnections() {
+    await this.k.destroy();
   }
 
   private tableOperations() {
