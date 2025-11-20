@@ -3,6 +3,7 @@ import { EnvironmentContext, JestEnvironmentConfig } from "@jest/environment";
 import createApp from "../src/app";
 import * as http from "http";
 import * as console from "console";
+import { callbackServer } from '@owneraio/adapter-tests'
 
 const randomPort = () => {
   return Math.floor(Math.random() * 10000) + 10000;
@@ -16,6 +17,8 @@ class CustomTestEnvironment extends NodeEnvironment {
 
   adapter: AdapterParameters | undefined;
   httpServer: http.Server | undefined;
+  callbackServer: callbackServer.CallbackServer | undefined;
+
 
   constructor(config: JestEnvironmentConfig, context: EnvironmentContext) {
     super(config, context);
@@ -29,6 +32,7 @@ class CustomTestEnvironment extends NodeEnvironment {
     }
 
     try {
+      this.global.callbackServer = await this.startCallbackServer()
       this.global.serverAddress = await this.startApp();
     } catch (err) {
       console.error("Error starting container:", err);
@@ -42,6 +46,11 @@ class CustomTestEnvironment extends NodeEnvironment {
     } catch (err) {
       console.error("Error stopping server:", err);
     }
+  }
+
+  private async startCallbackServer() {
+    this.callbackServer = await callbackServer.create()
+    return this.callbackServer
   }
 
   private async startApp() {

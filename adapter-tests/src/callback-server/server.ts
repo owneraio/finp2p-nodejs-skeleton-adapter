@@ -1,5 +1,4 @@
 import express from 'express';
-import getPort from 'get-port';
 import { sleep } from '../utils/utils';
 
 const register = (app: express.Application, operationsCache: Map<string, any>) => {
@@ -41,9 +40,8 @@ export class CallbackServer {
   }
 }
 
-export const create = async (): Promise<CallbackServer> => {
+export const create = async (port: Number): Promise<CallbackServer> => {
   const operationsCache = new Map<string, any>();
-  const port = await getPort();
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   register(app, operationsCache);

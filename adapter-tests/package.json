@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.26.1-callback.0",
+  "version": "0.26.1-callback.1",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -23,8 +23,7 @@
     "zod": "^4.1.12"
   },
   "peerDependencies": {
-    "express": "5.x.x",
-    "get-port": ">= 5"
+    "express": "5.x.x"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
@@ -33,7 +32,6 @@
     "eslint": "^8.4.1",
     "eslint-config-airbnb-typescript": "^16.1.0",
     "eslint-plugin-import": "^2.25.4",
-    "get-port": "^7.1.0",
     "jest": "^29.2.0",
     "ts-jest": "^29.0.3",
     "ts-node": "^10.9.2",
