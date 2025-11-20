@@ -44,7 +44,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined) {
 
   const { privateKey } = Wallet.createRandom();
   const signerPrivateKey = process.env.SIGNER_PRIVATE_KEY || privateKey;
-  const proofProvider = new ProofProvider(orgId, finP2PClient, signerPrivateKey);
+  const proofProvider = new ProofProvider(orgId, undefined, signerPrivateKey);
 
   const pluginManager = new PluginManager();
   if (finP2PClient) {

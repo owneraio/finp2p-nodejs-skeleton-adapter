@@ -14,7 +14,12 @@ export class CallbackServer {
     public readonly address: string,
     public readonly app: express.Application,
     private readonly operationsCache: Map<string, any>,
+    private readonly closeCircuit: () => void,
   ) { }
+
+  async close() {
+    this.closeCircuit();
+  }
 
   expectLater(cid: string) {
     this.operationsCache.set(cid, this.parkedMark);
@@ -46,15 +51,18 @@ export const create = async (port: Number): Promise<CallbackServer> => {
   app.use(express.json({ limit: '50mb' }));
   register(app, operationsCache);
 
+  let closeCircuit: () => void = () => {};
+
   await new Promise<void>((resolve, reject) => {
-    app.listen(port, error => {
+    const server = app.listen(port, error => {
       if (!error) {
         resolve();
       } else {
         reject(error);
       }
     });
+    closeCircuit = () => server.close();
   });
 
-  return new CallbackServer(`http://localhost:${port}`, app, operationsCache);
+  return new CallbackServer(`http://localhost:${port}`, app, operationsCache, closeCircuit);
 };
