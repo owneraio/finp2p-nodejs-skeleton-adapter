@@ -32,7 +32,8 @@ describe('Storage operations', () => {
     }
     const creationDate = new Date()
 
-    const row = await storage().insert(ix)
+    const [row, inserted] = await storage().insert(ix)
+    expect(inserted).toBe(true)
     expect(row.cid).toEqual('123')
     expect(row.status).toEqual(ix.status)
     expect(row.inputs).toEqual({ value: 32 })
@@ -53,7 +54,8 @@ describe('Storage operations', () => {
     }
     const creationDate = new Date()
 
-    const row = await storage().insert(ix)
+    const [row, inserted] = await storage().insert(ix)
+    expect(inserted).toBe(true)
     expect(row.cid).toEqual('should be overriden')
     expect(row.status).toEqual(ix.status)
     expectDateToBeClose(row.created_at, creationDate)
@@ -70,7 +72,7 @@ describe('Storage operations', () => {
     }
     const creationDate = new Date()
 
-    const row = await storage().insert(ix)
+    const [row, inserted] = await storage().insert(ix)
     await setTimeoutPromise(20_000)
 
     const updateDate = new Date()
@@ -89,22 +91,23 @@ describe('Storage operations', () => {
   })
 
   test('insert same inputs returns older CID', async () => {
-    const row1 = await storage().insert({
+    const [row1, inserted1] = await storage().insert({
       cid: 'cid-1',
       status: 'in_progress',
       method: 'approvePlan',
       inputs: ['idempotency-key-1', 'plan-id-1'],
       outputs: {}
     })
+    expect(inserted1).toBe(true)
 
-    const row2 = await storage().insert({
+    const [row2, inserted2] = await storage().insert({
       cid: 'cid-2',
       status: 'in_progress',
       method: 'approvePlan',
       inputs: ['idempotency-key-1', 'plan-id-1'],
       outputs: {}
     })
-
+    expect(inserted2).toBe(false)
     expect(row2.cid).not.toEqual('cid-2')
     expect(row2).toEqual(row1)
   })

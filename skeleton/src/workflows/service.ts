@@ -47,7 +47,7 @@ export function createServiceProxy<T extends object>(
       }
       return async function (this: any, ...args: any[]) {
         const correlationId = generateCid();
-        const storageOperation = await storage.insert({
+        const [storageOperation, inserted] = await storage.insert({
           inputs: args, // <- already contains idempotency key
           method: String(prop),
           outputs: {},
@@ -55,7 +55,7 @@ export function createServiceProxy<T extends object>(
           status: 'in_progress',
         });
 
-        if (correlationId !== storageOperation.cid) {
+        if (!inserted) {
           // inputs already exist in DB
           return storageOperation.outputs;
         }
