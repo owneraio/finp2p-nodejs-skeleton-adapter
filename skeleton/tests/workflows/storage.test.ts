@@ -111,4 +111,36 @@ describe('Storage operations', () => {
     expect(row2.cid).not.toEqual('cid-2')
     expect(row2).toEqual(row1)
   })
+
+  test('inserting and querying existing operations', async () => {
+    const [row1, inserted1] = await storage().insert({
+      cid: 'cid-1',
+      inputs: ['idempotency-key1'],
+      method: 'method',
+      outputs: {},
+      status: 'in_progress'
+    })
+    expect(inserted1).toBe(true)
+    await expect(storage().operations({ status: 'succeeded', method: 'method' })).resolves.toEqual([])
+    await expect(storage().operations({ status: 'failed', method: 'method' })).resolves.toEqual([])
+    await expect(storage().operations({ status: 'in_progress', method: 'method' })).resolves.toEqual([row1])
+
+    const updatedRow1 = await storage().update('cid-1', 'succeeded', { value: 42 })
+    await expect(storage().operations({ status: 'in_progress', method: 'method' })).resolves.toEqual([])
+    await expect(storage().operations({ status: 'failed', method: 'method' })).resolves.toEqual([])
+    await expect(storage().operations({ status: 'succeeded', method: 'method' })).resolves.toEqual([updatedRow1])
+
+    const [row2, inserted2] = await storage().insert({
+      cid: 'cid-2',
+      inputs: ['idempotency-key2'],
+      method: 'method',
+      outputs: {},
+      status: 'succeeded'
+    })
+    expect(inserted2).toBe(true)
+    await expect(storage().operations({ status: 'in_progress', method: 'method' })).resolves.toEqual([])
+    await expect(storage().operations({ status: 'failed', method: 'method' })).resolves.toEqual([])
+    await expect(storage().operations({ status: 'succeeded', method: 'method' })).resolves.toEqual([updatedRow1, row2])
+    await expect(storage().operations({ status: 'succeeded', method: 'unknown-method' })).resolves.toEqual([])
+  })
 })
