@@ -4,13 +4,12 @@ import {
   rejectedPlan,
   successfulAssetCreation,
 } from "@owneraio/finp2p-adapter-models";
+import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 import {
   createServiceProxy,
   migrateIfNeeded,
   Storage,
 } from "../../src/workflows";
-import { expectDateToBeClose } from "../expectDateToBeClose";
-import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 
 describe("Service operation tests", () => {
   let container: { connectionString: string; cleanup: () => Promise<void> } = {
@@ -243,9 +242,7 @@ describe("Service operation tests", () => {
     await setTimeoutPromise(5000);
 
     await expect(storage().operation(row1.cid)).resolves.toEqual({
-      cid: "old-cid",
-      inputs: ["fake-idempotency-key-1", 5, "655000"],
-      method: "createAsset",
+      ...row1,
       outputs: successfulAssetCreation({
         tokenId: "fake-idempotency-key-1",
         reference: {
@@ -260,7 +257,6 @@ describe("Service operation tests", () => {
         },
       }),
       status: "succeeded",
-      created_at: expect.any(Date),
       updated_at: expect.any(Date),
     });
 
