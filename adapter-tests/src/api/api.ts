@@ -1,7 +1,9 @@
-import { ClientBase } from './base';
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { CallbackServer } from '../callback-server/server';
 import { ClientError } from '../utils/error';
+import { OpenAPIValidator } from '../utils/openapi-validator';
 import { sleep } from '../utils/utils';
+import { ClientBase } from './base';
 
 export class TokensLedgerAPI extends ClientBase {
 
@@ -51,18 +53,27 @@ export class PaymentsLedgerAPI extends ClientBase {
 
 export class CommonLedgerAPI extends ClientBase {
 
+  readonly callbackServer?: CallbackServer;
+
+  constructor(host: string, validator?: OpenAPIValidator, callbackServer?: CallbackServer) {
+    super(host, validator);
+    this.callbackServer = callbackServer;
+  }
+
   public async getReceipt(id: string): Promise<LedgerAPI['schemas']['GetReceiptResponse']> {
     return this.post(`/assets/receipt/${id}`);
   }
 
   public async getOperationStatus(id: string): Promise<LedgerAPI['schemas']['GetOperationStatusResponse']> {
+    if (this.callbackServer !== undefined && this.callbackServer.isExpectedLater(id)) {
+      return this.callbackServer.operation(id);
+    }
     return this.get(`/operations/status/${id}`);
   }
 
   public async getBalance(req: LedgerAPI['schemas']['GetAssetBalanceRequest']): Promise<LedgerAPI['schemas']['GetAssetBalanceResponse']> {
     return this.post('/assets/getBalance', req);
   }
-
 
   public async waitForReceipt(id: string, tries: number = 30): Promise<LedgerAPI['schemas']['receipt']> {
     for (let i = 1; i < tries; i++) {
@@ -102,11 +113,11 @@ export class LedgerAPIClient {
 
   public readonly common: CommonLedgerAPI;
 
-  constructor(host: string) {
+  constructor(host: string, callbackServer: CallbackServer | undefined) {
     this.tokens = new TokensLedgerAPI(host);
     this.escrow = new EscrowLedgerAPI(host);
     this.payments = new PaymentsLedgerAPI(host);
-    this.common = new CommonLedgerAPI(host);
+    this.common = new CommonLedgerAPI(host, undefined, callbackServer);
   }
 
   async expectReceipt(status: any): Promise<LedgerAPI['schemas']['receipt']> {
