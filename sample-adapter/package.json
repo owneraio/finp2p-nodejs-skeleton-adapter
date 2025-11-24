@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/sample-adapter",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "description": "",
   "main": "./dist/index.js",
   "files": [
@@ -21,7 +21,7 @@
   "dependencies": {
     "@owneraio/finp2p-adapter-models": "^0.26.0",
     "@owneraio/finp2p-client": "^0.26.0",
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.26.0",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.26.1",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
     "express": "5.0.0",
@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@owneraio/adapter-tests": "^0.26.0",
+    "@testcontainers/postgresql": "^11.8.0",
     "@types/express": "^4.17.13",
     "@types/jest": "^29.2.0",
     "babel-jest": "^29.2.0",
@@ -40,6 +41,7 @@
     "eslint-config-airbnb-typescript": "^16.1.0",
     "eslint-plugin-import": "^2.25.4",
     "prettier": "2.5.1",
+    "testcontainers": "^11.7.2",
     "ts-jest": "^29.0.3"
   }
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -euo pipefail
+set -eu
 
 docker build -t finp2p-nodejs-skeleton-adapter:latest \
   --secret id=npm_token,env=GITHUB_TOKEN \
