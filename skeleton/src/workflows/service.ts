@@ -34,6 +34,24 @@ export function createServiceProxy<T extends object>(
     operation: 'receipt' | 'createAsset' | 'deposit' | 'approval';
   }[]
 ): T {
+
+  methodsToProxy.forEach(m => {
+    const method = service[m.name];
+    if (typeof method !== 'function') return;
+    storage
+      .operations({ status: 'in_progress', method: String(m.name) })
+      .then(operations => {
+        operations.forEach(op => {
+          method(...op.inputs).then((outputs: OperationStatus) => {
+            storage.update(op.cid, dbStatus(outputs), outputs);
+            return outputs; // TODO: callback
+          }, (error: any) => {
+            storage.update(op.cid, 'failed', String(error));
+          });
+        });
+      }, error => console.error(`Couldn'nt fetch pending operations: ${error}`));
+  });
+
   return new Proxy(service, {
     get(target: T, prop: string | symbol, receiver: any) {
       const originalMethod = target[prop as keyof T];
