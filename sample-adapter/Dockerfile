@@ -1,3 +1,9 @@
+# ---- compile goose (migration tool) ----
+FROM golang:1.24.5-alpine AS migrator
+
+RUN apk update && apk add make gcc git build-base
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+
 FROM node:20-alpine AS base
 WORKDIR /usr/app
 
@@ -41,5 +47,7 @@ LABEL org.opencontainers.image.source=https://github.com/owneraio/nodejs_ledger_
 COPY --from=productionDeps /usr/app/node_modules ./node_modules
 COPY --from=builder /usr/app/dist ./dist
 COPY --from=builder /usr/app/package.json /usr/app/package-lock.json ./
+COPY --from=migrator /go/bin/goose /usr/bin/goose
+
 
 CMD [ "node", "/usr/app/dist/index.js" ]

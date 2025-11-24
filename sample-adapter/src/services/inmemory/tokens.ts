@@ -123,6 +123,5 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     }
     return successfulReceiptOperation(receipt);
   }
-
 }
 

@@ -1,29 +1,42 @@
-import { Application } from 'express';
-import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import {
-  assetFromAPI,
-  createAssetOperationToAPI,
-  destinationFromAPI,
-  signatureFromAPI,
-  sourceFromAPI,
-  receiptOperationToAPI, balanceToAPI, destinationOptFromAPI, operationStatusToAPI, planApprovalOperationToAPI,
-  depositOperationToAPI, signatureOptFromAPI, depositAssetFromAPI, executionContextOptFromAPI, finIdAccountFromAPI,
-  assetBindingOptFromAPI, assetDenominationOptFromAPI,
-  assetIdentifierOptFromAPI,
-} from './mapping';
 import {
   CommonService,
+  Destination,
   EscrowService,
   HealthService,
-  TokenService,
+  PaymentService,
   PlanApprovalService,
-  PaymentService, Destination, Source,
+  Source,
+  TokenService,
 } from '@owneraio/finp2p-adapter-models';
+import { Application } from 'express';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';
-import { logger } from '../helpers';
+import {
+  assetBindingOptFromAPI, assetDenominationOptFromAPI,
+  assetFromAPI,
+  assetIdentifierOptFromAPI,
+  balanceToAPI,
+  createAssetOperationToAPI,
+  depositAssetFromAPI,
+  depositOperationToAPI,
+  destinationFromAPI,
+  destinationOptFromAPI,
+  executionContextOptFromAPI, finIdAccountFromAPI,
+  operationStatusToAPI, planApprovalOperationToAPI,
+  receiptOperationToAPI,
+  signatureFromAPI,
+  signatureOptFromAPI,
+  sourceFromAPI,
+} from './mapping';
+import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
+import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
 
 const basePath = 'api';
+
+const mapIfDefined = <T, R>(value: T | undefined, mapper: (val: T) => R): R | undefined => {
+  if (value === undefined) return undefined;
+  return mapper(value);
+};
 
 export const register = (app: Application,
   tokenService: TokenService,
@@ -33,8 +46,25 @@ export const register = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
+  workflowConfig: Config | undefined,
 ) => {
+  const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
+  const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
+  if (storage) {
+    planService = createServiceProxy(storage, undefined, planService,
+      {
+        name: 'approvePlan',
+        operation: 'approval',
+      },
+    );
 
+    tokenService = createServiceProxy(storage, undefined, tokenService,
+      {
+        name: 'createAsset',
+        operation: 'createAsset',
+      },
+    );
+  }
 
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {
@@ -45,6 +75,7 @@ export const register = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
+    await migrationJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
