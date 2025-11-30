@@ -66,7 +66,7 @@ export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
       env: {
         GOOSE_DBSTRING: config.connectionString,
         GOOSE_DRIVER: 'postgres',
-        FIN2P_ETHEREUM_USER: config.storageUser,
+        LEDGER_ADAPTER_USER: config.storageUser,
       },
     },
   );
