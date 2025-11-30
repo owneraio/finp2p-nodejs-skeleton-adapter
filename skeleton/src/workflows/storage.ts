@@ -17,10 +17,10 @@ export interface Operation {
 const openConnections = [] as WeakRef<Pool>[];
 
 const cloneExcept = (obj: any, key: string): any => {
-  const copy = { ...obj }
-  delete copy[key]
-  return copy
-}
+  const copy = { ...obj };
+  delete copy[key];
+  return copy;
+};
 
 export class Storage {
   private c: Pool;
@@ -41,7 +41,7 @@ export class Storage {
   }
 
   async operation(cid: string): Promise<Operation | undefined> {
-    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations WHERE cid = $1', [cid]);
+    const result = await this.c.query('SELECT * FROM ledger_adapter.operations WHERE cid = $1', [cid]);
     return result.rows.at(0);
   }
 
@@ -49,13 +49,13 @@ export class Storage {
     ix: Omit<Operation, 'created_at' | 'updated_at'>,
   ): Promise<[Operation, boolean]> {
     const c = await this.c.query(
-      `INSERT INTO finp2p_nodejs_skeleton.operations (cid, method, status, inputs, outputs)
+      `INSERT INTO ledger_adapter.operations (cid, method, status, inputs, outputs)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT(inputs) DO UPDATE
       -- no-op
-      SET inputs = finp2p_nodejs_skeleton.operations.inputs
+      SET inputs = ledger_adapter.operations.inputs
       RETURNING
-        finp2p_nodejs_skeleton.operations.*,
+        ledger_adapter.operations.*,
         (xmax = 0) AS __inserted;
       `,
       [
@@ -70,13 +70,13 @@ export class Storage {
       throw new Error('It seems like operation did not insert');
 
     return [
-      cloneExcept(c.rows[0], "__inserted"),
-      c.rows[0].__inserted
-    ]
+      cloneExcept(c.rows[0], '__inserted'),
+      c.rows[0].__inserted,
+    ];
   }
 
   async operationsAll(): Promise<Operation[]> {
-    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations');
+    const result = await this.c.query('SELECT * FROM ledger_adapter.operations');
     return result.rows;
   }
 
@@ -86,7 +86,7 @@ export class Storage {
     outputs: Operation['outputs'],
   ): Promise<Operation> {
     const result = await this.c.query(
-      `UPDATE finp2p_nodejs_skeleton.operations
+      `UPDATE ledger_adapter.operations
       SET status = $1, outputs = $2, updated_at = NOW()
       WHERE cid = $3
       RETURNING *;`,
