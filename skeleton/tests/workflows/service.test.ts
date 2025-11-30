@@ -12,8 +12,9 @@ import { expectDateToBeClose } from "../expectDateToBeClose";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 
 describe("Service operation tests", () => {
-  let container: { connectionString: string; cleanup: () => Promise<void> } = {
+  let container: { connectionString: string; storageUser: string, cleanup: () => Promise<void> } = {
     connectionString: "",
+    storageUser: "",
     cleanup: () => Promise.resolve(),
   };
   let storage = (): Storage => { throw new Error('Not initialized yet') };
@@ -25,6 +26,7 @@ describe("Service operation tests", () => {
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
+      storageUser: container.storageUser
     });
     const s = new Storage(container)
     storage = () => s
@@ -120,7 +122,8 @@ describe("Service operation tests", () => {
 
     const service = new Service()
     const proxied = createServiceProxy(storage(), undefined, service, {
-      name: 'approve', operation: 'approval' })
+      name: 'approve', operation: 'approval'
+    })
 
     const idempotencyKey = Math.random().toString(36)
     const planId = Math.random().toString()

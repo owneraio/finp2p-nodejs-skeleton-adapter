@@ -3,7 +3,7 @@ import { expectDateToBeClose } from '../expectDateToBeClose'
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
 
 describe('Storage operations', () => {
-  let container: { connectionString: string, cleanup: () => Promise<void> } = { connectionString: "", cleanup: () => Promise.resolve() }
+  let container: { connectionString: string, storageUser: string, cleanup: () => Promise<void> } = { connectionString: "", storageUser: "", cleanup: () => Promise.resolve() }
   let storage = (): Storage => { throw new Error('Not initialized yet') }
   beforeEach(async () => {
     // @ts-ignore
@@ -12,7 +12,8 @@ describe('Storage operations', () => {
       connectionString: container.connectionString,
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
-      migrationListTableName: "finp2p_nodejs_skeleton_migrations"
+      migrationListTableName: "finp2p_nodejs_skeleton_migrations",
+      storageUser: container.storageUser
     })
     const s = new Storage(container)
     storage = () => s
