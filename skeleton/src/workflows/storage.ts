@@ -17,10 +17,10 @@ export interface Operation {
 const openConnections = [] as WeakRef<Pool>[];
 
 const cloneExcept = (obj: any, key: string): any => {
-  const copy = { ...obj }
-  delete copy[key]
-  return copy
-}
+  const copy = { ...obj };
+  delete copy[key];
+  return copy;
+};
 
 export class Storage {
   private c: Pool;
@@ -70,9 +70,9 @@ export class Storage {
       throw new Error('It seems like operation did not insert');
 
     return [
-      cloneExcept(c.rows[0], "__inserted"),
-      c.rows[0].__inserted
-    ]
+      cloneExcept(c.rows[0], '__inserted'),
+      c.rows[0].__inserted,
+    ];
   }
 
   async operationsAll(): Promise<Operation[]> {

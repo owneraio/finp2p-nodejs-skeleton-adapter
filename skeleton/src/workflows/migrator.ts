@@ -58,15 +58,15 @@ function executeProcess(
 export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
   const url = new URL(config.connectionString);
   logger.debug(`running migration tool goose at: ${config.gooseExecutablePath} db at: ${url.protocol}://${url.hostname}:${url.port}`);
-  const defaultGoosePath = '/usr/bin/goose';
   const migrationsDir = path.join(__dirname, '..', '..', 'migrations');
   const result = await executeProcess(
-    config.gooseExecutablePath ?? defaultGoosePath,
+    config.gooseExecutablePath,
     ['-table', config.migrationListTableName, '-dir', migrationsDir, 'up'],
     {
       env: {
         GOOSE_DBSTRING: config.connectionString,
         GOOSE_DRIVER: 'postgres',
+        FIN2P_ETHEREUM_USER: config.storageUser,
       },
     },
   );

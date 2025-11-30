@@ -16,6 +16,28 @@ CREATE TABLE finp2p_nodejs_skeleton.operations(
 CREATE INDEX operations_status_idx ON finp2p_nodejs_skeleton.operations(status);
 -- +goose StatementEnd
 
+-- +goose StatementBegin
+DO $$
+    DECLARE
+-- +goose ENVSUB ON
+        finp2p_ethereum_user TEXT := '${FIN2P_ETHEREUM_USER:-}';
+-- +goose ENVSUB OFF
+        users_exist BOOLEAN;
+    BEGIN
+        SELECT EXISTS(
+            SELECT 1 FROM pg_catalog.pg_roles
+            WHERE rolname = finp2p_ethereum_user
+        )
+        INTO users_exist;
+
+        IF users_exist THEN
+            EXECUTE format('GRANT USAGE ON SCHEMA finp2p_nodejs_skeleton TO %I;', finp2p_ethereum_user);
+            EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE finp2p_nodejs_skeleton.operations TO %I;', finp2p_ethereum_user);
+        END IF;
+    END $$;
+-- +goose StatementEnd
+
+
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE finp2p_nodejs_skeleton.operations;
