@@ -1,7 +1,8 @@
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import * as console from "console";
 import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
+import { URL } from 'node:url';
 import { RandomPortGenerator } from "testcontainers";
 
 class CustomTestEnvironment extends NodeEnvironment {
@@ -18,9 +19,11 @@ class CustomTestEnvironment extends NodeEnvironment {
     const startedContainer = await new PostgreSqlContainer("postgres:14.19")
       .start()
     const connectionString = startedContainer.getConnectionUri()
+    const storageUser = new URL(connectionString).username
     console.log('started', connectionString)
     return {
       connectionString,
+      storageUser,
       cleanup: async () => {
         console.log('cleanup', connectionString)
         await startedContainer.stop()
