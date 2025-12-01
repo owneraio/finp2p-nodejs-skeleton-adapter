@@ -81,7 +81,7 @@ export class Storage {
   }
 
   async operations(opts: { status: Operation['status'], method: string }): Promise<Operation[]> {
-    const result = await this.c.query('SELECT * FROM finp2p_nodejs_skeleton.operations WHERE status = $1 AND method = $2;', [opts.status, opts.method]);
+    const result = await this.c.query('SELECT * FROM ledger_adapter.operations WHERE status = $1 AND method = $2;', [opts.status, opts.method]);
     return result.rows;
   }
 
