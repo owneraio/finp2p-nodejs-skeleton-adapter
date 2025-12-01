@@ -12,8 +12,9 @@ import {
 } from "../../src/workflows";
 
 describe("Service operation tests", () => {
-  let container: { connectionString: string; cleanup: () => Promise<void> } = {
+  let container: { connectionString: string; storageUser: string, cleanup: () => Promise<void> } = {
     connectionString: "",
+    storageUser: "",
     cleanup: () => Promise.resolve(),
   };
   let storage = (): Storage => {
@@ -27,6 +28,7 @@ describe("Service operation tests", () => {
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
+      storageUser: container.storageUser
     });
     const s = new Storage(container);
     storage = () => s;

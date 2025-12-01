@@ -2,14 +2,9 @@ import { migrateIfNeeded, Storage } from "../../src/workflows";
 import { expectDateToBeClose } from "../expectDateToBeClose";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 
-describe("Storage operations", () => {
-  let container: { connectionString: string; cleanup: () => Promise<void> } = {
-    connectionString: "",
-    cleanup: () => Promise.resolve(),
-  };
-  let storage = (): Storage => {
-    throw new Error("Not initialized yet");
-  };
+describe('Storage operations', () => {
+  let container: { connectionString: string, storageUser: string, cleanup: () => Promise<void> } = { connectionString: "", storageUser: "", cleanup: () => Promise.resolve() }
+  let storage = (): Storage => { throw new Error('Not initialized yet') }
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
@@ -18,10 +13,11 @@ describe("Storage operations", () => {
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
-    });
-    const s = new Storage(container);
-    storage = () => s;
-  });
+      storageUser: container.storageUser
+    })
+    const s = new Storage(container)
+    storage = () => s
+  })
   afterEach(async () => {
     await storage().closeConnections();
     await container.cleanup();
