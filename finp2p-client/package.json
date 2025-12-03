@@ -15,7 +15,7 @@
     "api-generate": "npx openapi-typescript ./apis/application-api.base.yaml -o src/finapi/model-gen.ts",
     "op-api-generate": "npx openapi-typescript ./apis/operational-api.yaml -o src/finapi/op-model-gen.ts",
     "graphql-gen": "graphql-codegen --config grahpqlgen.ts",
-    "generate-all": "npm run api-generate && npm run op-api-generate && npm run graphql-gen",
+    "generate-all": "npm run api-generate && npm run op-api-generate && npm run graphql-gen"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
