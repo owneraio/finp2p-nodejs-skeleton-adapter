@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { Pool } from 'pg';
 import { StorageConfig } from './config';
+import bs58 from 'bs58'
 
-export const generateCid = (): string => randomBytes(64).toString('base64');
+export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes(64)));
 
 export interface Operation {
   cid: string;

@@ -7,6 +7,8 @@ import {
   PlanApprovalService,
   Source,
   TokenService,
+  pendingAssetCreation,
+  pendingPlan,
 } from '@owneraio/finp2p-adapter-models';
 import { Application } from 'express';
 import { PluginManager } from '../plugins';
@@ -54,16 +56,18 @@ export const register = (app: Application,
     planService = createServiceProxy(storage, undefined, planService,
       {
         name: 'approvePlan',
-        operation: 'approval',
+        pendingState: cid => pendingPlan(cid, undefined),
       },
     );
 
     tokenService = createServiceProxy(storage, undefined, tokenService,
       {
         name: 'createAsset',
-        operation: 'createAsset',
+        pendingState: cid => pendingAssetCreation(cid, undefined),
       },
     );
+
+    commonService = createServiceProxy(storage, undefined, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {

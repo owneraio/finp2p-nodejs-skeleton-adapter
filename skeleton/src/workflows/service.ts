@@ -1,6 +1,10 @@
 import {
   OperationStatus,
   CommonService,
+  pendingPlan,
+  pendingAssetCreation,
+  pendingDepositOperation,
+  pendingReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { Operation as StorageOperation, Storage, generateCid } from './storage';
@@ -30,7 +34,7 @@ export function createServiceProxy<T extends object>(
   service: T,
   ...methodsToProxy: {
     name: keyof T;
-    operation: 'receipt' | 'createAsset' | 'deposit' | 'approval';
+    pendingState: (correlationId: string) => OperationStatus
   }[]
 ): T {
   methodsToProxy.forEach((m) => {
@@ -63,17 +67,32 @@ export function createServiceProxy<T extends object>(
       if (typeof originalMethod !== 'function') {
         return originalMethod;
       }
+
+      if (String(prop) === getOperationStatusMethod) {
+        return async function (this: any, ...args: any[]) {
+          if (args.length !== 1) throw new Error('Expected only 1 argument. Did the interface got changed?');
+          const cid = args[0];
+          if (typeof cid !== 'string') throw new Error('Expected string argument. Did the interface got changed?');
+
+          const operation = await storage.operation(cid);
+          if (operation === undefined) throw new Error(`Operation with following cid not found: ${cid}`);
+
+          return operation.outputs;
+        };
+      }
+
       const m = methodsToProxy.find((m) => m.name === String(prop));
-      const isSpecialCase = String(prop) === getOperationStatusMethod;
-      if (!m && !isSpecialCase) {
+      if (!m) {
         return originalMethod;
       }
       return async function (this: any, ...args: any[]) {
         const correlationId = generateCid();
+        const pendingPlaceholder = m.pendingState(correlationId);
+
         const [storageOperation, inserted] = await storage.insert({
           inputs: args, // <- already contains idempotency key
           method: String(prop),
-          outputs: {},
+          outputs: pendingPlaceholder,
           cid: correlationId,
           status: 'in_progress',
         });
@@ -88,16 +107,14 @@ export function createServiceProxy<T extends object>(
             this === receiver ? target : this,
             args,
           ) as OperationStatus;
+
           resolve(status);
         }).then(
           (op) => storage.update(correlationId, dbStatus(op), op),
           (error) => storage.update(correlationId, 'failed', String(error)),
         );
 
-        return {
-          cid: correlationId,
-          isCompleted: false,
-        };
+        return pendingPlaceholder;
       };
     },
   });

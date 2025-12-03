@@ -1,6 +1,9 @@
 import {
   approvedPlan,
   OperationStatus,
+  pendingAssetCreation,
+  pendingDepositOperation,
+  pendingPlan,
   rejectedPlan,
   successfulAssetCreation,
 } from "@owneraio/finp2p-adapter-models";
@@ -10,6 +13,23 @@ import {
   migrateIfNeeded,
   Storage,
 } from "../../src/workflows";
+
+async function waitForOperationCompletion<T extends { operationStatus(cid: string): Promise<any> }>(obj: T, cid: string): Promise<any> {
+  for (let i = 0; i < 30; i++) {
+    const result = await obj.operationStatus(cid) as { correlationId?: string }
+    console.debug({
+      attempt: i,
+      result
+    })
+    if (result.correlationId === undefined) {
+      return result
+    }
+
+    await setTimeoutPromise(300)
+  }
+
+  throw new Error('Operation not finished')
+}
 
 describe("Service operation tests", () => {
   let container: { connectionString: string; storageUser: string, cleanup: () => Promise<void> } = {
@@ -38,7 +58,7 @@ describe("Service operation tests", () => {
     await container.cleanup();
   });
 
-  test("proxy intercepts only provided methods", async () => {
+  test.only("proxy intercepts only provided methods", async () => {
     class Service {
       async approvePlan(
         idempotencyKey: string,
@@ -75,6 +95,10 @@ describe("Service operation tests", () => {
       ): Promise<OperationStatus> {
         throw new Error("Couldn'nt connect to RPC");
       }
+
+      async operationStatus(cid: string): Promise<any> {
+        console.debug('Original called')
+      }
     }
 
     const impl = new Service();
@@ -84,11 +108,11 @@ describe("Service operation tests", () => {
       impl,
       {
         name: "approvePlan",
-        operation: "approval",
+        pendingState: cid => pendingPlan(cid, undefined)
       },
       {
         name: "deposit",
-        operation: "deposit",
+        pendingState: cid => pendingDepositOperation(cid, undefined)
       },
     );
 
@@ -97,7 +121,8 @@ describe("Service operation tests", () => {
     await expect(storage().operationsAll()).resolves.not.toEqual([]);
     let operation = (await storage().operationsAll())[0];
     expect(operation.inputs).toEqual(["idempotency-key-1", "plan1"]);
-    expect(result).toEqual(approvedPlan()); // TODO: check for callbacks
+    expect(result).toEqual(pendingPlan(operation.cid, undefined));
+    await expect(waitForOperationCompletion(proxied, operation.cid)).resolves.toEqual(approvedPlan())
 
     const result2 = await proxied.createAsset("idempotency-key-2", "asset-id");
     expect((await storage().operationsAll()).length).toBe(1);
@@ -106,6 +131,8 @@ describe("Service operation tests", () => {
     expect((await storage().operationsAll()).length).toBe(2);
     operation = (await storage().operationsAll())[1];
 
+    await expect(waitForOperationCompletion(proxied, operation.cid)).resolves.toEqual(expect.anything())
+    operation = (await storage().operationsAll())[1];
     expect(operation.status).toEqual("failed");
     expect(operation.outputs).toMatch("connect to RPC");
   });
@@ -128,7 +155,7 @@ describe("Service operation tests", () => {
     const service = new Service();
     const proxied = createServiceProxy(storage(), undefined, service, {
       name: "approve",
-      operation: "approval",
+      pendingState: cid => pendingPlan(cid, undefined)
     });
 
     const idempotencyKey = Math.random().toString(36);
@@ -238,8 +265,8 @@ describe("Service operation tests", () => {
       storage(),
       undefined,
       service,
-      { name: "createAsset", operation: "createAsset" },
-      { name: "rejectPlan", operation: "approval" },
+      { name: "createAsset", pendingState: cid => pendingAssetCreation(cid, undefined) },
+      { name: "rejectPlan", pendingState: cid => pendingPlan(cid, undefined) },
     );
     await setTimeoutPromise(5000);
 
