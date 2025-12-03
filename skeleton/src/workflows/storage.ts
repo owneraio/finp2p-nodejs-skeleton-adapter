@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Pool } from 'pg';
 import { StorageConfig } from './config';
-import bs58 from 'bs58'
+import bs58 from 'bs58';
 
 export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes(64)));
 
