@@ -2,7 +2,6 @@ query getExecutionPlan($planId: String!) {
     plans(filter: { key: "id" operator: EQ value: $planId}) {
         nodes {
             id
-
             intent {
                 ...intentData
             }
@@ -16,6 +15,7 @@ query getExecutionPlan($planId: String!) {
                     organizationId
                 }
                 details {
+                    __typename
                     ... on IssueInstruction {
                         __typename
                         amount
@@ -228,6 +228,36 @@ query getExecutionPlan($planId: String!) {
                         __typename
                         waitTime
                     }
+                    ... on RevertHoldInstruction {
+                        __typename
+                        destinationAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                    }
                 }
                 status
                 state {
@@ -264,6 +294,8 @@ query getExecutionPlan($planId: String!) {
                     message
                 }
             }
+            creationTimestamp
+            lastModified
         }
     }
 }

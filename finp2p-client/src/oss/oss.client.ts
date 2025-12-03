@@ -6,7 +6,7 @@ import ORGANIZATIONS from './graphql/organization.graphql';
 import ASSETS from './graphql/assets.graphql';
 import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
 import EXECUTION_PLANS from './graphql/execution-plans.graphql';
-import {OssAssetNodes, OssEscrowNodes, OssExecutionPlanNodes, OssOrganizationNodes, OssOwnerNodes} from './model';
+import { OssAssetNodes, OssEscrowNodes, OssExecutionPlanNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
 export class OssClient {

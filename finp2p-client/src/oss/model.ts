@@ -1,4 +1,4 @@
-import {ExecutionPlan} from "./graphql";
+import { ExecutionPlan } from './graphql';
 
 export type LedgerAssetInfo = {
   tokenId: string
