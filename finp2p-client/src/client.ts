@@ -52,7 +52,12 @@ export class FinP2PClient {
     return this.finAPIClient.importTransactions(transactions);
   }
 
+
   async getExecutionPlan(planId: string) {
+    return this.ossClient.getExecutionPlan(planId);
+  }
+
+  async getOperationalExecutionPlan(planId: string) {
     return this.finAPIClient.getExecutionPlan(planId);
   }
 
