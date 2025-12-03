@@ -1,3 +1,5 @@
+import {ExecutionPlan} from "./graphql";
+
 export type LedgerAssetInfo = {
   tokenId: string
   ledgerReference?: LedgerReference
@@ -149,6 +151,11 @@ export type OssOrganization = {
 export type OssOrganizationNodes = {
   organizations: { nodes: OssOrganization[] }
 };
+
+export type OssExecutionPlanNodes = {
+  plans: { nodes: ExecutionPlan[] }
+};
+
 
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {
   const rawObject: unknown = JSON.parse(jsonString);

@@ -91,7 +91,7 @@ export class FinAPIClient {
     });
   }
 
-  async getExecutionPlan(planId: string) {
+  async getOperationalExecutionPlan(planId: string) {
     return this.opClient.GET('/execution/{planId}', { params: { path: { planId } } });
   }
 
