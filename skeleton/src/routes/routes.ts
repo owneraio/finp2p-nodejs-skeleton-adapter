@@ -8,7 +8,9 @@ import {
   Source,
   TokenService,
   pendingAssetCreation,
+  pendingDepositOperation,
   pendingPlan,
+  pendingReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
 import { Application } from 'express';
 import { PluginManager } from '../plugins';
@@ -64,6 +66,44 @@ export const register = (app: Application,
       {
         name: 'createAsset',
         pendingState: cid => pendingAssetCreation(cid, undefined),
+      },
+      {
+        name: 'issue',
+        pendingState: cid => pendingReceiptOperation(cid, undefined),
+      },
+      {
+        name: 'transfer',
+        pendingState: cid => pendingReceiptOperation(cid, undefined),
+      },
+      {
+        name: 'redeem',
+        pendingState: cid => pendingReceiptOperation(cid, undefined),
+      },
+    );
+
+    escrowService = createServiceProxy(storage, undefined, escrowService,
+      {
+        name: 'hold',
+        pendingState: cid => pendingReceiptOperation(cid, undefined),
+      },
+      {
+        name: 'release',
+        pendingState: cid => pendingReceiptOperation(cid, undefined),
+      },
+      {
+        name: 'rollback',
+        pendingState: cid => pendingReceiptOperation(cid, undefined),
+      },
+    );
+
+    paymentService = createServiceProxy(storage, undefined, paymentService,
+      {
+        name: 'getDepositInstruction',
+        pendingState: cid => pendingDepositOperation(cid, undefined),
+      },
+      {
+        name: 'payout',
+        pendingState: cid => pendingReceiptOperation(cid, undefined),
       },
     );
 
