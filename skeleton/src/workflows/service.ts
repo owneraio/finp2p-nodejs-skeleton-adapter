@@ -29,6 +29,7 @@ const dbStatus = <
 };
 
 export function createServiceProxy<T extends object>(
+  migrationJob: () => Promise<void>,
   storage: Storage,
   finP2PClient: FinP2PClient | undefined, // TODO: switch to callback oriented when tests are ready
   service: T,
@@ -40,22 +41,25 @@ export function createServiceProxy<T extends object>(
   methodsToProxy.forEach((m) => {
     const method = service[m.name];
     if (typeof method !== 'function') return;
-    storage.operations({ status: 'in_progress', method: String(m.name) }).then(
-      (operations) => {
-        operations.forEach((op) => {
-          method(...op.inputs).then(
-            (outputs: OperationStatus) => {
-              storage.update(op.cid, dbStatus(outputs), outputs);
-              return outputs; // TODO: callback
-            },
-            (error: any) => {
-              storage.update(op.cid, 'failed', String(error));
-            },
-          );
-        });
-      },
-      (error) => console.error(`Couldn'nt fetch pending operations: ${error}`),
-    );
+    migrationJob()
+      .then(() =>
+        storage.operations({ status: 'in_progress', method: String(m.name) }).then(
+          (operations) => {
+            operations.forEach((op) => {
+              method(...op.inputs).then(
+                (outputs: OperationStatus) => {
+                  storage.update(op.cid, dbStatus(outputs), outputs);
+                  return outputs; // TODO: callback
+                },
+                (error: any) => {
+                  storage.update(op.cid, 'failed', String(error));
+                },
+              );
+            });
+          },
+          (error) => console.error(`Couldn'nt fetch pending operations: ${error}`),
+        ),
+      );
   });
 
   const getOperationStatusMethod: keyof CommonService = 'operationStatus';

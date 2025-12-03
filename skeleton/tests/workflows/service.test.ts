@@ -103,6 +103,7 @@ describe("Service operation tests", () => {
 
     const impl = new Service();
     const proxied = createServiceProxy(
+      () => Promise.resolve(),
       storage(),
       undefined,
       impl,
@@ -153,7 +154,7 @@ describe("Service operation tests", () => {
     }
 
     const service = new Service();
-    const proxied = createServiceProxy(storage(), undefined, service, {
+    const proxied = createServiceProxy(() => Promise.resolve(), storage(), undefined, service, {
       name: "approve",
       pendingState: cid => pendingPlan(cid, undefined)
     });
@@ -262,6 +263,7 @@ describe("Service operation tests", () => {
 
     const service = new Service();
     const proxied = createServiceProxy(
+      () => Promise.resolve(),
       storage(),
       undefined,
       service,

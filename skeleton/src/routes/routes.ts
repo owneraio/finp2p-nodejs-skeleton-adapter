@@ -55,14 +55,14 @@ export const register = (app: Application,
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage) {
-    planService = createServiceProxy(storage, undefined, planService,
+    planService = createServiceProxy(() => migrationJob, storage, undefined, planService,
       {
         name: 'approvePlan',
         pendingState: cid => pendingPlan(cid, undefined),
       },
     );
 
-    tokenService = createServiceProxy(storage, undefined, tokenService,
+    tokenService = createServiceProxy(() => migrationJob, storage, undefined, tokenService,
       {
         name: 'createAsset',
         pendingState: cid => pendingAssetCreation(cid, undefined),
@@ -81,7 +81,7 @@ export const register = (app: Application,
       },
     );
 
-    escrowService = createServiceProxy(storage, undefined, escrowService,
+    escrowService = createServiceProxy(() => migrationJob, storage, undefined, escrowService,
       {
         name: 'hold',
         pendingState: cid => pendingReceiptOperation(cid, undefined),
@@ -96,7 +96,7 @@ export const register = (app: Application,
       },
     );
 
-    paymentService = createServiceProxy(storage, undefined, paymentService,
+    paymentService = createServiceProxy(() => migrationJob, storage, undefined, paymentService,
       {
         name: 'getDepositInstruction',
         pendingState: cid => pendingDepositOperation(cid, undefined),
@@ -107,7 +107,7 @@ export const register = (app: Application,
       },
     );
 
-    commonService = createServiceProxy(storage, undefined, commonService);
+    commonService = createServiceProxy(() => migrationJob, storage, undefined, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {
