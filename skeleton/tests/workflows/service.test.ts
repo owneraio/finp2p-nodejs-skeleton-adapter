@@ -58,7 +58,7 @@ describe("Service operation tests", () => {
     await container.cleanup();
   });
 
-  test.only("proxy intercepts only provided methods", async () => {
+  test("proxy intercepts only provided methods", async () => {
     class Service {
       async approvePlan(
         idempotencyKey: string,
