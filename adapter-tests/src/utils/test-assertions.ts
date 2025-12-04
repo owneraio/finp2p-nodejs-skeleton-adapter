@@ -233,4 +233,20 @@ export class TestHelpers {
     const status = await client.tokens.redeem(request);
     return TestHelpers.expectReceipt(client, status);
   }
+
+  /**
+   * Executes the operation and waits the operation to complete
+   */
+  static async executeAndWaitForCompletion<R extends { cid: string, isCompleted?: boolean }>(
+    client: LedgerAPIClient,
+    request: () => Promise<R>,
+  ): Promise<R> {
+    const status = await request();
+    if (status.isCompleted === true) {
+      return status;
+    }
+
+    await client.common.waitForCompletion(status.cid);
+    return (await client.common.getOperationStatus(status.cid)).operation as R;
+  }
 }

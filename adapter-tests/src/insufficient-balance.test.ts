@@ -3,6 +3,7 @@ import { TestDataBuilder } from './utils/test-builders';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
 import { generateId } from './utils/utils';
+import { TestHelpers } from './utils/test-assertions';
 
 export function insufficientBalanceTest() {
   describe('Insufficient Balance - Negative Tests', () => {
@@ -55,7 +56,7 @@ export function insufficientBalanceTest() {
         });
 
         // Execute transfer and expect it to fail
-        const transferStatus = await client.tokens.transfer(transferRequest);
+        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(transferRequest));
 
         // Verify operation has error
         expect(transferStatus.error).toBeDefined();
@@ -91,7 +92,7 @@ export function insufficientBalanceTest() {
           settlementAmount: (exactBalance + 1) * 10,
         });
 
-        const transferStatus = await client.tokens.transfer(transferRequest);
+        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(transferRequest));
 
         // Should fail
         expect(transferStatus.error).toBeDefined();
@@ -135,7 +136,7 @@ export function insufficientBalanceTest() {
         });
 
         // Try to hold more than balance
-        const holdStatus = await client.escrow.hold(holdRequest);
+        const holdStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
 
         // Should fail or error
         expect(holdStatus.error).toBeDefined();
@@ -171,7 +172,7 @@ export function insufficientBalanceTest() {
           operationId,
         });
 
-        const holdStatus = await client.escrow.hold(holdRequest);
+        const holdStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
 
         // Should fail
         expect(holdStatus.error).toBeDefined();
@@ -213,7 +214,7 @@ export function insufficientBalanceTest() {
           operationId,
         });
 
-        const holdStatus = await client.escrow.hold(holdRequest);
+        const holdStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
 
         // Should fail
         expect(holdStatus.error).toBeDefined();
@@ -250,7 +251,7 @@ export function insufficientBalanceTest() {
           operationId,
         });
 
-        const holdStatus = await client.escrow.hold(holdRequest);
+        const holdStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
 
         // Should fail
         expect(holdStatus.error).toBeDefined();
@@ -287,7 +288,7 @@ export function insufficientBalanceTest() {
           operationId: firstOperationId,
         });
 
-        const firstHoldStatus = await client.escrow.hold(firstHoldRequest);
+        const firstHoldStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(firstHoldRequest));
 
         // First hold should succeed
         expect(firstHoldStatus.error).toBeUndefined();
@@ -305,7 +306,7 @@ export function insufficientBalanceTest() {
           operationId: secondOperationId,
         });
 
-        const secondHoldStatus = await client.escrow.hold(secondHoldRequest);
+        const secondHoldStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(secondHoldRequest));
 
         // Second hold should fail (insufficient available balance)
         expect(secondHoldStatus.error).toBeDefined();
@@ -339,7 +340,7 @@ export function insufficientBalanceTest() {
           settlementAmount: 600,
         });
 
-        const firstStatus = await client.tokens.transfer(firstTransfer);
+        const firstStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(firstTransfer));
         expect(firstStatus.error).toBeUndefined();
 
         // Verify balances after first transfer
@@ -355,7 +356,7 @@ export function insufficientBalanceTest() {
           settlementAmount: 500,
         });
 
-        const secondStatus = await client.tokens.transfer(secondTransfer);
+        const secondStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(secondTransfer));
 
         // Should fail
         expect(secondStatus.error).toBeDefined();
