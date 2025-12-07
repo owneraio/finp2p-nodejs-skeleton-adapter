@@ -5,6 +5,14 @@ import {
   pendingAssetCreation,
   pendingDepositOperation,
   pendingReceiptOperation,
+  TokenService,
+  failedAssetCreation,
+  PlanApprovalService,
+  rejectedPlan,
+  failedReceiptOperation,
+  EscrowService,
+  PaymentService,
+  failedDepositOperation,
 } from '@owneraio/finp2p-adapter-models';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { Operation as StorageOperation, Storage, generateCid } from './storage';
@@ -25,6 +33,46 @@ const dbStatus = <
     case 'failure':
     default:
       return 'failed';
+  }
+};
+
+
+/**
+ * Makes method names compiletime safe by adding `keyof` constraint. Better than using string literals
+ */
+const compiletimeMethodName = <T>(methodName: keyof T): string => String(methodName);
+
+/**
+ * Depending on the method name it will provide the proper return object. Can return either `pending` or `error` state depending on args
+ */
+const wrappedResponse = (methodName: string, args: [cid: string] | [cid: string, errorCode: number, errorMessage: string]): any => {
+  const pendingOrError = <R>(pending: (cid: string) => R, error: (cid: string, errorCode: number, errorMessage: string) => R): R => {
+    if (args.length === 1) {
+      return pending(...args);
+    } else {
+      return error(...args);
+    }
+  };
+
+  switch (methodName) {
+    case compiletimeMethodName<TokenService>('createAsset'):
+      return pendingOrError(cid => pendingAssetCreation(cid, undefined), (cid, code, message) => failedAssetCreation(code, message));
+    case compiletimeMethodName<TokenService>('issue'):
+    case compiletimeMethodName<TokenService>('transfer'):
+    case compiletimeMethodName<TokenService>('redeem'):
+    case compiletimeMethodName<EscrowService>('hold'):
+    case compiletimeMethodName<EscrowService>('release'):
+    case compiletimeMethodName<EscrowService>('rollback'):
+    case compiletimeMethodName<PaymentService>('payout'):
+      return pendingOrError(cid => pendingReceiptOperation(cid, undefined), (cid, code, message) => failedReceiptOperation(code, message));
+    case compiletimeMethodName<PlanApprovalService>('approvePlan'):
+      return pendingOrError(cid => pendingPlan(cid, undefined), (cid, code, message) => rejectedPlan(code, message));
+    case compiletimeMethodName<PaymentService>('getDepositInstruction'):
+      return pendingOrError(cid => pendingDepositOperation(cid, undefined), (cid, code, message) => failedDepositOperation(code, message));
+    default:
+      return {
+        wrappedArgs: args,
+      };
   }
 };
 
@@ -52,7 +100,7 @@ export function createServiceProxy<T extends object>(
                   return outputs; // TODO: callback
                 },
                 (error: any) => {
-                  storage.update(op.cid, 'failed', String(error));
+                  storage.update(op.cid, 'failed', wrappedResponse(op.method, [op.cid, 1, String(error)]));
                 },
               );
             });
@@ -91,7 +139,7 @@ export function createServiceProxy<T extends object>(
       }
       return async function (this: any, ...args: any[]) {
         const correlationId = generateCid();
-        const pendingPlaceholder = m.pendingState(correlationId);
+        const pendingPlaceholder = wrappedResponse(String(prop), [correlationId]);
 
         const [storageOperation, inserted] = await storage.insert({
           inputs: args, // <- already contains idempotency key
@@ -115,7 +163,7 @@ export function createServiceProxy<T extends object>(
           resolve(status);
         }).then(
           (op) => storage.update(correlationId, dbStatus(op), op),
-          (error) => storage.update(correlationId, 'failed', String(error)),
+          (error) => storage.update(correlationId, 'failed', wrappedResponse(String(prop), [correlationId, 1, String(error)])),
         );
 
         return pendingPlaceholder;

@@ -129,13 +129,14 @@ describe("Service operation tests", () => {
     expect((await storage().operationsAll()).length).toBe(1);
 
     const crash = await proxied.deposit("idempotency-key-3", "155.322");
+    await setTimeoutPromise(5000)
     expect((await storage().operationsAll()).length).toBe(2);
     operation = (await storage().operationsAll())[1];
 
     await expect(waitForOperationCompletion(proxied, operation.cid)).resolves.toEqual(expect.anything())
     operation = (await storage().operationsAll())[1];
     expect(operation.status).toEqual("failed");
-    expect(operation.outputs).toMatch("connect to RPC");
+    expect(JSON.stringify(operation.outputs)).toMatch("connect to RPC");
   });
 
   test("calling the same inputs will result cached response", async () => {
@@ -301,8 +302,10 @@ describe("Service operation tests", () => {
     await expect(storage().operation(row3.cid)).resolves.toEqual({
       ...row3,
       updated_at: expect.any(Date),
-      outputs: expect.stringContaining("OSS failed to return proper data"),
+      outputs: expect.anything(),
       status: "failed",
     });
+    expect(JSON.stringify(await storage().operation(row3.cid))).toMatch("OSS failed to return proper data")
+
   });
 });
