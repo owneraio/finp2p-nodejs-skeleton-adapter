@@ -60,7 +60,7 @@ export function businessLogicTests() {
           asset: asset,
         };
 
-        const rollbackStatus = await client.escrow.rollback(rollbackRequest);
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
         expect(rollbackStatus.error).toBeUndefined();
 
         // Verify funds are fully restored
@@ -85,7 +85,7 @@ export function businessLogicTests() {
           asset: asset,
         };
 
-        const rollbackStatus = await client.escrow.rollback(rollbackRequest);
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
 
         // Should fail - no hold exists
         expect(rollbackStatus.error).toBeDefined();
@@ -136,7 +136,7 @@ export function businessLogicTests() {
           asset: asset,
         };
 
-        const rollbackStatus = await client.escrow.rollback(rollbackRequest);
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
 
         // Should fail - already released
         expect(rollbackStatus.error).toBeDefined();
@@ -179,7 +179,7 @@ export function businessLogicTests() {
           asset: asset,
         };
 
-        const rollbackStatus = await client.escrow.rollback(rollbackRequest);
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
 
         // Should fail
         expect(rollbackStatus.error).toBeDefined();
@@ -221,11 +221,11 @@ export function businessLogicTests() {
         });
 
         // First release (should succeed)
-        const firstRelease = await client.escrow.release(releaseRequest);
+        const firstRelease = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
         expect(firstRelease.error).toBeUndefined();
 
         // Second release (should fail)
-        const secondRelease = await client.escrow.release(releaseRequest);
+        const secondRelease = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
         expect(secondRelease.error).toBeDefined();
       });
 
@@ -251,14 +251,14 @@ export function businessLogicTests() {
           operationId,
         });
 
-        await client.escrow.hold(holdRequest);
+        await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
 
         // First redeem (should succeed)
-        const firstRedeem = await client.tokens.redeem(redeemRequest);
+        const firstRedeem = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
         expect(firstRedeem.error).toBeUndefined();
 
         // Second redeem (should fail)
-        const secondRedeem = await client.tokens.redeem(redeemRequest);
+        const secondRedeem = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
         expect(secondRedeem.error).toBeDefined();
       });
 
@@ -291,11 +291,11 @@ export function businessLogicTests() {
         };
 
         // First rollback (should succeed)
-        const firstRollback = await client.escrow.rollback(rollbackRequest);
+        const firstRollback = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
         expect(firstRollback.error).toBeUndefined();
 
         // Second rollback (should fail)
-        const secondRollback = await client.escrow.rollback(rollbackRequest);
+        const secondRollback = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
         expect(secondRollback.error).toBeDefined();
       });
     });
@@ -321,7 +321,7 @@ export function businessLogicTests() {
           operationId: fakeOperationId,
         });
 
-        const releaseStatus = await client.escrow.release(releaseRequest);
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
         expect(releaseStatus.error).toBeDefined();
       });
 
@@ -348,7 +348,7 @@ export function businessLogicTests() {
           operationId: fakeOperationId,
         });
 
-        const redeemStatus = await client.tokens.redeem(redeemRequest);
+        const redeemStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
         expect(redeemStatus.error).toBeDefined();
       });
 
@@ -375,7 +375,7 @@ export function businessLogicTests() {
           operationId: holdOperationId,
         });
 
-        await client.escrow.hold(holdRequest);
+        await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
 
         // Try to redeem with different operationId
         const differentOperationId = generateId();
@@ -388,7 +388,7 @@ export function businessLogicTests() {
           operationId: differentOperationId,
         });
 
-        const redeemStatus = await client.tokens.redeem(redeemRequest);
+        const redeemStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
         expect(redeemStatus.error).toBeDefined();
       });
     });
@@ -406,7 +406,7 @@ export function businessLogicTests() {
           settlementRef: generateId(),
         });
 
-        const issueStatus = await client.tokens.issue(issueRequest);
+        const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.issue(issueRequest));
 
         // Should fail - asissueStatus = Object {isCompleted: true,
         // cid: "",
@@ -434,7 +434,7 @@ export function businessLogicTests() {
           settlementRef: generateId(),
         });
 
-        const issueStatus = await client.tokens.issue(issueRequest);
+        const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.issue(issueRequest));
         expect(issueStatus.error).toBeUndefined();
       });
 
@@ -492,7 +492,7 @@ export function businessLogicTests() {
           settlementAmount: 0,
         });
 
-        const transferStatus = await client.tokens.transfer(transferRequest);
+        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(transferRequest));
 
         // Implementation-dependent: might succeed or fail
         if (!transferStatus.error) {
@@ -527,7 +527,7 @@ export function businessLogicTests() {
           operationId,
         });
 
-        const holdStatus = await client.escrow.hold(holdRequest);
+        const holdStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
 
         // Implementation-dependent: might succeed or fail
         if (!holdStatus.error) {
@@ -571,7 +571,7 @@ export function businessLogicTests() {
           operationId,
         });
 
-        const releaseStatus = await client.escrow.release(releaseRequest);
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
 
         // Should fail - wrong source
         expect(releaseStatus.error).toBeDefined();
@@ -603,7 +603,7 @@ export function businessLogicTests() {
 
         // In real implementation, signature verification should fail
         // For now, we just check the operation
-        const transferStatus = await client.tokens.transfer(transferRequest);
+        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(transferRequest));
 
         // Should fail due to signature mismatch (in proper implementation)
         // Or succeed but only if properly signed
@@ -648,7 +648,7 @@ export function businessLogicTests() {
           operationId,
         });
 
-        const releaseStatus = await client.escrow.release(partialReleaseRequest);
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(partialReleaseRequest));
 
         // Implementation-dependent: might support partial release or not
         if (!releaseStatus.error) {
