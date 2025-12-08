@@ -87,7 +87,8 @@ export function createServiceProxy<T extends object>(
     methodsToProxy.forEach((m) => {
       const method = service[m];
       if (typeof method !== 'function') return;
-      storage.operations({ status: 'in_progress', method: String(m) }).then(
+
+      storage.getPendingOperations(String(m)).then(
         (operations) => {
           operations.forEach((op) => {
             method(...op.inputs).then(

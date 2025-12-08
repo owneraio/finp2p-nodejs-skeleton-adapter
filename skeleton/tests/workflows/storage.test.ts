@@ -129,26 +129,26 @@ describe('Storage operations', () => {
     });
     expect(inserted1).toBe(true);
     await expect(
-      storage().operations({ status: "succeeded", method: "method" }),
-    ).resolves.toEqual([]);
-    await expect(
-      storage().operations({ status: "failed", method: "method" }),
-    ).resolves.toEqual([]);
-    await expect(
-      storage().operations({ status: "in_progress", method: "method" }),
+      storage().getPendingOperations("method"),
     ).resolves.toEqual([row1]);
+    await expect(
+      storage().getFailedOperations("method"),
+    ).resolves.toEqual([]);
+    await expect(
+      storage().getCompletedOperations("method"),
+    ).resolves.toEqual([]);
 
     const updatedRow1 = await storage().update("cid-1", "succeeded", {
       value: 42,
     });
     await expect(
-      storage().operations({ status: "in_progress", method: "method" }),
+      storage().getPendingOperations("method"),
     ).resolves.toEqual([]);
     await expect(
-      storage().operations({ status: "failed", method: "method" }),
+      storage().getFailedOperations("method"),
     ).resolves.toEqual([]);
     await expect(
-      storage().operations({ status: "succeeded", method: "method" }),
+      storage().getCompletedOperations("method"),
     ).resolves.toEqual([updatedRow1]);
 
     const [row2, inserted2] = await storage().insert({
@@ -160,16 +160,16 @@ describe('Storage operations', () => {
     });
     expect(inserted2).toBe(true);
     await expect(
-      storage().operations({ status: "in_progress", method: "method" }),
+      storage().getPendingOperations("method"),
     ).resolves.toEqual([]);
     await expect(
-      storage().operations({ status: "failed", method: "method" }),
+      storage().getFailedOperations("method"),
     ).resolves.toEqual([]);
     await expect(
-      storage().operations({ status: "succeeded", method: "method" }),
+      storage().getCompletedOperations("method"),
     ).resolves.toEqual([updatedRow1, row2]);
     await expect(
-      storage().operations({ status: "succeeded", method: "unknown-method" }),
+      storage().getCompletedOperations("unknown-method"),
     ).resolves.toEqual([]);
   });
 });
