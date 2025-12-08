@@ -56,55 +56,25 @@ export const register = (app: Application,
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage) {
     planService = createServiceProxy(() => migrationJob, storage, undefined, planService,
-      {
-        name: 'approvePlan',
-        pendingState: cid => pendingPlan(cid, undefined),
-      },
+      'approvePlan',
     );
 
     tokenService = createServiceProxy(() => migrationJob, storage, undefined, tokenService,
-      {
-        name: 'createAsset',
-        pendingState: cid => pendingAssetCreation(cid, undefined),
-      },
-      {
-        name: 'issue',
-        pendingState: cid => pendingReceiptOperation(cid, undefined),
-      },
-      {
-        name: 'transfer',
-        pendingState: cid => pendingReceiptOperation(cid, undefined),
-      },
-      {
-        name: 'redeem',
-        pendingState: cid => pendingReceiptOperation(cid, undefined),
-      },
+      'createAsset',
+      'issue',
+      'transfer',
+      'redeem',
     );
 
     escrowService = createServiceProxy(() => migrationJob, storage, undefined, escrowService,
-      {
-        name: 'hold',
-        pendingState: cid => pendingReceiptOperation(cid, undefined),
-      },
-      {
-        name: 'release',
-        pendingState: cid => pendingReceiptOperation(cid, undefined),
-      },
-      {
-        name: 'rollback',
-        pendingState: cid => pendingReceiptOperation(cid, undefined),
-      },
+      'hold',
+      'release',
+      'rollback',
     );
 
     paymentService = createServiceProxy(() => migrationJob, storage, undefined, paymentService,
-      {
-        name: 'getDepositInstruction',
-        pendingState: cid => pendingDepositOperation(cid, undefined),
-      },
-      {
-        name: 'payout',
-        pendingState: cid => pendingReceiptOperation(cid, undefined),
-      },
+      'getDepositInstruction',
+      'payout',
     );
 
     commonService = createServiceProxy(() => migrationJob, storage, undefined, commonService);

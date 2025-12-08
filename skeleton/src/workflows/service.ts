@@ -81,34 +81,30 @@ export function createServiceProxy<T extends object>(
   storage: Storage,
   finP2PClient: FinP2PClient | undefined, // TODO: switch to callback oriented when tests are ready
   service: T,
-  ...methodsToProxy: {
-    name: keyof T;
-    pendingState: (correlationId: string) => OperationStatus
-  }[]
+  ...methodsToProxy: (keyof T)[]
 ): T {
-  methodsToProxy.forEach((m) => {
-    const method = service[m.name];
-    if (typeof method !== 'function') return;
-    migrationJob()
-      .then(() =>
-        storage.operations({ status: 'in_progress', method: String(m.name) }).then(
-          (operations) => {
-            operations.forEach((op) => {
-              method(...op.inputs).then(
-                (outputs: OperationStatus) => {
-                  storage.update(op.cid, dbStatus(outputs), outputs);
-                  return outputs; // TODO: callback
-                },
-                (error: any) => {
-                  storage.update(op.cid, 'failed', wrappedResponse(op.method, [op.cid, 1, String(error)]));
-                },
-              );
-            });
-          },
-          (error) => console.error(`Couldn'nt fetch pending operations: ${error}`),
-        ),
+  migrationJob().then(() =>
+    methodsToProxy.forEach((m) => {
+      const method = service[m];
+      if (typeof method !== 'function') return;
+      storage.operations({ status: 'in_progress', method: String(m) }).then(
+        (operations) => {
+          operations.forEach((op) => {
+            method(...op.inputs).then(
+              (outputs: OperationStatus) => {
+                storage.update(op.cid, dbStatus(outputs), outputs);
+                return outputs; // TODO: callback
+              },
+              (error: any) => {
+                storage.update(op.cid, 'failed', wrappedResponse(op.method, [op.cid, 1, String(error)]));
+              },
+            );
+          });
+        },
+        (error) => console.error(`Couldn'nt fetch pending operations: ${error}`),
       );
-  });
+    }),
+  );
 
   const getOperationStatusMethod: keyof CommonService = 'operationStatus';
 
@@ -133,7 +129,7 @@ export function createServiceProxy<T extends object>(
         };
       }
 
-      const m = methodsToProxy.find((m) => m.name === String(prop));
+      const m = methodsToProxy.find((m) => m === String(prop));
       if (!m) {
         return originalMethod;
       }

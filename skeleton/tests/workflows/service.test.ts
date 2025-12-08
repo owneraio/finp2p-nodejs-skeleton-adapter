@@ -14,25 +14,33 @@ import {
   Storage,
 } from "../../src/workflows";
 
-async function waitForOperationCompletion<T extends { operationStatus(cid: string): Promise<any> }>(obj: T, cid: string): Promise<any> {
+async function waitForOperationCompletion<
+  T extends { operationStatus(cid: string): Promise<any> },
+>(obj: T, cid: string): Promise<any> {
   for (let i = 0; i < 30; i++) {
-    const result = await obj.operationStatus(cid) as { correlationId?: string }
+    const result = (await obj.operationStatus(cid)) as {
+      correlationId?: string;
+    };
     console.debug({
       attempt: i,
-      result
-    })
+      result,
+    });
     if (result.correlationId === undefined) {
-      return result
+      return result;
     }
 
-    await setTimeoutPromise(300)
+    await setTimeoutPromise(300);
   }
 
-  throw new Error('Operation not finished')
+  throw new Error("Operation not finished");
 }
 
 describe("Service operation tests", () => {
-  let container: { connectionString: string; storageUser: string, cleanup: () => Promise<void> } = {
+  let container: {
+    connectionString: string;
+    storageUser: string;
+    cleanup: () => Promise<void>;
+  } = {
     connectionString: "",
     storageUser: "",
     cleanup: () => Promise.resolve(),
@@ -48,7 +56,7 @@ describe("Service operation tests", () => {
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
-      storageUser: container.storageUser
+      storageUser: container.storageUser,
     });
     const s = new Storage(container);
     storage = () => s;
@@ -97,7 +105,7 @@ describe("Service operation tests", () => {
       }
 
       async operationStatus(cid: string): Promise<any> {
-        console.debug('Original called')
+        console.debug("Original called");
       }
     }
 
@@ -107,14 +115,8 @@ describe("Service operation tests", () => {
       storage(),
       undefined,
       impl,
-      {
-        name: "approvePlan",
-        pendingState: cid => pendingPlan(cid, undefined)
-      },
-      {
-        name: "deposit",
-        pendingState: cid => pendingDepositOperation(cid, undefined)
-      },
+      "approvePlan",
+      "deposit",
     );
 
     await expect(storage().operationsAll()).resolves.toEqual([]);
@@ -123,17 +125,21 @@ describe("Service operation tests", () => {
     let operation = (await storage().operationsAll())[0];
     expect(operation.inputs).toEqual(["idempotency-key-1", "plan1"]);
     expect(result).toEqual(pendingPlan(operation.cid, undefined));
-    await expect(waitForOperationCompletion(proxied, operation.cid)).resolves.toEqual(approvedPlan())
+    await expect(
+      waitForOperationCompletion(proxied, operation.cid),
+    ).resolves.toEqual(approvedPlan());
 
     const result2 = await proxied.createAsset("idempotency-key-2", "asset-id");
     expect((await storage().operationsAll()).length).toBe(1);
 
     const crash = await proxied.deposit("idempotency-key-3", "155.322");
-    await setTimeoutPromise(5000)
+    await setTimeoutPromise(5000);
     expect((await storage().operationsAll()).length).toBe(2);
     operation = (await storage().operationsAll())[1];
 
-    await expect(waitForOperationCompletion(proxied, operation.cid)).resolves.toEqual(expect.anything())
+    await expect(
+      waitForOperationCompletion(proxied, operation.cid),
+    ).resolves.toEqual(expect.anything());
     operation = (await storage().operationsAll())[1];
     expect(operation.status).toEqual("failed");
     expect(JSON.stringify(operation.outputs)).toMatch("connect to RPC");
@@ -155,10 +161,13 @@ describe("Service operation tests", () => {
     }
 
     const service = new Service();
-    const proxied = createServiceProxy(() => Promise.resolve(), storage(), undefined, service, {
-      name: "approve",
-      pendingState: cid => pendingPlan(cid, undefined)
-    });
+    const proxied = createServiceProxy(
+      () => Promise.resolve(),
+      storage(),
+      undefined,
+      service,
+      "approve",
+    );
 
     const idempotencyKey = Math.random().toString(36);
     const planId = Math.random().toString();
@@ -268,8 +277,8 @@ describe("Service operation tests", () => {
       storage(),
       undefined,
       service,
-      { name: "createAsset", pendingState: cid => pendingAssetCreation(cid, undefined) },
-      { name: "rejectPlan", pendingState: cid => pendingPlan(cid, undefined) },
+      "createAsset",
+      "rejectPlan",
     );
     await setTimeoutPromise(5000);
 
@@ -305,7 +314,8 @@ describe("Service operation tests", () => {
       outputs: expect.anything(),
       status: "failed",
     });
-    expect(JSON.stringify(await storage().operation(row3.cid))).toMatch("OSS failed to return proper data")
-
+    expect(JSON.stringify(await storage().operation(row3.cid))).toMatch(
+      "OSS failed to return proper data",
+    );
   });
 });
