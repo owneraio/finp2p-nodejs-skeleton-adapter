@@ -7,6 +7,10 @@ import {
   PlanApprovalService,
   Source,
   TokenService,
+  pendingAssetCreation,
+  pendingDepositOperation,
+  pendingPlan,
+  pendingReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
 import { Application } from 'express';
 import { PluginManager } from '../plugins';
@@ -51,19 +55,29 @@ export const register = (app: Application,
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage) {
-    planService = createServiceProxy(storage, undefined, planService,
-      {
-        name: 'approvePlan',
-        operation: 'approval',
-      },
+    planService = createServiceProxy(() => migrationJob, storage, undefined, planService,
+      'approvePlan',
     );
 
-    tokenService = createServiceProxy(storage, undefined, tokenService,
-      {
-        name: 'createAsset',
-        operation: 'createAsset',
-      },
+    tokenService = createServiceProxy(() => migrationJob, storage, undefined, tokenService,
+      'createAsset',
+      'issue',
+      'transfer',
+      'redeem',
     );
+
+    escrowService = createServiceProxy(() => migrationJob, storage, undefined, escrowService,
+      'hold',
+      'release',
+      'rollback',
+    );
+
+    paymentService = createServiceProxy(() => migrationJob, storage, undefined, paymentService,
+      'getDepositInstruction',
+      'payout',
+    );
+
+    commonService = createServiceProxy(() => migrationJob, storage, undefined, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {

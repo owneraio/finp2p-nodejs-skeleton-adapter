@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { Pool } from 'pg';
 import { StorageConfig } from './config';
+import bs58 from 'bs58';
 
-export const generateCid = (): string => randomBytes(64).toString('base64');
+export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes(64)));
 
 export interface Operation {
   cid: string;
@@ -78,6 +79,23 @@ export class Storage {
   async operationsAll(): Promise<Operation[]> {
     const result = await this.c.query('SELECT * FROM ledger_adapter.operations');
     return result.rows;
+  }
+
+  private async operations(opts: { status: Operation['status'], method: string }): Promise<Operation[]> {
+    const result = await this.c.query('SELECT * FROM ledger_adapter.operations WHERE status = $1 AND method = $2;', [opts.status, opts.method]);
+    return result.rows;
+  }
+
+  async getPendingOperations(method: string): Promise<Operation[]> {
+    return this.operations({ method, status: 'in_progress' });
+  }
+
+  async getFailedOperations(method: string): Promise<Operation[]> {
+    return this.operations({ method, status: 'failed' });
+  }
+
+  async getCompletedOperations(method: string): Promise<Operation[]> {
+    return this.operations({ method, status: 'succeeded' });
   }
 
   async update(
