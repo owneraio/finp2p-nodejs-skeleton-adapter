@@ -15,7 +15,7 @@ export function businessLogicTests() {
 
     beforeAll(async () => {
       // @ts-ignore
-      client = new LedgerAPIClient(global.serverAddress, true);
+      client = new LedgerAPIClient(global.serverAddress, global.callbackServer);
       // @ts-ignore
       orgId = global.orgId;
 
