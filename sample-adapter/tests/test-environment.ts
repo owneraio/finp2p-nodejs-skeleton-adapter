@@ -7,7 +7,8 @@ import { exec } from 'node:child_process';
 import { RandomPortGenerator } from "testcontainers";
 import createApp from "../src/app";
 import { workflows } from "@owneraio/finp2p-nodejs-skeleton-adapter"
-
+import { callbackServer } from '@owneraio/adapter-tests'
+import { FinP2PClient } from "@owneraio/finp2p-client";
 type AdapterParameters = {
   url: string,
 }
@@ -17,6 +18,7 @@ class CustomTestEnvironment extends NodeEnvironment {
   adapter: AdapterParameters | undefined;
   httpServer: http.Server | undefined;
   postgresContainer: StartedPostgreSqlContainer | undefined;
+  callbackServer: callbackServer.CallbackServer | undefined;
 
   constructor(config: JestEnvironmentConfig, context: EnvironmentContext) {
     super(config, context);
@@ -30,6 +32,7 @@ class CustomTestEnvironment extends NodeEnvironment {
     }
 
     try {
+      this.global.callbackServer = await this.startCallbackServer()
       await this.startPostgresContainer()
       this.global.serverAddress = await this.startApp();
     } catch (err) {
@@ -40,6 +43,7 @@ class CustomTestEnvironment extends NodeEnvironment {
   async teardown() {
     try {
       this.httpServer?.close();
+      await this.callbackServer?.close()
       await workflows.Storage.closeAllConnections()
       console.log("Server stopped successfully.");
     } catch (err) {
@@ -53,10 +57,15 @@ class CustomTestEnvironment extends NodeEnvironment {
     }
   }
 
+  private async startCallbackServer() {
+    this.callbackServer = await callbackServer.create(randomPort())
+    return this.callbackServer
+  }
+
   private async startApp() {
     const port = await new RandomPortGenerator().generatePort()
     const connectionString = this.postgresContainer?.getConnectionUri() ?? ""
-    const app = createApp("my-org", undefined, {
+    const app = createApp("my-org", new FinP2PClient(this.callbackServer?.address ?? "", ""), {
       migration: {
         connectionString,
         migrationListTableName: "finp2p_nodejs_skeleton",
