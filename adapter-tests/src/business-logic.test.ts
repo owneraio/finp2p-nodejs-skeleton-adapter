@@ -125,7 +125,7 @@ export function businessLogicTests() {
           operationId,
         });
 
-        const releaseStatus = await client.escrow.release(releaseRequest);
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
         expect(releaseStatus.error).toBeUndefined();
 
         // Try to rollback already released hold
