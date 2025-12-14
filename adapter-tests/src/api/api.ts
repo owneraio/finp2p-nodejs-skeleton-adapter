@@ -108,11 +108,14 @@ export class LedgerAPIClient {
 
   public readonly common: CommonLedgerAPI;
 
-  constructor(host: string) {
+  public readonly callbackServer: CallbackServer | undefined;
+
+  constructor(host: string, callbackServer?: CallbackServer) {
     this.tokens = new TokensLedgerAPI(host);
     this.escrow = new EscrowLedgerAPI(host);
     this.payments = new PaymentsLedgerAPI(host);
     this.common = new CommonLedgerAPI(host);
+    this.callbackServer = callbackServer;
   }
 
   /* deprecated

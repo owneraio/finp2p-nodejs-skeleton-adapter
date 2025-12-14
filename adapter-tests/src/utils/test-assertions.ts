@@ -215,13 +215,18 @@ export class TestHelpers {
   /**
    * Executes the operation and waits the operation to complete
    */
-  static async executeAndWaitForCompletion<R extends { cid: string, isCompleted?: boolean }>(
+  static async executeAndWaitForCompletion<R extends LedgerAPI['schemas']['OperationBase']>(
     client: LedgerAPIClient,
     request: () => Promise<R>,
   ): Promise<R> {
     const operation = await request();
     if (operation.isCompleted === true) {
       return operation;
+    }
+
+    if (operation.operationMetadata?.operationResponseStrategy?.type === 'callback') {
+      client.callbackServer!.expectLater(operation.cid)
+      return client.callbackServer!.operation(operation.cid) as Promise<R>
     }
 
     for (let i = 1; i < 3000; i++) {
@@ -238,7 +243,7 @@ export class TestHelpers {
   /**
    * Executes the operations and waits the operation to complete with receipt
    */
-  static async executeAndWaitForReceipt<R extends { cid: string, isCompleted?: boolean, response?: { id: string } }>(
+  static async executeAndWaitForReceipt<R extends LedgerAPI['schemas']['OperationBase'] & { response?: { id: string } }>(
     client: LedgerAPIClient,
     request: () => Promise<R>,
   ): Promise<LedgerAPI['schemas']['receipt']> {
