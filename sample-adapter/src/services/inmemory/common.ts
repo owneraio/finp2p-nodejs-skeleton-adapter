@@ -1,11 +1,11 @@
-import { Storage } from './storage';
 import {
-  BusinessError, CommonService, HealthService, ValidationError,
+  CommonService, HealthService,
   OperationStatus,
   ReceiptOperation,
-  successfulReceiptOperation,
+  ValidationError,
+  successfulReceiptOperation
 } from '@owneraio/finp2p-adapter-models';
-import { HoldOperation, Transaction } from './model';
+import { Storage } from './storage';
 
 export class CommonServiceImpl implements CommonService, HealthService {
 
@@ -23,14 +23,8 @@ export class CommonServiceImpl implements CommonService, HealthService {
     return Promise.resolve();
   }
 
-  transactions: Record<string, Transaction> = {};
-
-  public registerTransaction(tx: Transaction) {
-    this.transactions[tx.id] = tx;
-  }
-
   public async getReceipt(id: string): Promise<ReceiptOperation> {
-    const tx = this.transactions[id];
+    const tx = this.storage.transactions[id];
     if (tx === undefined) {
       throw new ValidationError('transaction not found!');
     }
@@ -38,7 +32,7 @@ export class CommonServiceImpl implements CommonService, HealthService {
   }
 
   public async operationStatus(cid: string): Promise<OperationStatus> {
-    const tx = this.transactions[cid];
+    const tx = this.storage.transactions[cid];
     if (tx === undefined) {
       throw new ValidationError('transaction not found!');
     }

@@ -1,5 +1,5 @@
 import { Asset, BusinessError } from '@owneraio/finp2p-adapter-models';
-import { HoldOperation } from './model';
+import { HoldOperation, Transaction } from './model';
 import { Account } from './accounts';
 
 
@@ -11,6 +11,8 @@ export class Storage {
 
   holdOperations: Record<string, HoldOperation> = {};
 
+  transactions: Record<string, Transaction> = {};
+
   createAsset(assetId: string, asset: Asset) {
     this.assets[assetId] = asset;
   }
@@ -20,6 +22,10 @@ export class Storage {
     if (asset === undefined) {
       throw new BusinessError(1, `Asset ${assetId} not found`);
     }
+  }
+
+  registerTransaction(tx: Transaction) {
+    this.transactions[tx.id] = tx;
   }
 
   saveHoldOperation(operationId: string, finId: string, quantity: string) {
