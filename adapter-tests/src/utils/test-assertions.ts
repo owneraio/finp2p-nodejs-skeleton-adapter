@@ -224,10 +224,10 @@ export class TestHelpers {
       return operation;
     }
 
-    if (operation.operationMetadata?.operationResponseStrategy?.type === 'callback') {
-      client.callbackServer!.expectLater(operation.cid)
-      return client.callbackServer!.operation(operation.cid) as Promise<R>
-    }
+    //    if (operation.operationMetadata?.operationResponseStrategy?.type === 'callback') {
+    client.callbackServer!.expectLater(operation.cid);
+    return client.callbackServer!.operation(operation.cid) as Promise<R>;
+    //   }
 
     for (let i = 1; i < 3000; i++) {
       const status = await client.common.getOperationStatus(operation.cid);

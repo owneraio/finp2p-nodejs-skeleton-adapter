@@ -16,6 +16,7 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { Operation as StorageOperation, Storage, generateCid } from './storage';
+import { operationStatusToAPI } from '../routes/mapping';
 
 const dbStatus = <
   T extends
@@ -76,6 +77,14 @@ const wrappedResponse = (methodName: string, args: [cid: string] | [cid: string,
   }
 };
 
+const sendCallbackIfNeeded = (finP2PClient: FinP2PClient | undefined, methodName: string, cid: string, status: OperationStatus):  Promise<OperationStatus> => {
+  if (finP2PClient === undefined) { return Promise.resolve(status); }
+
+  console.debug(`sending callback for ${cid}, ${methodName}`);
+  // @ts-ignore
+  return finP2PClient.sendCallback(cid, operationStatusToAPI(status)).then(() => Promise.resolve(status));
+};
+
 export function createServiceProxy<T extends object>(
   migrationJob: () => Promise<void>,
   storage: Storage,
@@ -94,10 +103,11 @@ export function createServiceProxy<T extends object>(
             method(...op.inputs).then(
               (outputs: OperationStatus) => {
                 storage.update(op.cid, dbStatus(outputs), outputs);
-                return outputs; // TODO: callback
+                return sendCallbackIfNeeded(finP2PClient, op.method, op.cid, outputs);
               },
               (error: any) => {
                 storage.update(op.cid, 'failed', wrappedResponse(op.method, [op.cid, 1, String(error)]));
+                return sendCallbackIfNeeded(finP2PClient, op.method, op.cid, error as OperationStatus);
               },
             );
           });
@@ -159,8 +169,8 @@ export function createServiceProxy<T extends object>(
 
           resolve(status);
         }).then(
-          (op) => storage.update(correlationId, dbStatus(op), op),
-          (error) => storage.update(correlationId, 'failed', wrappedResponse(String(prop), [correlationId, 1, String(error)])),
+          (op) => storage.update(correlationId, dbStatus(op), op).then(() => sendCallbackIfNeeded(finP2PClient, String(prop), correlationId, op)),
+          (error) => storage.update(correlationId, 'failed', wrappedResponse(String(prop), [correlationId, 1, String(error)])).then(() => sendCallbackIfNeeded(finP2PClient, String(prop), correlationId, wrappedResponse(String(prop), [correlationId, 1, String(error)]))),
         );
 
         return pendingPlaceholder;

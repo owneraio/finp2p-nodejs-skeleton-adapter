@@ -3,6 +3,7 @@ import { sleep } from '../utils/utils';
 
 const register = (app: express.Application, operationsCache: Map<string, any>) => {
   app.post('/operations/callback/:cid', async (req, res) => {
+    console.debug(`callback received for ${req.params.cid}`);
     operationsCache.set(req.params.cid, req.body);
   });
 };
@@ -22,6 +23,7 @@ export class CallbackServer {
   }
 
   expectLater(cid: string) {
+    console.debug(`parking as expected: ${cid}`);
     this.operationsCache.set(cid, this.parkedMark);
   }
 
@@ -33,14 +35,16 @@ export class CallbackServer {
     for (let i = 0; i < 30; i++) {
       const result = this.operationsCache.get(cid);
       if (result === this.parkedMark) {
+        console.debug(`waiting callback for ${cid}`);
         await sleep(500);
         continue;
       }
       if (result !== undefined) {
-        return result;
+        return result.operation;
       }
     }
 
+    debugger;
     throw new Error('Expected callback in reasonable time, but not received');
   }
 }
