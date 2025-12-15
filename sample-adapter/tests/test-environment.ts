@@ -60,7 +60,8 @@ class CustomTestEnvironment extends NodeEnvironment {
       migration: {
         connectionString,
         migrationListTableName: "finp2p_nodejs_skeleton",
-        gooseExecutablePath: await this.whichGoose()
+        gooseExecutablePath: await this.whichGoose(),
+        storageUser: new URL(connectionString).username
       },
       storage: {
         connectionString
