@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.26.1-poll.0",
+  "version": "0.26.1",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
