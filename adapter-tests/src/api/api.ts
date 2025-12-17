@@ -61,7 +61,7 @@ export class CommonLedgerAPI extends ClientBase {
   }
 
   public async getReceipt(id: string): Promise<LedgerAPI['schemas']['GetReceiptResponse']> {
-    return this.post(`/assets/receipt/${id}`);
+    return this.get(`/assets/receipts/${id}`);
   }
 
   public async getOperationStatus(id: string): Promise<LedgerAPI['schemas']['GetOperationStatusResponse']> {
