@@ -5,6 +5,7 @@ const register = (app: express.Application, operationsCache: Map<string, any>) =
   app.post('/operations/callback/:cid', async (req, res) => {
     console.debug(`callback received for ${req.params.cid}`);
     operationsCache.set(req.params.cid, req.body);
+    res.setHeader('content-type', 'application/json').status(200).send({});
   });
 };
 
@@ -55,7 +56,7 @@ export const create = async (port: Number): Promise<CallbackServer> => {
   app.use(express.json({ limit: '50mb' }));
   register(app, operationsCache);
 
-  let closeCircuit: () => void = () => {};
+  let closeCircuit: () => Promise<void> = () => Promise.resolve();
 
   await new Promise<void>((resolve, reject) => {
     const server = app.listen(port, error => {
@@ -65,7 +66,10 @@ export const create = async (port: Number): Promise<CallbackServer> => {
         reject(error);
       }
     });
-    closeCircuit = () => server.close();
+    closeCircuit = () => new Promise((cresolve, creject) => {
+      server.closeAllConnections();
+      server.close(err => err ? creject(err) : cresolve());
+    });
   });
 
   return new CallbackServer(`http://localhost:${port}`, app, operationsCache, closeCircuit);

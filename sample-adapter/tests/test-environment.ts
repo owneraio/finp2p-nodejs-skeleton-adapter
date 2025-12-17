@@ -41,9 +41,12 @@ class CustomTestEnvironment extends NodeEnvironment {
   }
 
   async teardown() {
+    console.debug('Test environment teardown')
     try {
       this.httpServer?.close();
+      console.debug('CallbackServer close')
       await this.callbackServer?.close()
+      console.debug('Workflows close')
       await workflows.Storage.closeAllConnections()
       console.log("Server stopped successfully.");
     } catch (err) {
