@@ -53,27 +53,19 @@ export class PaymentsLedgerAPI extends ClientBase {
 
 export class CommonLedgerAPI extends ClientBase {
 
-  readonly callbackServer?: CallbackServer;
-
-  constructor(host: string, validator?: OpenAPIValidator, callbackServer?: CallbackServer) {
-    super(host, validator);
-    this.callbackServer = callbackServer;
-  }
-
   public async getReceipt(id: string): Promise<LedgerAPI['schemas']['GetReceiptResponse']> {
     return this.get(`/assets/receipts/${id}`);
   }
 
   public async getOperationStatus(id: string): Promise<LedgerAPI['schemas']['GetOperationStatusResponse']> {
-    if (this.callbackServer !== undefined && this.callbackServer.isExpectedLater(id)) {
-      return this.callbackServer.operation(id);
-    }
     return this.get(`/operations/status/${id}`);
   }
 
   public async getBalance(req: LedgerAPI['schemas']['GetAssetBalanceRequest']): Promise<LedgerAPI['schemas']['GetAssetBalanceResponse']> {
     return this.post('/assets/getBalance', req);
   }
+
+  /* deprecated
 
   public async waitForReceipt(id: string, tries: number = 30): Promise<LedgerAPI['schemas']['receipt']> {
     for (let i = 1; i < tries; i++) {
@@ -89,7 +81,9 @@ export class CommonLedgerAPI extends ClientBase {
     }
     throw new ClientError(`no result after ${tries} retries`);
   }
+  */
 
+  /* Deprecated
   public async waitForCompletion(id: string, tries: number = 3000) {
     for (let i = 1; i < tries; i++) {
       const status = await this.getOperationStatus(id);
@@ -100,6 +94,7 @@ export class CommonLedgerAPI extends ClientBase {
     }
     throw new ClientError(`no result after ${tries} retries`);
   }
+  */
 }
 
 
@@ -113,13 +108,17 @@ export class LedgerAPIClient {
 
   public readonly common: CommonLedgerAPI;
 
-  constructor(host: string, callbackServer: CallbackServer | undefined) {
+  public readonly callbackServer: CallbackServer | undefined;
+
+  constructor(host: string, callbackServer?: CallbackServer) {
     this.tokens = new TokensLedgerAPI(host);
     this.escrow = new EscrowLedgerAPI(host);
     this.payments = new PaymentsLedgerAPI(host);
-    this.common = new CommonLedgerAPI(host, undefined, callbackServer);
+    this.common = new CommonLedgerAPI(host);
+    this.callbackServer = callbackServer;
   }
 
+  /* deprecated
   async expectReceipt(status: any): Promise<LedgerAPI['schemas']['receipt']> {
     if (status.isCompleted) {
       return status.response;
@@ -127,6 +126,7 @@ export class LedgerAPIClient {
       return this.common.waitForReceipt(status.cid);
     }
   }
+  */
 
   async expectBalance(owner: LedgerAPI['schemas']['source'], asset: LedgerAPI['schemas']['asset'], amount: number) {
     const balance = await this.common.getBalance({ asset: asset, owner: owner });

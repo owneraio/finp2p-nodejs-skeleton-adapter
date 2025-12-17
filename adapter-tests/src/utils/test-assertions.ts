@@ -1,6 +1,8 @@
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { TestActor } from './test-builders';
 import { LedgerAPIClient } from '../api/api';
+import { sleep } from './utils';
+import { ClientError } from './error';
 
 /**
  * Helper class for common receipt assertions
@@ -150,33 +152,14 @@ export class BalanceAssertions {
  * Helper class for common test patterns
  */
 export class TestHelpers {
-
-  /**
-   * Waits for an operation to complete and returns the response
-   */
-  static async waitForCompletion(client: LedgerAPIClient, status: any) {
-    if (!status.isCompleted) {
-      await client.common.waitForCompletion(status.cid);
-    }
-  }
-
-  /**
-   * Expects a receipt from a status, waiting if necessary
-   */
-  static async expectReceipt(client: LedgerAPIClient, status: any): Promise<LedgerAPI['schemas']['receipt']> {
-    return client.expectReceipt(status);
-  }
-
   /**
    * Creates an asset and waits for completion
    */
   static async createAssetAndWait(
     client: LedgerAPIClient,
     request: LedgerAPI['schemas']['CreateAssetRequest'],
-  ) {
-    const status = await client.tokens.createAsset(request);
-    await TestHelpers.waitForCompletion(client, status);
-    return status;
+  ): Promise<LedgerAPI['schemas']['CreateAssetResponse']> {
+    return this.executeAndWaitForCompletion(client, () => client.tokens.createAsset(request));
   }
 
   /**
@@ -186,8 +169,7 @@ export class TestHelpers {
     client: LedgerAPIClient,
     request: LedgerAPI['schemas']['IssueAssetsRequest'],
   ): Promise<LedgerAPI['schemas']['receipt']> {
-    const status = await client.tokens.issue(request);
-    return TestHelpers.expectReceipt(client, status);
+    return this.executeAndWaitForReceipt(client, () => client.tokens.issue(request));
   }
 
   /**
@@ -197,8 +179,7 @@ export class TestHelpers {
     client: LedgerAPIClient,
     request: LedgerAPI['schemas']['TransferAssetRequest'],
   ): Promise<LedgerAPI['schemas']['receipt']> {
-    const status = await client.tokens.transfer(request);
-    return TestHelpers.expectReceipt(client, status);
+    return this.executeAndWaitForReceipt(client, () => client.tokens.transfer(request));
   }
 
   /**
@@ -208,8 +189,7 @@ export class TestHelpers {
     client: LedgerAPIClient,
     request: LedgerAPI['schemas']['HoldOperationRequest'],
   ): Promise<LedgerAPI['schemas']['receipt']> {
-    const status = await client.escrow.hold(request);
-    return TestHelpers.expectReceipt(client, status);
+    return this.executeAndWaitForReceipt(client, () => client.escrow.hold(request));
   }
 
   /**
@@ -219,8 +199,7 @@ export class TestHelpers {
     client: LedgerAPIClient,
     request: LedgerAPI['schemas']['ReleaseOperationRequest'],
   ): Promise<LedgerAPI['schemas']['receipt']> {
-    const status = await client.escrow.release(request);
-    return TestHelpers.expectReceipt(client, status);
+    return this.executeAndWaitForReceipt(client, () => client.escrow.release(request));
   }
 
   /**
@@ -230,23 +209,50 @@ export class TestHelpers {
     client: LedgerAPIClient,
     request: LedgerAPI['schemas']['RedeemAssetsRequest'],
   ): Promise<LedgerAPI['schemas']['receipt']> {
-    const status = await client.tokens.redeem(request);
-    return TestHelpers.expectReceipt(client, status);
+    return this.executeAndWaitForReceipt(client, () => client.tokens.redeem(request));
   }
 
   /**
    * Executes the operation and waits the operation to complete
    */
-  static async executeAndWaitForCompletion<R extends { cid: string, isCompleted?: boolean }>(
+  static async executeAndWaitForCompletion<R extends LedgerAPI['schemas']['OperationBase']>(
     client: LedgerAPIClient,
     request: () => Promise<R>,
   ): Promise<R> {
-    const status = await request();
-    if (status.isCompleted === true) {
-      return status;
+    const operation = await request();
+    if (operation.isCompleted === true) {
+      return operation;
     }
 
-    await client.common.waitForCompletion(status.cid);
-    return (await client.common.getOperationStatus(status.cid)).operation as R;
+    //    if (operation.operationMetadata?.operationResponseStrategy?.type === 'callback') {
+    client.callbackServer!.expectLater(operation.cid);
+    return client.callbackServer!.operation(operation.cid) as Promise<R>;
+    //   }
+
+    for (let i = 1; i < 3000; i++) {
+      const status = await client.common.getOperationStatus(operation.cid);
+      if (status.operation.isCompleted) {
+        return status.operation as R;
+      }
+      await sleep(500);
+    }
+
+    throw new ClientError(`no result after ${3000} retries`);
+  }
+
+  /**
+   * Executes the operations and waits the operation to complete with receipt
+   */
+  static async executeAndWaitForReceipt<R extends LedgerAPI['schemas']['OperationBase'] & { response?: { id: string } }>(
+    client: LedgerAPIClient,
+    request: () => Promise<R>,
+  ): Promise<LedgerAPI['schemas']['receipt']> {
+    const result = await this.executeAndWaitForCompletion(client, request);
+    if (!result.response) {
+      throw new ClientError('response object is empty');
+    }
+
+    const receipt = await client.common.getReceipt(result.response.id);
+    return receipt.response!;
   }
 }

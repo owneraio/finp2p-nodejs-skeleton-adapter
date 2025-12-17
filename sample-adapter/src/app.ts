@@ -67,6 +67,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
     planApprovalService,
     pluginManager,
     migrationsConfig,
+    finP2PClient,
   );
 
   return app;

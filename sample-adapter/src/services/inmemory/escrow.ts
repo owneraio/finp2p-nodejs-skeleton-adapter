@@ -36,7 +36,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
     this.storage.debit(source.finId, quantity, asset.assetId);
 
     const tx = new Transaction(quantity, asset, source.account, undefined, exCtx, 'hold', operationId);
-    this.transactions[tx.id] = tx;
+    this.storage.transactions[tx.id] = tx;
 
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
@@ -63,7 +63,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     const holdSource: FinIdAccount = { type: 'finId', finId: hold.finId };
     const tx = new Transaction(quantity, asset, holdSource, destination, exCtx, 'release', operationId);
-    this.transactions[tx.id] = tx;
+    this.storage.transactions[tx.id] = tx;
 
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
@@ -86,7 +86,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
     this.storage.removeHoldOperation(operationId);
 
     const tx = new Transaction(quantity, asset, holdSource, undefined, exCtx, 'release', operationId);
-    this.transactions[tx.id] = tx;
+    this.storage.transactions[tx.id] = tx;
 
     let receipt = tx.toReceipt();
     if (this.proofProvider) {

@@ -58,7 +58,8 @@ class CustomTestEnvironment extends NodeEnvironment {
   }
 
   private async startCallbackServer() {
-    this.callbackServer = await callbackServer.create(randomPort())
+    const port = await new RandomPortGenerator().generatePort()
+    this.callbackServer = await callbackServer.create(port)
     return this.callbackServer
   }
 

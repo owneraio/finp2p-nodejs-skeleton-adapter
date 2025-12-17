@@ -34,6 +34,7 @@ import {
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
+import { FinP2PClient } from '@owneraio/finp2p-client';
 
 const basePath = 'api';
 
@@ -51,33 +52,34 @@ export const register = (app: Application,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
   workflowConfig: Config | undefined,
+  finP2PClient: FinP2PClient | undefined,
 ) => {
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage) {
-    planService = createServiceProxy(() => migrationJob, storage, undefined, planService,
+    planService = createServiceProxy(() => migrationJob, storage, finP2PClient, planService,
       'approvePlan',
     );
 
-    tokenService = createServiceProxy(() => migrationJob, storage, undefined, tokenService,
+    tokenService = createServiceProxy(() => migrationJob, storage, finP2PClient, tokenService,
       'createAsset',
       'issue',
       'transfer',
       'redeem',
     );
 
-    escrowService = createServiceProxy(() => migrationJob, storage, undefined, escrowService,
+    escrowService = createServiceProxy(() => migrationJob, storage, finP2PClient, escrowService,
       'hold',
       'release',
       'rollback',
     );
 
-    paymentService = createServiceProxy(() => migrationJob, storage, undefined, paymentService,
+    paymentService = createServiceProxy(() => migrationJob, storage, finP2PClient, paymentService,
       'getDepositInstruction',
       'payout',
     );
 
-    commonService = createServiceProxy(() => migrationJob, storage, undefined, commonService);
+    commonService = createServiceProxy(() => migrationJob, storage, finP2PClient, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {
