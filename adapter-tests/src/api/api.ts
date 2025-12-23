@@ -64,37 +64,6 @@ export class CommonLedgerAPI extends ClientBase {
   public async getBalance(req: LedgerAPI['schemas']['GetAssetBalanceRequest']): Promise<LedgerAPI['schemas']['GetAssetBalanceResponse']> {
     return this.post('/assets/getBalance', req);
   }
-
-  /* deprecated
-
-  public async waitForReceipt(id: string, tries: number = 30): Promise<LedgerAPI['schemas']['receipt']> {
-    for (let i = 1; i < tries; i++) {
-      const status = await this.getOperationStatus(id);
-      if (status.type === 'receipt') {
-        if (status.operation.isCompleted) {
-          return (status.operation).response!;
-        }
-      } else {
-        throw new ClientError(`wrong status type, deposit expected, got: ${status.type}`);
-      }
-      await sleep(500);
-    }
-    throw new ClientError(`no result after ${tries} retries`);
-  }
-  */
-
-  /* Deprecated
-  public async waitForCompletion(id: string, tries: number = 3000) {
-    for (let i = 1; i < tries; i++) {
-      const status = await this.getOperationStatus(id);
-      if (status.operation.isCompleted) {
-        return;
-      }
-      await sleep(500);
-    }
-    throw new ClientError(`no result after ${tries} retries`);
-  }
-  */
 }
 
 
@@ -117,16 +86,6 @@ export class LedgerAPIClient {
     this.common = new CommonLedgerAPI(host);
     this.callbackServer = callbackServer;
   }
-
-  /* deprecated
-  async expectReceipt(status: any): Promise<LedgerAPI['schemas']['receipt']> {
-    if (status.isCompleted) {
-      return status.response;
-    } else {
-      return this.common.waitForReceipt(status.cid);
-    }
-  }
-  */
 
   async expectBalance(owner: LedgerAPI['schemas']['source'], asset: LedgerAPI['schemas']['asset'], amount: number) {
     const balance = await this.common.getBalance({ asset: asset, owner: owner });
