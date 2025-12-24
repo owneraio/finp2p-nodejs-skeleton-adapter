@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.26.1",
+  "version": "0.26.1-callback.3",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,7 +22,11 @@
     "yaml": "^2.8.1",
     "zod": "^4.1.12"
   },
+  "peerDependencies": {
+    "express": "5.x.x"
+  },
   "devDependencies": {
+    "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
     "@types/secp256k1": "^4.0.7",
     "eslint": "^8.4.1",

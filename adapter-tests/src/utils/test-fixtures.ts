@@ -126,8 +126,7 @@ export class TestFixtures {
       asset: asset as LedgerAPI['schemas']['depositAsset'],
     });
 
-    const depositStatus = await this.client.payments.getDepositInstruction(depositRequest);
-    await TestHelpers.waitForCompletion(this.client, depositStatus);
+    const depositStatus = await TestHelpers.executeAndWaitForCompletion(this.client, () => this.client.payments.getDepositInstruction(depositRequest));
 
     // Set initial balance if needed
     if (params.initialBalance > 0) {
@@ -141,8 +140,7 @@ export class TestFixtures {
         settlementRef: generateId(),
       });
 
-      const setBalanceStatus = await this.client.tokens.issue(issueRequest);
-      await TestHelpers.waitForCompletion(this.client, setBalanceStatus);
+      const setBalanceStatus = await TestHelpers.executeAndWaitForCompletion(this.client, () => this.client.tokens.issue(issueRequest));
     }
 
     // Verify balance
