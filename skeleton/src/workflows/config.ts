@@ -1,3 +1,5 @@
+import { FinP2PClient } from '@owneraio/finp2p-client';
+
 export interface MigrationConfig {
   gooseExecutablePath: string
   migrationListTableName: string
@@ -13,7 +15,12 @@ export interface StorageConfig {
   connectionString: string
 }
 
+export interface ProxyConfig {
+  sendCallback?: FinP2PClient['sendCallback']
+}
+
 export interface Config {
   migration: MigrationConfig
   storage: StorageConfig
+  service: ProxyConfig
 }

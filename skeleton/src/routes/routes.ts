@@ -55,29 +55,29 @@ export const register = (app: Application,
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage) {
-    planService = createServiceProxy(() => migrationJob, storage, undefined, planService,
+    planService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, planService,
       'approvePlan',
     );
 
-    tokenService = createServiceProxy(() => migrationJob, storage, undefined, tokenService,
+    tokenService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, tokenService,
       'createAsset',
       'issue',
       'transfer',
       'redeem',
     );
 
-    escrowService = createServiceProxy(() => migrationJob, storage, undefined, escrowService,
+    escrowService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, escrowService,
       'hold',
       'release',
       'rollback',
     );
 
-    paymentService = createServiceProxy(() => migrationJob, storage, undefined, paymentService,
+    paymentService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, paymentService,
       'getDepositInstruction',
       'payout',
     );
 
-    commonService = createServiceProxy(() => migrationJob, storage, undefined, commonService);
+    commonService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {
