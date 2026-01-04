@@ -23,6 +23,38 @@ const cloneExcept = (obj: any, key: string): any => {
   return copy;
 };
 
+const getFirstConnectionOrDie = (): Pool => {
+  for (let weakRef of openConnections) {
+    const c = weakRef.deref()
+    if (!c) continue
+    if (c.ended || c.ending) continue
+    return c
+  }
+
+  throw new Error('No open connections are established')
+}
+
+/**
+ * Globally exposed function for accessing storage without constructor
+ * as we don't want to enforce DI on usage side
+ * It should properly function as long as client side uses workflows object.
+ *
+ * Example usage
+ * ```
+ * function approvePlan(idempotencyKey: string, planId: string) {
+ *   const operation = workflows.getOperation(arguments)
+ *   if (operation.state == "waiting") { ... }
+ * }
+ * ```
+ */
+export async function getOperation(inputs: Iterable<any>): Promise<Operation> {
+  const serilalized: any[] = []
+  for (const el of inputs) serilalized.push(el)
+
+  const result = await (getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.operations WHERE inputs = $1', [JSON.stringify(serilalized)]))
+  return result.rows.at(0)
+}
+
 export class Storage {
   private c: Pool;
 
@@ -103,6 +135,7 @@ export class Storage {
     status: Operation['status'],
     outputs: Operation['outputs'],
   ): Promise<Operation> {
+    getOperation(arguments)
     const result = await this.c.query(
       `UPDATE ledger_adapter.operations
       SET status = $1, outputs = $2, updated_at = NOW()

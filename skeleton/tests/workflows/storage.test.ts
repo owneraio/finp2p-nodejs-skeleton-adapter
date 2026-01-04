@@ -1,4 +1,4 @@
-import { migrateIfNeeded, Storage } from "../../src/workflows";
+import { migrateIfNeeded, Storage, getOperation as globalGetOperation } from "../../src/workflows";
 import { expectDateToBeClose } from "../expectDateToBeClose";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 
@@ -66,7 +66,7 @@ describe('Storage operations', () => {
   test("updating row should autopopulate updated_at field but not created_at", async () => {
     const ix = {
       cid: Math.random().toString(),
-      inputs: { value: 32 },
+      inputs: [ 32 ],
       outputs: { signature: { tx: "hash" } },
       method: "nonExistent",
       status: "in_progress" as const,
@@ -95,6 +95,9 @@ describe('Storage operations', () => {
     expect(urow.outputs).toEqual({
       assetBalance: { name: "USDC", value: 12345 },
     });
+
+    const globalGrow = await globalGetOperation([32])
+    expect(globalGrow).toEqual(grow)
   });
 
   test("insert same inputs returns older CID", async () => {
