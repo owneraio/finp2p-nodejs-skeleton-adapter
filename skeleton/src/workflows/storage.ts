@@ -164,7 +164,6 @@ export class Storage {
     status: Operation['status'],
     outputs: Operation['outputs'],
   ): Promise<Operation> {
-    getOperation(arguments);
     const result = await this.c.query(
       `UPDATE ledger_adapter.operations
       SET status = $1, outputs = $2, updated_at = NOW()
