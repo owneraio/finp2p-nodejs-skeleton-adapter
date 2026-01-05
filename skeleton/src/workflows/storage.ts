@@ -15,6 +15,14 @@ export interface Operation {
   outputs: any;
 }
 
+export interface Asset {
+  asset_id: string;
+  created_at: Date;
+  updated_at: Date;
+  contract_address: string;
+  contract_abi: string | null;
+}
+
 const openConnections = [] as WeakRef<Pool>[];
 
 const cloneExcept = (obj: any, key: string): any => {
@@ -25,14 +33,14 @@ const cloneExcept = (obj: any, key: string): any => {
 
 const getFirstConnectionOrDie = (): Pool => {
   for (let weakRef of openConnections) {
-    const c = weakRef.deref()
-    if (!c) continue
-    if (c.ended || c.ending) continue
-    return c
+    const c = weakRef.deref();
+    if (!c) continue;
+    if (c.ended || c.ending) continue;
+    return c;
   }
 
-  throw new Error('No open connections are established')
-}
+  throw new Error('No open connections are established');
+};
 
 /**
  * Globally exposed function for accessing storage without constructor
@@ -48,11 +56,32 @@ const getFirstConnectionOrDie = (): Pool => {
  * ```
  */
 export async function getOperation(inputs: Iterable<any>): Promise<Operation> {
-  const serilalized: any[] = []
-  for (const el of inputs) serilalized.push(el)
+  const serilalized: any[] = [];
+  for (const el of inputs) serilalized.push(el);
 
-  const result = await (getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.operations WHERE inputs = $1', [JSON.stringify(serilalized)]))
-  return result.rows.at(0)
+  const result = await (getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.operations WHERE inputs = $1', [JSON.stringify(serilalized)]));
+  return result.rows.at(0);
+}
+
+export async function getAsset(assetId: string): Promise<Asset | undefined> {
+  const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE asset_id = $1', [assetId]);
+  return result.rows.at(0);
+}
+
+export async function saveAsset(asset: Pick<Asset, 'asset_id' | 'contract_abi' | 'contract_address'>): Promise<Asset> {
+  const result = await getFirstConnectionOrDie().query(
+    `INSERT INTO ledger_adapter.assets (asset_id, contract_address, contract_abi)
+    VALUES ($1, $2, $3)
+    RETURNING *;`,
+    [
+      asset.asset_id,
+      asset.contract_address,
+      asset.contract_abi,
+    ],
+  );
+
+  if (result.rows.length === 0) throw new Error('Failed to save asset to DB');
+  return result.rows.at(0);
 }
 
 export class Storage {
@@ -135,7 +164,6 @@ export class Storage {
     status: Operation['status'],
     outputs: Operation['outputs'],
   ): Promise<Operation> {
-    getOperation(arguments)
     const result = await this.c.query(
       `UPDATE ledger_adapter.operations
       SET status = $1, outputs = $2, updated_at = NOW()
