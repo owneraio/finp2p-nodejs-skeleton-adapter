@@ -15,6 +15,14 @@ export interface Operation {
   outputs: any;
 }
 
+export interface Asset {
+  asset_id: string;
+  created_at: Date;
+  updated_at: Date;
+  contract_address: string;
+  contract_abi: string | null;
+}
+
 const openConnections = [] as WeakRef<Pool>[];
 
 const cloneExcept = (obj: any, key: string): any => {
@@ -52,6 +60,27 @@ export async function getOperation(inputs: Iterable<any>): Promise<Operation> {
   for (const el of inputs) serilalized.push(el)
 
   const result = await (getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.operations WHERE inputs = $1', [JSON.stringify(serilalized)]))
+  return result.rows.at(0)
+}
+
+export async function getAsset(assetId: string): Promise<Asset | undefined> {
+  const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE asset_id = $1', [assetId])
+  return result.rows.at(0)
+}
+
+export async function saveAsset(asset: Pick<Asset, 'asset_id' | 'contract_abi' | 'contract_address'>): Promise<Asset> {
+  const result = await getFirstConnectionOrDie().query(
+    `INSERT INTO ledger_adapter.assets (asset_id, contract_address, contract_abi)
+    VALUES ($1, $2, $3)
+    RETURNING *;`,
+    [
+      asset.asset_id,
+      asset.contract_address,
+      asset.contract_abi
+    ]
+  )
+
+  if (result.rows.length === 0) throw new Error('Failed to save asset to DB')
   return result.rows.at(0)
 }
 
