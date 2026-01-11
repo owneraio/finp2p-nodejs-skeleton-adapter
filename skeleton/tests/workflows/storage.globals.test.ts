@@ -24,7 +24,7 @@ describe("global storage methods", () => {
   test("inserting and querying assets", async () => {
     await expect(workflows.getAsset("asset_id")).resolves.toBeUndefined()
 
-    const savedAsset = await workflows.saveAsset({ asset_id: "asset_id", contract_address: "", contract_abi: null })
+    const savedAsset = await workflows.saveAsset({ asset_id: "asset_id", contract_address: "", contract_abi: null, decimals: 6 })
     await expect(workflows.getAsset("asset_id")).resolves.toEqual(savedAsset)
   })
 })

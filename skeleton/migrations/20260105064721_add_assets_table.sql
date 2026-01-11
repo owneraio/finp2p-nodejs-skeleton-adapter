@@ -4,6 +4,7 @@ CREATE TABLE ledger_adapter.assets(
   asset_id VARCHAR(255) PRIMARY KEY,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  decimals INTEGER NOT NULL,
   contract_address VARCHAR(255) NOT NULL UNIQUE,
   contract_abi VARCHAR(255)
 )

@@ -21,6 +21,7 @@ export interface Asset {
   updated_at: Date;
   contract_address: string;
   contract_abi: string | null;
+  decimals: number;
 }
 
 const openConnections = [] as WeakRef<Pool>[];
@@ -68,15 +69,16 @@ export async function getAsset(assetId: string): Promise<Asset | undefined> {
   return result.rows.at(0);
 }
 
-export async function saveAsset(asset: Pick<Asset, 'asset_id' | 'contract_abi' | 'contract_address'>): Promise<Asset> {
+export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset> {
   const result = await getFirstConnectionOrDie().query(
-    `INSERT INTO ledger_adapter.assets (asset_id, contract_address, contract_abi)
-    VALUES ($1, $2, $3)
+    `INSERT INTO ledger_adapter.assets (asset_id, contract_address, contract_abi, decimals)
+    VALUES ($1, $2, $3, $4)
     RETURNING *;`,
     [
       asset.asset_id,
       asset.contract_address,
       asset.contract_abi,
+      asset.decimals,
     ],
   );
 
