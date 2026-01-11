@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-client",
-  "version": "0.26.0",
+  "version": "0.26.1-efc-2",
   "description": "FinP2P API Client",
   "homepage": "https://ownera.io/",
   "main": "./dist/index.js",
