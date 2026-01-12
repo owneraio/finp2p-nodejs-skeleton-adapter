@@ -16,11 +16,12 @@ export interface Operation {
 }
 
 export interface Asset {
-  asset_id: string;
+  type: string;
+  id: string;
+  token_standard: 'ERC20';
   created_at: Date;
   updated_at: Date;
   contract_address: string;
-  contract_abi: string | null;
   decimals: number;
 }
 
@@ -64,21 +65,22 @@ export async function getOperation(inputs: Iterable<any>): Promise<Operation> {
   return result.rows.at(0);
 }
 
-export async function getAsset(assetId: string): Promise<Asset | undefined> {
-  const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE asset_id = $1', [assetId]);
+export async function getAsset(asset: { id: string, type: string }): Promise<Asset | undefined> {
+  const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE id = $1 AND type = $2', [asset.id, asset.type]);
   return result.rows.at(0);
 }
 
 export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset> {
   const result = await getFirstConnectionOrDie().query(
-    `INSERT INTO ledger_adapter.assets (asset_id, contract_address, contract_abi, decimals)
-    VALUES ($1, $2, $3, $4)
+    `INSERT INTO ledger_adapter.assets (id, type, contract_address, decimals, token_standard)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING *;`,
     [
-      asset.asset_id,
+      asset.id,
+      asset.type,
       asset.contract_address,
-      asset.contract_abi,
       asset.decimals,
+      asset.token_standard,
     ],
   );
 

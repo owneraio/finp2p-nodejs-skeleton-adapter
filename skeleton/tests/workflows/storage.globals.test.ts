@@ -22,9 +22,10 @@ describe("global storage methods", () => {
   });
 
   test("inserting and querying assets", async () => {
-    await expect(workflows.getAsset("asset_id")).resolves.toBeUndefined()
+    const asset = { type: "cryptocurrency", id: "usdc" }
+    await expect(workflows.getAsset(asset)).resolves.toBeUndefined()
 
-    const savedAsset = await workflows.saveAsset({ asset_id: "asset_id", contract_address: "", contract_abi: null, decimals: 6 })
-    await expect(workflows.getAsset("asset_id")).resolves.toEqual(savedAsset)
+    const savedAsset = await workflows.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
+    await expect(workflows.getAsset(asset)).resolves.toEqual(savedAsset)
   })
 })

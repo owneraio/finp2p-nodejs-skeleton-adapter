@@ -1,12 +1,18 @@
 -- +goose Up
 -- +goose StatementBegin
+CREATE TYPE ledger_adapter.token_standard as ENUM('ERC20');
+
 CREATE TABLE ledger_adapter.assets(
-  asset_id VARCHAR(255) PRIMARY KEY,
+  type VARCHAR(255) NOT NULL,
+  id VARCHAR(255) NOT NULL,
+  -- composite primary key
+  PRIMARY KEY (type, id),
+
+  token_standard ledger_adapter.token_standard NOT NULL,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   decimals INTEGER NOT NULL,
-  contract_address VARCHAR(255) NOT NULL UNIQUE,
-  contract_abi VARCHAR(255)
+  contract_address VARCHAR(255) NOT NULL
 )
 -- +goose StatementEnd
 
@@ -33,4 +39,5 @@ DO $$
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE ledger_adapter.assets;
+DROP TYPE ledger_adapter.token_standard;
 -- +goose StatementEnd
