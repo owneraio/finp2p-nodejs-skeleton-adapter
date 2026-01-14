@@ -28,4 +28,11 @@ describe("global storage methods", () => {
     const savedAsset = await workflows.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
     await expect(workflows.getAsset(asset)).resolves.toEqual(savedAsset)
   })
+
+  test("querying special receipt objects", async () => {
+    await expect(workflows.getReceiptOperation("do not exists")).resolves.toBeUndefined()
+
+    await storage().insert({ cid: "random", inputs: [ "idempotencyKey", "arg1" ], method: "deposit", status: 'succeeded', outputs: { receipt: { id: "do not exists" } } })
+    await expect(workflows.getReceiptOperation("do not exists")).resolves.toBeDefined()
+  })
 })

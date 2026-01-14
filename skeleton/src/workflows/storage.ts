@@ -65,6 +65,18 @@ export async function getOperation(inputs: Iterable<any>): Promise<Operation> {
   return result.rows.at(0);
 }
 
+export async function getReceiptOperation(receiptId: string): Promise<Operation | undefined> {
+  const result = await getFirstConnectionOrDie().query(
+    `
+    SELECT * FROM ledger_adapter.operations
+    WHERE outputs @> jsonb_build_object('receipt', jsonb_build_object('id', $1::text))
+    LIMIT 1;
+    `,
+    [receiptId]
+  )
+  return result.rows.at(0)
+}
+
 export async function getAsset(asset: { id: string, type: string }): Promise<Asset | undefined> {
   const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE id = $1 AND type = $2', [asset.id, asset.type]);
   return result.rows.at(0);
