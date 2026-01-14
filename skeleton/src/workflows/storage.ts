@@ -72,9 +72,9 @@ export async function getReceiptOperation(receiptId: string): Promise<Operation 
     WHERE outputs @> jsonb_build_object('receipt', jsonb_build_object('id', $1::text))
     LIMIT 1;
     `,
-    [receiptId]
-  )
-  return result.rows.at(0)
+    [receiptId],
+  );
+  return result.rows.at(0);
 }
 
 export async function getAsset(asset: { id: string, type: string }): Promise<Asset | undefined> {
