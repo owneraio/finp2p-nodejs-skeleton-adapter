@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/skeleton-test-environment",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "description": "Ready to use, composable TestEnvironment",
   "homepage": "https://ownera.io",
   "main": "dist/index.js",
@@ -24,6 +24,7 @@
   },
   "peerDependencies": {
     "@testcontainers/postgresql": "11.x.x",
+    "axios": "1.x.x",
     "jest": "29.x.x || 30.x.x",
     "testcontainers": "11.x.x"
   },
@@ -39,6 +40,7 @@
     "@types/secp256k1": "3.5.0",
     "@typescript-eslint/eslint-plugin": "^5.6.0",
     "@typescript-eslint/parser": "^5.6.0",
+    "axios": "^1.13.2",
     "babel-jest": "^29.2.0",
     "eslint": "^8.4.1",
     "eslint-config-airbnb-typescript": "^16.1.0",
