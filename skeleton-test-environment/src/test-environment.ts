@@ -1,10 +1,11 @@
+import type { EnvironmentContext, JestEnvironmentConfig } from '@jest/environment';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
-import * as console from 'console';
+import axios from 'axios';
 import NodeEnvironment from 'jest-environment-node';
 import { exec } from 'node:child_process';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { URL } from 'node:url';
 import { RandomPortGenerator } from 'testcontainers';
-import type { JestEnvironmentConfig, EnvironmentContext } from '@jest/environment';
 
 export interface PostgresContainer {
   connectionString: string;
@@ -89,5 +90,21 @@ export abstract class SkeletonTestEnvironment<UserData> extends NodeEnvironment 
         resolve(path);
       });
     });
+  }
+
+  public async healthcheckProbe(httpUrl: string, retryCount: number = 30, sleepMsBetweenRetries: number = 300): Promise<void> {
+    for (let i = 0; i < retryCount; i++) {
+      try {
+        const response = await axios.get(httpUrl, { timeout: 10_000 });
+        return;
+      } catch (e) {
+        //  Don't sleep if this was the last attempt
+        if (i < retryCount - 1) {
+          await sleep(sleepMsBetweenRetries);
+        }
+      }
+    }
+
+    throw new Error('Healthcheck probe couldn\'t resolve in time');
   }
 }
