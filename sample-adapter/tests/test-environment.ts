@@ -20,32 +20,18 @@ class CustomTestEnvironment extends SkeletonTestEnvironment<http.Server> {
       }
     })
 
-    await this.checkHealthReadiness(generatedPort)
+    const userData = app.listen(generatedPort)
+    await this.healthcheckProbe(`http://localhost:${generatedPort}/health/readiness`)
 
     return {
       httpAddress,
-      userData: app.listen(generatedPort)
+      userData
     }
   }
 
   async stopAppHttpServer(preparedApp: PreparedAppHttpServer<http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>>): Promise<void> {
     preparedApp.userData.close()
     await workflows.Storage.closeAllConnections()
-  }
-
-  private async checkHealthReadiness(generatedPort: number): Promise<void> {
-    for (let i = 0; i < 30; i++) {
-      try {
-        const readiness = await fetch(`http://localhost:${generatedPort}/health/readiness`)
-        if (readiness.ok) {
-          break
-        } else {
-          throw new Error('should wait')
-        }
-      } catch {
-        await wait(300)
-      }
-    }
   }
 }
 
