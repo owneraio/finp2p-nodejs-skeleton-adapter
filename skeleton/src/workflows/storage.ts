@@ -82,6 +82,11 @@ export async function getAsset(asset: { id: string, type: string }): Promise<Ass
   return result.rows.at(0);
 }
 
+export async function getAssetById(id: string): Promise<Asset | undefined> {
+  const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE id = $1', [id]);
+  return result.rows.at(0);
+}
+
 export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset> {
   const result = await getFirstConnectionOrDie().query(
     `INSERT INTO ledger_adapter.assets (id, type, contract_address, decimals, token_standard)
