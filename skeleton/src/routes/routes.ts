@@ -141,7 +141,7 @@ export const register = (app: Application,
     `/${basePath}/assets/getBalance`,
     async (req, res) => {
       const { asset, owner: { finId } } = req.body;
-      const balance = await tokenService.getBalance(assetFromAPI(asset);, finId);
+      const balance = await tokenService.getBalance(assetFromAPI(asset), finId);
       res.send({ asset, balance });
     });
 
