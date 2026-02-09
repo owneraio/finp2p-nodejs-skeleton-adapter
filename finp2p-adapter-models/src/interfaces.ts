@@ -29,9 +29,9 @@ export interface TokenService {
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
 
-  getBalance(assetId: string, finId: string): Promise<string>;
+  getBalance(asset: Asset, finId: string): Promise<string>;
 
-  balance(assetId: string, finId: string): Promise<Balance>;
+  balance(asset: Asset, finId: string): Promise<Balance>;
 
   issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
