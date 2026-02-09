@@ -14,16 +14,14 @@
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc"
   },
-  "dependencies": {
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "0.26.0",
-    "@owneraio/finp2p-adapter-models": "0.26.0",
+  "peerDependencies": {
+    "@owneraio/finp2p-adapter-models": "^0.26.0",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.26.0",
     "axios": "^1.12.2",
+    "express": "^5.0.5",
     "secp256k1": "^3.7.1",
     "yaml": "^2.8.1",
     "zod": "^4.1.12"
-  },
-  "peerDependencies": {
-    "express": "5.x.x"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
