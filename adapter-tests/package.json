@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.26.1-callback.3",
+  "version": "0.26.1-relax-version.0",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
