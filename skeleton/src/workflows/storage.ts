@@ -18,10 +18,10 @@ export interface Operation {
 export interface Asset {
   type: string;
   id: string;
-  token_standard: 'ERC20';
-  created_at: Date;
-  updated_at: Date;
-  contract_address: string;
+  tokenStandard: 'ERC20';
+  createdAt: Date;
+  updatedAt: Date;
+  contractAddress: string;
   decimals: number;
 }
 
@@ -78,21 +78,35 @@ export async function getReceiptOperation(receiptId: string): Promise<Operation 
 }
 
 export async function getAsset(asset: { id: string, type: string }): Promise<Asset | undefined> {
-  const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE id = $1 AND type = $2', [asset.id, asset.type]);
+  const result = await getFirstConnectionOrDie().query(
+    `SELECT id, type, decimals,
+      token_standard AS "tokenStandard",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      contract_address AS "contractAddress"
+    FROM ledger_adapter.assets WHERE id = $1 AND type = $2`,
+    [asset.id, asset.type],
+  );
   return result.rows.at(0);
 }
 
-export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset> {
+export async function saveAsset(asset: Omit<Asset, 'createdAt' | 'updatedAt'>): Promise<Asset> {
   const result = await getFirstConnectionOrDie().query(
     `INSERT INTO ledger_adapter.assets (id, type, contract_address, decimals, token_standard)
     VALUES ($1, $2, $3, $4, $5)
-    RETURNING *;`,
+    ON CONFLICT (id, type) DO UPDATE
+    SET id = ledger_adapter.assets.id
+    RETURNING id, type, decimals,
+      token_standard AS "tokenStandard",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      contract_address AS "contractAddress";`,
     [
       asset.id,
       asset.type,
-      asset.contract_address,
+      asset.contractAddress,
       asset.decimals,
-      asset.token_standard,
+      asset.tokenStandard,
     ],
   );
 
