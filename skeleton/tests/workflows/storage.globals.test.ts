@@ -25,8 +25,20 @@ describe("global storage methods", () => {
     const asset = { type: "cryptocurrency", id: "usdc" }
     await expect(workflows.getAsset(asset)).resolves.toBeUndefined()
 
-    const savedAsset = await workflows.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
+    const savedAsset = await workflows.saveAsset({ ...asset, contractAddress: "", decimals: 6, tokenStandard: 'ERC20' })
+    expect(savedAsset).toMatchObject({ ...asset, contractAddress: "", decimals: 6, tokenStandard: 'ERC20' })
+    expect(savedAsset.createdAt).toBeInstanceOf(Date)
+    expect(savedAsset.updatedAt).toBeInstanceOf(Date)
+
     await expect(workflows.getAsset(asset)).resolves.toEqual(savedAsset)
+  })
+
+  test("saving duplicate asset returns existing one", async () => {
+    const asset = { type: "cryptocurrency", id: "usdc", contractAddress: "0x123", decimals: 6, tokenStandard: 'ERC20' as const }
+    const first = await workflows.saveAsset(asset)
+    const second = await workflows.saveAsset(asset)
+
+    expect(second).toEqual(first)
   })
 
   test("querying special receipt objects", async () => {

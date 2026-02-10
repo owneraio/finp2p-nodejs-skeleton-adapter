@@ -7,21 +7,23 @@ export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes
 
 export interface Operation {
   cid: string;
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
   method: string;
   status: 'in_progress' | 'succeeded' | 'failed';
   inputs: any;
   outputs: any;
 }
 
+const OPERATION_COLUMNS = `cid, method, status, inputs, outputs, created_at AS "createdAt", updated_at AS "updatedAt"`;
+
 export interface Asset {
   type: string;
   id: string;
-  token_standard: 'ERC20';
-  created_at: Date;
-  updated_at: Date;
-  contract_address: string;
+  tokenStandard: 'ERC20';
+  createdAt: Date;
+  updatedAt: Date;
+  contractAddress: string;
   decimals: number;
 }
 
@@ -61,14 +63,14 @@ export async function getOperation(inputs: Iterable<any>): Promise<Operation> {
   const serilalized: any[] = [];
   for (const el of inputs) serilalized.push(el);
 
-  const result = await (getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.operations WHERE inputs = $1', [JSON.stringify(serilalized)]));
+  const result = await (getFirstConnectionOrDie().query(`SELECT ${OPERATION_COLUMNS} FROM ledger_adapter.operations WHERE inputs = $1`, [JSON.stringify(serilalized)]));
   return result.rows.at(0);
 }
 
 export async function getReceiptOperation(receiptId: string): Promise<Operation | undefined> {
   const result = await getFirstConnectionOrDie().query(
     `
-    SELECT * FROM ledger_adapter.operations
+    SELECT ${OPERATION_COLUMNS} FROM ledger_adapter.operations
     WHERE outputs @> jsonb_build_object('receipt', jsonb_build_object('id', $1::text))
     LIMIT 1;
     `,
@@ -78,21 +80,35 @@ export async function getReceiptOperation(receiptId: string): Promise<Operation 
 }
 
 export async function getAsset(asset: { id: string, type: string }): Promise<Asset | undefined> {
-  const result = await getFirstConnectionOrDie().query('SELECT * FROM ledger_adapter.assets WHERE id = $1 AND type = $2', [asset.id, asset.type]);
+  const result = await getFirstConnectionOrDie().query(
+    `SELECT id, type, decimals,
+      token_standard AS "tokenStandard",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      contract_address AS "contractAddress"
+    FROM ledger_adapter.assets WHERE id = $1 AND type = $2`,
+    [asset.id, asset.type],
+  );
   return result.rows.at(0);
 }
 
-export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset> {
+export async function saveAsset(asset: Omit<Asset, 'createdAt' | 'updatedAt'>): Promise<Asset> {
   const result = await getFirstConnectionOrDie().query(
     `INSERT INTO ledger_adapter.assets (id, type, contract_address, decimals, token_standard)
     VALUES ($1, $2, $3, $4, $5)
-    RETURNING *;`,
+    ON CONFLICT (id, type) DO UPDATE
+    SET id = ledger_adapter.assets.id
+    RETURNING id, type, decimals,
+      token_standard AS "tokenStandard",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      contract_address AS "contractAddress";`,
     [
       asset.id,
       asset.type,
-      asset.contract_address,
+      asset.contractAddress,
       asset.decimals,
-      asset.token_standard,
+      asset.tokenStandard,
     ],
   );
 
@@ -119,12 +135,12 @@ export class Storage {
   }
 
   async operation(cid: string): Promise<Operation | undefined> {
-    const result = await this.c.query('SELECT * FROM ledger_adapter.operations WHERE cid = $1', [cid]);
+    const result = await this.c.query(`SELECT ${OPERATION_COLUMNS} FROM ledger_adapter.operations WHERE cid = $1`, [cid]);
     return result.rows.at(0);
   }
 
   async insert(
-    ix: Omit<Operation, 'created_at' | 'updated_at'>,
+    ix: Omit<Operation, 'createdAt' | 'updatedAt'>,
   ): Promise<[Operation, boolean]> {
     const c = await this.c.query(
       `INSERT INTO ledger_adapter.operations (cid, method, status, inputs, outputs)
@@ -133,7 +149,7 @@ export class Storage {
       -- no-op
       SET inputs = ledger_adapter.operations.inputs
       RETURNING
-        ledger_adapter.operations.*,
+        ${OPERATION_COLUMNS},
         (xmax = 0) AS __inserted;
       `,
       [
@@ -154,12 +170,12 @@ export class Storage {
   }
 
   async operationsAll(): Promise<Operation[]> {
-    const result = await this.c.query('SELECT * FROM ledger_adapter.operations');
+    const result = await this.c.query(`SELECT ${OPERATION_COLUMNS} FROM ledger_adapter.operations`);
     return result.rows;
   }
 
   private async operations(opts: { status: Operation['status'], method: string }): Promise<Operation[]> {
-    const result = await this.c.query('SELECT * FROM ledger_adapter.operations WHERE status = $1 AND method = $2;', [opts.status, opts.method]);
+    const result = await this.c.query(`SELECT ${OPERATION_COLUMNS} FROM ledger_adapter.operations WHERE status = $1 AND method = $2;`, [opts.status, opts.method]);
     return result.rows;
   }
 
@@ -184,7 +200,7 @@ export class Storage {
       `UPDATE ledger_adapter.operations
       SET status = $1, outputs = $2, updated_at = NOW()
       WHERE cid = $3
-      RETURNING *;`,
+      RETURNING ${OPERATION_COLUMNS};`,
       [
         status, JSON.stringify(outputs), cid,
       ],
