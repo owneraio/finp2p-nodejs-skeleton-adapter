@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.26.3-assets.4",
+  "version": "0.26.4",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
@@ -23,7 +23,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-adapter-models": "^0.26.0",
+    "@owneraio/finp2p-adapter-models": "^0.26.1",
     "@owneraio/finp2p-client": "^0.26.0",
     "axios": "1.11.0",
     "bs58": "^6.0.0",
