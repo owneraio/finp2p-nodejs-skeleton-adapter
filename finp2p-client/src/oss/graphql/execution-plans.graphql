@@ -1,0 +1,680 @@
+query getExecutionPlan($planId: String!) {
+    plans(filter: { key: "id" operator: EQ value: $planId}) {
+        nodes {
+            id
+            intent {
+                ...intentData
+            }
+            organizations {
+                organizationId
+            }
+            status
+            instructions {
+                sequence
+                organizations {
+                    organizationId
+                }
+                details {
+                    __typename
+                    ... on IssueInstruction {
+                        __typename
+                        amount
+                        buyer
+                        destinationAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                    }
+                    ... on HoldInstruction {
+                        __typename
+                        source
+                        destination
+                        sourceAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                        destinationAccountOpt: destinationAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                        amount
+                    }
+                    ... on ReleaseInstruction {
+                        __typename
+                        sourceAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                        destinationAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                        amount
+                    }
+                    ... on TransferInstruction {
+                        __typename
+                        sourceAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                        destinationAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                        amount
+                    }
+                    ... on AwaitInstruction {
+                        __typename
+                        waitTime
+                    }
+                    ... on RevertHoldInstruction {
+                        __typename
+                        destinationAccount {
+                            asset {
+                                __typename
+                                ... on Cryptocurrency {
+                                    symbol
+                                }
+                                ... on FiatAsset {
+                                    code
+                                }
+                                ... on FinP2PAsset {
+                                    resourceId
+                                }
+                            }
+                            identifier {
+                                __typename
+                                ... on CryptoWalletAccount {
+                                    address
+                                }
+                                ... on FinP2PAssetAccount {
+                                    finId
+                                    orgId
+                                }
+                                ... on Iban {
+                                    code
+                                }
+                            }
+                        }
+                    }
+                }
+                status
+                state {
+                    ... on SuccessState {
+                        output {
+                            ... on Receipt {
+                                id
+                            }
+                        }
+
+                    }
+                    ... on ErrorState {
+                        code
+                        message
+                    }
+                    ... on UnknownState {
+                        _ignore
+                    }
+                }
+                approvals {
+                    nodes {
+                        planId
+                        sequence
+                        orgId
+                        status
+                    }
+                }
+            }
+            approvals {
+                orgId
+                status
+                statusInfo {
+                    code
+                    message
+                }
+            }
+            creationTimestamp
+            lastModified
+        }
+    }
+}
+
+fragment intentData on Intent {
+    id
+    start
+    end
+    status
+    remainingQuantity
+    type
+    intent {
+        ... on PrimarySale {
+            issuerId
+            assetTerm {
+                ...assetTerm
+            }
+            settlementTerm {
+                ...settlementTerm
+            }
+            assetInstruction {
+                ...assetInstruction
+            }
+            sellingSettlementInstruction {
+                ... sellingSettlementInstruction
+            }
+        }
+        ... on BuyingIntent {
+            buyer
+            assetTerm {
+                ...assetTerm
+            }
+            settlementTerm {
+                ...settlementTerm
+            }
+            assetInstruction {
+                ...assetInstruction
+            }
+            settlementInstruction {
+                ... buyingSettlementInstruction
+            }
+            signaturePolicyType
+            signaturePolicy {
+                ... on PresignedBuyingIntentSignaturePolicy {
+                    __typename
+                }
+                ... on ManualIntentSignaturePolicy {
+                    __typename
+                }
+            }
+        }
+        ... on SellingIntent {
+            seller
+            assetTerm {
+                ...assetTerm
+            }
+            settlementTerm {
+                ...settlementTerm
+            }
+            assetInstruction {
+                ...assetInstruction
+            }
+            sellingSettlementInstruction {
+                ... sellingSettlementInstruction
+            }
+            signaturePolicyType
+            signaturePolicy {
+                ... on PresignedSellingIntentSignaturePolicy {
+                    __typename
+                }
+                ... on ManualIntentSignaturePolicy {
+                    __typename
+                }
+            }
+        }
+        ... on LoanIntent {
+            borrower
+            lender
+            assetTerm {
+                ...assetTerm
+            }
+            settlementTerm {
+                ...settlementTerm
+            }
+            assetInstruction {
+                borrowerAccount {
+                    ...accountInstruction
+                }
+                lenderAccount {
+                    ...accountInstruction
+                }
+            }
+            signaturePolicyType
+            signaturePolicy {
+                ... on PresignedLoanIntentSignaturePolicy {
+                    __typename
+                }
+            }
+            loanInstruction {
+                openDate
+                closeDate
+                loanConditions {
+                    ... on RepaymentTerm {
+                        repaymentVolume
+                    }
+                    ... on InterestRate {
+                        annualPercentageRate
+                    }
+                }
+            }
+            loanSettlementInstruction {
+                borrowerAccount {
+                    ... on FinP2PAssetAccount {
+                        finId
+                    }
+                }
+                lenderAccount {
+                    ... on FinP2PAssetAccount {
+                        finId
+                    }
+                }
+            }
+            signaturePolicy {
+                ... on PresignedLoanIntentSignaturePolicy {
+                    __typename
+                }
+            }
+        }
+        ... on RedemptionIntent {
+            assetTerm {
+                ...assetTerm
+            }
+            settlementTerm {
+                ...settlementTerm
+            }
+            redeemAssetInstruction {
+                ...assetInstruction
+            }
+            redemptionSettlementInstruction {
+                ... redemptionSettlementInstruction
+            }
+            conditions {
+                redemptionDuration
+            }
+            signaturePolicyType
+            signaturePolicy {
+                ... on PresignedRedemptionIntentSignaturePolicy {
+                    __typename
+                }
+                ... on ManualIntentSignaturePolicy {
+                    __typename
+                }
+            }
+        }
+        ... on PrivateOfferIntent {
+            buyer
+            seller
+            assetTerm {
+                ...assetTerm
+            }
+            assetInstruction {
+                ...assetInstruction
+            }
+            settlementTerm {
+                ...settlementTerm
+            }
+            sellingSettlementInstruction {
+                ... sellingSettlementInstruction
+            }
+            signaturePolicyType
+            signaturePolicy {
+                ... on PresignedPrivateOfferIntentSignaturePolicy {
+                    __typename
+                }
+                ... on ManualIntentSignaturePolicy {
+                    __typename
+                }
+            }
+        }
+        ... on RequestForTransferIntent {
+            creditor
+            debitor
+            assetTerm {
+                ...assetTerm
+            }
+            assetInstruction {
+                ...assetInstruction
+            }
+            signaturePolicyType
+            signaturePolicyType
+            signaturePolicy {
+                ... on PresignedRequestForTransferIntentSignaturePolicy {
+                    __typename
+                }
+                ... on ManualIntentSignaturePolicy {
+                    __typename
+                }
+            }
+            actionType
+        }
+    }
+}
+
+fragment assetTerm on AssetTerm {
+    amount
+    asset {
+        __typename
+        ... on Cryptocurrency {
+            symbol
+        }
+        ... on FiatAsset {
+            code
+        }
+        ... on FinP2PAsset {
+            resourceId
+        }
+    }
+}
+
+fragment settlementTerm on SettlementTerm {
+    unitValue
+    asset {
+        __typename
+        ... on Cryptocurrency {
+            symbol
+        }
+        ... on FiatAsset {
+            code
+        }
+        ... on FinP2PAsset {
+            resourceId
+        }
+    }
+}
+
+fragment assetInstruction on AssetInstruction {
+    account {
+        asset {
+            __typename
+            ... on Cryptocurrency {
+                symbol
+            }
+            ... on FiatAsset {
+                code
+            }
+            ... on FinP2PAsset {
+                resourceId
+            }
+        }
+        identifier {
+            __typename
+            ... on CryptoWalletAccount {
+                address
+            }
+            ... on FinP2PAssetAccount {
+                finId
+                orgId
+            }
+            ... on Iban {
+                code
+            }
+        }
+    }
+}
+
+fragment sellingSettlementInstruction on SellingSettlementInstruction {
+    accounts {
+        asset {
+            __typename
+            ... on Cryptocurrency {
+                symbol
+            }
+            ... on FiatAsset {
+                code
+            }
+            ... on FinP2PAsset {
+                resourceId
+            }
+        }
+        identifier {
+            __typename
+            ... on CryptoWalletAccount {
+                address
+            }
+            ... on FinP2PAssetAccount {
+                finId
+                orgId
+            }
+            ... on Iban {
+                code
+            }
+        }
+    }
+}
+
+fragment buyingSettlementInstruction on BuyingSettlementInstruction {
+    account {
+        asset {
+            __typename
+            ... on Cryptocurrency {
+                symbol
+            }
+            ... on FiatAsset {
+                code
+            }
+            ... on FinP2PAsset {
+                resourceId
+            }
+        }
+        identifier {
+            __typename
+            ... on CryptoWalletAccount {
+                address
+            }
+            ... on FinP2PAssetAccount {
+                finId
+                orgId
+            }
+            ... on Iban {
+                code
+            }
+        }
+    }
+}
+
+fragment redemptionSettlementInstruction on RedemptionSettlementInstruction {
+    accounts {
+        asset {
+            __typename
+            ... on Cryptocurrency {
+                symbol
+            }
+            ... on FiatAsset {
+                code
+            }
+            ... on FinP2PAsset {
+                resourceId
+            }
+        }
+        identifier {
+            __typename
+            ... on CryptoWalletAccount {
+                address
+            }
+            ... on FinP2PAssetAccount {
+                finId
+                orgId
+            }
+            ... on Iban {
+                code
+            }
+        }
+    }
+}
+
+fragment accountInstruction on AccountInstruction {
+    asset {
+        __typename
+        ... on Cryptocurrency {
+            symbol
+        }
+        ... on FiatAsset {
+            code
+        }
+        ... on FinP2PAsset {
+            resourceId
+        }
+    }
+    identifier {
+        __typename
+        ... on FinP2PAssetAccount {
+            finId
+        }
+        ... on Iban {
+            code
+        }
+        ... on CryptoWalletAccount {
+            address
+        }
+    }
+}
+
