@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.26.1-callback.3",
+  "version": "0.26.2",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,8 +15,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "0.26.0",
-    "@owneraio/finp2p-adapter-models": "0.26.0",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.26.0",
+    "@owneraio/finp2p-adapter-models": "^0.26.0",
     "axios": "^1.12.2",
     "secp256k1": "^3.7.1",
     "yaml": "^2.8.1",
