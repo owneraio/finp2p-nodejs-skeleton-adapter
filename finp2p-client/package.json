@@ -12,6 +12,7 @@
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc",
     "postbuild": "cpx 'src/oss/graphql/*.graphql' dist/oss/graphql/",
+    "prepublishOnly": "npm run build",
     "api-generate": "npx openapi-typescript ./apis/application-api.base.yaml -o src/finapi/model-gen.ts",
     "op-api-generate": "npx openapi-typescript ./apis/operational-api.yaml -o src/finapi/op-model-gen.ts",
     "graphql-gen": "graphql-codegen --config grahpqlgen.ts",
