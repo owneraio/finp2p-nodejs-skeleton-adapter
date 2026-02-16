@@ -3,6 +3,12 @@
  * Do not make direct changes to the file.
  */
 
+/** Extracted recursive types to break circular references in generated schemas */
+export type RecursiveEIP712TypedValue = (string) | (number) | (boolean) | (string) | RecursiveEIP712TypeObject | RecursiveEIP712TypeArray;
+export type RecursiveEIP712TypeObject = {
+  [key: string]: RecursiveEIP712TypedValue;
+};
+export type RecursiveEIP712TypeArray = RecursiveEIP712TypedValue[];
 export interface paths {
   '/workflow/cancel': {
     parameters: {
@@ -15,9 +21,70 @@ export interface paths {
     put?: never;
     /**
          * Cancel workflow
-         * @description Cancel workflow
+         * @deprecated
+         * @description Cancel workflow - this method is deprecated, use /workflow/{workflowId}/cancel
          */
     post: operations['cancelWorkflow'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/workflow/{workflowId}/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Retry workflow
+         * @description Resets a workflow when it is hanging
+         */
+    post: operations['retryWorkflow'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/workflow/{workflowId}/reset': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Reset workflow to a specific state
+         * @description Resets a workflow to a specific state, clearing intermediate data and continuing from the reset point
+         */
+    post: operations['resetWorkflow'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/workflow/{workflowId}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Cancel workflow execution
+         * @description Cancels a workflow, stopping its execution permanently
+         */
+    post: operations['cancelWorkflowById'];
     delete?: never;
     options?: never;
     head?: never;
@@ -39,6 +106,54 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  '/execution/proposals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+         * Override approvals config
+         * @description Override approvals config
+         */
+    put: operations['Override approvals config'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+         * Update approvals config
+         * @description Update approvals config
+         */
+    patch: operations['update approvals config'];
+    trace?: never;
+  };
+  '/discovery/pinning_config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+         * Set pinning configuration
+         * @description Set pinning configuration, overriding any existing configuration
+         */
+    put: operations['setPinningConfig'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+         * Update pinning configuration, add/remove/modify entries
+         * @description Update pinning configuration
+         */
+    patch: operations['updatePinningConfig'];
     trace?: never;
   };
   '/ledger/transaction/import': {
@@ -201,16 +316,310 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/ledger/{name}/update': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+         * Update Ledger binding
+         * @description Update a ledger integration
+         */
+    patch: operations['update ledger binding'];
+    trace?: never;
+  };
+  '/ledger/bind': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Bind Ledger
+         * @description Define a new ledger integration
+         */
+    post: operations['bind ledger'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    pinningAddress: {
+      /** Format: address */
+      address?: string;
+      port?: number;
+      schemas?: ('http1.1' | 'http2')[];
+    };
+    pinningConfig: {
+      [key: string]: components['schemas']['pinningConfigEntry'];
+    };
+    pinningConfigEntry: {
+      /** Format: jwt */
+      token: string;
+      address: components['schemas']['pinningAddress'][];
+    };
+    pinningConfigUpdate: {
+      [key: string]: components['schemas']['pinningConfigEntryUpdate'] | null;
+    };
+    pinningConfigEntryUpdate: {
+      /** Format: jwt */
+      token?: string | null;
+      address?: components['schemas']['pinningAddress'][] | null;
+    };
+    approvalConfig: {
+      tokenization?: components['schemas']['roleApprovalConfig'];
+      payments?: components['schemas']['roleApprovalConfig'];
+      investor?: components['schemas']['roleApprovalConfig'];
+      custodian?: components['schemas']['roleApprovalConfig'];
+    };
+    approvalConfigUpdate: {
+      tokenization?: components['schemas']['nullableRoleApprovalConfigUpdate'] | null;
+      payments?: components['schemas']['nullableRoleApprovalConfigUpdate'] | null;
+      investor?: components['schemas']['nullableRoleApprovalConfigUpdate'] | null;
+      custodian?: components['schemas']['nullableRoleApprovalConfigUpdate'] | null;
+    };
+    proposalsApprovalConfigUpdate: ('reset' | 'cancel' | 'instruction' | 'plan')[] | null;
+    proposalsApprovalConfig: ('reset' | 'cancel' | 'instruction' | 'plan')[];
+    roleApprovalConfig: {
+      [key: string]: components['schemas']['ledgerRoleApprovalConfig'] | components['schemas']['httpEndpointRoleApprovalConfig'];
+    };
+    nullableRoleApprovalConfigUpdate: {
+      [key: string]: components['schemas']['roleApprovalConfigUpdate'] | null;
+    } | null;
+    roleApprovalConfigUpdate: components['schemas']['ledgerRoleApprovalConfigUpdate'] | components['schemas']['httpEndpointRoleApprovalConfigUpdate'];
+    ledgerRoleApprovalConfig: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      config_type: 'ledger';
+      /** @default false */
+      disabled: boolean;
+      name: string;
+      proposals?: components['schemas']['proposalsApprovalConfig'];
+    };
+    ledgerRoleApprovalConfigUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      config_type: 'ledger';
+      disabled?: boolean | null;
+      name?: string | null;
+      proposals?: components['schemas']['proposalsApprovalConfigUpdate'];
+    };
+    httpEndpointRoleApprovalConfig: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      config_type: 'http';
+      /** @default false */
+      disabled: boolean;
+      /** Format: address */
+      endpoint: string;
+      /** Format: duration */
+      timeout?: string;
+      proposals?: components['schemas']['proposalsApprovalConfig'];
+    };
+    httpEndpointRoleApprovalConfigUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      config_type: 'http';
+      disabled?: boolean | null;
+      /** Format: address */
+      endpoint?: string | null;
+      /** Format: duration */
+      timeout?: string | null;
+      proposals?: components['schemas']['proposalsApprovalConfigUpdate'];
+    };
+    /** @description Idempotency configuration to prevent duplicate request processing */
+    ledgerIdempotencyOptions: {
+      /**
+             * @description define whether ledger adapter supports idempotency
+             * @default false
+             */
+      idempotent: boolean;
+      /**
+             * @description list of HTTP status code which are safe to retry regardless if the adapter is idempotent or not
+             * @default [
+             *       "429",
+             *       "503"
+             *     ]
+             */
+      transientFailureCodes: string[];
+    };
+    ledgerIdempotencyOptionsOpt: {
+      /**
+             * @description define whether ledger adapter supports idempotency
+             * @default false
+             */
+      idempotent: boolean | null;
+      /**
+             * @description list of HTTP status code which are safe to retry regardless if the adapter is idempotent or not
+             * @default [
+             *       "429",
+             *       "503"
+             *     ]
+             */
+      transientFailureCodes: string[] | null;
+    };
+    /** @description List of authentication mechanisms supported by this ledger */
+    ledgerAuthOptions: (components['schemas']['ledgerOAuthOptions'] | components['schemas']['ledgerMtlsOptions'] | components['schemas']['ledgerApiKeyOptions'])[];
+    /** @description list of auth mechanisms supported by this ledger */
+    ledgerAuthOptionsOpt: (components['schemas']['ledgerOAuthOptionsOpt'] | components['schemas']['ledgerMtlsOptionsOpt'] | components['schemas']['ledgerApiKeyOptions'])[];
+    ledgerOAuthOptions: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'oauth';
+      /** @description OAuth api client ID for ledger adpater authenticated requests */
+      oauthClientId: string;
+      /** @description Oauth api client secret for ledger adpater authenticated requests */
+      oauthClientSecret: string;
+      /** @description OAuth tokens api endpoint for ledger adpater authenticated requests */
+      oauthServerEndpoint: string;
+      /** @description ledger adapter signing of jwt token alg */
+      alg: string;
+      /** @description define the key (for hmac) or private key for signing jwt tokens */
+      jwtKey: string;
+    };
+    ledgerOAuthOptionsOpt: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'oauth';
+      /** @description OAuth api client ID for ledger adpater authenticated requests */
+      oauthClientId?: string | null;
+      /** @description Oauth api client secret for ledger adpater authenticated requests */
+      oauthClientSecret?: string | null;
+      /** @description OAuth tokens api endpoint for ledger adpater authenticated requests */
+      oauthServerEndpoint?: string | null;
+      /** @description ledger adapter signing of jwt token alg */
+      alg?: string | null;
+      /** @description define the key (for hmac) or private key for signing jwt tokens */
+      jwtKey?: string | null;
+    };
+    ledgerMtlsOptions: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'mtls';
+      /** @description mtls client certificate */
+      clientCertificate: string;
+      /** @description mtls certificate authority certificate */
+      caCertificate: string;
+      /** @description mtls key */
+      key: string;
+    };
+    ledgerMtlsOptionsOpt: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'mtls';
+      /** @description mtls client certificate */
+      clientCertificate?: string | null;
+      /** @description mtls certificate authority certificate */
+      caCertificate?: string | null;
+      /** @description mtls key */
+      key?: string | null;
+    };
+    ledgerApiKeyOptions: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'api-key';
+      apiKey: string;
+    };
     cancelWorkflow: {
       /** Format: uuid */
       workflowId: string;
       reason?: string;
     };
+    workflowAdminRequest: {
+      /**
+             * @description Optional reason for the admin action
+             * @example Manual intervention required due to external dependency failure
+             */
+      reason?: string;
+      /**
+             * @description Force immediate execution, clearing pending commands and interrupting running steps
+             * @default false
+             * @example true
+             */
+      force: boolean;
+    };
+    workflowAdminResponse: {
+      /** @description correlation id for the workflow admin operation */
+      cid: string;
+    };
+    workflowCancelRequest: {
+      /**
+             * @description optional reason for the cancel
+             * @example cancelling due to external system failure
+             */
+      reason?: string;
+      /**
+             * @description Force immediate execution, clearing pending commands and interrupting running steps
+             * @default false
+             * @example true
+             */
+      force: boolean;
+    };
+    workflowRetryRequest: {
+      /**
+             * @description Optional reason for the retry
+             * @example Retrying due to hanging state
+             */
+      reason?: string;
+      /**
+             * @description Force immediate execution, clearing pending commands and interrupting running steps
+             * @default false
+             * @example true
+             */
+      force: boolean;
+    };
+    workflowResetRequest: {
+      /**
+             * @description Optional reason for the reset
+             * @example Resetting due to external system failure
+             */
+      reason?: string;
+      /**
+             * @description Force immediate execution, clearing pending commands and interrupting running steps
+             * @default false
+             * @example true
+             */
+      force: boolean;
+    };
     asset: components['schemas']['cryptocurrencyAsset'] | components['schemas']['fiatAsset'] | components['schemas']['finp2pAsset'];
+    /** @description the total number of units */
+    amount: string;
+    /** @description A unit value represented as a string, the value is a decimal number */
+    unitValue: string;
     cryptocurrencyAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -239,8 +648,7 @@ export interface components {
     };
     /** @description describes destination for remote operations */
     accountInformation: {
-      /** @description FinID, public key of the user */
-      finId: string;
+      finId: components['schemas']['finId'];
       account: components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'];
     };
     finIdAccount: {
@@ -249,8 +657,8 @@ export interface components {
              * @enum {string}
              */
       type: 'finId';
-      finId: string;
-      orgId?: string;
+      finId: components['schemas']['finId'];
+      orgId?: components['schemas']['orgId'];
     };
     cryptoWalletAccount: {
       /**
@@ -644,10 +1052,31 @@ export interface components {
       settlementInstruction: components['schemas']['redemptionIntentSettlementInstruction'];
       conditions?: components['schemas']['redemptionIntentConditions'];
     };
-    settlementTerm: {
+    settlementTerm: components['schemas']['noSettlementOption'] | components['schemas']['partialSettlementOption'] | components['schemas']['fullSettlementOption'];
+    partialSettlementOption: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'partialSettlement';
       asset: components['schemas']['asset'];
-      /** @description A unit value represented as a string, the value is a decimal number */
-      unitValue: string;
+      unitValue: components['schemas']['unitValue'];
+    };
+    fullSettlementOption: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'fullSettlement';
+      asset: components['schemas']['asset'];
+      amount: components['schemas']['amount'];
+    };
+    noSettlementOption: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'noSettlement';
     };
     assetTerm: {
       asset: components['schemas']['asset'];
@@ -774,7 +1203,8 @@ export interface components {
       /** @description amount of funds payable at maturity */
       closeAmount: string;
     };
-    /** @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
+    /**
+         * @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
          *
          *       const nonce = Buffer.alloc(32);
          *       nonce.fill(crypto.randomBytes(24), 0, 24);
@@ -782,7 +1212,7 @@ export interface components {
          *       const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
          *       const t = BigInt(nowEpochSeconds);
          *       nonce.writeBigInt64BE(t, 24);
-         *      */
+         */
     nonce: string;
     /** @description represent a signature template information */
     signature: {
@@ -834,7 +1264,7 @@ export interface components {
       /** Format: address */
       verifyingContract?: string;
     };
-    EIP712TypedValue: components['schemas']['EIP712TypeString'] | components['schemas']['EIP712TypeInteger'] | components['schemas']['EIP712TypeBool'] | components['schemas']['EIP712TypeByte'] | components['schemas']['EIP712TypeObject'] /*| components["schemas"]["EIP712TypeArray"]*/;
+    EIP712TypedValue: RecursiveEIP712TypedValue;
     EIP712Types: {
       definitions?: components['schemas']['EIP712TypeDefinition'][];
     };
@@ -865,10 +1295,8 @@ export interface components {
     EIP712TypeByte: string;
     EIP712TypeInteger: number;
     EIP712TypeBool: boolean;
-    EIP712TypeObject: {
-      [key: string]: components['schemas']['EIP712TypedValue'];
-    };
-    // EIP712TypeArray: components["schemas"]["EIP712TypedValue"][];
+    EIP712TypeObject: RecursiveEIP712TypeObject;
+    EIP712TypeArray: RecursiveEIP712TypeArray;
     receiptOutput: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -933,8 +1361,8 @@ export interface components {
              * @enum {string}
              */
       type: 'asset';
-      sourceFinId?: string;
-      destinationFinId?: string;
+      sourceFinId?: components['schemas']['finId'];
+      destinationFinId?: components['schemas']['finId'];
       transactionDetails: components['schemas']['receiptTransactionDetails'];
     };
     receiptPaymentDetails: {
@@ -1026,7 +1454,7 @@ export interface components {
       instructions: components['schemas']['instruction'][];
       assetMatchingCriteria?: components['schemas']['assetMatchingCriteria'];
       constraints?: components['schemas']['constraints'];
-      settlementStrategy?: components['schemas']['settlementStrategyType'];
+      settlementStrategy?: components['schemas']['settlementStrategyType'][];
     };
     createPolicyRequest: {
       /** @description unique policy id */
@@ -1044,7 +1472,7 @@ export interface components {
       instructions: components['schemas']['instruction'][];
       assetMatchingCriteria?: components['schemas']['assetMatchingCriteria'];
       constraints?: components['schemas']['constraints'];
-      settlementStrategy?: components['schemas']['settlementStrategyType'];
+      settlementStrategy?: components['schemas']['settlementStrategyType'][];
     };
     updatePolicyRequest: {
       /** @description unique policy id */
@@ -1068,7 +1496,7 @@ export interface components {
              * @description new version of the trading policy
              */
       version: number;
-      settlementStrategy?: components['schemas']['settlementStrategyType'];
+      settlementStrategy?: components['schemas']['settlementStrategyType'][];
     };
     /**
          * @description type of settlement strategy
@@ -1078,18 +1506,44 @@ export interface components {
     constraints: {
       allowedCounterOrganizations?: string[];
       allowedCounterAssetTypes?: string[];
+      allowedCounterAssetIdentifiers?: components['schemas']['assetIdentifier'][];
+      allowedCounterNetworks?: string[];
     } | null;
     assetMatchingCriteria: {
       assetTypes: ('finp2p' | 'fiat' | 'cryptocurrency' | 'custom')[];
       assetNameRegexp?: string | null;
       assetCodes?: string[];
+      AssetIdentifiers?: components['schemas']['assetIdentifier'][];
+      Networks?: string[];
     } | null;
+    accountSelector: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'account';
+      path: string;
+    };
+    assetSelector: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'asset';
+      path: string;
+    };
+    selector: (components['schemas']['accountSelector'] | components['schemas']['assetSelector']) | null;
+    instructionTarget: {
+      version?: string;
+      selectors: components['schemas']['selector'][];
+    };
     instruction: {
       /** @enum {string} */
       instruction: 'Hold' | 'Transfer' | 'Release' | 'Await' | 'Issue' | 'RevertHold' | 'Redeem';
       /** Format: uint32 */
       sequence: number;
-      executors: ('self' | 'counterparty')[];
+      executors?: ('self' | 'counterparty')[];
+      target?: components['schemas']['instructionTarget'];
       timeout?: components['schemas']['tolerance'];
       onFailure?: components['schemas']['transition'];
       onSuccess: components['schemas']['transition'];
@@ -1102,7 +1556,7 @@ export interface components {
              * @enum {string}
              */
       type: 'hold';
-      accountRole: string;
+      accountRole?: string;
     } | null;
     releaseOperationDetails: {
       /**
@@ -1120,7 +1574,7 @@ export interface components {
              * @enum {string}
              */
       type: 'transfer';
-      accountRole: string;
+      accountRole?: string;
     } | null;
     issueOperationDetails: {
       /**
@@ -1194,50 +1648,13 @@ export interface components {
       /** Format: uint32 */
       absoluteDeviation?: number;
     } & (unknown | unknown);
-    operationStatusCallback: components['schemas']['operationStatus'];
-    AssetMetadataAndConfigError: {
-      /** @enum {integer} */
-      code: 4108;
-      /** @enum {string} */
-      message: 'Asset metadata and config cannot be provided at the same time';
-    };
-    GeneralClientError: {
-      /** @enum {integer} */
-      code: 1000;
-      /** @enum {string} */
-      message: 'General client error';
-    };
-    ApiErrorClient4XX: {
-      /** @enum {string} */
-      type: 'error';
-      /** @enum {integer} */
-      status: 400 | 401 | 403 | 404 | 409;
-      errors: (components['schemas']['AssetMetadataAndConfigError'] | components['schemas']['GeneralClientError'])[];
-    };
-    GeneralServerError: {
-      /** @enum {integer} */
-      code: 2000;
-      /** @enum {string} */
-      message: 'General server error';
-    };
-    ApiErrorServer5XX: {
-      /** @enum {string} */
-      type: 'error';
-      /** @enum {integer} */
-      status: 500 | 502 | 503 | 504;
-      errors: components['schemas']['GeneralServerError'][];
-    };
-    ApiAnyError: (components['schemas']['ApiErrorClient4XX'] | components['schemas']['ApiErrorServer5XX']) & {
-      /** @enum {string} */
-      type: 'error';
-    };
-    pollingResultsStrategy: {
+    operationStatusCallback: components['schemas']['operationStatus'] | components['schemas']['schemas-operationStatus'];
+    randomPollingInterval: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
       type: 'random';
-      polling: components['schemas']['randomPollingInterval'] | components['schemas']['absolutePollingInterval'] | components['schemas']['relativePollingInterval'];
     };
     absolutePollingInterval: {
       /**
@@ -1260,12 +1677,13 @@ export interface components {
              */
       duration: string;
     };
-    randomPollingInterval: {
+    pollingResultsStrategy: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-      type: 'randomPollingInterval';
+      type: 'poll';
+      polling: components['schemas']['randomPollingInterval'] | components['schemas']['absolutePollingInterval'] | components['schemas']['relativePollingInterval'];
     };
     callbackEndpoint: {
       /**
@@ -1284,9 +1702,10 @@ export interface components {
     };
     /** @description additional metadata regarding the operation */
     OperationMetadata: {
-      /** @description denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
+      /**
+             * @description denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
              *     optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
-             *      */
+             */
       operationResponseStrategy?: components['schemas']['pollingResultsStrategy'] | components['schemas']['callbackResultsStrategy'];
     };
     OperationBase: {
@@ -1353,20 +1772,41 @@ export interface components {
       operation: components['schemas']['createAssetOperation'];
     };
     depositOperationErrorInformation: Record<string, never>;
+    /**
+         * Format: finid
+         * @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed
+         */
+    finId: string;
     'schemas-finIdAccount': {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
       type: 'finId';
-      /** @description FinID, public key of the user */
-      finId: string;
+      finId: components['schemas']['finId'];
+    };
+    'schemas-cryptoWalletAccount': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'cryptoWallet';
+      /** @description address of the cryptocurrency wallet */
+      address: string;
+    };
+    'schemas-fiatAccount': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'fiatAccount';
+      /** @description IBAN or other code to represent a fiat account */
+      code: string;
     };
     /** @description describes destination for remote operations operations */
     destination: {
-      /** @description FinID, public key of the user */
-      finId: string;
-      account: components['schemas']['schemas-finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'];
+      finId: components['schemas']['finId'];
+      account: components['schemas']['schemas-finIdAccount'] | components['schemas']['schemas-cryptoWalletAccount'] | components['schemas']['schemas-fiatAccount'];
     };
     ibanAccountDetails: {
       /**
@@ -1489,20 +1929,36 @@ export interface components {
       message: string;
       regulationErrorDetails?: components['schemas']['RegulationError'][];
     };
+    'schemas-cryptocurrencyAsset': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'cryptocurrency';
+      /** @description unique identifier symbol of the cryptocurrency */
+      code: string;
+    };
+    'schemas-fiatAsset': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'fiat';
+      /** @description unique identifier code of the fiat currency - based on ISO-4217 */
+      code: string;
+    };
     'schemas-finp2pAsset': {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
       type: 'finp2p';
-      /** @description Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format')
-             *      */
+      /** @description Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format') */
       resourceId: string;
     };
-    'schemas-asset': components['schemas']['cryptocurrencyAsset'] | components['schemas']['fiatAsset'] | components['schemas']['schemas-finp2pAsset'];
+    'schemas-asset': components['schemas']['schemas-cryptocurrencyAsset'] | components['schemas']['schemas-fiatAsset'] | components['schemas']['schemas-finp2pAsset'];
     source: {
-      /** @description FinID, public key of the user */
-      finId: string;
+      finId: components['schemas']['finId'];
       account: components['schemas']['schemas-finIdAccount'];
     };
     /** @description additional ledger specific */
@@ -1514,13 +1970,85 @@ export interface components {
     };
     /** @enum {string} */
     operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem';
+    'schemas-receiptExecutionContext': {
+      executionPlanId: string;
+      instructionSequenceNumber: number;
+    };
+    'schemas-receiptTradeDetails': {
+      intentId?: string;
+      intentVersion?: string;
+      executionContext?: components['schemas']['schemas-receiptExecutionContext'];
+    };
+    /** @description describing a field in the hash group */
+    'schemas-field': {
+      /** @description name of field */
+      name: string;
+      /**
+             * @description type of field
+             * @enum {string}
+             */
+      type: 'string' | 'int' | 'bytes';
+      /** @description hex representation of the field value */
+      value: string;
+    };
+    'schemas-hashGroup': {
+      /** @description hex representation of the hash group hash value */
+      hash: string;
+      /** @description list of fields by order they appear in the hash group */
+      fields: components['schemas']['schemas-field'][];
+    };
+    /** @description ordered list of hash groups */
+    'schemas-hashListTemplate': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hashList';
+      hashGroups: components['schemas']['schemas-hashGroup'][];
+      /** @description hex representation of the combined hash groups hash value */
+      hash: string;
+    };
+    'schemas-EIP712FieldDefinition': {
+      name?: string;
+      type?: string;
+    };
+    'schemas-EIP712TypeDefinition': {
+      name?: string;
+      fields?: components['schemas']['schemas-EIP712FieldDefinition'][];
+    };
+    'schemas-EIP712Types': {
+      definitions?: components['schemas']['schemas-EIP712TypeDefinition'][];
+    };
+    'schemas-EIP712Template': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'EIP712';
+      domain: components['schemas']['EIP712Domain'];
+      message: {
+        [key: string]: components['schemas']['EIP712TypedValue'];
+      };
+      types: components['schemas']['schemas-EIP712Types'];
+      primaryType: string;
+      /** @description hex representation of template hash */
+      hash: string;
+    };
+    'schemas-signatureTemplate': components['schemas']['schemas-hashListTemplate'] | components['schemas']['schemas-EIP712Template'];
+    /** @description represent a signature template information */
+    'schemas-signature': {
+      /** @description hex representation of the signature */
+      signature: string;
+      template: components['schemas']['schemas-signatureTemplate'];
+      hashFunc: components['schemas']['hashFunction'];
+    };
     'schemas-signatureProofPolicy': {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
       type: 'signatureProofPolicy';
-      signature?: components['schemas']['signature'];
+      signature?: components['schemas']['schemas-signature'];
     };
     /** @description additional proof information attached to a receipt */
     'schemas-proofPolicy': components['schemas']['schemas-signatureProofPolicy'] | components['schemas']['noProofPolicy'];
@@ -1539,7 +2067,7 @@ export interface components {
       destination?: components['schemas']['destination'];
       transactionDetails?: components['schemas']['schemas-transactionDetails'];
       operationType?: components['schemas']['operationType'];
-      tradeDetails: components['schemas']['receiptTradeDetails'];
+      tradeDetails: components['schemas']['schemas-receiptTradeDetails'];
       proof?: components['schemas']['schemas-proofPolicy'];
     };
     receiptOperation: components['schemas']['OperationBase'] & {
@@ -1603,6 +2131,97 @@ export interface components {
       operation: components['schemas']['ExecutionPlanApprovalOperation'];
     };
     operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'];
+    CustomError: {
+      code: number;
+      message: string;
+    };
+    generalErrorArray: {
+      errors: components['schemas']['CustomError'][];
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'generalErrorArray';
+    };
+    accountResponse: {
+      finId: components['schemas']['finId'];
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'accountResponse';
+    };
+    createAccountOperationResponse: {
+      account?: components['schemas']['generalErrorArray'] | components['schemas']['accountResponse'];
+    };
+    /** @enum {string} */
+    createAccountOperationType: 'createAccountOperation';
+    createAccountOperation: components['schemas']['OperationBase'] & components['schemas']['createAccountOperationResponse'] & {
+      type: components['schemas']['createAccountOperationType'];
+    } & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'createAccountOperation';
+    };
+    signatureResponse: {
+      /** @description the hex representation of the signature */
+      signature: string;
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'signatureResponse';
+    };
+    signatureRequestOperationResponse: {
+      signature?: components['schemas']['generalErrorArray'] | components['schemas']['signatureResponse'];
+    };
+    /** @enum {string} */
+    signatureRequestOperationType: 'signatureRequestOperation';
+    signatureRequestOperation: components['schemas']['OperationBase'] & components['schemas']['signatureRequestOperationResponse'] & {
+      type: components['schemas']['signatureRequestOperationType'];
+    } & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'signatureRequestOperation';
+    };
+    ApproveExecutionPlanResponse: components['schemas']['ExecutionPlanApprovalOperation'];
+    /** @enum {string} */
+    planApprovalOperationType: 'planApprovalOperation';
+    planApprovalOperation: components['schemas']['ApproveExecutionPlanResponse'] & {
+      type: components['schemas']['planApprovalOperationType'];
+    } & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'planApprovalOperation';
+    };
+    'schemas-operationStatus': {
+      /** @enum {string} */
+      type: 'createAccountOperation' | 'signatureRequestOperation' | 'planApprovalOperation';
+      operation: components['schemas']['createAccountOperation'] | components['schemas']['signatureRequestOperation'] | components['schemas']['planApprovalOperation'];
+    };
+    /** @description Organization Id */
+    orgId: string;
+    /**
+         * @description Classification type standards
+         * @enum {string}
+         */
+    assetIdentifierType: 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM' | 'ISO4217';
+    assetIdentifier: {
+      assetIdentifierType: components['schemas']['assetIdentifierType'];
+      /** @description The classification standard used to identify the asset */
+      assetIdentifierValue: string;
+      /** @description Additional network information for the asset identifier */
+      networkInfo?: {
+        /** @description Identifier of the network associated with the asset (e.g., blockchain network name or code). */
+        networkId?: string;
+      };
+    };
   };
   responses: never;
   parameters: never;
@@ -1634,31 +2253,94 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Workflow not found */
-      404: {
+    };
+  };
+  retryWorkflow: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description Unique identifier of the workflow to retry */
+        workflowId: string;
+      };
+      cookie?: never;
+    };
+    /** @description Retry workflow request */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['workflowRetryRequest'];
+      };
+    };
+    responses: {
+      /** @description Retry request accepted */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['ApiAnyError'];
+          'application/json': components['schemas']['OperationBase'];
         };
       };
-      /** @description Precondition failed. E.g. workflow is already completed or in non cancellable state */
-      422: {
+    };
+  };
+  resetWorkflow: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description Unique identifier of the workflow to reset */
+        workflowId: string;
+      };
+      cookie?: never;
+    };
+    /** @description Reset workflow request */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['workflowResetRequest'];
+      };
+    };
+    responses: {
+      /** @description Reset request accepted */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['ApiAnyError'];
+          'application/json': components['schemas']['OperationBase'];
         };
       };
-      /** @description System error */
-      500: {
+    };
+  };
+  cancelWorkflowById: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description Unique identifier of the workflow to cancel */
+        workflowId: string;
+      };
+      cookie?: never;
+    };
+    /** @description Cancel workflow request */
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['workflowCancelRequest'];
+      };
+    };
+    responses: {
+      /** @description Cancel request accepted */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['ApiAnyError'];
+          'application/json': components['schemas']['OperationBase'];
         };
       };
     };
@@ -1688,12 +2370,133 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description System error */
-      500: {
+    };
+  };
+  'Override approvals config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+                 * @example {
+                 *       "ownerId": "bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01",
+                 *       "tokenization": {
+                 *         "http-endpoint-1": {
+                 *           "config_type": "http",
+                 *           "endpoint": "http://approver-service.internal/approvals",
+                 *           "timeout": "45s",
+                 *           "proposals": [
+                 *             "reset",
+                 *             "cancel",
+                 *             "instruction"
+                 *           ]
+                 *         },
+                 *         "ledger-approver-1": {
+                 *           "config_type": "ledger",
+                 *           "name": "ledger-approver-1",
+                 *           "proposals": [
+                 *             "reset",
+                 *             "instruction"
+                 *           ]
+                 *         }
+                 *       },
+                 *       "payments": {
+                 *         "ledger-approver-2": {
+                 *           "config_type": "ledger",
+                 *           "name": "payments-ledger-approver",
+                 *           "proposals": [
+                 *             "instruction"
+                 *           ]
+                 *         }
+                 *       }
+                 *     }
+                 */
+        'application/json': components['schemas']['approvalConfig'];
+      };
+    };
+    responses: {
+      /** @description Created the new configuration successfully */
+      201: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  'update approvals config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['approvalConfigUpdate'];
+      };
+    };
+    responses: {
+      /** @description Configuration updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  setPinningConfig: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['pinningConfig'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updatePinningConfig: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['pinningConfigUpdate'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['pinningConfig'];
+        };
       };
     };
   };
@@ -1721,37 +2524,8 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Some transactions were not imported due to duplicate transaction IDs.
-             *      */
+      /** @description Some transactions were not imported due to duplicate transaction IDs. */
       208: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Transaction not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description request with this idempotency key already in progress */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Invalid idempotency key or request with same idempotency key but different payload */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description System error */
-      500: {
         headers: {
           [name: string]: unknown;
         };
@@ -1780,20 +2554,6 @@ export interface operations {
           'application/json': components['schemas']['execution'];
         };
       };
-      /** @description Execution plan not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description System error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
   };
   getPolicyById: {
@@ -1817,24 +2577,6 @@ export interface operations {
           'application/json': components['schemas']['tradingPolicy'];
         };
       };
-      /** @description Trading policy not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
-      };
-      /** @description Internal error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
-      };
     };
   };
   deletePolicyById: {
@@ -1855,24 +2597,6 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
-      };
-      /** @description Trading policy not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
-      };
-      /** @description Internal error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
       };
     };
   };
@@ -1897,15 +2621,6 @@ export interface operations {
           'application/json': {
             policies: components['schemas']['tradingPolicy'][];
           };
-        };
-      };
-      /** @description Internal error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
         };
       };
     };
@@ -1933,20 +2648,6 @@ export interface operations {
           };
         };
       };
-      /** @description Asset was not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Internal error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
   };
   updatePolicy: {
@@ -1969,42 +2670,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['updatePolicyResponse'];
-        };
-      };
-      /** @description Invalid Input */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
-      };
-      /** @description Policy not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
-      };
-      /** @description constraints violation */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
-      };
-      /** @description System error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
         };
       };
     };
@@ -2031,32 +2696,99 @@ export interface operations {
           'application/json': components['schemas']['createPolicyResponse'];
         };
       };
-      /** @description Invalid Input */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
+    };
+  };
+  'update ledger binding': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Unique identifier for the ledger name. This value must be unique across all ledger bindings */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Ledger adapter address in host:port format */
+          endpoint?: string | null;
+          /** @description The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error */
+          requestTimeout?: string | null;
+          /** @description The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures */
+          backoff?: string | null;
+          /** @description The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration */
+          singleRequestTimeout?: string | null;
+          auth?: components['schemas']['ledgerAuthOptionsOpt'] | null;
+          idempotency?: components['schemas']['ledgerIdempotencyOptionsOpt'] | null;
+          /** @description A human-readable name for the ledger that appears in user interfaces */
+          displayName?: string | null;
+          /**
+                     * @description Indicates whether balance synchronization is enabled for this ledger
+                     * @default true
+                     */
+          balanceSyncAllowed?: boolean | null;
         };
       };
-      /** @description policy with given policy id already exists */
-      409: {
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
         headers: {
           [name: string]: unknown;
         };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
+        content?: never;
+      };
+    };
+  };
+  'bind ledger': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Unique identifier for the ledger name. This value must be unique across all ledger bindings */
+          name: string;
+          /** @description Ledger adapter address in host:port format */
+          endpoint: string;
+          auth?: components['schemas']['ledgerAuthOptions'];
+          idempotency?: components['schemas']['ledgerIdempotencyOptions'];
+          /** @description A human-readable name for the ledger that appears in user interfaces */
+          displayName?: string;
+          /**
+                     * @description The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error
+                     * @default 300s
+                     */
+          requestTimeout?: string;
+          /**
+                     * @description The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures
+                     * @default 60s
+                     */
+          backoff?: string;
+          /**
+                     * @description The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration
+                     * @default 90s
+                     */
+          singleRequestTimeout?: string;
+          /**
+                     * @description Indicates whether balance synchronization is enabled for this ledger
+                     * @default true
+                     */
+          balanceSyncAllowed?: boolean;
         };
       };
-      /** @description System error */
-      500: {
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
         headers: {
           [name: string]: unknown;
         };
-        content: {
-          'application/json': components['schemas']['ApiAnyError'];
-        };
+        content?: never;
       };
     };
   };

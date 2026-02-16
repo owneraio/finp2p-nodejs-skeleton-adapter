@@ -24,15 +24,15 @@ export class FinAPIClient {
     return this.apiClient.POST('/profiles/owner');
   }
 
-  async createAsset(name: string, type: string, issuerId: string,
+  async createAsset(name: string, type: FinAPIComponents['schemas']['assetType'], issuerId: string,
     symbol: string | undefined,
     denomination: FinAPIComponents['schemas']['assetDenomination'],
     intentTypes: FinAPIComponents['schemas']['intentType'][],
-    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'] | undefined,
+    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'],
     assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
     config: string | undefined,
     metadata: any | undefined,
-    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier'] | undefined,
+    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier'],
   ) {
     return this.apiClient.POST('/profiles/asset', {
       body: {

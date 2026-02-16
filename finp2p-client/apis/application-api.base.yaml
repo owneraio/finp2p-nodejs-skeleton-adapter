@@ -40,12 +40,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/resourceIdResponse'
-        '202':
-          description: accepted operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/operationBase'
 
   /profiles/owner/{ownerId}/account:
     post:
@@ -73,8 +67,7 @@ paths:
               type: object
               properties:
                 orgId:
-                  type: string
-                  description: 'Org ID for the custodian of the account'
+                  $ref: 'common-external-components.yaml#/components/schemas/orgId'
 
         required: true
       responses:
@@ -107,7 +100,7 @@ paths:
         content:
           application/json:
             schema:
-              required: [ name, type, issuerId, denomination ]
+              required: [ name, type, assetIdentifier, denomination, ledgerAssetBinding ]
               type: object
               properties:
                 metadata:
@@ -132,10 +125,7 @@ paths:
                 symbol:
                   $ref: '#/components/schemas/symbol'
                 type:
-                  type: string
-                  pattern: '^[a-zA-Z0-9\- ]*$'
-                  description: The type of the asset
-                  maxLength: 150
+                  $ref: 'common-external-components.yaml#/components/schemas/assetType'
                 issuerId:
                   $ref: '#/components/schemas/ownerId'
                 denomination:
@@ -146,6 +136,16 @@ paths:
                   $ref: '#/components/schemas/assetPolicies'
                 assetIdentifier:
                   $ref: 'common-external-components.yaml#/components/schemas/assetIdentifier'
+                allowPolicyDefaultFallback:
+                  type: boolean
+                  description: Flag to indicate if default policy fallback is allowed when no matching policy is found
+                  default: true
+                decimalPlaces:
+                  type: integer
+                  format: int32
+                  minimum: 0
+                  maximum: 18
+                  description: Defines how many decimal places the asset supports. Used to determine the smallest divisible unit (e.g., cents for USD with 2 decimals, satoshis for BTC with 8 decimals).
 
         required: true
       responses:
@@ -304,25 +304,22 @@ paths:
                 metadata:
                   type: object
                   description: The asset metadata
-                  x-go-type-skip-optional-pointer: true
+                  x-custom-format: "nullable"
                   additionalProperties: true
                   nullable: true
-                  x-go-type: Nullable[map[string]any]
                 config:
                   type: string
                   description: The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
                   deprecated: true
-                  x-go-type-skip-optional-pointer: true
+                  x-custom-format: "nullable"
                   nullable: true
-                  x-go-type: Nullable[string]
                 verifiers:
                   type: array
                   description: A list of regulation verifiers to execute to validate a transaction
+                  x-custom-format: "nullable"
                   items:
                     $ref: '#/components/schemas/assetVerifier'
-                  x-go-type-skip-optional-pointer: true
                   nullable: true
-                  x-go-type: Nullable[[]AssetVerifier]
                 name:
                   $ref: '#/components/schemas/nameOpt'
                 symbol:
@@ -707,7 +704,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/idResponse'
+                $ref: '#/components/schemas/certificateIdResponse'
 
   '/profiles/{profileId}/certificates/{certificateId}':
     put:
@@ -846,25 +843,21 @@ paths:
               properties:
                 issuanceDate:
                   type: integer
-                  format: int64
+                  x-custom-format: "nullable"
                   minimum: 0
                   # maximum: 10000000000
                   description: The issuance date of the Certificate in epoch time seconds
-                  x-go-type-skip-optional-pointer: true
-                  x-go-type: Nullable[int64]
+                  
                 expirationDate:
                   type: integer
-                  format: int64
+                  x-custom-format: "nullable"
                   minimum: 0
                   # maximum: 10000000000
                   description: The expiration date of the Certificate in epoch time seconds
-                  x-go-type-skip-optional-pointer: true
-                  x-go-type: Nullable[int64]
                 data:
                   type: string
                   description: Serilized data objects that contain one or more properties that are each related to the subject of the Certificate
-                  x-go-type-skip-optional-pointer: true
-                  x-go-type: Nullable[string]
+                  x-custom-format: "nullable"
         required: true
       responses:
         '200':
@@ -900,11 +893,15 @@ paths:
             schema:
               type: object
               description: The request body can contain multiple files as multiple file form fields
+              required:
+                - files
               properties:
-                file:
-                  type: string
-                  format: binary
-                  description: the document in binary format
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: the documents in binary format
       responses:
         '200':
           description: successful operation
@@ -974,6 +971,8 @@ paths:
           multipart/form-data:
             schema:
               type: object
+              required:
+                - file
               properties:
                 file:
                   type: string
@@ -982,7 +981,7 @@ paths:
       responses:
         '200':
           description: successful operation
-        
+
 
   '/tokens/execute':
     post:
@@ -1020,12 +1019,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/executionOperationResult'
-        '202':
-          description: accepted operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/operationBase'
 
   '/tokens/execute/cancel':
     post:
@@ -1098,12 +1091,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/executionOperationResult'
-        '202':
-          description: accepted operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/operationBase'
+
 
   '/tokens/balance':
     post:
@@ -1536,7 +1524,7 @@ paths:
               $ref: '#/components/schemas/AccountBalanceSyncRequest'
         required: true
       responses:
-        '204':
+        '202':
           description: sync request received, sync in progress
           content: { }
 
@@ -1657,16 +1645,9 @@ components:
       maxLength: 150
       example: 'bank-x:106:9929ccaf-8967-4ba3-9198-a4b8e3128388'
 
-    finId:
-      type: string
-      description: 'Existing owner hex representation of a secp256k1 public key 33 bytes compressed'
-      pattern: '^[0-9a-h]*$'
-      minLength: 64
-      maxLength: 66
-
     primarySaleExecution:
       type: object
-      required: [ type, nonce, issuer, buyer, asset, settlement ]
+      required: [ type, nonce, issuer, buyer, asset ]
       properties:
         type:
           type: string
@@ -1684,7 +1665,7 @@ components:
 
     buyingIntentExecution:
       type: object
-      required: [ type, nonce, asset, settlement, seller ]
+      required: [ type, nonce, asset, seller ]
       properties:
         type:
           type: string
@@ -1700,7 +1681,7 @@ components:
 
     sellingIntentExecution:
       type: object
-      required: [ type, nonce, asset, settlement, buyer ]
+      required: [ type, nonce, asset, buyer ]
       properties:
         type:
           type: string
@@ -1716,7 +1697,7 @@ components:
 
     loanIntentExecution:
       type: object
-      required: [ type, executorType, nonce, asset, settlement, lender, borrower ]
+      required: [ type, executorType, nonce, asset, lender, borrower ]
       properties:
         type:
           type: string
@@ -1739,7 +1720,7 @@ components:
 
     redemptionIntentExecution:
       type: object
-      required: [ type, nonce, issuer, seller, asset, settlement ]
+      required: [ type, nonce, issuer, seller, asset ]
       properties:
         type:
           type: string
@@ -1838,10 +1819,11 @@ components:
         settlementInstruction:
           $ref: '#/components/schemas/sellingIntentSettlementInstruction'
 
+
     buyingIntent:
       type: object
       required:
-        [ type, buyer, assetTerm, assetInstruction, settlementInstruction ]
+        [ type, buyer, assetTerm, assetInstruction, settlementTerm ]
       properties:
         type:
           type: string
@@ -1896,7 +1878,7 @@ components:
 
     loanIntent:
       type: object
-      required: [ type, creatorType, borrower, lender ]
+      required: [ type, creatorType, borrower, lender, settlementTerm]
       properties:
         type:
           type: string
@@ -1928,7 +1910,7 @@ components:
 
     redemptionIntent:
       type: object
-      required: [ type, issuer, assetTerm, settlementInstruction ]
+      required: [ type, issuer, assetTerm, settlementTerm ]
       properties:
         type:
           type: string
@@ -1957,7 +1939,7 @@ components:
 
     privateOfferIntent:
       type: object
-      required: [ type, buyer, seller, assetTerm ]
+      required: [ type, buyer, seller, assetTerm, settlementTerm ]
       properties:
         type:
           type: string
@@ -1984,17 +1966,8 @@ components:
         settlementInstruction:
           $ref: '#/components/schemas/sellingIntentSettlementInstruction'
 
-    settlementTerm:
-      type: object
-      required: [ asset, unitValue ]
-      properties:
-        asset:
-          $ref: '#/components/schemas/asset'
-        unitValue:
-          type: string
-          description: 'A unit value represented as a string, the value is a decimal number'
-          pattern: '^\d+\.?\d*$'
-          maxLength: 150
+
+
 
     assetTerm:
       type: object
@@ -2191,6 +2164,98 @@ components:
         destinationAccount:
           $ref: '#/components/schemas/accountAsset'
 
+    settlementTerm:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          noSettlement: '#/components/schemas/noSettlementOption'
+          partialSettlement: '#/components/schemas/partialSettlementOption'
+          fullSettlement: '#/components/schemas/fullSettlementOption'
+      oneOf:
+        - $ref: '#/components/schemas/noSettlementOption'
+        - $ref: '#/components/schemas/partialSettlementOption'
+        - $ref: '#/components/schemas/fullSettlementOption'
+      description: "Defines whether settlement occurs on FinP2P and the settlement obligation required from the counterparty."
+
+
+    partialSettlementOption:
+      type: object
+      required: [ type, asset, unitValue ]
+      properties:
+        type:
+          type: string
+          enum: [ 'partialSettlement' ]
+        asset:
+          $ref: '#/components/schemas/asset'
+        unitValue:
+          $ref: '#/components/schemas/unitValue'
+      description: "Counterparty may settle for any amount up to the specified units, enabling partial fulfillment."
+
+    fullSettlementOption:
+      type: object
+      required: [ type, asset, amount ]
+      properties:
+        type:
+          type: string
+          enum: [ 'fullSettlement' ]
+        asset:
+          $ref: '#/components/schemas/asset'
+        amount:
+          $ref: '#/components/schemas/amount'
+      description: "Counterparty must settle for the entire trade amount. Partial fulfillment is not permitted."
+
+    noSettlementOption:
+      type: object
+      required: [ type]
+      properties:
+        type:
+          type: string
+          enum: [ 'noSettlement' ]
+      description: "Indicates that settlement will not occur on the FinP2P network. The trade settlement is expected to be handled externally through an alternative payment rail."
+
+    noSettlementOptionUpdate:
+      type: object
+      required:  [type]
+      properties:
+        type:
+          type: string
+          enum: [ 'noSettlement' ]
+
+    partialSettlementOptionUpdate:
+      type: object
+      required: [ type, unitValue ]
+      properties:
+        type:
+          type: string
+          enum: [ 'partialSettlement' ]
+        unitValue:
+          $ref: '#/components/schemas/unitValue'
+
+    fullSettlementOptionUpdate:
+      type: object
+      required: [ type, amount ]
+      properties:
+        type:
+          type: string
+          enum: [ 'fullSettlement' ]
+        amount:
+          $ref: '#/components/schemas/amount'
+
+    settlementTermUpdate:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          noSettlement: '#/components/schemas/noSettlementOptionUpdate'
+          partialSettlement: '#/components/schemas/partialSettlementOptionUpdate'
+          fullSettlement: '#/components/schemas/fullSettlementOptionUpdate'
+      oneOf:
+        - $ref: '#/components/schemas/noSettlementOptionUpdate'
+        - $ref: '#/components/schemas/partialSettlementOptionUpdate'
+        - $ref: '#/components/schemas/fullSettlementOptionUpdate'
+
+
     loanSettlementInstruction:
       type: object
       required: [ borrowerAccount, lenderAccount ]
@@ -2215,6 +2280,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/accountAsset'
+          minItems: 1
 
     redemptionIntentSettlementInstruction:
       type: object
@@ -2245,7 +2311,7 @@ components:
 
     loanInstruction:
       type: object
-      required: [ openDate, closeDate, conditions ]
+      required: [ openDate, closeDate ]
       properties:
         openDate:
           type: integer
@@ -2326,6 +2392,14 @@ components:
         id:
           $ref: '#/components/schemas/ownerId'
 
+    certificateIdResponse:
+      type: object
+      required: [ id ]
+      properties:
+        id:
+          type: string
+          description: "Certificate's ID"
+          
     intentIdResponse:
       type: object
       required: [ intentId ]
@@ -2363,6 +2437,7 @@ components:
         - $ref: '#/components/schemas/cancelExecutionOperation'
         - $ref: '#/components/schemas/resetExecutionOperation'
         - $ref: '#/components/schemas/accountOperation'
+        - $ref: '#/components/schemas/workflowOperation'
       discriminator:
         propertyName: type
         mapping:
@@ -2374,6 +2449,7 @@ components:
           cancel-execution: '#/components/schemas/cancelExecutionOperation'
           reset-execution: '#/components/schemas/resetExecutionOperation'
           account: '#/components/schemas/accountOperation'
+          workflow: '#/components/schemas/workflowOperation'
 
     tokenOperation:
       allOf:
@@ -2384,7 +2460,8 @@ components:
             type:
               type: string
               enum: [ 'token' ]
-            metadata: { }
+            metadata:
+              x-go-type-skip-optional-pointer: false
             response:
               type: object
               discriminator:
@@ -2405,7 +2482,8 @@ components:
               type: string
               enum: [ 'success' ]
         - $ref: '#/components/schemas/tokenOperationResult'
-        
+
+
     executionOperation:
       allOf:
         - $ref: '#/components/schemas/operationBase'
@@ -2415,7 +2493,8 @@ components:
             type:
               type: string
               enum: [ 'execution' ]
-            metadata: { }
+            metadata:
+              x-go-type-skip-optional-pointer: false
             response:
               discriminator:
                 propertyName: type
@@ -2435,7 +2514,8 @@ components:
             type:
               type: string
               enum: [ 'cancel-execution' ]
-            metadata: { }
+            metadata:
+              x-go-type-skip-optional-pointer: false
             response:
               discriminator:
                 propertyName: type
@@ -2455,7 +2535,8 @@ components:
             type:
               type: string
               enum: [ 'reset-execution' ]
-            metadata: { }
+            metadata:
+              x-go-type-skip-optional-pointer: false
           discriminator:
             propertyName: type
             mapping:
@@ -2464,6 +2545,41 @@ components:
         - oneOf:
             - $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
             - $ref: '#/components/schemas/resetExecutionOperationResultResponse'
+
+    workflowOperation:
+      allOf:
+        - $ref: '#/components/schemas/operationBase'
+        - type: object
+          required: [ type ]
+          properties:
+            type:
+              type: string
+              enum: [ 'workflow' ]
+            metadata:
+              x-go-type-skip-optional-pointer: false
+            response:
+              discriminator:
+                propertyName: type
+                mapping:
+                  error: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
+                  success: '#/components/schemas/workflowOperationResultResponse'
+              oneOf:
+                - $ref: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
+                - $ref: '#/components/schemas/workflowOperationResultResponse'
+
+    workflowOperationResultResponse:
+      allOf:
+        - type: object
+          required: [ type ]
+          properties:
+            type:
+              type: string
+              enum: [ 'success' ]
+        - $ref: '#/components/schemas/workflowOperationResult'
+
+    workflowOperationResult:
+      type: object
+
 
     executionOperationResultResponse:
       allOf:
@@ -2504,7 +2620,9 @@ components:
             type:
               type: string 
               enum: [ 'account' ]
-            metadata: { }
+            metadata:
+              x-go-type-skip-optional-pointer: false
+
             response:
               type: object
               discriminator:
@@ -2530,11 +2648,9 @@ components:
       type: object
       properties:
         custodyOrgId:
-          type: string
-          description: custodian org id
+          $ref: "common-external-components.yaml#/components/schemas/orgId"
         finId:
-          type: string
-          description: 'hex representation of a secp256k1 resource public key 33 bytes compressed'
+          $ref: "common-external-components.yaml#/components/schemas/finId"
 
     executionOperationResult:
       type: object
@@ -2789,9 +2905,9 @@ components:
           type: string
           enum: [ 'asset' ]
         sourceFinId:
-          type: string
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         destinationFinId:
-          type: string
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         transactionDetails:
           $ref: '#/components/schemas/receiptTransactionDetails'
 
@@ -3122,11 +3238,9 @@ components:
           type: string
           enum: [ 'finId' ]
         finId:
-          $ref: '#/components/schemas/finId'
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         orgId:
-          type: 'string'
-          pattern: '^[^:]*$'
-          maxLength: 150
+          $ref: 'common-external-components.yaml#/components/schemas/orgId'
         custodian:
           $ref: '#/components/schemas/custodian'
 
@@ -3135,7 +3249,7 @@ components:
       required: [ orgId ]
       properties:
         orgId:
-          type: 'string'
+          $ref: 'common-external-components.yaml#/components/schemas/orgId'
 
     cryptoWalletAccount:
       type: object
@@ -3396,16 +3510,15 @@ components:
       minLength: 1
       maxLength: 50
       description: The symbol of the asset
-      x-go-type: Nullable[Symbol]
-      x-go-type-skip-optional-pointer: true
+      x-custom-format: "nullable"
 
     nameOpt:
       type: string
       pattern: '^[a-zA-Z0-9\-_. /]*$'
       maxLength: 150
+      minLength: 1
       description: The name of the asset
-      x-go-type: Nullable[string]
-      x-go-type-skip-optional-pointer: true
+      x-custom-format: "nullable"
 
 
     assetVerifier:
@@ -3431,10 +3544,9 @@ components:
           $ref: '#/components/schemas/proofPolicy'
 
     assetPoliciesOpt:
+      x-custom-format: "nullable"
       oneOf:
         - $ref: '#/components/schemas/assetPoliciesOptInner'
-      x-go-type: Nullable[AssetPoliciesOptInner]
-      x-go-type-skip-optional-pointer: true
 
     assetPoliciesOptInner:
       type: object
@@ -3504,13 +3616,11 @@ components:
               type: string
               description: The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
               example: '0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12'
-              x-go-type: Nullable[string]
-              x-go-type-skip-optional-pointer: true
+              x-custom-format: "nullable"
             signatureTemplate:
               type: string
               enum: [ 'hashlist', 'EIP712' ]
-              x-go-type: Nullable[SignatureProofPolicyPolicySignatureTemplate]
-              x-go-type-skip-optional-pointer: true
+              x-custom-format: "nullable+signatureTemplate"
 
     balanceInformation:
       type: object
@@ -3549,6 +3659,8 @@ components:
         propertyName: type
         mapping:
           repaymentTerm: '#/components/schemas/repaymentTerm'
+          interestTerm: '#/components/schemas/interestTerm'
+          closeAmountTerm: '#/components/schemas/closeAmountTerm'
 
     repaymentTerm:
       type: object
@@ -3640,7 +3752,7 @@ components:
           type: string
           enum: [ primarySale ]
         settlementTerm:
-          $ref: '#/components/schemas/primarySaleSettlementTermUpdate'
+          $ref: '#/components/schemas/settlementTermUpdate'
         assetTerm:
           $ref: '#/components/schemas/primarySaleAssetTermUpdate'
 
@@ -3651,12 +3763,7 @@ components:
         amount:
           $ref: '#/components/schemas/amount'
 
-    primarySaleSettlementTermUpdate:
-      type: object
-      required: [ unitValue ]
-      properties:
-        unitValue:
-          $ref: '#/components/schemas/unitValue'
+
 
     buyingIntentUpdatePayload:
       type: object
@@ -3667,16 +3774,10 @@ components:
           type: string
           enum: [ buyingIntent ]
         settlementTerm:
-          $ref: '#/components/schemas/buyingIntentSettlementTermUpdate'
+          $ref: '#/components/schemas/settlementTermUpdate'
         assetTerm:
           $ref: '#/components/schemas/buyingIntentAssetTermUpdate'
 
-    buyingIntentSettlementTermUpdate:
-      type: object
-      required: [ unitValue ]
-      properties:
-        unitValue:
-          $ref: '#/components/schemas/unitValue'
 
     buyingIntentAssetTermUpdate:
       type: object
@@ -3694,16 +3795,10 @@ components:
           type: string
           enum: [ sellingIntent ]
         settlementTerm:
-          $ref: '#/components/schemas/sellingIntentSettlementTermUpdate'
+          $ref: '#/components/schemas/settlementTermUpdate'
         assetTerm:
           $ref: '#/components/schemas/sellingIntentAssetTermUpdate'
 
-    sellingIntentSettlementTermUpdate:
-      type: object
-      required: [ unitValue ]
-      properties:
-        unitValue:
-          $ref: '#/components/schemas/unitValue'
 
     sellingIntentAssetTermUpdate:
       type: object
@@ -3721,16 +3816,10 @@ components:
           type: string
           enum: [ loanIntent ]
         settlementTerm:
-          $ref: '#/components/schemas/loanIntentSettlementTermUpdate'
+          $ref: '#/components/schemas/settlementTermUpdate'
         assetTerm:
           $ref: '#/components/schemas/loanIntentAssetTermUpdate'
 
-    loanIntentSettlementTermUpdate:
-      type: object
-      required: [ unitValue ]
-      properties:
-        unitValue:
-          $ref: '#/components/schemas/unitValue'
 
     loanIntentAssetTermUpdate:
       type: object
@@ -3748,16 +3837,10 @@ components:
           type: string
           enum: [ redemptionIntent ]
         settlementTerm:
-          $ref: '#/components/schemas/redemptionIntentSettlementTermUpdate'
+          $ref: '#/components/schemas/settlementTermUpdate'
         assetTerm:
           $ref: '#/components/schemas/redemptionIntentAssetTermUpdate'
 
-    redemptionIntentSettlementTermUpdate:
-      type: object
-      required: [ unitValue ]
-      properties:
-        unitValue:
-          $ref: '#/components/schemas/unitValue'
 
     redemptionIntentAssetTermUpdate:
       type: object
@@ -3783,16 +3866,9 @@ components:
           type: string
           enum: [ privateOfferIntent ]
         settlementTerm:
-          $ref: '#/components/schemas/privateOfferIntentSettlementTermUpdate'
+          $ref: '#/components/schemas/settlementTermUpdate'
         assetTerm:
           $ref: '#/components/schemas/privateOfferIntentAssetTermUpdate'
-
-    privateOfferIntentSettlementTermUpdate:
-      type: object
-      required: [ unitValue ]
-      properties:
-        unitValue:
-          $ref: '#/components/schemas/unitValue'
 
     privateOfferIntentAssetTermUpdate:
       type: object
@@ -3803,16 +3879,22 @@ components:
 
     ledgerAssetBinding:
       type: object
-      oneOf:
-        - $ref: '#/components/schemas/ledgerTokenId'
-      discriminator:
-        propertyName: type
-        mapping:
-          tokenId: '#/components/schemas/ledgerTokenId'
+      required: [ ledger ]
+      properties:
+        ledger:
+          type: string
+          description: The name of the ledger to which the asset will be bound. Must match the name defined in /ledger/bind API call
+        bind: 
+          oneOf:
+            - $ref: '#/components/schemas/ledgerTokenId'
+          discriminator:
+            propertyName: type
+            mapping:
+              tokenId: '#/components/schemas/ledgerTokenId'
 
     ledgerTokenId:
       type: object
-      required: [ tokenId, type ]
+      required: [ type, tokenId ]
       properties:
         type:
           type: string
