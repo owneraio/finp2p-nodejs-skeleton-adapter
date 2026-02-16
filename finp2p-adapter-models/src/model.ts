@@ -262,6 +262,11 @@ export type PendingPlan = {
 
 export type PlanApprovalStatus = ApprovedPlan | RejectedPlan | PendingPlan;
 
+export type PlanProposalCancel = { proposalType: 'cancel' };
+export type PlanProposalReset = { proposalType: 'reset'; proposedSequence: number };
+export type PlanProposalInstruction = { proposalType: 'instruction'; instructionSequence: number };
+export type PlanProposal = PlanProposalCancel | PlanProposalReset | PlanProposalInstruction;
+
 
 export const approvedPlan = (): PlanApprovalStatus => ({
   operation: 'approval',

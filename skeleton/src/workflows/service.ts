@@ -69,6 +69,7 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
     case compiletimeMethodName<PaymentService>('payout'):
       return pendingOrError(cid => pendingReceiptOperation(cid, opMetadata), (cid, code, message) => failedReceiptOperation(code, message));
     case compiletimeMethodName<PlanApprovalService>('approvePlan'):
+    case compiletimeMethodName<PlanApprovalService>('proposePlan'):
       return pendingOrError(cid => pendingPlan(cid, opMetadata), (cid, code, message) => rejectedPlan(code, message));
     case compiletimeMethodName<PaymentService>('getDepositInstruction'):
       return pendingOrError(cid => pendingDepositOperation(cid, opMetadata), (cid, code, message) => failedDepositOperation(code, message));

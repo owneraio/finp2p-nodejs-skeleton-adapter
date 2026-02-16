@@ -10,7 +10,7 @@ import {
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
   FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, LedgerReference, AdditionalContractDetails,
-  AssetCreationResult, OperationMetadata, ValidationError,
+  AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
 } from '@owneraio/finp2p-adapter-models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -685,4 +685,17 @@ export const balanceToAPI = (
       held,
     },
   };
+};
+
+export const planProposalFromAPI = (
+  proposal: components['schemas']['executionPlanCancellationProposal'] | components['schemas']['executionPlanInstructionProposal'] | components['schemas']['executionPlanResetProposal'],
+): PlanProposal => {
+  switch (proposal.proposalType) {
+    case 'cancel':
+      return { proposalType: 'cancel' };
+    case 'reset':
+      return { proposalType: 'reset', proposedSequence: proposal.proposedSequence };
+    case 'instruction':
+      return { proposalType: 'instruction', instructionSequence: proposal.instructionSequence };
+  }
 };
