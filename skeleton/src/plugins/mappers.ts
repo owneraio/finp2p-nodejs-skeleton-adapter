@@ -125,7 +125,7 @@ export const receiptOperationToFinAPI = (operationStatus: ReceiptOperation): OpC
         operation: {
           cid: '',
           isCompleted: true,
-          response: receiptToAPI(receipt),
+          response: receiptToAPI(receipt) as OpComponents['schemas']['operationStatusReceipt']['operation']['response'],
         },
       };
     case 'failure':

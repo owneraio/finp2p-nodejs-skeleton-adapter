@@ -71,14 +71,14 @@ export type AssetBind = {
   tokenIdentifier: TokenIdentifier | undefined
 };
 
-export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM';
+export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM' | 'ISO4217';
 
 export type AssetIdentifier = {
   type: AssetIdentifierType
   value: string
 };
 
-export type AssetDenominationType = 'fiat' | 'cryptocurrency';
+export type AssetDenominationType = 'fiat' | 'cryptocurrency' | 'finp2p';
 
 export type AssetDenomination = {
   type: AssetDenominationType
