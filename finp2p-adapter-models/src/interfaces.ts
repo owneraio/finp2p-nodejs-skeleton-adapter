@@ -72,7 +72,11 @@ export interface PaymentService {
 export interface PlanApprovalService {
   approvePlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus>
 
-  proposePlan(idempotencyKey: string, planId: string, proposal: PlanProposal): Promise<PlanApprovalStatus>
+  proposeCancelPlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus>
+
+  proposeResetPlan(idempotencyKey: string, planId: string, proposedSequence: number): Promise<PlanApprovalStatus>
+
+  proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus>
 
   proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void>
 }

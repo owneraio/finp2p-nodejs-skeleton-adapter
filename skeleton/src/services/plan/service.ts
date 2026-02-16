@@ -41,8 +41,18 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
     return approvedPlan();
   }
 
-  public async proposePlan(idempotencyKey: string, planId: string, proposal: PlanProposal): Promise<PlanApprovalStatus> {
-    logger.info(`Got plan proposal: planId=${planId}, type=${proposal.proposalType}`);
+  public async proposeCancelPlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus> {
+    logger.info(`Got cancel plan proposal: planId=${planId}`);
+    return approvedPlan();
+  }
+
+  public async proposeResetPlan(idempotencyKey: string, planId: string, proposedSequence: number): Promise<PlanApprovalStatus> {
+    logger.info(`Got reset plan proposal: planId=${planId}, proposedSequence=${proposedSequence}`);
+    return approvedPlan();
+  }
+
+  public async proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus> {
+    logger.info(`Got instruction approval proposal: planId=${planId}, instructionSequence=${instructionSequence}`);
     return approvedPlan();
   }
 

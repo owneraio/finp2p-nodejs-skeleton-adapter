@@ -57,7 +57,9 @@ export const register = (app: Application,
   if (storage) {
     planService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, planService,
       'approvePlan',
-      'proposePlan',
+      'proposeCancelPlan',
+      'proposeResetPlan',
+      'proposeInstructionApproval',
     );
 
     tokenService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, tokenService,
@@ -122,7 +124,18 @@ export const register = (app: Application,
     async (req, res) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
       const { executionPlan: { id, proposal } } = req.body;
-      const result = await planService.proposePlan(idempotencyKey, id, planProposalFromAPI(proposal));
+      let result;
+      switch (proposal.proposalType) {
+        case 'cancel':
+          result = await planService.proposeCancelPlan(idempotencyKey, id);
+          break;
+        case 'reset':
+          result = await planService.proposeResetPlan(idempotencyKey, id, proposal.proposedSequence);
+          break;
+        case 'instruction':
+          result = await planService.proposeInstructionApproval(idempotencyKey, id, proposal.instructionSequence);
+          break;
+      }
       return res.send(planApprovalOperationToAPI(result));
     },
   );
