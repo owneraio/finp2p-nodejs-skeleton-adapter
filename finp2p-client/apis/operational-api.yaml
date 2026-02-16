@@ -15,6 +15,10 @@ tags:
     description: Sync operations between custody adapter and finp2p node
   - name: operation
     description: sync long running operation results with the finp2p node
+  - name: workflow
+    description: Workflow administration and control operations
+  - name: discovery
+    description: Discovery service operations
 
 paths:
   /workflow/cancel:
@@ -22,8 +26,10 @@ paths:
       tags:
         - workflow
       summary: Cancel workflow
-      description: Cancel workflow
+      description: Cancel workflow - this method is deprecated, use /workflow/{workflowId}/cancel
       operationId: cancelWorkflow
+      deprecated: true
+
       parameters:
         - in: header
           name: Idempotency-Key
@@ -38,24 +44,107 @@ paths:
       responses:
         '200':
           description: workflow queued for cancelling
-        '404':
-          description: Workflow not found
+
+  '/workflow/{workflowId}/retry':
+    post:
+      tags:
+        - workflow
+      summary: 'Retry workflow'
+      description: 'Resets a workflow when it is hanging'
+      operationId: retryWorkflow
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: '#/components/schemas/nonce'
+        - name: workflowId
+          in: path
+          description: 'Unique identifier of the workflow to retry'
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: 'Retry workflow request'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/workflowRetryRequest'
+      responses:
+        '202':
+          description: 'Retry request accepted'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '422':
-          description: Precondition failed. E.g. workflow is already completed or in non cancellable state
+                $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+
+  '/workflow/{workflowId}/reset':
+    post:
+      tags:
+        - workflow
+      summary: 'Reset workflow to a specific state'
+      description: 'Resets a workflow to a specific state, clearing intermediate data and continuing from the reset point'
+      operationId: resetWorkflow
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: '#/components/schemas/nonce'
+        - name: workflowId
+          in: path
+          description: 'Unique identifier of the workflow to reset'
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: 'Reset workflow request'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/workflowResetRequest'
+      responses:
+        '202':
+          description: 'Reset request accepted'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '500':
-          description: System error
+                $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+
+  '/workflow/{workflowId}/cancel':
+    post:
+      tags:
+        - workflow
+      summary: 'Cancel workflow execution'
+      description: 'Cancels a workflow, stopping its execution permanently'
+      operationId: cancelWorkflowById
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: '#/components/schemas/nonce'
+        - name: workflowId
+          in: path
+          description: 'Unique identifier of the workflow to cancel'
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: 'Cancel workflow request'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/workflowCancelRequest'
+      responses:
+        '202':
+          description: 'Cancel request accepted'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+
+
   /operations/callback/{cid}:
     post:
       tags:
@@ -81,9 +170,168 @@ paths:
       responses:
         '200':
           description: successful operation
-        '500':
-          description: System error
-          content: { }
+
+  /execution/proposals:
+    put:
+      tags:
+        - execution
+      summary: Override approvals config
+      description: Override approvals config
+      operationId: Override approvals config
+      requestBody:
+        content:
+          application/json:
+            example:
+              ownerId: "bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01"
+              tokenization:
+                http-endpoint-1:
+                  config_type: "http"
+                  endpoint: "http://approver-service.internal/approvals"
+                  timeout: "45s"
+                  proposals:
+                    - "reset"
+                    - "cancel"
+                    - "instruction"
+                ledger-approver-1:
+                  config_type: "ledger"
+                  name: "ledger-approver-1"
+                  proposals:
+                    - "reset"
+                    - "instruction"
+              payments:
+                ledger-approver-2:
+                  config_type: "ledger"
+                  name: "payments-ledger-approver"
+                  proposals:
+                    - "instruction"
+            schema:
+              $ref: '#/components/schemas/approvalConfig'
+      responses:
+        '201':
+          description: Created the new configuration successfully
+    patch:
+      tags:
+        - execution
+      summary: Update approvals config
+      description: Update approvals config
+      operationId: update approvals config
+      requestBody:
+        content:
+          application/json:
+            examples:
+                update-example-1:
+                    summary: disable http-endpoint-1, change proposals of ledger-approver-1 and delete payments config
+                    value:
+                      ownerId: "bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01"
+                      tokenization:
+                        http-endpoint-1:
+                          config_type: "http"
+                          disabled: true
+                        ledger-approver-1:
+                          config_type: "ledger"
+                          proposals:
+                            - "cancel"
+                      payments: null
+            schema:
+              $ref: '#/components/schemas/approvalConfigUpdate'
+      responses:
+        '200':
+          description: Configuration updated successfully
+
+  /discovery/pinning_config:
+    put:
+      tags:
+        - discovery
+      summary: Set pinning configuration
+      description: Set pinning configuration, overriding any existing configuration
+      operationId: setPinningConfig
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: '#/components/schemas/nonce'
+      requestBody:
+        content:
+          application/json:
+            examples:
+                pinning-config-example-1:
+                  value:
+                    bank-uk:
+                      token: "<token>"
+                      address:
+                        - address: bank-uk.finp2p.local.ownera.io
+                          port: 80
+                          schemas:
+                            - http1.1
+                            - http2
+                    ownera-custody:
+                      token: "<token>"
+                      address:
+                        - address: ownera-custody.finp2p.local.ownera.io
+                          port: 80
+                          schemas:
+                            - http1.1
+                    ownera-escrow:
+                      token: "<token>"
+                      address:
+                        - address: ownera-escrow.api-mock.local.ownera.io
+                          port: 80
+                          schemas:
+                            - http1.1
+            schema:
+              $ref: '#/components/schemas/pinningConfig'
+      responses:
+        '201':
+          description: successful operation
+    patch:
+      tags:
+        - discovery
+      summary: Update pinning configuration, add/remove/modify entries
+      description: Update pinning configuration
+      operationId: updatePinningConfig
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: '#/components/schemas/nonce'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              pinning-config-update-example-1:
+                description: |
+                  * Removes bank-uk configuration
+                  * Updates ownera-custody address
+                  * Updates ownera-escrow token
+                  * Adds bank-us configuration
+                value:
+                  bank-uk: null
+                  ownera-custody:
+                    address:
+                      - address: ownera-custody.finp2p.local.ownera.io
+                        port: 80
+                        schemas:
+                          - http1.1
+                  ownera-escrow:
+                    token: "<token>"
+                  bank-us:
+                    token: "<token>"
+                    address:
+                      - address: bank-us.finp2p.local.ownera.io
+                        port: 80
+                        schemas:
+                          - http1.1
+                          - http2
+            schema:
+              $ref: '#/components/schemas/pinningConfigUpdate'
+      responses:
+        '202':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/pinningConfig'
+
 
   /ledger/transaction/import:
     post:
@@ -115,18 +363,6 @@ paths:
         '208':
           description: |
             Some transactions were not imported due to duplicate transaction IDs.
-        '404':
-          description: Transaction not found
-          content: { }
-        '409':
-          description: request with this idempotency key already in progress
-          content: { }
-        '422':
-          description: Invalid idempotency key or request with same idempotency key but different payload
-          content: { }
-        '500':
-          description: System error
-          content: { }
 
   /execution/{planId}:
     get:
@@ -150,13 +386,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/execution'
 
-        '404':
-          description: Execution plan not found
-          content: { }
-        '500':
-          description: System error
-          content: { }
-
   /policies/{policyId}:
     get:
       tags:
@@ -179,18 +408,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/tradingPolicy'
 
-        '404':
-          description: Trading policy not found
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '500':
-          description: Internal error
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
 
   /policies/delete/{policyId}:
     delete:
@@ -210,19 +427,6 @@ paths:
         '204':
           description: policy deleted
           content: {}
-        '404':
-          description: Trading policy not found
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '500':
-          description: Internal error
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-
   /policies:
     get:
       tags:
@@ -250,13 +454,6 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/tradingPolicy'
-        '500':
-          description: Internal error
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-
   /assets/{assetId}/policies:
     get:
       tags:
@@ -285,12 +482,6 @@ paths:
                     items:
                       $ref: '#/components/schemas/tradingPolicy'
 
-        '404':
-          description: Asset was not found
-          content: { }
-        '500':
-          description: Internal error
-          content: { }
 
   /policies/update:
     post:
@@ -311,30 +502,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/updatePolicyResponse'
-        '400':
-          description: Invalid Input
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '404':
-          description: Policy not found
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '409':
-          description: constraints violation
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '500':
-          description: System error
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+
 
   /policies/create:
     post:
@@ -355,28 +523,580 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/createPolicyResponse'
-        '400':
-          description: Invalid Input
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '409':
-          description: policy with given policy id already exists
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
-        '500':
-          description: System error
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+
+  /ledger/{name}/update:
+    patch:
+      tags:
+        - ledger
+      summary: Update Ledger binding
+      description: Update a ledger integration
+      operationId: update ledger binding
+      parameters:
+        - name: name
+          in: path
+          description: Unique identifier for the ledger name. This value must be unique across all ledger bindings
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  x-custom-format: "nullable"
+                  type: string
+                  description: Ledger adapter address in host:port format
+                  nullable: true
+                requestTimeout:
+                  type: string
+                  description: The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error
+                  x-custom-format: "nullable"
+                  nullable: true
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+
+                backoff:
+                  type: string
+                  description: The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures
+                  x-custom-format: "nullable"
+                  nullable: true
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+
+                singleRequestTimeout:
+                  type: string
+                  description: The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration
+                  x-custom-format: "nullable"
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  nullable: true
+                auth:
+                  oneOf:
+                    - $ref: '#/components/schemas/ledgerAuthOptionsOpt'
+                  nullable: true
+                  x-custom-format: "nullable+authOptions"
+
+                idempotency:
+                  oneOf:
+                    - $ref: '#/components/schemas/ledgerIdempotencyOptionsOpt'
+                  nullable: true
+                  x-custom-format: "nullable+idempotencyOptions"
+
+                displayName:
+                  type: string
+                  description: A human-readable name for the ledger that appears in user interfaces
+                  x-custom-format: "nullable"
+                  nullable: true
+
+                balanceSyncAllowed:
+                  type: boolean
+                  description: "Indicates whether balance synchronization is enabled for this ledger"
+                  default: true
+                  x-custom-format: "nullable"
+                  nullable: true
+      responses:
+        '200':
+          description: successful operation
+
+  /ledger/bind:
+    post:
+      tags:
+        - ledger
+      summary: Bind Ledger
+      description: Define a new ledger integration
+      operationId: bind ledger
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, endpoint]
+              properties:
+                name:
+                  type: string
+                  description: Unique identifier for the ledger name. This value must be unique across all ledger bindings
+                endpoint:
+                  type: string
+                  description: Ledger adapter address in host:port format
+                auth:
+                  $ref: '#/components/schemas/ledgerAuthOptions'
+                idempotency:
+                  $ref: '#/components/schemas/ledgerIdempotencyOptions'
+                displayName:
+                  type: string
+                  description: A human-readable name for the ledger that appears in user interfaces
+                requestTimeout:
+                  type: string
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  description: The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error
+                  default: "300s"
+                backoff:
+                  type: string
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  description: The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures
+                  default: "60s"
+                singleRequestTimeout:
+                  type: string
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  description: The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration
+                  default: "90s"
+                balanceSyncAllowed:
+                  type: boolean
+                  description: "Indicates whether balance synchronization is enabled for this ledger"
+                  default: true
+      responses:
+        '200':
+          description: successful operation
 
 
 components:
   schemas:
+    pinningAddress:
+      type: object
+      properties:
+        address:
+          type: string
+          format: address
+          minLength: 1
+          maxLength: 1024
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        schemas:
+          type: array
+          uniqueItems: true
+          minItems: 1
+          items:
+            type: string
+            enum: [ http1.1, http2 ]
+    pinningConfig:
+      type: object
+      minProperties: 1
+      additionalProperties:
+        $ref: '#/components/schemas/pinningConfigEntry'
+    pinningConfigEntry:
+      type: object
+      required: [ token, address ]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          pattern: ^[A-Za-z0-9_-]{2,}(?:\.[A-Za-z0-9_-]{2,}){2}$
+          format: jwt
+        address:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/pinningAddress'
+    pinningConfigUpdate:
+      type: object
+      minProperties: 1
+      additionalProperties:
+        oneOf:
+          - $ref: '#/components/schemas/pinningConfigEntryUpdate'
+        nullable: true
+        x-go-type-skip-optional-pointer: true
+        x-go-type: PinningConfigEntryUpdate
+        x-go-type-import:
+          path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+          name: model
+    pinningConfigEntryUpdate:
+      type: object
+      properties:
+        token:
+          type: string
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[string]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+          format: jwt
+          pattern: ^[A-Za-z0-9_-]{2,}(?:\.[A-Za-z0-9_-]{2,}){2}$
+        address:
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[[]PinningAddress]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/pinningAddress'
+    approvalConfig:
+      type: object
+      minProperties: 1
+      properties:
+        tokenization:
+          $ref: '#/components/schemas/roleApprovalConfig'
+        payments:
+          $ref: '#/components/schemas/roleApprovalConfig'
+        investor:
+          $ref: '#/components/schemas/roleApprovalConfig'
+        custodian:
+          $ref: '#/components/schemas/roleApprovalConfig'
+    approvalConfigUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        tokenization:
+          # Use oneOf to define the property as EITHER the object OR null
+          oneOf:
+            - $ref: '#/components/schemas/nullableRoleApprovalConfigUpdate'
+          nullable: true # For OpenAPI 3.0.1 compatibility/tooling
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[NullableRoleApprovalConfigUpdate] # The desired Go type
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+        payments:
+          oneOf:
+            - $ref: '#/components/schemas/nullableRoleApprovalConfigUpdate'
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[NullableRoleApprovalConfigUpdate]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+        investor:
+          oneOf:
+            - $ref: '#/components/schemas/nullableRoleApprovalConfigUpdate'
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[NullableRoleApprovalConfigUpdate]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+        custodian:
+          oneOf:
+            - $ref: '#/components/schemas/nullableRoleApprovalConfigUpdate'
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[NullableRoleApprovalConfigUpdate]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+    proposalsApprovalConfigUpdate:
+      nullable: true
+      x-go-type-skip-optional-pointer: true
+      x-go-type: model.Nullable[[]string]
+      x-go-type-import:
+        path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+        name: model
+      type: array
+      uniqueItems: true
+      items:
+        type: string
+        enum: [ 'reset', 'cancel', 'instruction', 'plan' ]
+    proposalsApprovalConfig:
+      type: array
+      uniqueItems: true
+      items:
+        type: string
+        enum: [ 'reset', 'cancel', 'instruction', 'plan' ]
+    roleApprovalConfig:
+      type: object
+      additionalProperties:
+        oneOf:
+          - $ref: '#/components/schemas/ledgerRoleApprovalConfig'
+          - $ref: '#/components/schemas/httpEndpointRoleApprovalConfig'
+        discriminator:
+          propertyName: config_type
+          mapping:
+            ledger: '#/components/schemas/ledgerRoleApprovalConfig'
+            http: '#/components/schemas/httpEndpointRoleApprovalConfig'
+    nullableRoleApprovalConfigUpdate:
+      type: object
+      nullable: true
+      additionalProperties:
+        oneOf:
+          - $ref: '#/components/schemas/roleApprovalConfigUpdate'
+        nullable: true
+        x-go-type-skip-optional-pointer: true
+        x-go-type: RoleApprovalConfigUpdate
+        x-go-type-import:
+          path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+          name: model
+    roleApprovalConfigUpdate:
+      oneOf:
+        - $ref: '#/components/schemas/ledgerRoleApprovalConfigUpdate'
+        - $ref: '#/components/schemas/httpEndpointRoleApprovalConfigUpdate'
+      discriminator:
+        propertyName: config_type
+        mapping:
+          ledger: '#/components/schemas/ledgerRoleApprovalConfigUpdate'
+          http: '#/components/schemas/httpEndpointRoleApprovalConfigUpdate'
+    ledgerRoleApprovalConfig:
+      type: object
+      required: [ "config_type", "name" ]
+      properties:
+        config_type:
+          type: string
+          enum: [ "ledger" ]
+        disabled:
+          type: boolean
+          default: false
+        name:
+          type: string
+          minLength: 1
+        proposals:
+          $ref: '#/components/schemas/proposalsApprovalConfig'
+    ledgerRoleApprovalConfigUpdate:
+      type: object
+      required: [ "config_type" ]
+      minProperties: 2
+      properties:
+        config_type:
+          type: string
+          enum: [ "ledger" ]
+        disabled:
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[bool]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+          type: boolean
+        name:
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[string]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+          type: string
+          minLength: 1
+        proposals:
+          $ref: '#/components/schemas/proposalsApprovalConfigUpdate'
+    httpEndpointRoleApprovalConfig:
+      type: object
+      required: [ "config_type", "endpoint" ]
+      properties:
+        config_type:
+          type: string
+          enum: [ "http" ]
+        disabled:
+          type: boolean
+          default: false
+        endpoint:
+          type: string
+          format: address
+        timeout:
+          type: string
+          format: duration
+          pattern: '^\d+(\.\d{1,9})?s$'
+        proposals:
+          $ref: '#/components/schemas/proposalsApprovalConfig'
+    httpEndpointRoleApprovalConfigUpdate:
+      type: object
+      required: [ "config_type" ]
+      minProperties: 2
+      properties:
+        config_type:
+          type: string
+          enum: [ "http" ]
+        disabled:
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[bool]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+          type: boolean
+        endpoint:
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[string]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+          type: string
+          format: address
+        timeout:
+          nullable: true
+          x-go-type-skip-optional-pointer: true
+          x-go-type: model.Nullable[string]
+          x-go-type-import:
+            path: github.com/owneraio/finp2p-core/apis/finapi/internal/api/common
+            name: model
+          type: string
+          format: duration
+          pattern: '^\d+(\.\d{1,9})?s$'
+        proposals:
+          $ref: '#/components/schemas/proposalsApprovalConfigUpdate'
+    ledgerIdempotencyOptions:
+      type: object
+      description: Idempotency configuration to prevent duplicate request processing
+      required: [idempotent]
+      properties:
+        idempotent:
+          type: boolean
+          default: false
+          description: define whether ledger adapter supports idempotency
+        transientFailureCodes:
+          description: list of HTTP status code which are safe to retry regardless if the adapter is idempotent or not
+          type: array
+          default: ["429", "503"]
+          items:
+            type: string
+            pattern: '^([1-5][0-9]{2})$'
+
+    ledgerIdempotencyOptionsOpt:
+      type: object
+      properties:
+        idempotent:
+          type: boolean
+          default: false
+          description: define whether ledger adapter supports idempotency
+          x-custom-format: "nullable"
+          nullable: true
+        transientFailureCodes:
+          description: list of HTTP status code which are safe to retry regardless if the adapter is idempotent or not
+          type: array
+          default: ["429", "503"]
+          x-custom-format: "nullable"
+          items:
+            type: string
+            pattern: '^([1-5][0-9]{2})$'
+          nullable: true
+
+    ledgerAuthOptions:
+      type: array
+      description: List of authentication mechanisms supported by this ledger
+      items:
+        oneOf:
+          - $ref: '#/components/schemas/ledgerOAuthOptions'
+          - $ref: '#/components/schemas/ledgerMtlsOptions'
+          - $ref: '#/components/schemas/ledgerApiKeyOptions'
+        discriminator:
+          propertyName: type
+          mapping:
+            oauth: '#/components/schemas/ledgerOAuthOptions'
+            mtls: '#/components/schemas/ledgerMtlsOptions'
+            api-key: '#/components/schemas/ledgerApiKeyOptions'
+
+    ledgerAuthOptionsOpt:
+      type: array
+      description: list of auth mechanisms supported by this ledger
+      items:
+        oneOf:
+          - $ref: '#/components/schemas/ledgerOAuthOptionsOpt'
+          - $ref: '#/components/schemas/ledgerMtlsOptionsOpt'
+          - $ref: '#/components/schemas/ledgerApiKeyOptions'
+        discriminator:
+          propertyName: type
+          mapping:
+            oauth: '#/components/schemas/ledgerOAuthOptionsOpt'
+            mtls: '#/components/schemas/ledgerMtlsOptionsOpt'
+            api-key: '#/components/schemas/ledgerApiKeyOptions'
+
+    ledgerOAuthOptions:
+      type: object
+      required: [type, oauthClientId, oauthClientSecret, oauthServerEndpoint, alg, jwtKey]
+      properties:
+        type:
+          type: string
+          enum: [ "oauth" ]
+        oauthClientId:
+          type: string
+          description: OAuth api client ID for ledger adpater authenticated requests
+        oauthClientSecret:
+          type: string
+          description: Oauth api client secret for ledger adpater authenticated requests
+        oauthServerEndpoint:
+          type: string
+          description: OAuth tokens api endpoint for ledger adpater authenticated requests
+        alg:
+          description: ledger adapter signing of jwt token alg
+          type: string
+        jwtKey:
+          description: define the key (for hmac) or private key for signing jwt tokens
+          type: string
+
+    ledgerOAuthOptionsOpt:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [ "oauth" ]
+        oauthClientId:
+          type: string
+          description: OAuth api client ID for ledger adpater authenticated requests
+          x-custom-format: "nullable"
+          nullable: true
+        oauthClientSecret:
+          type: string
+          description: Oauth api client secret for ledger adpater authenticated requests
+          x-custom-format: "nullable"
+          nullable: true
+        oauthServerEndpoint:
+          type: string
+          description: OAuth tokens api endpoint for ledger adpater authenticated requests
+          x-custom-format: "nullable"
+          nullable: true
+        alg:
+          type: string
+          description: ledger adapter signing of jwt token alg
+          x-custom-format: "nullable"
+          nullable: true
+        jwtKey:
+          type: string
+          description: define the key (for hmac) or private key for signing jwt tokens
+          x-custom-format: "nullable"
+          nullable: true
+
+    ledgerMtlsOptions:
+      type: object
+      required: [type, clientCertificate, caCertificate, key]
+      properties:
+        type:
+          type: string
+          enum: [ "mtls" ]
+        clientCertificate:
+          type: string
+          description: mtls client certificate
+        caCertificate:
+          type: string
+          description: mtls certificate authority certificate
+        key:
+          type: string
+          description: mtls key
+
+    ledgerMtlsOptionsOpt:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [ "mtls" ]
+        clientCertificate:
+          type: string
+          description: mtls client certificate
+          x-custom-format: "nullable"
+          nullable: true
+        caCertificate:
+          type: string
+          description: mtls certificate authority certificate
+          x-custom-format: "nullable"
+          nullable: true
+        key:
+          type: string
+          description: mtls key
+          nullable: true
+          x-custom-format: "nullable"
+
+    ledgerApiKeyOptions:
+      type: object
+      required: [type, apiKey]
+      properties:
+        type:
+          type: string
+          enum: [ "api-key" ]
+        apiKey:
+          type: string
+
     cancelWorkflow:
       type: object
       required:
@@ -390,6 +1110,70 @@ components:
           maxLength: 255
           minLength: 1
 
+    workflowAdminRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: 'Optional reason for the admin action'
+          maxLength: 500
+          example: 'Manual intervention required due to external dependency failure'
+        force:
+          type: boolean
+          description: 'Force immediate execution, clearing pending commands and interrupting running steps'
+          default: false
+          example: true
+
+    workflowAdminResponse:
+      type: object
+      required: [ cid ]
+      properties:
+        cid:
+          type: string
+          description: 'correlation id for the workflow admin operation'
+
+    workflowCancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: 'optional reason for the cancel'
+          maxLength: 500
+          example: 'cancelling due to external system failure'
+        force:
+          type: boolean
+          description: 'Force immediate execution, clearing pending commands and interrupting running steps'
+          default: false
+          example: true
+
+    workflowRetryRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: 'Optional reason for the retry'
+          maxLength: 500
+          example: 'Retrying due to hanging state'
+        force:
+          type: boolean
+          description: 'Force immediate execution, clearing pending commands and interrupting running steps'
+          default: false
+          example: true
+
+    workflowResetRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: 'Optional reason for the reset'
+          maxLength: 500
+          example: 'Resetting due to external system failure'
+        force:
+          type: boolean
+          description: 'Force immediate execution, clearing pending commands and interrupting running steps'
+          default: false
+          example: true
+
     asset:
       type: object
       discriminator:
@@ -402,6 +1186,17 @@ components:
         - $ref: '#/components/schemas/cryptocurrencyAsset'
         - $ref: '#/components/schemas/fiatAsset'
         - $ref: '#/components/schemas/finp2pAsset'
+
+    amount:
+      type: string
+      description: 'the total number of units'
+      pattern: '^\d+\.?\d*$'
+      maxLength: 150
+
+    unitValue:
+      type: string
+      description: 'A unit value represented as a string, the value is a decimal number'
+      pattern: '^\d+(\.\d+)?$'
 
     cryptocurrencyAsset:
       type: object
@@ -449,8 +1244,7 @@ components:
         - account
       properties:
         finId:
-          type: string
-          description: FinID, public key of the user
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         account:
           oneOf:
             - $ref: '#/components/schemas/finIdAccount'
@@ -473,9 +1267,9 @@ components:
           type: string
           enum: [ "finId" ]
         finId:
-          type: "string"
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         orgId:
-          type: "string"
+          $ref: 'common-external-components.yaml#/components/schemas/orgId'
 
     cryptoWalletAccount:
       type: object
@@ -1193,14 +1987,50 @@ components:
           $ref: '#/components/schemas/redemptionIntentConditions'
 
     settlementTerm:
-        type: object
-        required: [ asset, unitValue ]
-        properties:
-          asset:
-            $ref: '#/components/schemas/asset'
-          unitValue:
-            type: string
-            description: 'A unit value represented as a string, the value is a decimal number'
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          noSettlement: '#/components/schemas/noSettlementOption'
+          partialSettlement: '#/components/schemas/partialSettlementOption'
+          fullSettlement: '#/components/schemas/fullSettlementOption'
+      oneOf:
+        - $ref: '#/components/schemas/noSettlementOption'
+        - $ref: '#/components/schemas/partialSettlementOption'
+        - $ref: '#/components/schemas/fullSettlementOption'
+
+
+    partialSettlementOption:
+      type: object
+      required: [ type, asset, unitValue ]
+      properties:
+        type:
+          type: string
+          enum: [ 'partialSettlement' ]
+        asset:
+          $ref: '#/components/schemas/asset'
+        unitValue:
+          $ref: '#/components/schemas/unitValue'
+
+    fullSettlementOption:
+      type: object
+      required: [ type, asset, amount ]
+      properties:
+        type:
+          type: string
+          enum: [ 'fullSettlement' ]
+        asset:
+          $ref: '#/components/schemas/asset'
+        amount:
+          $ref: '#/components/schemas/amount'
+
+    noSettlementOption:
+      type: object
+      required: [ type ]
+      properties:
+        type:
+          type: string
+          enum: [ 'noSettlement' ]
 
     assetTerm:
       type: object
@@ -1475,6 +2305,7 @@ components:
         hash:
           type: string
           description: 'hex representation of the combined hash groups hash value'
+          x-allowEmpty: true
 
     hashFunction:
       type: string
@@ -1494,6 +2325,7 @@ components:
         hash:
           type: string
           description: 'hex representation of the hash group hash value'
+          x-allowEmpty: true
         fields:
           description: 'list of fields by order they appear in the hash group'
           type: array
@@ -1515,20 +2347,23 @@ components:
         value:
           type: string
           description: 'hex representation of the field value'
-
+          x-allowEmpty: true
     EIP712Domain:
       type: object
       properties:
         name:
           type: string
+          x-allowEmpty: true
         version:
           type: string
+          x-allowEmpty: true
         chainId:
           type: integer
           format: uint64
         verifyingContract:
           type: string
           format: address
+          x-allowEmpty: true
     EIP712TypedValue:
       oneOf:
         - $ref: '#/components/schemas/EIP712TypeString'
@@ -1549,6 +2384,7 @@ components:
       properties:
         name:
           type: string
+          x-allowEmpty: true
         fields:
           type: array
           items:
@@ -1558,6 +2394,7 @@ components:
       properties:
         name:
           type: string
+          x-allowEmpty: true
         type:
           type: string
     EIP712Template:
@@ -1577,13 +2414,16 @@ components:
           $ref: '#/components/schemas/EIP712Types'
         primaryType:
           type: string
+          x-allowEmpty: true
         hash:
           type: string
           description: 'hex representation of template hash'
+          x-allowEmpty: true
 
     EIP712TypeString:
       type: string
       pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
+      x-allowEmpty: true
 
     EIP712TypeByte:
       type: string
@@ -1724,9 +2564,9 @@ components:
           type: string
           enum: [ "asset" ]
         sourceFinId:
-          type: string
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         destinationFinId:
-          type: string
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         transactionDetails:
           $ref: '#/components/schemas/receiptTransactionDetails'
 
@@ -1877,7 +2717,9 @@ components:
         constraints:
           $ref: '#/components/schemas/constraints'
         settlementStrategy:
-          $ref: '#/components/schemas/settlementStrategyType'
+          type: array
+          items:
+            $ref: '#/components/schemas/settlementStrategyType'
 
     createPolicyRequest:
       type: object
@@ -1910,6 +2752,8 @@ components:
         constraints:
           $ref: '#/components/schemas/constraints'
         settlementStrategy:
+          type: array
+          items:
             $ref: '#/components/schemas/settlementStrategyType'
 
     updatePolicyRequest:
@@ -1948,7 +2792,9 @@ components:
           format: uint32
           description: "new version of the trading policy"
         settlementStrategy:
-          $ref: '#/components/schemas/settlementStrategyType'
+          type: array
+          items:
+            $ref: '#/components/schemas/settlementStrategyType'
 
     settlementStrategyType:
         type: string
@@ -1966,6 +2812,14 @@ components:
             type: string
         allowedCounterAssetTypes:
           nullable: false
+          type: array
+          items:
+            type: string
+        allowedCounterAssetIdentifiers:
+          type: array
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/assetIdentifier'
+        allowedCounterNetworks:
           type: array
           items:
             type: string
@@ -1992,10 +2846,70 @@ components:
             type: string
             maxLength: 255
             minLength: 2
+        AssetIdentifiers:
+          type: array
+          items:
+            $ref : 'common-external-components.yaml#/components/schemas/assetIdentifier'
+        Networks:
+          type: array
+          items:
+            type: string
+
+    accountSelector:
+      type: object
+      required: [ path, type ]
+      properties:
+        type:
+          type: "string"
+          enum: [ "account" ]
+        path:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: '^([a-z][a-z0-9_]*)(\.[a-z][a-z0-9_]*)*$'
+
+    assetSelector:
+      type: object
+      required: [ path, type ]
+      properties:
+        type:
+          type: "string"
+          enum: [ "asset" ]
+        path:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: '^([a-z][a-z0-9_]*)(\.[a-z][a-z0-9_]*)*$'
+
+
+    selector:
+      type: object
+      nullable: true
+      oneOf:
+        - $ref: '#/components/schemas/accountSelector'
+        - $ref: '#/components/schemas/assetSelector'
+      discriminator:
+        propertyName: type
+        mapping:
+          account: '#/components/schemas/accountSelector'
+          asset: '#/components/schemas/assetSelector'
+
+    instructionTarget:
+      type: object
+      required: [selectors]
+      properties:
+        version:
+          type: string
+          maxLength: 50
+          x-go-type-skip-optional-pointer: true
+        selectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/selector'
 
     instruction:
       type: object
-      required: [ sequence, instruction, executors, onSuccess ]
+      required: [ sequence, instruction, onSuccess ]
       properties:
         instruction:
           type: string
@@ -2004,10 +2918,13 @@ components:
           type: integer
           format: uint32
         executors:
+          x-go-type-skip-optional-pointer: true
           type: array
           items:
             type: string
             enum: ["self", "counterparty"]
+        target:
+          $ref: '#/components/schemas/instructionTarget'
         timeout:
           $ref: '#/components/schemas/tolerance'
         onFailure:
@@ -2037,12 +2954,13 @@ components:
     holdOperationDetails:
       type: object
       nullable: true
-      required: [type, accountRole]
+      required: [type]
       properties:
         type:
           type: string
           enum: ["hold"]
         accountRole:
+          x-go-type-skip-optional-pointer: true
           type: string
 
     releaseOperationDetails:
@@ -2062,12 +2980,13 @@ components:
     transferOperationDetails:
       type: object
       nullable: true
-      required: [type, accountRole]
+      required: [type]
       properties:
         type:
           type: string
           enum: [ "transfer" ]
         accountRole:
+          x-go-type-skip-optional-pointer: true
           type: string
 
     issueOperationDetails:
@@ -2197,4 +3116,4 @@ components:
       type: object
       oneOf:
         - $ref: 'dlt-adapter-api.yaml#/components/schemas/operationStatus'
-#        - $ref: 'custody-adapter-api.yaml#/components/schemas/operationStatus'
+        - $ref: 'custody-adapter-api.yaml#/components/schemas/operationStatus'

@@ -100,7 +100,8 @@ for (let idx = 0; idx < memberStarts.length; idx++) {
   const memberLines = lines.slice(start, end);
   const fullText = memberLines.join("\n");
 
-  // Extract name
+  // Extract name — skip quoted members (e.g. "schemas-finIdAccount") as they are
+  // namespace-prefixed duplicates and not valid TypeScript identifiers for extraction
   const nameMatch = lines[start].match(/^ {8}(\w+):/);
   if (!nameMatch) continue;
   const name = nameMatch[1];

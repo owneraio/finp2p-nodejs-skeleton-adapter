@@ -17,15 +17,15 @@ export class FinP2PClient {
     this.ossClient = new OssClient(ossUrl);
   }
 
-  async createAsset(name: string, type: string, issuerId: string,
+  async createAsset(name: string, type: FinAPIComponents['schemas']['assetType'], issuerId: string,
     symbol: string | undefined,
     denomination: FinAPIComponents['schemas']['assetDenomination'],
     intentTypes: FinAPIComponents['schemas']['intentType'][],
-    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'] | undefined,
+    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'],
     assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
     config: string | undefined,
     metadata: any | undefined,
-    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier'] | undefined) {
+    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier']) {
     return this.finAPIClient.createAsset(
       name, type, issuerId, symbol, denomination, intentTypes,
       ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier,
