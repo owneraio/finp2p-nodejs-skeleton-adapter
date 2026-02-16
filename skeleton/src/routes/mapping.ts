@@ -156,7 +156,7 @@ export const assetBindingOptFromAPI = (assetBind: components['schemas']['ledgerA
 
 export const assetDenominationFromAPI = (denom: components['schemas']['assetDenomination']): AssetDenomination => {
   const { type, code } = denom;
-  return { type, code };
+  return { type: type as AssetDenomination['type'], code };
 };
 
 export const assetDenominationOptFromAPI = (denom: components['schemas']['assetDenomination'] | undefined): AssetDenomination | undefined => {
@@ -169,7 +169,7 @@ export const assetDenominationOptFromAPI = (denom: components['schemas']['assetD
 export const assetIdentifierFromAPI = (identifier: components['schemas']['assetIdentifier']): AssetIdentifier => {
   const { assetIdentifierType, assetIdentifierValue } = identifier;
   return {
-    type: assetIdentifierType,
+    type: assetIdentifierType as AssetIdentifier['type'],
     value: assetIdentifierValue,
   };
 };
@@ -196,7 +196,7 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
   return types.definitions
     .filter(d => d.name !== 'EIP712Domain')
     .reduce((d, { name, fields }) => {
-      d[name] = fields;
+      d[name!] = fields as EIP712Types[string];
       return d;
     }, {} as EIP712Types);
 };
@@ -248,7 +248,7 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
         operationResponseStrategy: {
           type: 'poll',
           polling: {
-            type: 'randomPollingInterval',
+            type: 'random',
           },
         },
       };

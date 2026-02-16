@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.26.4",
+  "version": "0.27.0",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "api-generate": "npx openapi-typescript dlt-adapter-api.yaml -o src/lib/routes/model-gen.ts",
+    "api-generate": "npx openapi-typescript apis/dlt-adapter-api.yaml -o src/routes/model-gen.ts && npx ts-node scripts/postprocess-model-gen.ts src/routes/model-gen.ts",
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc",
     "test": "jest"
@@ -23,7 +23,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-adapter-models": "^0.26.1",
+    "@owneraio/finp2p-adapter-models": "^0.27.0",
     "@owneraio/finp2p-client": "^0.26.0",
     "axios": "1.11.0",
     "bs58": "^6.0.0",

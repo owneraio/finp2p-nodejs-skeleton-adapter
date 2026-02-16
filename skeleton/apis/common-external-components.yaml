@@ -1,0 +1,689 @@
+components:
+  schemas:
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: |
+            Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference).
+        message:
+          type: string
+          description: A descriptive message providing context about the error.
+          pattern: .*\S.*
+          x-autoMinLength: true
+    APIErrors:
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          minLength: 1
+          items:
+            $ref: "#/components/schemas/APIError"
+    APIErrorsTyped:
+      type: object
+      required: [errors, type]
+      properties:
+        type:
+          type: string
+          enum: ["error"]
+        errors:
+          type: array
+          minLength: 1
+          items:
+            $ref: "#/components/schemas/APIError"
+    orgId:
+      type: string
+      description: 'Organization Id'
+      maxLength: 150
+      # language=regexp
+      pattern: '^[^:]*$' # TODO after we validate ORGID setting replace with actual org id pattern '^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$'
+      x-go-type: OrgIdValid
+      minLength: 1
+      x-autoMinLength: true
+    finId:
+      type: string
+      format: finid
+      description: 'Existing owner hex representation of a secp256k1 public key 33 bytes compressed'
+      # language=regexp
+      pattern: '^[0-9a-f]*$'
+      minLength: 64
+      maxLength: 66
+      x-autoMinLength: true
+    ApproveExecutionPlanRequest:
+      type: object
+      required:
+        - executionPlan
+      properties:
+        executionPlan:
+          type: object
+          description: execution plan information
+          required: [id]
+          properties:
+            id:
+              type: string
+              description: execution plan id
+              pattern: .*\S.*
+              x-autoMinLength: true
+    ApproveExecutionPlanResponse:
+      allOf:
+        - $ref: '#/components/schemas/ExecutionPlanApprovalOperation'
+    executionPlanProposalRequest:
+      type: object
+      required:
+        - executionPlan
+      properties:
+        executionPlan:
+          type: object
+          description: execution plan information
+          required: [id, proposal]
+          properties:
+            id:
+              type: string
+              description: execution plan id
+              pattern: .*\S.*
+              x-autoMinLength: true
+            proposal:
+              type: object
+              description: type of proposal payload
+              oneOf:
+                - $ref: '#/components/schemas/executionPlanCancellationProposal'
+                - $ref: '#/components/schemas/executionPlanInstructionProposal'
+                - $ref: '#/components/schemas/executionPlanResetProposal'
+              #                        - $ref: '#/components/schemas/executionPlanProposal'
+              discriminator:
+                propertyName: proposalType
+                mapping:
+                  cancel: '#/components/schemas/executionPlanCancellationProposal'
+                  reset: '#/components/schemas/executionPlanResetProposal'
+                  instruction: '#/components/schemas/executionPlanInstructionProposal'
+    #                          plan: '#/components/schemas/executionPlanProposal'
+
+    executionPlanInstructionProposal:
+      type: object
+      required: [proposalType, instructionSequence]
+      properties:
+        proposalType:
+          type: string
+          enum: ['instruction']
+        instructionSequence:
+          type: integer
+          format: uint32
+          minimum: 1
+          description: sequence number of the instruction completion event
+    executionPlanProposalStatusRequest:
+      type: object
+      description: provides status update on the agreement reached for a specific proposal
+      required: [status, request]
+      properties:
+        status:
+          type: string
+          enum: ["approved", "rejected"]
+        request:
+          allOf:
+            - $ref: '#/components/schemas/executionPlanProposalRequest'
+    executionPlanCancellationProposal:
+      type: object
+      required: [proposalType]
+      properties:
+        proposalType:
+          type: string
+          enum: ['cancel']
+    executionPlanResetProposal:
+      type: object
+      required: [proposalType, proposedSequence]
+      properties:
+        proposalType:
+          type: string
+          enum: ['reset']
+        proposedSequence:
+          type: integer
+          format: uint32
+          minimum: 1
+          description: sequence number of the instruction to reset and retry in the execution plan
+    executionPlanProposal:
+      type: object
+      required: [proposalType]
+      properties:
+        proposalType:
+          type: string
+          enum: ['plan']
+    ApiErrorClient4XX:
+      type: object
+      required: [status, errors, type]
+      properties:
+        type:
+          type: string
+          enum: ["error"]
+        status:
+          type: integer
+          enum: [400, 401, 403, 404, 409]
+          x-go-json-ignore: true
+          x-enumNames: ['value']
+        errors:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/AssetMetadataAndConfigError'
+              - $ref: '#/components/schemas/GeneralClientError'
+    # 10xx General Client Errors
+    GeneralClientError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [1000]
+        message:
+          type: string
+          enum: ['General client error']
+    AssetMetadataAndConfigError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [4108]
+        message:
+          type: string
+          enum: ['Asset metadata and config cannot be provided at the same time']
+    ApiErrorServer5XX:
+      type: object
+      required: [status, errors, type]
+      properties:
+        type:
+          type: string
+          enum: ["error"]
+        status:
+          type: integer
+          enum: [500, 502, 503, 504]
+          x-go-json-ignore: true
+          x-enumNames: ['value']
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneralServerError'
+    # 20xx General Server Errors
+    GeneralServerError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [2000]
+        message:
+          type: string
+          enum: ['General server error']
+    ApiAnyError:
+      allOf:
+        - oneOf:
+            - $ref: '#/components/schemas/ApiErrorClient4XX'
+            - $ref: '#/components/schemas/ApiErrorServer5XX'
+        - type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: ['error']
+    CustomError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    HealthCheckOperation:
+      allOf:
+        - $ref: '#/components/schemas/OperationBase'
+        - $ref: '#/components/schemas/HealthResponse'
+    HealthResponse:
+      type: object
+      required: [health]
+      properties:
+        health:
+          type: object
+          required: [status]
+          properties:
+            status:
+              type: string
+              example: 'ok/unavailable'
+              pattern: .*\S.*
+              x-autoMinLength: true
+    PlanApproved:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: ['approved']
+    PlanRejected:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: ['rejected']
+        failure:
+          oneOf:
+            - $ref: '#/components/schemas/ValidationFailure'
+            - $ref: '#/components/schemas/RegulationFailure'
+          discriminator:
+            propertyName: failureType
+            mapping:
+              validationFailure: '#/components/schemas/ValidationFailure'
+              regulationFailure: '#/components/schemas/RegulationFailure'
+    ExecutionPlanApprovalOperation:
+      allOf:
+        - $ref: '#/components/schemas/OperationBase'
+        - $ref: '#/components/schemas/PlanApprovalResponse'
+    PlanApprovalResponse:
+      type: object
+      properties:
+        approval:
+          oneOf:
+            - $ref: '#/components/schemas/PlanApproved'
+            - $ref: '#/components/schemas/PlanRejected'
+          discriminator:
+            propertyName: status
+            mapping:
+              approved: '#/components/schemas/PlanApproved'
+              rejected: '#/components/schemas/PlanRejected'
+    ValidationFailure:
+      type: object
+      required:
+        - failureType
+        - code
+        - message
+      properties:
+        failureType:
+          type: string
+          enum: [validationFailure]
+        code:
+          type: integer
+          format: uint32
+          description: ledger error code for validation
+        message:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    RegulationFailure:
+      type: object
+      required:
+        - failureType
+        - errors
+      properties:
+        failureType:
+          type: string
+          enum: [regulationFailure]
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegulationError'
+    RegulationError:
+      type: object
+      required:
+        - regulationType
+        - details
+      properties:
+        regulationType:
+          type: string
+          description: the type of regulation
+          pattern: .*\S.*
+          x-autoMinLength: true
+        details:
+          type: string
+          description: actionable details of the error
+          pattern: .*\S.*
+          x-autoMinLength: true
+    OperationBase:
+      type: object
+      required:
+        - cid
+        - isCompleted
+      properties:
+        cid:
+          type: string
+          description: unique correlation id which identify the operation
+          x-allowEmpty: true
+        isCompleted:
+          type: boolean
+          description: flag indicating if the operation completed, if true then error or response must be present (but not both)
+          default: false
+        operationMetadata:
+          $ref: '#/components/schemas/OperationMetadata'
+    OperationMetadata:
+      type: object
+      description: additional metadata regarding the operation
+      properties:
+        operationResponseStrategy:
+          description: "denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled \noptional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)\n"
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/pollingResultsStrategy'
+            - $ref: '#/components/schemas/callbackResultsStrategy'
+          discriminator:
+            propertyName: type
+            mapping:
+              poll: '#/components/schemas/pollingResultsStrategy'
+              callback: '#/components/schemas/callbackResultsStrategy'
+    callbackResultsStrategy:
+      type: object
+      required: [type, callback]
+      properties:
+        type:
+          type: string
+          enum: [callback]
+        callback:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/callbackEndpoint'
+          discriminator:
+            propertyName: type
+            mapping:
+              endpoint: '#/components/schemas/callbackEndpoint'
+    callbackEndpoint:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [endpoint]
+    pollingResultsStrategy:
+      type: object
+      required: [type, polling]
+      properties:
+        type:
+          type: string
+          enum: [poll]
+        polling:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/randomPollingInterval'
+            - $ref: '#/components/schemas/absolutePollingInterval'
+            - $ref: '#/components/schemas/relativePollingInterval'
+          discriminator:
+            propertyName: type
+            mapping:
+              random: '#/components/schemas/randomPollingInterval'
+              absolute: '#/components/schemas/absolutePollingInterval'
+              relative: '#/components/schemas/relativePollingInterval'
+    relativePollingInterval:
+      type: object
+      required: [type, duration]
+      properties:
+        type:
+          type: string
+          enum: [relative]
+        duration:
+          type: string
+          description: ISO-8601 duration format
+          example: PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
+          pattern: .*\S.*
+          x-autoMinLength: true
+    absolutePollingInterval:
+      type: object
+      required: [type, time]
+      properties:
+        type:
+          type: string
+          enum: [absolute]
+        time:
+          type: integer
+          description: absolute time as epoch time seconds
+    randomPollingInterval:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [random]
+    paymentMethods:
+      type: array
+      items:
+        $ref: '#/components/schemas/paymentMethod'
+    paymentMethod:
+      type: object
+      required: [description, currency, methodInstruction]
+      properties:
+        description:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        currency:
+          type: string
+          description: accepted currency for payment
+          pattern: .*\S.*
+          x-autoMinLength: true
+        methodInstruction:
+          oneOf:
+            - $ref: '#/components/schemas/wireTransfer'
+            - $ref: '#/components/schemas/wireTransferUSA'
+            - $ref: '#/components/schemas/cryptoTransfer'
+            - $ref: '#/components/schemas/paymentInstructions'
+          discriminator:
+            propertyName: type
+            mapping:
+              wireTransfer: '#/components/schemas/wireTransfer'
+              wireTransferUSA: '#/components/schemas/wireTransferUSA'
+              cryptoTransfer: '#/components/schemas/cryptoTransfer'
+              paymentInstructions: '#/components/schemas/paymentInstructions'
+    paymentInstructions:
+      type: object
+      required: [type, instruction]
+      properties:
+        type:
+          type: string
+          enum: ['paymentInstructions']
+        instruction:
+          type: "string"
+          pattern: .*\S.*
+          x-autoMinLength: true
+    cryptoTransfer:
+      type: object
+      required: [type, network, contractAddress, walletAddress]
+      properties:
+        type:
+          type: string
+          enum: ['cryptoTransfer']
+        network:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        contractAddress:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        walletAddress:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    wireTransferUSA:
+      type: object
+      required: [type, accountNumber, routingNumber]
+      properties:
+        type:
+          type: string
+          enum: ['wireTransferUSA']
+        accountNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        routingNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        line1:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        city:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        postalCode:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        country:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        state:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    wireTransfer:
+      type: object
+      required: [type, accountHolderName, bankName, wireDetails]
+      properties:
+        type:
+          type: string
+          enum: ['wireTransfer']
+        accountHolderName:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        bankName:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        wireDetails:
+          $ref: '#/components/schemas/wireDetails'
+        line1:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        city:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        postalCode:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        country:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    wireDetails:
+      discriminator:
+        propertyName: type
+        mapping:
+          iban: '#/components/schemas/ibanAccountDetails'
+          swift: '#/components/schemas/swiftAccountDetails'
+          sortCode: '#/components/schemas/sortCodeDetails'
+      oneOf:
+        - $ref: '#/components/schemas/ibanAccountDetails'
+        - $ref: '#/components/schemas/swiftAccountDetails'
+        - $ref: '#/components/schemas/sortCodeDetails'
+    ibanAccountDetails:
+      type: object
+      required: [type, iban]
+      properties:
+        type:
+          type: string
+          enum: ['iban']
+        iban:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    swiftAccountDetails:
+      type: object
+      required: [type, swiftCode, accountNumber]
+      properties:
+        type:
+          type: string
+          enum: ['bic']
+        swiftCode:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        accountNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    sortCodeDetails:
+      type: object
+      required: [type, code, accountNumber]
+      properties:
+        type:
+          type: string
+          enum: ['sortCode']
+        code:
+          type: string
+          description: sort code has XX-XX-XX format
+          pattern: "^\\d{2}-\\d{2}-\\d{2}$"
+        accountNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    assetName:
+      type: string
+      pattern: '^[a-zA-Z0-9\-_. /]*$'
+      maxLength: 150
+      description: The name of the asset
+      minLength: 1
+      x-autoMinLength: true
+    ownerResourceId:
+      type: string
+      description: 'Owner resource id'
+      pattern: '^[^:](?:.+):101:(?:.+)'
+      maxLength: 150
+      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+    assetIdentifierType:
+      type: string
+      enum: [ISIN, CUSIP, SEDOL, DTI, CMU, FIGI, CUSTOM, ISO4217]
+      description: Classification type standards
+    assetIdentifier:
+      type: object
+      required: [assetIdentifierType, assetIdentifierValue]
+      properties:
+        assetIdentifierType:
+          $ref: '#/components/schemas/assetIdentifierType'
+        assetIdentifierValue:
+          type: string
+          description: The classification standard used to identify the asset
+          pattern: .*\S.*
+          x-autoMinLength: true
+        networkInfo:
+          type: object
+          description: Additional network information for the asset identifier
+          properties:
+            networkId:
+              type: string
+              description: Identifier of the network associated with the asset (e.g., blockchain network name or code).
+              pattern: .*\S.*
+              x-autoMinLength: true
+    assetDenominationType:
+      type: string
+      enum: [finp2p, fiat, cryptocurrency]
+      description: Indicates how the asset is denominated
+    assetDenomination:
+      type: object
+      required: [type, code]
+      properties:
+        type:
+          $ref: '#/components/schemas/assetDenominationType'
+        code:
+          type: string
+          description: Unique code identifying the denomination asset type
+          pattern: '^[a-zA-Z0-9]*$'
+          maxLength: 150
+          minLength: 1
+    
+    assetType:
+      type: string
+      enum: [ Equity, Debt, Loans, Fund, RealEstate, Commodity, Fiat, Cryptocurrency, TokenizedCash, DigitalNatives, Basket, Other ]
+      pattern: '^[a-zA-Z0-9\- ]*$'
+      description: |
+        The type of the asset 
+        Payment asset classification:
+        - Fiat: Government-issued currencies identified by ISO 4217 codes (e.g., USD, EUR, GBP)
+        - Cryptocurrency: Blockchain-based digital currencies identified by appropriate crypto identifiers (e.g., BTC, ETH)
+        - TokenizedCash: Blockchain-based digital cash maintaining 1:1 fiat peg (stablecoins, deposit tokens, CBDCs)
+      maxLength: 150
