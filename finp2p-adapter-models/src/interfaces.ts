@@ -5,8 +5,8 @@ import {
   ExecutionContext,
   Signature,
   Source,
-  ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, DepositOperation, DepositAsset, FinIdAccount,
-  AssetBind, AssetDenomination, AssetIdentifier,
+  ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
+  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier,
 } from './model';
 
 
@@ -71,4 +71,12 @@ export interface PaymentService {
 
 export interface PlanApprovalService {
   approvePlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus>
+
+  proposeCancelPlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus>
+
+  proposeResetPlan(idempotencyKey: string, planId: string, proposedSequence: number): Promise<PlanApprovalStatus>
+
+  proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus>
+
+  proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void>
 }

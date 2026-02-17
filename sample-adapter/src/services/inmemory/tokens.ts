@@ -47,8 +47,8 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return successfulAssetCreation({ tokenId, reference: undefined });
   }
 
-  public async balance(assetId: string, finId: string): Promise<Balance> {
-    const balance = this.storage.getBalance(finId, assetId);
+  public async balance(asset: Asset, finId: string): Promise<Balance> {
+    const balance = this.storage.getBalance(finId, asset.assetId);
     return {
       current: balance,
       available: balance,
@@ -56,8 +56,8 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     } as Balance;
   }
 
-  public async getBalance(assetId: string, finId: string): Promise<string> {
-    return this.storage.getBalance(finId, assetId);
+  public async getBalance(asset: Asset, finId: string): Promise<string> {
+    return this.storage.getBalance(finId, asset.assetId);
   }
 
   public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {

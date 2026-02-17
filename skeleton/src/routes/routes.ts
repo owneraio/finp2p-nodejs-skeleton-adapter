@@ -26,7 +26,7 @@ import {
   destinationFromAPI,
   destinationOptFromAPI,
   executionContextOptFromAPI, finIdAccountFromAPI,
-  operationStatusToAPI, planApprovalOperationToAPI,
+  operationStatusToAPI, planApprovalOperationToAPI, planProposalFromAPI,
   receiptOperationToAPI,
   signatureFromAPI,
   signatureOptFromAPI,
@@ -57,6 +57,9 @@ export const register = (app: Application,
   if (storage) {
     planService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, planService,
       'approvePlan',
+      'proposeCancelPlan',
+      'proposeResetPlan',
+      'proposeInstructionApproval',
     );
 
     tokenService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, tokenService,
@@ -111,6 +114,40 @@ export const register = (app: Application,
       const { executionPlan: { id } } = req.body;
       const approveOp = await planService.approvePlan(idempotencyKey, id);
       return res.send(planApprovalOperationToAPI(approveOp));
+    },
+  );
+
+  app.post<{},
+  LedgerAPI['schemas']['ApproveExecutionPlanResponse'],
+  LedgerAPI['schemas']['executionPlanProposalRequest']>(
+    `/${basePath}/plan/proposal`,
+    async (req, res) => {
+      const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { executionPlan: { id, proposal } } = req.body;
+      let result;
+      switch (proposal.proposalType) {
+        case 'cancel':
+          result = await planService.proposeCancelPlan(idempotencyKey, id);
+          break;
+        case 'reset':
+          result = await planService.proposeResetPlan(idempotencyKey, id, proposal.proposedSequence);
+          break;
+        case 'instruction':
+          result = await planService.proposeInstructionApproval(idempotencyKey, id, proposal.instructionSequence);
+          break;
+      }
+      return res.send(planApprovalOperationToAPI(result));
+    },
+  );
+
+  app.post<{},
+  {},
+  LedgerAPI['schemas']['executionPlanProposalStatusRequest']>(
+    `/${basePath}/plan/proposal/status`,
+    async (req, res) => {
+      const { status, request: { executionPlan: { id, proposal } } } = req.body;
+      await planService.proposalStatus(id, planProposalFromAPI(proposal), status);
+      return res.status(204).send();
     },
   );
 
