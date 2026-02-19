@@ -27,15 +27,15 @@ const DUMMY_SIGNATURE: LedgerAPI['schemas']['signature'] = {
   hashFunc: 'sha3_256',
 };
 
-function finp2pAsset(assetId: string): LedgerAPI['schemas']['finp2pAsset'] {
+export function finp2pAsset(assetId: string): LedgerAPI['schemas']['finp2pAsset'] {
   return { type: 'finp2p', resourceId: assetId };
 }
 
-function source(finId: string): LedgerAPI['schemas']['source'] {
+export function source(finId: string): LedgerAPI['schemas']['source'] {
   return { finId, account: { type: 'finId', finId } };
 }
 
-function destination(finId: string): LedgerAPI['schemas']['destination'] {
+export function destination(finId: string): LedgerAPI['schemas']['destination'] {
   return { finId, account: { type: 'finId', finId } };
 }
 
@@ -140,10 +140,12 @@ export function redeemRequest(
   assetId: string,
   fromFinId: string,
   quantity: string,
+  operationId?: string,
   executionContext?: ExecutionContext,
 ): LedgerAPI['schemas']['RedeemAssetsRequest'] {
   return {
     nonce: DUMMY_NONCE,
+    operationId,
     source: { type: 'finId', finId: fromFinId },
     quantity,
     asset: finp2pAsset(assetId),

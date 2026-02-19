@@ -1,537 +1,323 @@
 import { LedgerAPIClient } from './api/api';
-import { TestDataBuilder } from './utils/test-builders';
 import { TestHelpers } from './utils/test-assertions';
-import { TestFixtures } from './utils/test-fixtures';
-import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
+import { TestSetup } from './utils/test-setup';
+import { TestConfig } from './config';
+import {
+  issueRequest,
+  transferRequest,
+  holdRequest,
+  releaseRequest,
+  rollbackRequest,
+  redeemRequest,
+  source,
+  finp2pAsset,
+} from './plan/plan-request-builders';
 import { generateId } from './utils/utils';
 
-export function businessLogicTests() {
+export function businessLogicTests(config: TestConfig) {
   describe('Business Logic - Negative Tests', () => {
 
     let client: LedgerAPIClient;
-    let builder: TestDataBuilder;
-    let fixtures: TestFixtures;
-    let orgId: string;
+    let setup: TestSetup;
 
-    beforeAll(async () => {
-      // @ts-ignore
-      client = new LedgerAPIClient(global.serverAddress, global.callbackServer);
-      // @ts-ignore
-      orgId = global.orgId;
-
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS);
-      fixtures = new TestFixtures(client, builder);
+    beforeAll(() => {
+      client = config.network.anyClient();
+      setup = new TestSetup(client, config.orgId);
     });
 
     describe('Rollback Operations', () => {
       test('should rollback held funds and restore balance', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const assetId = setup.newAssetId();
 
         const initialBalance = 1000;
         const holdAmount = 500;
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: initialBalance,
-        });
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: initialBalance });
 
         // Hold funds
-        const operationId = generateId();
-        await fixtures.setupEscrowHold({
-          source: buyer,
-          destination: seller,
-          asset,
-          assetId: builder.buildFinP2PAsset().resourceId,
-          amount: 50,
-          settlementAmount: holdAmount,
-          operationId,
+        const operationId = await setup.setupEscrowHold({
+          assetId, srcFinId: buyer, dstFinId: seller, amount: holdAmount,
         });
 
-        // Verify balance after hold (should be reduced)
-        await client.expectBalance(buyer.source, asset, initialBalance - holdAmount);
+        // Verify balance after hold
+        await client.expectBalance(source(buyer), finp2pAsset(assetId), initialBalance - holdAmount);
 
         // Rollback the hold
-        const rollbackRequest = {
-          operationId: operationId,
-          source: buyer.source,
-          quantity: `${holdAmount}`,
-          asset: asset,
-        };
-
-        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.rollback(rollbackRequest(assetId, buyer, `${holdAmount}`, operationId)),
+        );
         expect(rollbackStatus.error).toBeUndefined();
 
         // Verify funds are fully restored
-        await client.expectBalance(buyer.source, asset, initialBalance);
+        await client.expectBalance(source(buyer), finp2pAsset(assetId), initialBalance);
       });
 
       test('should fail when rolling back non-existent hold', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
+        const buyer = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: 1000,
-        });
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: 1000 });
 
-        // Try to rollback with fake operationId
         const fakeOperationId = generateId();
-        const rollbackRequest = {
-          operationId: fakeOperationId,
-          source: buyer.source,
-          quantity: '100',
-          asset: asset,
-        };
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.rollback(rollbackRequest(assetId, buyer, '100', fakeOperationId)),
+        );
 
-        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
-
-        // Should fail - no hold exists
         expect(rollbackStatus.error).toBeDefined();
       });
 
       test('should fail when rolling back already released hold', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const assetId = setup.newAssetId();
 
         const initialBalance = 1000;
         const holdAmount = 500;
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: initialBalance,
-        });
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: initialBalance });
 
-        // Hold funds
-        const operationId = generateId();
-        await fixtures.setupEscrowHold({
-          source: buyer,
-          destination: seller,
-          asset,
-          assetId: builder.buildFinP2PAsset().resourceId,
-          amount: 50,
-          settlementAmount: holdAmount,
-          operationId,
+        const operationId = await setup.setupEscrowHold({
+          assetId, srcFinId: buyer, dstFinId: seller, amount: holdAmount,
         });
 
         // Release funds
-        const releaseRequest = builder.buildReleaseRequest({
-          source: buyer,
-          destination: seller,
-          asset,
-          quantity: holdAmount,
-          operationId,
-        });
-
-        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.release(releaseRequest(assetId, buyer, seller, `${holdAmount}`, operationId)),
+        );
         expect(releaseStatus.error).toBeUndefined();
 
         // Try to rollback already released hold
-        const rollbackRequest = {
-          operationId: operationId,
-          source: buyer.source,
-          quantity: `${holdAmount}`,
-          asset: asset,
-        };
-
-        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
-
-        // Should fail - already released
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.rollback(rollbackRequest(assetId, buyer, `${holdAmount}`, operationId)),
+        );
         expect(rollbackStatus.error).toBeDefined();
       });
 
       test('should fail when rolling back already redeemed hold', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-        const asset = builder.buildFinP2PAsset();
+        const investor = setup.newFinId();
+        const issuer = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        const initialBalance = 100;
-
-        await fixtures.setupRedemptionScenario({
-          investor,
-          issuer,
-          asset,
-          issueAmount: initialBalance,
-        });
+        await setup.setupRedemptionScenario({ assetId, investorFinId: investor, issuerFinId: issuer, amount: 100 });
 
         // Hold and redeem
         const operationId = generateId();
-        const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
-          investor,
-          issuer,
-          asset,
-          amount: 50,
-          settlementAmount: 500,
-          operationId,
-        });
-
-        await client.escrow.hold(holdRequest);
-        const redeemStatus = await client.tokens.redeem(redeemRequest);
+        await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.hold(holdRequest(assetId, investor, issuer, '50', operationId)),
+        );
+        const redeemStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.redeem(redeemRequest(assetId, investor, '50', operationId)),
+        );
         expect(redeemStatus.error).toBeUndefined();
 
         // Try to rollback already redeemed hold
-        const rollbackRequest = {
-          operationId: operationId,
-          source: investor.source,
-          quantity: '50',
-          asset: asset,
-        };
-
-        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
-
-        // Should fail
+        const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.rollback(rollbackRequest(assetId, investor, '50', operationId)),
+        );
         expect(rollbackStatus.error).toBeDefined();
       });
     });
 
     describe('Double Operation Prevention', () => {
       test('should fail when trying to release twice', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        const initialBalance = 1000;
-        const holdAmount = 500;
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: 1000 });
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: initialBalance,
-        });
-
-        // Hold funds
-        const operationId = generateId();
-        await fixtures.setupEscrowHold({
-          source: buyer,
-          destination: seller,
-          asset,
-          assetId: builder.buildFinP2PAsset().resourceId,
-          amount: 50,
-          settlementAmount: holdAmount,
-          operationId,
-        });
-
-        const releaseRequest = builder.buildReleaseRequest({
-          source: buyer,
-          destination: seller,
-          asset,
-          quantity: holdAmount,
-          operationId,
+        const operationId = await setup.setupEscrowHold({
+          assetId, srcFinId: buyer, dstFinId: seller, amount: 500,
         });
 
         // First release (should succeed)
-        const firstRelease = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
+        const firstRelease = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.release(releaseRequest(assetId, buyer, seller, '500', operationId)),
+        );
         expect(firstRelease.error).toBeUndefined();
 
         // Second release (should fail)
-        const secondRelease = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
+        const secondRelease = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.release(releaseRequest(assetId, buyer, seller, '500', operationId)),
+        );
         expect(secondRelease.error).toBeDefined();
       });
 
       test('should fail when trying to redeem twice', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-        const asset = builder.buildFinP2PAsset();
+        const investor = setup.newFinId();
+        const issuer = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        await fixtures.setupRedemptionScenario({
-          investor,
-          issuer,
-          asset,
-          issueAmount: 100,
-        });
+        await setup.setupRedemptionScenario({ assetId, investorFinId: investor, issuerFinId: issuer, amount: 100 });
 
         const operationId = generateId();
-        const { holdRequest, redeemRequest } = await builder.buildRedeemRequests({
-          investor,
-          issuer,
-          asset,
-          amount: 50,
-          settlementAmount: 500,
-          operationId,
-        });
-
-        await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
+        await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.hold(holdRequest(assetId, investor, issuer, '50', operationId)),
+        );
 
         // First redeem (should succeed)
-        const firstRedeem = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
+        const firstRedeem = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.redeem(redeemRequest(assetId, investor, '50', operationId)),
+        );
         expect(firstRedeem.error).toBeUndefined();
 
         // Second redeem (should fail)
-        const secondRedeem = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
+        const secondRedeem = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.redeem(redeemRequest(assetId, investor, '50', operationId)),
+        );
         expect(secondRedeem.error).toBeDefined();
       });
 
       test('should fail when trying to rollback twice', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: 1000,
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: 1000 });
+
+        const operationId = await setup.setupEscrowHold({
+          assetId, srcFinId: buyer, dstFinId: seller, amount: 500,
         });
-
-        const operationId = generateId();
-        await fixtures.setupEscrowHold({
-          source: buyer,
-          destination: seller,
-          asset,
-          assetId: builder.buildFinP2PAsset().resourceId,
-          amount: 50,
-          settlementAmount: 500,
-          operationId,
-        });
-
-        const rollbackRequest = {
-          operationId: operationId,
-          source: buyer.source,
-          quantity: '500',
-          asset: asset,
-        };
 
         // First rollback (should succeed)
-        const firstRollback = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
+        const firstRollback = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.rollback(rollbackRequest(assetId, buyer, '500', operationId)),
+        );
         expect(firstRollback.error).toBeUndefined();
 
         // Second rollback (should fail)
-        const secondRollback = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
+        const secondRollback = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.rollback(rollbackRequest(assetId, buyer, '500', operationId)),
+        );
         expect(secondRollback.error).toBeDefined();
       });
     });
 
     describe('Invalid Operation ID Tests', () => {
       test('should fail release with non-existent operationId', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: 1000,
-        });
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: 1000 });
 
-        // Try to release without holding first
         const fakeOperationId = generateId();
-        const releaseRequest = builder.buildReleaseRequest({
-          source: buyer,
-          destination: seller,
-          asset,
-          quantity: 100,
-          operationId: fakeOperationId,
-        });
-
-        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.release(releaseRequest(assetId, buyer, seller, '100', fakeOperationId)),
+        );
         expect(releaseStatus.error).toBeDefined();
       });
 
       test('should fail redeem with non-existent operationId', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-        const asset = builder.buildFinP2PAsset();
+        const investor = setup.newFinId();
+        const issuer = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        await fixtures.setupRedemptionScenario({
-          investor,
-          issuer,
-          asset,
-          issueAmount: 100,
-        });
+        await setup.setupRedemptionScenario({ assetId, investorFinId: investor, issuerFinId: issuer, amount: 100 });
 
-        // Try to redeem without holding first
         const fakeOperationId = generateId();
-        const { redeemRequest } = await builder.buildRedeemRequests({
-          investor,
-          issuer,
-          asset,
-          amount: 50,
-          settlementAmount: 500,
-          operationId: fakeOperationId,
-        });
-
-        const redeemStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
+        const redeemStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.redeem(redeemRequest(assetId, investor, '50', fakeOperationId)),
+        );
         expect(redeemStatus.error).toBeDefined();
       });
 
       test('should fail redeem with mismatched operationId', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-        const asset = builder.buildFinP2PAsset();
+        const investor = setup.newFinId();
+        const issuer = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        await fixtures.setupRedemptionScenario({
-          investor,
-          issuer,
-          asset,
-          issueAmount: 100,
-        });
+        await setup.setupRedemptionScenario({ assetId, investorFinId: investor, issuerFinId: issuer, amount: 100 });
 
         // Hold with one operationId
         const holdOperationId = generateId();
-        const { holdRequest } = await builder.buildRedeemRequests({
-          investor,
-          issuer,
-          asset,
-          amount: 50,
-          settlementAmount: 500,
-          operationId: holdOperationId,
-        });
-
-        await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
+        await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.hold(holdRequest(assetId, investor, issuer, '50', holdOperationId)),
+        );
 
         // Try to redeem with different operationId
         const differentOperationId = generateId();
-        const { redeemRequest } = await builder.buildRedeemRequests({
-          investor,
-          issuer,
-          asset,
-          amount: 50,
-          settlementAmount: 500,
-          operationId: differentOperationId,
-        });
-
-        const redeemStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.redeem(redeemRequest));
+        const redeemStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.redeem(redeemRequest(assetId, investor, '50', differentOperationId)),
+        );
         expect(redeemStatus.error).toBeDefined();
       });
     });
 
     describe('Asset Lifecycle Tests', () => {
       test('should not allow operations on non-existent asset', async () => {
-        const actor = builder.buildActor('actor');
-        const nonExistentAsset = builder.buildFinP2PAsset();
+        const actor = setup.newFinId();
+        const nonExistentAssetId = setup.newAssetId();
 
-        // Try to issue tokens for non-existent asset
-        const issueRequest = builder.buildIssueRequest({
-          destination: actor.source.account,
-          asset: nonExistentAsset,
-          quantity: 100,
-          settlementRef: generateId(),
-        });
+        const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.issue(issueRequest(nonExistentAssetId, actor, '100')),
+        );
 
-        const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.issue(issueRequest));
-
-        // Should fail - asissueStatus = Object {isCompleted: true,
-        // cid: "",
-        // response: Object}set doesn't exist
         expect(issueStatus.error).toBeDefined();
       });
 
       test('should successfully create asset before issuing tokens', async () => {
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-        const asset = builder.buildFinP2PAsset();
+        const issuer = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        // Create asset first
-        const createStatus = await TestHelpers.createAssetAndWait(
-          client,
-          builder.buildCreateAssetRequest({ asset }),
+        await setup.createAsset(assetId);
+
+        const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.issue(issueRequest(assetId, issuer, '100')),
         );
-
-        expect(createStatus.error).toBeUndefined();
-
-        // Now issue should work
-        const issueRequest = builder.buildIssueRequest({
-          destination: issuer.source.account,
-          asset,
-          quantity: 100,
-          settlementRef: generateId(),
-        });
-
-        const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.issue(issueRequest));
         expect(issueStatus.error).toBeUndefined();
       });
 
       test('should handle multiple assets independently', async () => {
-        const owner = builder.buildActor('owner');
-        const asset1 = builder.buildFinP2PAsset();
-        const asset2 = builder.buildFinP2PAsset();
+        const owner = setup.newFinId();
+        const assetId1 = setup.newAssetId();
+        const assetId2 = setup.newAssetId();
 
-        // Setup first asset with tokens
-        await fixtures.setupIssuedTokens({
-          issuer: owner,
-          buyer: builder.buildActor('buyer1'),
-          asset: asset1,
-          amount: 100,
-          settlementAmount: 1000,
-        });
+        await setup.createAndIssue(assetId1, owner, 100);
+        await setup.createAndIssue(assetId2, owner, 200);
 
-        // Setup second asset with tokens
-        await fixtures.setupIssuedTokens({
-          issuer: owner,
-          buyer: builder.buildActor('buyer2'),
-          asset: asset2,
-          amount: 200,
-          settlementAmount: 2000,
-        });
-
-        // Verify independent balances
-        await client.expectBalance(owner.source, asset1, 100);
-        await client.expectBalance(owner.source, asset2, 200);
+        await client.expectBalance(source(owner), finp2pAsset(assetId1), 100);
+        await client.expectBalance(source(owner), finp2pAsset(assetId2), 200);
       });
     });
 
     describe('Zero Amount Tests', () => {
       test('should handle transfer of zero tokens', async () => {
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const asset = builder.buildFinP2PAsset();
+        const seller = setup.newFinId();
+        const buyer = setup.newFinId();
+        const assetId = setup.newAssetId();
 
         const initialBalance = 100;
+        await setup.createAndIssue(assetId, seller, initialBalance);
 
-        await fixtures.setupIssuedTokens({
-          issuer: seller,
-          buyer: builder.buildActor('primaryBuyer'),
-          asset,
-          amount: initialBalance,
-          settlementAmount: 1000,
-        });
+        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.transfer(transferRequest(assetId, seller, buyer, '0')),
+        );
 
-        // Try to transfer 0 tokens
-        const transferRequest = await builder.buildSignedTransferRequest({
-          seller: seller,
-          buyer: buyer,
-          asset,
-          amount: 0,
-          settlementAmount: 0,
-        });
-
-        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(transferRequest));
-
-        // Implementation-dependent: might succeed or fail
         if (!transferStatus.error) {
-          // If succeeds, balances should be unchanged
-          await client.expectBalance(seller.source, asset, initialBalance);
-          await client.expectBalance(buyer.source, asset, 0);
+          await client.expectBalance(source(seller), finp2pAsset(assetId), initialBalance);
+          await client.expectBalance(source(buyer), finp2pAsset(assetId), 0);
         } else {
-          // If fails, should have meaningful error
           expect(transferStatus.error).toBeDefined();
         }
       });
 
       test('should handle hold of zero amount', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: 1000,
-        });
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: 1000 });
 
-        // Try to hold 0 amount
         const operationId = generateId();
-        const holdRequest = await builder.buildSignedHoldRequest({
-          source: buyer,
-          destination: seller,
-          asset,
-          assetId: builder.buildFinP2PAsset().resourceId,
-          amount: 0,
-          settlementAmount: 0,
-          operationId,
-        });
+        const holdStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.hold(holdRequest(assetId, buyer, seller, '0', operationId)),
+        );
 
-        const holdStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.hold(holdRequest));
-
-        // Implementation-dependent: might succeed or fail
         if (!holdStatus.error) {
-          await client.expectBalance(buyer.source, asset, 1000);
+          await client.expectBalance(source(buyer), finp2pAsset(assetId), 1000);
         } else {
           expect(holdStatus.error).toBeDefined();
         }
@@ -540,73 +326,35 @@ export function businessLogicTests() {
 
     describe('Wrong Actor Tests', () => {
       test('should fail when releasing with wrong source', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
-        const attacker = builder.buildActor('attacker');
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const attacker = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: 1000,
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: 1000 });
+
+        const operationId = await setup.setupEscrowHold({
+          assetId, srcFinId: buyer, dstFinId: seller, amount: 500,
         });
 
-        // Hold funds from buyer
-        const operationId = generateId();
-        await fixtures.setupEscrowHold({
-          source: buyer,
-          destination: seller,
-          asset,
-          assetId: builder.buildFinP2PAsset().resourceId,
-          amount: 50,
-          settlementAmount: 500,
-          operationId,
-        });
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.release(releaseRequest(assetId, attacker, seller, '500', operationId)),
+        );
 
-        // Try to release with different source (attacker)
-        const releaseRequest = builder.buildReleaseRequest({
-          source: attacker,
-          destination: seller,
-          asset,
-          quantity: 500,
-          operationId,
-        });
-
-        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(releaseRequest));
-
-        // Should fail - wrong source
         expect(releaseStatus.error).toBeDefined();
       });
 
       test('should fail when transferring from wrong account', async () => {
-        const owner = builder.buildActor('owner');
-        const attacker = builder.buildActor('attacker');
-        const recipient = builder.buildActor('recipient');
-        const asset = builder.buildFinP2PAsset();
+        const owner = setup.newFinId();
+        const recipient = setup.newFinId();
+        const assetId = setup.newAssetId();
 
-        // Setup owner with tokens
-        await fixtures.setupIssuedTokens({
-          issuer: owner,
-          buyer: builder.buildActor('buyer'),
-          asset,
-          amount: 100,
-          settlementAmount: 1000,
-        });
+        await setup.createAndIssue(assetId, owner, 100);
 
-        // Attacker tries to transfer owner's tokens
-        const transferRequest = await builder.buildSignedTransferRequest({
-          seller: owner, // Claims to be owner
-          buyer: recipient,
-          asset,
-          amount: 50,
-          settlementAmount: 500,
-        });
+        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.tokens.transfer(transferRequest(assetId, owner, recipient, '50')),
+        );
 
-        // In real implementation, signature verification should fail
-        // For now, we just check the operation
-        const transferStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(transferRequest));
-
-        // Should fail due to signature mismatch (in proper implementation)
-        // Or succeed but only if properly signed
         if (transferStatus.error) {
           expect(transferStatus.error).toBeDefined();
         }
@@ -615,47 +363,26 @@ export function businessLogicTests() {
 
     describe('Partial Release Tests', () => {
       test('should allow partial release of held funds', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = setup.newFinId();
+        const seller = setup.newFinId();
+        const assetId = setup.newAssetId();
 
         const initialBalance = 1000;
         const holdAmount = 500;
 
-        const { asset } = await fixtures.setupFiatAssetWithBalance({
-          owner: buyer,
-          fiatCode: 'USD',
-          initialBalance: initialBalance,
+        await setup.setupAssetWithBalance({ assetId, ownerFinId: buyer, balance: initialBalance });
+
+        const operationId = await setup.setupEscrowHold({
+          assetId, srcFinId: buyer, dstFinId: seller, amount: holdAmount,
         });
 
-        // Hold 500
-        const operationId = generateId();
-        await fixtures.setupEscrowHold({
-          source: buyer,
-          destination: seller,
-          asset,
-          assetId: builder.buildFinP2PAsset().resourceId,
-          amount: 50,
-          settlementAmount: holdAmount,
-          operationId,
-        });
+        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () =>
+          client.escrow.release(releaseRequest(assetId, buyer, seller, '300', operationId)),
+        );
 
-        // Release only 300 (partial)
-        const partialReleaseRequest = builder.buildReleaseRequest({
-          source: buyer,
-          destination: seller,
-          asset,
-          quantity: 300,
-          operationId,
-        });
-
-        const releaseStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.release(partialReleaseRequest));
-
-        // Implementation-dependent: might support partial release or not
         if (!releaseStatus.error) {
-          // If partial release is supported
-          await client.expectBalance(seller.source, asset, 300);
+          await client.expectBalance(source(seller), finp2pAsset(assetId), 300);
         } else {
-          // If not supported, should have error
           expect(releaseStatus.error).toBeDefined();
         }
       });

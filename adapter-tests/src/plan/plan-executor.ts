@@ -64,7 +64,7 @@ async function executeInstruction(
       );
     case 'redeem':
       return TestHelpers.executeAndWaitForCompletion(client, () =>
-        client.tokens.redeem(redeemRequest(assetId, src!, amount, executionContext)),
+        client.tokens.redeem(redeemRequest(assetId, src!, amount, undefined, executionContext)),
       );
     case 'rollback': {
       const opId = escrowIds.get(assetId);

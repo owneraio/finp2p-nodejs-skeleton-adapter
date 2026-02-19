@@ -17,8 +17,6 @@ export {
 
 export { planSuite } from './plan-executor';
 export { FinP2PNetwork } from './plan-network';
-export { MockFinP2PServer } from './mock-finp2p-server';
-export { TestHelpers } from '../utils/test-assertions';
 
 export {
   createAssetRequest,
@@ -30,4 +28,7 @@ export {
   redeemRequest,
   planApproveRequest,
   planInstructionProposalRequest,
+  source,
+  destination,
+  finp2pAsset,
 } from './plan-request-builders';

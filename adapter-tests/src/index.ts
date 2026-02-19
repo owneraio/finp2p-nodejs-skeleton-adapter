@@ -1,17 +1,21 @@
 
 import { businessLogicTests } from './business-logic.test';
 import { tokenLifecycleTests } from './token-lifecycle.test';
-import { insufficientBalanceTest } from './insufficient-balance.test';
+import { insufficientBalanceTests } from './insufficient-balance.test';
+import { TestConfig } from './config';
 
-export * as callbackServer from './callback-server/server';
 export * as plan from './plan';
+export { MockServer } from './mock-server';
 export { LedgerAPIClient } from './api/api';
+export { TestHelpers, ReceiptAssertions, BalanceAssertions } from './utils/test-assertions';
+export { TestSetup } from './utils/test-setup';
+export { escrowOperationsTests } from './escrow-operations.test';
+export type { TestConfig } from './config';
 
-export function runAdapterTests(/*TODO: test configuration */) {
+export function runAdapterTests(config: TestConfig) {
   describe('FinP2P Adapter Test Suite', () => {
-    businessLogicTests();
-    tokenLifecycleTests();
-    insufficientBalanceTest();
+    tokenLifecycleTests(config);
+    businessLogicTests(config);
+    insufficientBalanceTests(config);
   });
 }
-
