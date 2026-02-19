@@ -16,9 +16,7 @@
   },
   "dependencies": {
     "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.27.0",
-    "@owneraio/finp2p-adapter-models": "^0.27.0",
     "axios": "^1.12.2",
-    "secp256k1": "^3.7.1",
     "yaml": "^2.8.1",
     "zod": "^4.1.12"
   },
@@ -28,7 +26,6 @@
   "devDependencies": {
     "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
-    "@types/secp256k1": "^4.0.7",
     "eslint": "^8.4.1",
     "eslint-config-airbnb-typescript": "^16.1.0",
     "eslint-plugin-import": "^2.25.4",
