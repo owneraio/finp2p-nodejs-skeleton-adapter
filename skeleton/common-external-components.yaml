@@ -1,0 +1,1524 @@
+components:
+  schemas:
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: |
+            Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference).
+        message:
+          type: string
+          description: A descriptive message providing context about the error.
+          pattern: .*\S.*
+          x-autoMinLength: true
+    APIErrors:
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/APIError"
+    APIErrorsTyped:
+      type: object
+      required: [errors, type]
+      properties:
+        type:
+          type: string
+          enum: ["error"]
+        errors:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/APIError"
+    orgId:
+      type: string
+      description: 'Organization Id'
+      maxLength: 150
+      # language=regexp
+      pattern: '^[^:]*$' # TODO after we validate ORGID setting replace with actual org id pattern '^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$'
+      x-go-type: OrgIdValidatable
+      minLength: 1
+      x-autoMinLength: true
+    finId:
+      type: string
+      format: finid
+      description: 'Existing owner hex representation of a secp256k1 public key 33 bytes compressed'
+      # language=regexp
+      pattern: '^[0-9a-f]*$'
+      minLength: 64
+      maxLength: 66
+      x-autoMinLength: true
+    ApproveExecutionPlanRequest:
+      type: object
+      required:
+        - executionPlan
+      properties:
+        executionPlan:
+          type: object
+          description: execution plan information
+          required: [id]
+          properties:
+            id:
+              type: string
+              description: execution plan id
+              pattern: .*\S.*
+              x-autoMinLength: true
+    ApproveExecutionPlanResponse:
+      allOf:
+        - $ref: '#/components/schemas/ExecutionPlanApprovalOperation'
+    executionPlanProposalRequest:
+      type: object
+      required:
+        - executionPlan
+      properties:
+        executionPlan:
+          type: object
+          description: execution plan information
+          required: [id, proposal]
+          properties:
+            id:
+              type: string
+              description: execution plan id
+              pattern: .*\S.*
+              x-autoMinLength: true
+            proposal:
+              type: object
+              description: type of proposal payload
+              oneOf:
+                - $ref: '#/components/schemas/executionPlanCancellationProposal'
+                - $ref: '#/components/schemas/executionPlanInstructionProposal'
+                - $ref: '#/components/schemas/executionPlanResetProposal'
+              #                        - $ref: '#/components/schemas/executionPlanProposal'
+              discriminator:
+                propertyName: proposalType
+                mapping:
+                  cancel: '#/components/schemas/executionPlanCancellationProposal'
+                  reset: '#/components/schemas/executionPlanResetProposal'
+                  instruction: '#/components/schemas/executionPlanInstructionProposal'
+    #                          plan: '#/components/schemas/executionPlanProposal'
+
+    executionPlanInstructionProposal:
+      type: object
+      required: [proposalType, instructionSequence]
+      properties:
+        proposalType:
+          type: string
+          enum: ['instruction']
+        instructionSequence:
+          type: integer
+          format: uint32
+          minimum: 1
+          description: sequence number of the instruction completion event
+    executionPlanProposalStatusRequest:
+      type: object
+      description: provides status update on the agreement reached for a specific proposal
+      required: [status, request]
+      properties:
+        status:
+          type: string
+          enum: ["approved", "rejected"]
+        request:
+          allOf:
+            - $ref: '#/components/schemas/executionPlanProposalRequest'
+    executionPlanCancellationProposal:
+      type: object
+      required: [proposalType]
+      properties:
+        proposalType:
+          type: string
+          enum: ['cancel']
+    executionPlanResetProposal:
+      type: object
+      required: [proposalType, proposedSequence]
+      properties:
+        proposalType:
+          type: string
+          enum: ['reset']
+        proposedSequence:
+          type: integer
+          format: uint32
+          minimum: 1
+          description: sequence number of the instruction to reset and retry in the execution plan
+    executionPlanProposal:
+      type: object
+      required: [proposalType]
+      properties:
+        proposalType:
+          type: string
+          enum: ['plan']
+    ApiErrorClient4XX:
+      type: object
+      required: [status, errors, type]
+      properties:
+        type:
+          type: string
+          enum: ["error"]
+        status:
+          type: integer
+          enum: [400, 401, 403, 404, 409]
+          x-go-json-ignore: true
+          x-enumNames: ['value']
+        errors:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/AssetMetadataAndConfigError'
+              - $ref: '#/components/schemas/GeneralClientError'
+    # 10xx General Client Errors
+    GeneralClientError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [1000]
+        message:
+          type: string
+          enum: ['General client error']
+    AssetMetadataAndConfigError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [4108]
+        message:
+          type: string
+          enum: ['Asset metadata and config cannot be provided at the same time']
+    ApiErrorServer5XX:
+      type: object
+      required: [status, errors, type]
+      properties:
+        type:
+          type: string
+          enum: ["error"]
+        status:
+          type: integer
+          enum: [500, 502, 503, 504]
+          x-go-json-ignore: true
+          x-enumNames: ['value']
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeneralServerError'
+    # 20xx General Server Errors
+    GeneralServerError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          enum: [2000]
+        message:
+          type: string
+          enum: ['General server error']
+    ApiAnyError:
+      allOf:
+        - oneOf:
+            - $ref: '#/components/schemas/ApiErrorClient4XX'
+            - $ref: '#/components/schemas/ApiErrorServer5XX'
+        - type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: ['error']
+    CustomError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    HealthCheckOperation:
+      allOf:
+        - $ref: '#/components/schemas/OperationBase'
+        - $ref: '#/components/schemas/HealthResponse'
+    HealthResponse:
+      type: object
+      required: [health]
+      properties:
+        health:
+          type: object
+          required: [status]
+          properties:
+            status:
+              type: string
+              example: 'ok/unavailable'
+              pattern: .*\S.*
+              x-autoMinLength: true
+    PlanApproved:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: ['approved']
+    PlanRejected:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: ['rejected']
+        failure:
+          oneOf:
+            - $ref: '#/components/schemas/ValidationFailure'
+            - $ref: '#/components/schemas/RegulationFailure'
+          discriminator:
+            propertyName: failureType
+            mapping:
+              validationFailure: '#/components/schemas/ValidationFailure'
+              regulationFailure: '#/components/schemas/RegulationFailure'
+    ExecutionPlanApprovalOperation:
+      allOf:
+        - $ref: '#/components/schemas/OperationBase'
+        - $ref: '#/components/schemas/PlanApprovalResponse'
+    PlanApprovalResponse:
+      type: object
+      properties:
+        approval:
+          oneOf:
+            - $ref: '#/components/schemas/PlanApproved'
+            - $ref: '#/components/schemas/PlanRejected'
+          discriminator:
+            propertyName: status
+            mapping:
+              approved: '#/components/schemas/PlanApproved'
+              rejected: '#/components/schemas/PlanRejected'
+    ValidationFailure:
+      type: object
+      required:
+        - failureType
+        - code
+        - message
+      properties:
+        failureType:
+          type: string
+          enum: [validationFailure]
+        code:
+          type: integer
+          format: uint32
+          description: ledger error code for validation
+        message:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    RegulationFailure:
+      type: object
+      required:
+        - failureType
+        - errors
+      properties:
+        failureType:
+          type: string
+          enum: [regulationFailure]
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegulationError'
+    RegulationError:
+      type: object
+      required:
+        - regulationType
+        - details
+      properties:
+        regulationType:
+          type: string
+          description: the type of regulation
+          pattern: .*\S.*
+          x-autoMinLength: true
+        details:
+          type: string
+          description: actionable details of the error
+          pattern: .*\S.*
+          x-autoMinLength: true
+    OperationBase:
+      type: object
+      required:
+        - cid
+        - isCompleted
+      properties:
+        cid:
+          type: string
+          description: unique correlation id which identify the operation
+          x-allowEmpty: true
+        isCompleted:
+          type: boolean
+          description: flag indicating if the operation completed, if true then error or response must be present (but not both)
+          default: false
+        operationMetadata:
+          $ref: '#/components/schemas/OperationMetadata'
+    OperationMetadata:
+      type: object
+      description: additional metadata regarding the operation
+      properties:
+        operationResponseStrategy:
+          description: "denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled \noptional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)\n"
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/pollingResultsStrategy'
+            - $ref: '#/components/schemas/callbackResultsStrategy'
+          discriminator:
+            propertyName: type
+            mapping:
+              poll: '#/components/schemas/pollingResultsStrategy'
+              callback: '#/components/schemas/callbackResultsStrategy'
+    callbackResultsStrategy:
+      type: object
+      required: [type, callback]
+      properties:
+        type:
+          type: string
+          enum: [callback]
+        callback:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/callbackEndpoint'
+          discriminator:
+            propertyName: type
+            mapping:
+              endpoint: '#/components/schemas/callbackEndpoint'
+    callbackEndpoint:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [endpoint]
+    pollingResultsStrategy:
+      type: object
+      required: [type, polling]
+      properties:
+        type:
+          type: string
+          enum: [poll]
+        polling:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/randomPollingInterval'
+            - $ref: '#/components/schemas/absolutePollingInterval'
+            - $ref: '#/components/schemas/relativePollingInterval'
+          discriminator:
+            propertyName: type
+            mapping:
+              random: '#/components/schemas/pollingResultsStrategy'
+              absolute: '#/components/schemas/absolutePollingInterval'
+              relative: '#/components/schemas/relativePollingInterval'
+    relativePollingInterval:
+      type: object
+      required: [type, duration]
+      properties:
+        type:
+          type: string
+          enum: [relative]
+        duration:
+          type: string
+          description: ISO-8601 duration format
+          example: PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
+          pattern: .*\S.*
+          x-autoMinLength: true
+    absolutePollingInterval:
+      type: object
+      required: [type, time]
+      properties:
+        type:
+          type: string
+          enum: [absolute]
+        time:
+          type: integer
+          description: absolute time as epoch time seconds
+    randomPollingInterval:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [random]
+    paymentMethods:
+      type: array
+      items:
+        $ref: '#/components/schemas/paymentMethod'
+    paymentMethod:
+      type: object
+      required: [description, currency, methodInstruction]
+      properties:
+        description:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        currency:
+          type: string
+          description: accepted currency for payment
+          pattern: .*\S.*
+          x-autoMinLength: true
+        methodInstruction:
+          oneOf:
+            - $ref: '#/components/schemas/wireTransfer'
+            - $ref: '#/components/schemas/wireTransferUSA'
+            - $ref: '#/components/schemas/cryptoTransfer'
+            - $ref: '#/components/schemas/paymentInstructions'
+          discriminator:
+            propertyName: type
+            mapping:
+              wireTransfer: '#/components/schemas/wireTransfer'
+              wireTransferUSA: '#/components/schemas/wireTransferUSA'
+              cryptoTransfer: '#/components/schemas/cryptoTransfer'
+              paymentInstructions: '#/components/schemas/paymentInstructions'
+    paymentInstructions:
+      type: object
+      required: [type, instruction]
+      properties:
+        type:
+          type: string
+          enum: ['paymentInstructions']
+        instruction:
+          type: "string"
+          pattern: .*\S.*
+          x-autoMinLength: true
+    cryptoTransfer:
+      type: object
+      required: [type, network, contractAddress, walletAddress]
+      properties:
+        type:
+          type: string
+          enum: ['cryptoTransfer']
+        network:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        contractAddress:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        walletAddress:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    wireTransferUSA:
+      type: object
+      required: [type, accountNumber, routingNumber]
+      properties:
+        type:
+          type: string
+          enum: ['wireTransferUSA']
+        accountNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        routingNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        line1:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        city:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        postalCode:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        country:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        state:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    wireTransfer:
+      type: object
+      required: [type, accountHolderName, bankName, wireDetails]
+      properties:
+        type:
+          type: string
+          enum: ['wireTransfer']
+        accountHolderName:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        bankName:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        wireDetails:
+          $ref: '#/components/schemas/wireDetails'
+        line1:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        city:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        postalCode:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        country:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    wireDetails:
+      discriminator:
+        propertyName: type
+        mapping:
+          iban: '#/components/schemas/ibanAccountDetails'
+          swift: '#/components/schemas/swiftAccountDetails'
+          sortCode: '#/components/schemas/sortCodeDetails'
+      oneOf:
+        - $ref: '#/components/schemas/ibanAccountDetails'
+        - $ref: '#/components/schemas/swiftAccountDetails'
+        - $ref: '#/components/schemas/sortCodeDetails'
+    ibanAccountDetails:
+      type: object
+      required: [type, iban]
+      properties:
+        type:
+          type: string
+          enum: ['iban']
+        iban:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    swiftAccountDetails:
+      type: object
+      required: [type, swiftCode, accountNumber]
+      properties:
+        type:
+          type: string
+          enum: ['bic']
+        swiftCode:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        accountNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    sortCodeDetails:
+      type: object
+      required: [type, code, accountNumber]
+      properties:
+        type:
+          type: string
+          enum: ['sortCode']
+        code:
+          type: string
+          description: sort code has XX-XX-XX format
+          pattern: "^\\d{2}-\\d{2}-\\d{2}$"
+        accountNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    assetName:
+      type: string
+      pattern: '^[a-zA-Z0-9\-_. /]*$'
+      maxLength: 150
+      description: The name of the asset
+      minLength: 1
+      x-autoMinLength: true
+    ownerResourceId:
+      type: string
+      description: 'Owner resource id'
+      pattern: '^[^:](?:.+):101:(?:.+)'
+      maxLength: 150
+      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+    walletAccount:
+      type: object
+      required:
+        - type
+        - address
+      properties:
+        type:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        address:
+          type: string
+          description: 'address of the wallet'
+          pattern: .*\S.*
+          x-autoMinLength: true
+    noneAccount:
+        type: object
+    networkAccount:
+      oneOf:
+        - $ref: '#/components/schemas/walletAccount'
+        - $ref: '#/components/schemas/noneAccount'
+
+    financialAssetIdentifier:
+      oneOf:
+        - $ref: '#/components/schemas/financialAssetIdentifierTypeISIN'
+        - $ref: '#/components/schemas/financialAssetIdentifierTypeISO4217'
+        - $ref: '#/components/schemas/financialAssetIdentifierTypeNONE'
+      discriminator:
+        propertyName: assetIdentifierType
+        mapping:
+          ISIN: '#/components/schemas/financialAssetIdentifierTypeISIN'
+          ISO4217: '#/components/schemas/financialAssetIdentifierTypeISO4217'
+          NONE: '#/components/schemas/financialAssetIdentifierTypeNONE'
+    financialAssetIdentifierTypeISIN:
+      type: object
+      required: [assetIdentifierType, assetIdentifierValue]
+      properties:
+        assetIdentifierType:
+          type: string
+          enum: [ISIN]
+          description: Classification type standards
+        assetIdentifierValue:
+          type: string
+          description: The classification standard used to identify the asset
+          pattern: '^[A-Z]{2}[A-Z0-9]{10}$'
+          x-autoMinLength: true
+    financialAssetIdentifierTypeNONE:
+      type: object
+      required: [assetIdentifierType]
+      properties:
+        assetIdentifierType:
+          type: string
+          enum: [NONE]
+          description: Classification type standards
+    financialAssetIdentifierTypeISO4217:
+      type: object
+      required: [assetIdentifierType, assetIdentifierValue]
+      properties:
+        assetIdentifierType:
+          type: string
+          enum: [ISO4217]
+          description: Classification type standards
+        assetIdentifierValue:
+          type: string
+          description: The classification standard used to identify the asset
+          pattern: '^(AED|AFN|ALL|AMD|ANG|AOA|ARS|AUD|AWG|AZN|BAM|BBD|BDT|BGN|BHD|BIF|BMD|BND|BOB|BRL|BSD|BTN|BWP|BYR|BZD|CAD|CDF|CHF|CLP|CNY|COP|CRC|CUC|CUP|CVE|CZK|DJF|DKK|DOP|DZD|EGP|ERN|ETB|EUR|FJD|FKP|GBP|GEL|GGP|GHS|GIP|GMD|GNF|GTQ|GYD|HKD|HNL|HRK|HTG|HUF|IDR|ILS|IMP|INR|IQD|IRR|ISK|JEP|JMD|JOD|JPY|KES|KGS|KHR|KMF|KPW|KRW|KWD|KYD|KZT|LAK|LBP|LKR|LRD|LSL|LYD|MAD|MDL|MGA|MKD|MMK|MNT|MOP|MRO|MUR|MVR|MWK|MXN|MYR|MZN|NAD|NGN|NIO|NOK|NPR|NZD|OMR|PAB|PEN|PGK|PHP|PKR|PLN|PYG|QAR|RON|RSD|RUB|RWF|SAR|SBD|SCR|SDG|SEK|SGD|SHP|SLL|SOS|SPL|SRD|STD|SVC|SYP|SZL|THB|TJS|TMT|TND|TOP|TRY|TTD|TVD|TWD|TZS|UAH|UGX|USD|UYU|UZS|VEF|VND|VUV|WST|XAF|XCD|XDR|XOF|XPF|YER|ZAR|ZMW|ZWD)$'
+    ledgerAssetIdentifier:
+      oneOf:
+        - $ref: '#/components/schemas/ledgerAssetIdentifierTypeCAIP-19'
+      discriminator:
+        propertyName: assetIdentifierType
+        mapping:
+          CAIP-19: '#/components/schemas/ledgerAssetIdentifierTypeCAIP-19'
+    ledgerAssetIdentifierTypeCAIP-19:
+      type: object
+      required: [assetIdentifierType, network, tokenId, standard]
+      properties:
+        assetIdentifierType:
+          type: string
+          enum: [CAIP-19]
+          description: Classification type standards
+        network:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        tokenId:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        standard:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        resourceId:
+          $ref: '#/components/schemas/resourceId'
+    networkInfo:
+      type: object
+      required: [networkId]
+      description: Additional network information for the asset identifier
+      properties:
+        networkId:
+          type: string
+          description: Identifier of the network associated with the asset (e.g., blockchain network name or code).
+          pattern: .*\S.*
+          x-autoMinLength: true
+    assetDenominationType:
+      type: string
+      enum: [finp2p, fiat, cryptocurrency]
+      description: Indicates how the asset is denominated
+    assetDenomination:
+      type: object
+      required: [type, code]
+      properties:
+        type:
+          $ref: '#/components/schemas/assetDenominationType'
+        code:
+          type: string
+          description: Unique code identifying the denomination asset type
+          pattern: '^[a-zA-Z0-9]*$'
+          maxLength: 150
+          minLength: 1
+    assetType:
+      type: string
+      enum: [ Equity, Debt, Loans, Fund, RealEstate, Commodity, Fiat, Cryptocurrency, TokenizedCash, DigitalNatives, Basket, Other ]
+      pattern: '^[a-zA-Z0-9\- ]*$'
+      description: |
+        The type of the asset 
+        Payment asset classification:
+        - Fiat: Government-issued currencies identified by ISO 4217 codes (e.g., USD, EUR, GBP)
+        - Cryptocurrency: Blockchain-based digital currencies identified by appropriate crypto identifiers (e.g., BTC, ETH)
+        - TokenizedCash: Blockchain-based digital cash maintaining 1:1 fiat peg (stablecoins, deposit tokens, CBDCs)
+      maxLength: 150
+    finIdAccount:
+      type: object
+      required: [type, finId, orgId, custodian]
+      properties:
+        type:
+          type: string
+          enum: ['finId']
+        finId:
+          $ref: "#/components/schemas/finId"
+        orgId:
+          $ref: '#/components/schemas/orgId'
+        custodian:
+          $ref: '#/components/schemas/custodian'
+    finp2pAssetAccount:
+      type: object
+      description: 'describes account information'
+      required: [account, asset]
+      properties:
+        account:
+          $ref: '#/components/schemas/finIdAccount'
+        asset:
+          $ref: '#/components/schemas/ledgerAssetIdentifier'
+    ledgerAccountAsset:
+      type: object
+      description: 'describes account information'
+      required: [ finp2pAccount ]
+      properties:
+        finp2pAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+        networkAccount:
+          $ref: '#/components/schemas/networkAccount'
+    finp2pAssetAccountOptional:
+      type: object
+      description: 'describes account information'
+      required: [asset]
+      properties:
+        account:
+          $ref: '#/components/schemas/finIdAccount'
+        asset:
+          $ref: '#/components/schemas/ledgerAssetIdentifier'
+    importTxAccount:
+        type: object
+        required:
+            - finId
+        properties:
+            finId:
+              $ref: "#/components/schemas/finId"
+    importTxAssetAccount:
+      type: object
+      description: 'describes account information'
+      required: [ account, asset ]
+      properties:
+        account:
+            $ref: '#/components/schemas/importTxAccount'
+        asset:
+          $ref: '#/components/schemas/ledgerAssetIdentifier'
+    importTxLedgerAssetAccount:
+      type: object
+      description: 'describes account information'
+      required: [ finp2pAccount ]
+      properties:
+        finp2pAccount:
+          $ref: '#/components/schemas/importTxAssetAccount'
+        networkAccount:
+          $ref: '#/components/schemas/networkAccount'
+    custodian:
+      type: object
+      required: [orgId]
+      properties:
+        orgId:
+          $ref: '#/components/schemas/orgId'
+    resourceId:
+      type: string
+      description: 'finp2p resource id format'
+      pattern: '^[^:](?:.+):(101|102|103|104|105):(?:.+)'
+      maxLength: 150
+      example: 'bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388'
+    receiptAssetDetails:
+      type: object
+      required: [transactionDetails]
+      properties:
+        transactionDetails:
+          $ref: '#/components/schemas/receiptTransactionDetails'
+    receiptTransactionDetails:
+      description: Additional input and output details for UTXO supporting DLTs
+      type: object
+      required:
+        - transactionId
+      properties:
+        transactionId:
+          type: string
+          description: Transaction id
+          pattern: .*\S.*
+          x-autoMinLength: true
+        operationId:
+          type: string
+          description: Operation id
+          pattern: .*\S.*
+          x-autoMinLength: true
+    receiptTradeDetails:
+      type: object
+      properties:
+        intentId:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        intentVersion:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        executionContext:
+          $ref: '#/components/schemas/receiptExecutionContext'
+    receiptExecutionContext:
+      type: object
+      required: [executionPlanId, instructionSequenceNumber]
+      properties:
+        executionPlanId:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        instructionSequenceNumber:
+          type: integer
+    nonce:
+      type: string
+      description: |
+        32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
+
+          const nonce = Buffer.alloc(32);
+          nonce.fill(crypto.randomBytes(24), 0, 24);
+
+          const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
+          const t = BigInt(nowEpochSeconds);
+          nonce.writeBigInt64BE(t, 24);
+      x-allowEmpty: true
+    ownerId:
+      type: string
+      description: 'The Owner resource id'
+      pattern: '^[^:](?:.+):101:(?:.+)'
+      maxLength: 150
+      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+    # Intent Schemas
+    intentType:
+      type: string
+      enum: ['primarySale', 'buyingIntent', 'sellingIntent', 'loanIntent', 'redemptionIntent', 'privateOfferIntent', 'requestForTransferIntent']
+    intent:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/primarySale'
+        - $ref: '#/components/schemas/buyingIntent'
+        - $ref: '#/components/schemas/sellingIntent'
+        - $ref: '#/components/schemas/loanIntent'
+        - $ref: '#/components/schemas/redemptionIntent'
+        - $ref: '#/components/schemas/privateOfferIntent'
+        - $ref: '#/components/schemas/requestForTransferIntent'
+      discriminator:
+        propertyName: type
+        mapping:
+          primarySale: '#/components/schemas/primarySale'
+          buyingIntent: '#/components/schemas/buyingIntent'
+          sellingIntent: '#/components/schemas/sellingIntent'
+          loanIntent: '#/components/schemas/loanIntent'
+          redemptionIntent: '#/components/schemas/redemptionIntent'
+          privateOfferIntent: '#/components/schemas/privateOfferIntent'
+          requestForTransferIntent: '#/components/schemas/requestForTransferIntent'
+    primarySale:
+      type: object
+      required: [type, issuer, asset, settlement]
+      properties:
+        type:
+          type: string
+          enum: [primarySale]
+        issuer:
+          $ref: '#/components/schemas/ownerId'
+        asset:
+          $ref: '#/components/schemas/sellingAsset'
+        settlement:
+          $ref: '#/components/schemas/sellingSettlements'
+    buyingIntent:
+      type: object
+      required: [type, buyer, asset]
+      properties:
+        type:
+          type: string
+          enum: [buyingIntent]
+        buyer:
+          type: string
+          description: 'resource id of the buyer'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        asset:
+          $ref: '#/components/schemas/buyingAsset'
+        settlement:
+          $ref: '#/components/schemas/buyingSettlementBase'
+        signaturePolicy:
+          oneOf:
+            - $ref: '#/components/schemas/presignedSignaturePolicy'
+            - $ref: '#/components/schemas/manualSignaturePolicy'
+          discriminator:
+            propertyName: type
+            mapping:
+              presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+    sellingIntent:
+      type: object
+      required: [type, seller, asset, settlement]
+      properties:
+        type:
+          type: string
+          enum: [sellingIntent]
+        seller:
+          $ref: '#/components/schemas/ownerId'
+        asset:
+          $ref: '#/components/schemas/sellingAsset'
+        settlement:
+          $ref: '#/components/schemas/sellingSettlements'
+        signaturePolicy:
+          oneOf:
+            - $ref: '#/components/schemas/presignedSignaturePolicy'
+            - $ref: '#/components/schemas/manualSignaturePolicy'
+          discriminator:
+            propertyName: type
+            mapping:
+              presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+    loanIntent:
+      type: object
+      required: [type, creatorType, borrower, lender, asset]
+      properties:
+        type:
+          type: string
+          enum: [loanIntent]
+        creatorType:
+          type: string
+          enum: [borrower, lender]
+        borrower:
+          $ref: '#/components/schemas/ownerId'
+        lender:
+          $ref: '#/components/schemas/ownerId'
+        asset:
+          $ref: '#/components/schemas/loanIntentAsset'
+        settlement:
+          $ref: '#/components/schemas/loanIntentSettlements'
+        loanInstruction:
+          $ref: '#/components/schemas/loanInstruction'
+        signaturePolicy:
+          oneOf:
+            - $ref: '#/components/schemas/presignedSignaturePolicy'
+          discriminator:
+            propertyName: type
+            mapping:
+              presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+    redemptionIntent:
+      type: object
+      required: [type, issuer, asset]
+      properties:
+        type:
+          type: string
+          enum: [redemptionIntent]
+        issuer:
+          $ref: '#/components/schemas/ownerId'
+        asset:
+          $ref: '#/components/schemas/buyingAsset'
+        settlement:
+          $ref: '#/components/schemas/buyingSettlements'
+        conditions:
+          $ref: '#/components/schemas/redemptionIntentConditions'
+        signaturePolicy:
+          oneOf:
+            - $ref: '#/components/schemas/presignedSignaturePolicy'
+            - $ref: '#/components/schemas/manualSignaturePolicy'
+          discriminator:
+            propertyName: type
+            mapping:
+              preSignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+    privateOfferIntent:
+      type: object
+      required: [type, buyer, seller, asset]
+      properties:
+        type:
+          type: string
+          enum: [privateOfferIntent]
+        buyer:
+          $ref: '#/components/schemas/ownerId'
+        seller:
+          $ref: '#/components/schemas/ownerId'
+        asset:
+          $ref: '#/components/schemas/privateOfferIntentAsset'
+        settlement:
+          $ref: '#/components/schemas/sellingSettlements'
+        signaturePolicy:
+          oneOf:
+            - $ref: '#/components/schemas/presignedSignaturePolicy'
+            - $ref: '#/components/schemas/manualSignaturePolicy'
+          discriminator:
+            propertyName: type
+            mapping:
+              presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+    requestForTransferIntent:
+      type: object
+      required: [type, sender, receiver, asset]
+      properties:
+        type:
+          type: string
+          enum: [requestForTransferIntent]
+        sender:
+          $ref: '#/components/schemas/ownerId'
+        receiver:
+          $ref: '#/components/schemas/ownerId'
+        asset:
+          $ref: '#/components/schemas/requestForTransferIntentAsset'
+        signaturePolicy:
+          oneOf:
+            - $ref: '#/components/schemas/presignedSignaturePolicy'
+            - $ref: '#/components/schemas/manualSignaturePolicy'
+          discriminator:
+            propertyName: type
+            mapping:
+              presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+    requestForTransferIntentAsset:
+      type: object
+      required: [assetInstruction, assetTerm]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/requestForTransferIntentAssetInstruction'
+    # Terms and instructions
+    sellingAsset:
+      type: object
+      required: [assetInstruction, assetTerm]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/sourceAccountAssetInstruction'
+    buyingAsset:
+      type: object
+      required: [assetInstruction, assetTerm]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/destinationAccountAssetInstruction'
+    redemptionAsset:
+      type: object
+      required: [ assetInstruction, assetTerm ]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/optionalDestinationAccountAssetInstruction'
+    loanIntentAsset:
+      type: object
+      required: [assetInstruction, assetTerm]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/borrowerLenderAccountAssetInstruction'
+    loanExecuteAsset:
+      type: object
+      required: [ assetInstruction, assetTerm ]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/BorrowerLenderAccountLedgerAssetInstruction'
+    sourceDestinationIntentAsset:
+      type: object
+      properties:
+        term:
+          $ref: '#/components/schemas/assetTerm'
+        instruction:
+          $ref: '#/components/schemas/sourceDestinationAccountAssetInstruction'
+    sourceDestinationExecuteAsset:
+      type: object
+      properties:
+        term:
+          $ref: '#/components/schemas/assetTerm'
+        instruction:
+          $ref: '#/components/schemas/sourceDestinationAccountLedgerAssetInstruction'
+    privateOfferIntentAsset:
+      type: object
+      required: [assetInstruction, assetTerm]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/optionalSourceAccountAssetInstruction'
+    sellingSettlements:
+      type: array
+      minItems: 1
+      items:
+        $ref: '#/components/schemas/sellingSettlementBase'
+    sellingSettlementBase:
+      type: object
+      required: [settlementTerm, settlementInstruction]
+      properties:
+        settlementTerm:
+          $ref: '#/components/schemas/settlementTerm'
+        settlementInstruction:
+          $ref: '#/components/schemas/destinationAccountAssetInstruction'
+    buyingSettlements:
+      type: array
+      minItems: 1
+      items:
+        $ref: '#/components/schemas/buyingSettlementBase'
+    buyingSettlementBase:
+      type: object
+      required: [settlementInstruction, settlementTerm]
+      properties:
+        settlementTerm:
+          $ref: '#/components/schemas/settlementTerm'
+        settlementInstruction:
+          $ref: '#/components/schemas/sourceAccountAssetInstruction'
+    loanIntentSettlements:
+      type: array
+      minItems: 1
+      items:
+        $ref: '#/components/schemas/loanIntentSettlementBase'
+    loanIntentSettlementBase:
+      type: object
+      required: [settlementInstruction, settlementTerm]
+      properties:
+        settlementTerm:
+          $ref: '#/components/schemas/settlementTerm'
+        settlementInstruction:
+          $ref: '#/components/schemas/borrowerLenderAccountAssetInstruction'
+    settlementTerm:
+      type: 'object'
+      discriminator:
+        propertyName: 'type'
+        mapping:
+          noSettlement: '#/components/schemas/noSettlementOption'
+          partialSettlement: '#/components/schemas/partialSettlementOption'
+          fullSettlement: '#/components/schemas/fullSettlementOption'
+      oneOf:
+        - $ref: '#/components/schemas/noSettlementOption'
+        - $ref: '#/components/schemas/partialSettlementOption'
+        - $ref: '#/components/schemas/fullSettlementOption'
+    partialSettlementOption:
+      type: 'object'
+      required: [ 'type', 'unitValue' ]
+      properties:
+        type:
+          type: 'string'
+          enum: [ 'partialSettlement' ]
+        unitValue:
+          $ref: '#/components/schemas/unitValue'
+    fullSettlementOption:
+      type: 'object'
+      required: [ 'type', 'amount' ]
+      properties:
+        type:
+          type: 'string'
+          enum: [ 'fullSettlement' ]
+        amount:
+          $ref: '#/components/schemas/amount'
+    noSettlementOption:
+      type: 'object'
+      required: [ 'type' ]
+      properties:
+        type:
+          type: 'string'
+          enum: [ 'noSettlement' ]
+    assetTerm:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          $ref: '#/components/schemas/amount'
+    sourceAccountAssetInstruction:
+      type: object
+      required: [sourceAccount]
+      properties:
+        sourceAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+    destinationAccountAssetInstruction:
+      type: object
+      required: [destinationAccount]
+      properties:
+        destinationAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+    sourceDestinationAccountAssetInstruction:
+      type: object
+      required: [sourceAccount, destinationAccount]
+      properties:
+        sourceAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+        destinationAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+    sourceDestinationAccountLedgerAssetInstruction:
+      type: object
+      required: [ sourceAccount, destinationAccount ]
+      properties:
+        sourceAccount:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destinationAccount:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+    optionalSourceAccountAssetInstruction:
+      type: object
+      required: [sourceAccount]
+      properties:
+        sourceAccount:
+          $ref: '#/components/schemas/finp2pAssetAccountOptional'
+    optionalDestinationAccountAssetInstruction:
+      type: object
+      required: [ destinationAccount ]
+      properties:
+        destinationAccount:
+          $ref: '#/components/schemas/finp2pAssetAccountOptional'
+    borrowerLenderAccountAssetInstruction:
+      type: object
+      required: [borrowerAccount, lenderAccount]
+      properties:
+        borrowerAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+        lenderAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+    BorrowerLenderAccountLedgerAssetInstruction:
+      type: object
+      required: [borrowerAccount, lenderAccount]
+      properties:
+        borrowerAccount:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        lenderAccount:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+    requestForTransferIntentAssetInstruction:
+      oneOf:
+        - $ref: '#/components/schemas/requestForTransferSendAssetInstruction'
+        - $ref: '#/components/schemas/requestForTransferRequestAssetInstruction'
+      discriminator:
+        propertyName: action
+        mapping:
+          send: '#/components/schemas/requestForTransferSendAssetInstruction'
+          request: '#/components/schemas/requestForTransferRequestAssetInstruction'
+    requestForTransferSendAssetInstruction:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [send]
+          description: Indicates whether the operation is to send or request money/asset.
+        senderAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+    requestForTransferRequestAssetInstruction:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [request]
+          description: Indicates whether the operation is to send or request money/asset.
+        receiverAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+    withdrawInstruction:
+      type: object
+      description: Withdrawal instruction
+      required: [account, description]
+      properties:
+        account:
+          $ref: '#/components/schemas/accountAsset'
+        description:
+          type: string
+          description: Instruction details
+          pattern: .*\S.*
+          x-autoMinLength: true
+    intentTypesAllowEmpty:
+      type: array
+      description: Allowed intent types to be applied on an asset
+      items:
+        $ref: '#/components/schemas/intentType'
+      uniqueItems: true
+    accountAsset:
+      type: object
+      description: 'describes account information'
+      required: [account, asset]
+      properties:
+        account:
+          $ref: '#/components/schemas/finIdAccount'
+        asset:
+          $ref: '#/components/schemas/finp2pAsset'
+    depositAccount:
+      type: object
+      description: 'describes account information'
+      required: [account, asset]
+      properties:
+        account:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/finIdAccount'
+          discriminator:
+            propertyName: type
+            mapping:
+              finId: '#/components/schemas/finIdAccount'
+        asset:
+          $ref: '#/components/schemas/depositAsset'
+    depositAsset:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          finp2p: '#/components/schemas/finp2pAssetWithType'
+          custom: '#/components/schemas/customAsset'
+      oneOf:
+        - $ref: '#/components/schemas/finp2pAssetWithType'
+        - $ref: '#/components/schemas/customAsset'
+    customAsset:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: 'string'
+          enum: ['custom']
+    withdrawAccount:
+      type: object
+      description: 'describes account information'
+      required: [account, asset]
+      properties:
+        account:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/finIdAccount'
+          discriminator:
+            propertyName: type
+            mapping:
+              finId: '#/components/schemas/finIdAccount'
+        asset:
+          $ref: '#/components/schemas/finp2pAsset'
+    finp2pAsset:
+      type: object
+      required: [resourceId]
+      properties:
+        resourceId:
+          type: 'string'
+          pattern: '^[^:](?:.+):102:(?:.+)'
+          description: 'unique resource ID of the FinP2P asset'
+    finp2pAssetWithType:
+      type: object
+      required: [type, resourceId]
+      properties:
+        type:
+          type: 'string'
+          enum: ['finp2p']
+        resourceId:
+          type: 'string'
+          pattern: '^[^:](?:.+):102:(?:.+)'
+          description: 'unique resource ID of the FinP2P asset'
+    amount:
+      type: string
+      description: 'the total number of units'
+      pattern: '^\d+\.?\d*$'
+      maxLength: 150
+    # Conditions
+    redemptionIntentConditions:
+      properties:
+        redemptionDuration:
+          type: string
+          format: duration
+          description: duration in ISO 8601 format (e.g., "PT1H30M" for 1 hour 30 minutes)
+          pattern: '^P(\d{1}Y)?(\d{1,2}M)?(\d{1,3}D)?(T(\d{1,2}H)?(\d{1,2}M)?(\d{1,2}S)?)?$'
+    loanConditions:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/repaymentTerm'
+        - $ref: '#/components/schemas/interestTerm'
+        - $ref: '#/components/schemas/closeAmountTerm'
+      discriminator:
+        propertyName: type
+        mapping:
+          repaymentTerm: '#/components/schemas/repaymentTerm'
+          interestTerm: '#/components/schemas/interestTerm'
+          closeAmountTerm: '#/components/schemas/closeAmountTerm'
+    repaymentTerm:
+      type: object
+      required: [type, closeAmount]
+      properties:
+        type:
+          type: string
+          enum: [repaymentTerm]
+        closeAmount:
+          $ref: '#/components/schemas/amount'
+        interestRate:
+          type: string
+          description: indicative annual interest rate of the operation
+          pattern: '^-?\d*\.?\d*$'
+          maxLength: 150
+          minLength: 1
+          x-autoMinLength: true
+    interestTerm:
+      type: object
+      required: [type, interestRate]
+      properties:
+        type:
+          type: string
+          enum: [interestTerm]
+        interestRate:
+          type: string
+          description: indicative annual interest rate of the operation
+          pattern: .*\S.*
+          x-autoMinLength: true
+    closeAmountTerm:
+      type: object
+      required: [type, closeAmount]
+      properties:
+        type:
+          type: string
+          enum: [closeAmountTerm]
+        closeAmount:
+          $ref: '#/components/schemas/amount'
+    loanInstruction:
+      type: object
+      required: [openDate, closeDate, conditions]
+      properties:
+        openDate:
+          type: integer
+          format: int64
+          description: date and time operation starts, in epoch (seconds)
+          minimum: 0
+          # maximum: 10000000000
+          x-go-type-skip-optional-pointer: true
+        closeDate:
+          type: integer
+          format: int64
+          description: date and time operation ends, in epoch (seconds)
+          minimum: 0
+          # maximum: 10000000000
+          x-go-type-skip-optional-pointer: true
+        conditions:
+          $ref: '#/components/schemas/loanConditions'
+    # Policy types
+    presignedSignaturePolicy:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: ['presignedPolicy']
+    manualSignaturePolicy:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: ['manualPolicy']
+        nonce:
+          $ref: '#/components/schemas/nonce'
+    unitValue:
+      type: 'string'
+      description: 'A unit value represented as a string, the value is a decimal number'
+      pattern: '^\d+(\.\d+)?$'

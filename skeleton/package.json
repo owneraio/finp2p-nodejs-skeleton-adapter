@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "clean": "rm -rf dist",
-    "api-generate": "npx openapi-typescript dlt-adapter-api.yaml -o src/lib/routes/model-gen.ts",
+    "api-generate": "npx openapi-typescript dlt-adapter-api.yaml -o src/routes/model-gen.ts",
     "prebuild": "eslint ./src --ext .ts --fix",
     "build": "tsc",
     "test": "jest"

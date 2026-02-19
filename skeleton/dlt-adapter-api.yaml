@@ -6,7 +6,6 @@ info:
   contact:
     email: support@ownera.io
   version: x.x.x
-
 tags:
   - name: payments
     description: Payments
@@ -22,7 +21,6 @@ tags:
     description: Operations
   - name: health
     description: health
-
 paths:
   /plan/approve:
     post:
@@ -35,22 +33,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApproveExecutionPlanRequest'
+              $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanRequest'
       responses:
         '200':
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApproveExecutionPlanResponse'
+                $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
-
+          content: {}
   /plan/proposal:
     post:
       tags:
@@ -62,21 +58,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/executionPlanProposalRequest'
+              $ref: 'common-external-components.yaml#/components/schemas/executionPlanProposalRequest'
       responses:
         '200':
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApproveExecutionPlanResponse'
+                $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /plan/proposal/status:
     post:
       tags:
@@ -88,21 +83,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/executionPlanProposalStatusRequest'
+              $ref: 'common-external-components.yaml#/components/schemas/executionPlanProposalStatusRequest'
       responses:
         '200':
           description: successful operation
-          content: { }
+          content: {}
         '204':
           description: successful operation
-          content: { }
+          content: {}
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /payments/depositInstruction:
     post:
       tags:
@@ -131,11 +125,10 @@ paths:
                 $ref: '#/components/schemas/DepositInstructionResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /payments/payout:
     post:
       tags:
@@ -164,11 +157,10 @@ paths:
                 $ref: '#/components/schemas/PayoutResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/getBalance:
     post:
       deprecated: true
@@ -191,11 +183,10 @@ paths:
                 $ref: '#/components/schemas/GetAssetBalanceResponse'
         '404':
           description: Owner not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/create:
     post:
       tags:
@@ -224,11 +215,10 @@ paths:
                 $ref: '#/components/schemas/CreateAssetResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/issue:
     post:
       tags:
@@ -257,11 +247,10 @@ paths:
                 $ref: '#/components/schemas/IssueAssetsResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/redeem:
     post:
       tags:
@@ -290,11 +279,10 @@ paths:
                 $ref: '#/components/schemas/RedeemAssetsResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/transfer:
     post:
       tags:
@@ -323,11 +311,10 @@ paths:
                 $ref: '#/components/schemas/TransferAssetResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/receipts/{transactionId}:
     get:
       tags:
@@ -342,6 +329,8 @@ paths:
           required: true
           schema:
             type: string
+            pattern: .*\S.*
+            x-autoMinLength: true
       responses:
         '200':
           description: successful operation
@@ -351,11 +340,10 @@ paths:
                 $ref: '#/components/schemas/GetReceiptResponse'
         '404':
           description: Transaction not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/hold:
     post:
       tags:
@@ -384,11 +372,10 @@ paths:
                 $ref: '#/components/schemas/HoldOperationResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/release:
     post:
       tags:
@@ -417,11 +404,10 @@ paths:
                 $ref: '#/components/schemas/ReleaseOperationResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/rollback:
     post:
       tags:
@@ -450,11 +436,10 @@ paths:
                 $ref: '#/components/schemas/RollbackOperationResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /operations/status/{cid}:
     get:
       tags:
@@ -469,6 +454,7 @@ paths:
           required: true
           schema:
             type: string
+            x-allowEmpty: true
       responses:
         '200':
           description: successful operation
@@ -478,15 +464,14 @@ paths:
                 $ref: '#/components/schemas/GetOperationStatusResponse'
         '404':
           description: Transaction not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /asset/balance:
     post:
       tags:
-        - transaction
+        - transactions
       summary: Get asset balance information
       description: Get asset balance information for finId
       operationId: GetAssetBalanceInfo
@@ -505,11 +490,10 @@ paths:
                 $ref: '#/components/schemas/AssetBalanceInfoResponse'
         '404':
           description: Owner not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /health:
     get:
       summary: Health check
@@ -528,6 +512,8 @@ paths:
                   status:
                     type: string
                     example: ok
+                    pattern: .*\S.*
+                    x-autoMinLength: true
         '503':
           description: Service is unavailable
           content:
@@ -538,7 +524,8 @@ paths:
                   status:
                     type: string
                     example: unavailable
-
+                    pattern: .*\S.*
+                    x-autoMinLength: true
 components:
   schemas:
     DepositInstructionRequest:
@@ -549,25 +536,25 @@ components:
         - asset
       properties:
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/depositPayoutAccount'
         owner:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/depositPayoutAccount'
         asset:
-          $ref: '#/components/schemas/depositAsset'
+          $ref: 'common-external-components.yaml#/components/schemas/depositAsset'
         amount:
           type: string
           description: Amount to deposit
+          pattern: .*\S.*
+          x-autoMinLength: true
         details:
           type: object
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         signature:
           $ref: '#/components/schemas/signature'
-
     DepositInstructionResponse:
       allOf:
         - $ref: '#/components/schemas/depositOperation'
-
     PayoutRequest:
       type: object
       required:
@@ -576,40 +563,35 @@ components:
         - asset
       properties:
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/depositPayoutAccount'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/depositPayoutAccount'
         quantity:
           type: string
           description: 'How many units of the asset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         payoutInstruction:
           $ref: '#/components/schemas/payoutInstruction'
         asset:
           $ref: '#/components/schemas/payoutAsset'
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         signature:
           $ref: '#/components/schemas/signature'
-
     PayoutResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     GetAssetBalanceRequest:
       type: object
       required:
         - owner
-        - asset
       properties:
         owner:
-          $ref: '#/components/schemas/source'
-        asset:
-          $ref: '#/components/schemas/asset'
-
+          $ref: '#/components/schemas/account'
     GetAssetBalanceResponse:
       allOf:
         - $ref: '#/components/schemas/balance'
-
     CreateAssetRequest:
       type: object
       required:
@@ -620,95 +602,89 @@ components:
           description: The asset metadata
           additionalProperties: true
         asset:
-          $ref: '#/components/schemas/asset'
+          $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
         ledgerAssetBinding:
           $ref: '#/components/schemas/ledgerAssetBinding'
         name:
-          $ref: '#/components/schemas/assetName'
+          $ref: 'common-external-components.yaml#/components/schemas/assetName'
         issuerId:
-          $ref: '#/components/schemas/ownerResourceId'
+          $ref: 'common-external-components.yaml#/components/schemas/ownerResourceId'
         denomination:
-          $ref: '#/components/schemas/assetDenomination'
-        assetIdentifier:
-          $ref: '#/components/schemas/assetIdentifier'
-
+          $ref: 'common-external-components.yaml#/components/schemas/assetDenomination'
     CreateAssetResponse:
       allOf:
-        - $ref: '#/components/schemas/OperationBase'
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - type: object
           properties:
             error:
               $ref: '#/components/schemas/createAssetOperationErrorInformation'
             response:
               $ref: '#/components/schemas/assetCreateResponse'
-
     IssueAssetsRequest:
       type: object
       required:
         - nonce
         - destination
         - quantity
-        - asset
         - settlementRef
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         destination:
-          $ref: '#/components/schemas/finIdAccount'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
-        asset:
-          $ref: '#/components/schemas/finp2pAsset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         settlementRef:
           type: string
           description: 'Reference to the corresponding settlement operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
-
     IssueAssetsResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
-
     RedeemAssetsRequest:
       type: object
       required:
         - nonce
         - source
         - quantity
-        - asset
         - settlementRef
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         operationId:
           type: string
           x-go-type-skip-optional-pointer: true
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/finIdAccount'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
-        asset:
-          $ref: '#/components/schemas/finp2pAsset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     RedeemAssetsResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     TransferAssetRequest:
       type: object
       required:
@@ -716,37 +692,35 @@ components:
         - source
         - destination
         - quantity
-        - asset
         - settlementRef
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
-        asset:
-          $ref: '#/components/schemas/asset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     TransferAssetResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     GetReceiptResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     HoldOperationRequest:
       type: object
       required:
@@ -754,24 +728,25 @@ components:
         - operationId
         - source
         - quantity
-        - asset
         - expiry
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         operationId:
           type: string
           description: 'Escrow operation id'
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
-        asset:
-          $ref: '#/components/schemas/asset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         expiry:
           type: integer
           format: uint64
@@ -780,11 +755,9 @@ components:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     HoldOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     ReleaseOperationRequest:
       type: object
       required:
@@ -792,86 +765,75 @@ components:
         - source
         - destination
         - quantity
-        - asset
       properties:
         operationId:
           type: string
           description: 'Hold operation id'
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
-        asset:
-          $ref: '#/components/schemas/asset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     ReleaseOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     RollbackOperationRequest:
       type: object
       required:
         - operationId
         - source
         - quantity
-        - asset
       properties:
         operationId:
           type: string
           description: 'Hold operation id'
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
-        asset:
-          $ref: '#/components/schemas/asset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     RollbackOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
-
     GetOperationStatusRequest:
       type: object
       properties:
         cid:
           type: string
           description: 'correlation id of an operation'
-
+          x-allowEmpty: true
     GetOperationStatusResponse:
       $ref: '#/components/schemas/operationStatus'
-
-    nonce:
-      type: string
-      description: |
-        32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-        
-          const nonce = Buffer.alloc(32);
-          nonce.fill(crypto.randomBytes(24), 0, 24);
-
-          const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-          const t = BigInt(nowEpochSeconds);
-          nonce.writeBigInt64BE(t, 24);
     depositInstruction:
       required:
         - account
       type: object
       properties:
         account:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/depositPayoutAccount'
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/depositAsset'
         description:
           type: string
           description: 'Instructions for the deposit operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         paymentOptions:
-          $ref: '#/components/schemas/paymentMethods'
+          $ref: 'common-external-components.yaml#/components/schemas/paymentMethods'
         details:
           deprecated: true
           type: object
@@ -879,50 +841,17 @@ components:
         operationId:
           type: string
           description: operation id reference while will correlate with any receipt associated with the deposit operation
-
-
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     asset:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
-
-    depositAsset:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-          custom: '#/components/schemas/customAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
-        - $ref: '#/components/schemas/customAsset'
-
+      allOf:
+        - type: object
+          properties:
+            ledgerIdentifier:
+               $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+        - $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
     payoutAsset:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
-
+      $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
     payoutInstruction:
       type: object
       required:
@@ -931,65 +860,28 @@ components:
         description:
           type: string
           description: 'withdrawal description'
-
-    cryptocurrencyAsset:
+          pattern: .*\S.*
+          x-autoMinLength: true
+    account:
       type: object
       required:
-        - type
-        - code
+        - asset
+        - finId
       properties:
-        type:
-          type: "string"
-          enum: [ "cryptocurrency" ]
-        code:
-          type: "string"
-          description: 'unique identifier symbol of the cryptocurrency'
-
-    fiatAsset:
-      type: object
-      required:
-        - type
-        - code
-      properties:
-        type:
-          type: "string"
-          enum: [ "fiat" ]
-        code:
-          type: "string"
-          description: 'unique identifier code of the fiat currency - based on ISO-4217'
-
-    finp2pAsset:
-      type: object
-      required:
-        - type
-        - resourceId
-      properties:
-        type:
-          type: "string"
-          enum: [ "finp2p" ]
-        resourceId:
-          type: "string"
-          description: |
-            Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format')
-
-    customAsset:
-      type: object
-      required:
-        - type
-      properties:
-        type:
-          type: "string"
-          enum: [ "custom" ]
-
-    source:
+        asset:
+          $ref: '#/components/schemas/asset'
+        finId:
+          $ref: "common-external-components.yaml#/components/schemas/finId"
+        ledgerAccount:
+          $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
+    depositPayoutAccount:
       type: object
       required:
         - finId
         - account
       properties:
         finId:
-          type: string
-          description: FinID, public key of the user
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         account:
           oneOf:
             - $ref: '#/components/schemas/finIdAccount'
@@ -997,29 +889,6 @@ components:
             propertyName: type
             mapping:
               finId: '#/components/schemas/finIdAccount'
-
-    destination:
-      description: 'describes destination for remote operations operations'
-      type: object
-      required:
-        - finId
-        - account
-      properties:
-        finId:
-          type: string
-          description: FinID, public key of the user
-        account:
-          oneOf:
-            - $ref: '#/components/schemas/finIdAccount'
-            - $ref: '#/components/schemas/cryptoWalletAccount'
-            - $ref: '#/components/schemas/fiatAccount'
-          discriminator:
-            propertyName: type
-            mapping:
-              finId: '#/components/schemas/finIdAccount'
-              cryptoWallet: '#/components/schemas/cryptoWalletAccount'
-              fiatAccount: '#/components/schemas/fiatAccount'
-
     finIdAccount:
       type: object
       required:
@@ -1028,38 +897,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ "finId" ]
+          enum: ["finId"]
         finId:
-          type: "string"
-          description: FinID, public key of the user
-
-    cryptoWalletAccount:
-      type: object
-      required:
-        - type
-        - address
-      properties:
-        type:
-          type: string
-          enum: [ "cryptoWallet" ]
-        address:
-          type: "string"
-          description: 'address of the cryptocurrency wallet'
-
-    fiatAccount:
-      type: object
-      required:
-        - type
-        - code
-      properties:
-        type:
-          type: string
-          enum: [ "fiatAccount" ]
-        code:
-          type: "string"
-          description: 'IBAN or other code to represent a fiat account'
-
-
+          $ref: "common-external-components.yaml#/components/schemas/finId"
     balance:
       type: object
       required:
@@ -1071,27 +911,26 @@ components:
         balance:
           type: string
           description: the number of asset tokens
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     receiptOperation:
       allOf:
-        - $ref: '#/components/schemas/OperationBase'
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - type: object
           properties:
             error:
               $ref: '#/components/schemas/receiptOperationErrorInformation'
             response:
               $ref: '#/components/schemas/receipt'
-
     createAssetOperation:
       allOf:
-        - $ref: '#/components/schemas/OperationBase'
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - type: object
           properties:
             error:
               $ref: '#/components/schemas/createAssetOperationErrorInformation'
             response:
               $ref: '#/components/schemas/assetCreateResponse'
-
     assetCreateResponse:
       type: object
       required:
@@ -1099,21 +938,18 @@ components:
       properties:
         ledgerAssetInfo:
           $ref: '#/components/schemas/ledgerAssetInfo'
-
     depositOperation:
       allOf:
-        - $ref: '#/components/schemas/OperationBase'
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - type: object
           properties:
             error:
               $ref: '#/components/schemas/depositOperationErrorInformation'
             response:
               $ref: '#/components/schemas/depositInstruction'
-
     depositOperationErrorInformation:
       type: object
-      properties: { }
-
+      properties: {}
     createAssetOperationErrorInformation:
       type: object
       properties:
@@ -1122,7 +958,8 @@ components:
           format: uint32
         message:
           type: string
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     receiptOperationErrorInformation:
       type: object
       required:
@@ -1135,15 +972,15 @@ components:
           description: 1 for failure in regApps validation, 4 failure in signature verification
         message:
           type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
         regulationErrorDetails:
           type: array
           items:
-            $ref: '#/components/schemas/RegulationError'
-
+            $ref: 'common-external-components.yaml#/components/schemas/RegulationError'
     executionOperationErrorInformation:
       type: object
-      properties: { }
-
+      properties: {}
     executionContext:
       type: object
       required:
@@ -1153,11 +990,12 @@ components:
         executionPlanId:
           type: string
           description: execution plan id
+          pattern: .*\S.*
+          x-autoMinLength: true
         instructionSequenceNumber:
           type: integer
           format: uint32
           description: execution instruction sequence number
-
     operationStatus:
       type: object
       oneOf:
@@ -1172,7 +1010,6 @@ components:
           deposit: '#/components/schemas/operationStatusDeposit'
           receipt: '#/components/schemas/operationStatusReceipt'
           approval: '#/components/schemas/operationStatusApproval'
-
     operationStatusCreateAsset:
       type: object
       required:
@@ -1181,10 +1018,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ createAsset ]
+          enum: [createAsset]
         operation:
           $ref: '#/components/schemas/createAssetOperation'
-
     operationStatusDeposit:
       type: object
       required:
@@ -1193,10 +1029,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ deposit ]
+          enum: [deposit]
         operation:
           $ref: '#/components/schemas/depositOperation'
-
     operationStatusReceipt:
       type: object
       required:
@@ -1205,10 +1040,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ receipt ]
+          enum: [receipt]
         operation:
           $ref: '#/components/schemas/receiptOperation'
-
     operationStatusApproval:
       type: object
       required:
@@ -1217,23 +1051,23 @@ components:
       properties:
         type:
           type: string
-          enum: [ approval ]
+          enum: [approval]
         operation:
-          $ref: '#/components/schemas/ExecutionPlanApprovalOperation'
-
+          $ref: 'common-external-components.yaml#/components/schemas/ExecutionPlanApprovalOperation'
     signature:
       type: object
-      required: [ signature, template, hashFunc ]
+      required: [signature, template, hashFunc]
       description: 'represent a signature template information'
       properties:
         signature:
           type: string
           description: 'hex representation of the signature'
+          pattern: .*\S.*
+          x-autoMinLength: true
         template:
           $ref: '#/components/schemas/signatureTemplate'
         hashFunc:
           $ref: '#/components/schemas/hashFunction'
-
     signatureTemplate:
       type: object
       oneOf:
@@ -1244,15 +1078,14 @@ components:
         mapping:
           hashList: '#/components/schemas/hashListTemplate'
           EIP712: '#/components/schemas/EIP712Template'
-
     hashListTemplate:
       description: 'ordered list of hash groups'
-      required: [ type, hashGroups, hash ]
+      required: [type, hashGroups, hash]
       type: object
       properties:
         type:
           type: string
-          enum: [ "hashList" ]
+          enum: ["hashList"]
         hashGroups:
           type: array
           items:
@@ -1260,7 +1093,7 @@ components:
         hash:
           type: string
           description: 'hex representation of the combined hash groups hash value'
-
+          x-allowEmpty: true
     hashGroup:
       type: object
       required:
@@ -1270,12 +1103,12 @@ components:
         hash:
           type: string
           description: 'hex representation of the hash group hash value'
+          x-allowEmpty: true
         fields:
           description: 'list of fields by order they appear in the hash group'
           type: array
           items:
             $ref: '#/components/schemas/field'
-
     field:
       type: object
       description: 'describing a field in the hash group'
@@ -1287,27 +1120,32 @@ components:
         name:
           type: string
           description: 'name of field'
+          pattern: .*\S.*
+          x-autoMinLength: true
         type:
           type: string
-          enum: [ "string", "int", "bytes" ]
+          enum: ["string", "int", "bytes"]
           description: 'type of field'
         value:
           type: string
           description: 'hex representation of the field value'
-
+          x-allowEmpty: true
     EIP712Domain:
       type: object
       properties:
         name:
           type: string
+          x-allowEmpty: true
         version:
           type: string
+          x-allowEmpty: true
         chainId:
           type: integer
           format: uint64
         verifyingContract:
           type: string
           format: address
+          x-allowEmpty: true
     EIP712TypedValue:
       oneOf:
         - $ref: '#/components/schemas/EIP712TypeString'
@@ -1315,10 +1153,9 @@ components:
         - $ref: '#/components/schemas/EIP712TypeBool'
         - $ref: '#/components/schemas/EIP712TypeByte'
         - $ref: '#/components/schemas/EIP712TypeObject'
-#        - $ref: '#/components/schemas/EIP712TypeArray'
+        - $ref: '#/components/schemas/EIP712TypeArray'
     EIP712Types:
       type: object
-      required: [ definitions ]
       properties:
         definitions:
           type: array
@@ -1326,29 +1163,30 @@ components:
             $ref: '#/components/schemas/EIP712TypeDefinition'
     EIP712TypeDefinition:
       type: object
-      required: [ name, fields ]
       properties:
         name:
           type: string
+          x-allowEmpty: true
         fields:
           type: array
           items:
             $ref: '#/components/schemas/EIP712FieldDefinition'
     EIP712FieldDefinition:
       type: object
-      required:  [ name, type ]
       properties:
         name:
           type: string
+          x-allowEmpty: true
         type:
           type: string
+          x-allowEmpty: true
     EIP712Template:
-      required: [ type, domain, message, primaryType, types, hash ]
+      required: [type, domain, message, primaryType, types, hash]
       type: object
       properties:
         type:
           type: string
-          enum: [ "EIP712" ]
+          enum: ["EIP712"]
         domain:
           $ref: '#/components/schemas/EIP712Domain'
         message:
@@ -1359,36 +1197,32 @@ components:
           $ref: '#/components/schemas/EIP712Types'
         primaryType:
           type: string
+          x-allowEmpty: true
         hash:
           type: string
           description: 'hex representation of template hash'
-
+          x-allowEmpty: true
     EIP712TypeString:
       type: string
       pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
-
+      x-allowEmpty: true
     EIP712TypeByte:
       type: string
       pattern: '^0x[0-9a-fA-F]+$' # matches hexadecimal string starting with '0x'
       minLength: 3
       maxLength: 320
-
     EIP712TypeInteger:
       type: integer
-
     EIP712TypeBool:
       type: boolean
-
     EIP712TypeObject:
       type: object
       additionalProperties:
         $ref: '#/components/schemas/EIP712TypedValue'
-
     EIP712TypeArray:
       type: array
       items:
         $ref: '#/components/schemas/EIP712TypedValue'
-
     hashFunction:
       type: string
       enum:
@@ -1399,12 +1233,10 @@ components:
         - keccak_256
         - keccak-256
       description: hash function types
-
     receipt:
       type: object
       required:
         - id
-        - asset
         - quantity
         - timestamp
         - tradeDetails
@@ -1412,47 +1244,29 @@ components:
         id:
           type: string
           description: the receipt id
-        asset:
-          $ref: '#/components/schemas/asset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         timestamp:
           type: integer
           format: int64
           description: transaction timestamp
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         transactionDetails:
           $ref: '#/components/schemas/transactionDetails'
         operationType:
           $ref: '#/components/schemas/operationType'
         tradeDetails:
-          $ref: '#/components/schemas/receiptTradeDetails'
+          $ref: 'common-external-components.yaml#/components/schemas/receiptTradeDetails'
         proof:
           $ref: '#/components/schemas/proofPolicy'
-
-    receiptTradeDetails:
-      type: object
-      properties:
-        intentId:
-          type: string
-        intentVersion:
-          type: string
-        executionContext:
-          $ref: '#/components/schemas/receiptExecutionContext'
-
-    receiptExecutionContext:
-      type: object
-      required: [ executionPlanId, instructionSequenceNumber ]
-      properties:
-        executionPlanId:
-          type: string
-        instructionSequenceNumber:
-          type: integer
-
     proofPolicy:
       description: additional proof information attached to a receipt
       type: object
@@ -1464,26 +1278,23 @@ components:
       oneOf:
         - $ref: '#/components/schemas/signatureProofPolicy'
         - $ref: '#/components/schemas/noProofPolicy'
-
     noProofPolicy:
       type: object
-      required: [ type ]
+      required: [type]
       properties:
         type:
           type: string
-          enum: [ "noProofPolicy" ]
+          enum: ["noProofPolicy"]
       description: "no proof validation required for this policy"
-
     signatureProofPolicy:
       type: object
       required: [type]
       properties:
         type:
           type: string
-          enum: [ "signatureProofPolicy" ]
+          enum: ["signatureProofPolicy"]
         signature:
           $ref: '#/components/schemas/signature'
-
     transactionDetails:
       description: additional ledger specific
       type: object
@@ -1493,20 +1304,22 @@ components:
         transactionId:
           type: string
           description: The Transaction id on the underlying ledger
+          pattern: .*\S.*
+          x-autoMinLength: true
         operationId:
           type: string
           description: The Operation id
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     operationType:
       type: string
       enum: ['issue', 'transfer', 'hold', 'release', 'redeem']
-
     ledgerAssetInfo:
       type: object
-      required: [ledgerTokenId]
+      required: [ledgerIdentifier]
       properties:
-        ledgerTokenId:
-          $ref: '#/components/schemas/ledgerTokenId'
+        ledgerIdentifier:
+           $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
         ledgerReference:
           oneOf:
             - $ref: '#/components/schemas/contractDetails'
@@ -1514,59 +1327,42 @@ components:
             propertyName: type
             mapping:
               contractDetails: '#/components/schemas/contractDetails'
-
     contractDetails:
       type: object
-      required: [network, address, type]
+      required: [address, type]
       properties:
         type:
           type: string
           description: 'the type of the identifier'
-          enum: [ "contractDetails" ]
-        network:
-          type: string
-          description: 'the network'
+          enum: ["contractDetails"]
+          pattern: .*\S.*
+          x-autoMinLength: true
         address:
           type: string
           description: 'the address'
+          pattern: .*\S.*
+          x-autoMinLength: true
         TokenStandard:
           type: string
           description: 'The standard of the token (e.g., ERC20, ERC721)'
+          pattern: .*\S.*
+          x-autoMinLength: true
         additionalContractDetails:
           anyOf:
             - $ref: '#/components/schemas/finP2PEVMOperatorDetails'
-
     finP2PEVMOperatorDetails:
       type: object
       properties:
         FinP2POperatorContractAddress:
           type: string
           description: 'The FinP2P Operator Contract Address'
+          pattern: .*\S.*
+          x-autoMinLength: true
         allowanceRequired:
           type: boolean
           description: 'Indicates if allowance is required'
-
     ledgerAssetBinding:
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/ledgerTokenId'
-      discriminator:
-        propertyName: type
-        mapping:
-          tokenId: '#/components/schemas/ledgerTokenId'
-
-    ledgerTokenId:
-      type: object
-      required: [ tokenId, type ]
-      properties:
-        type:
-          type: string
-          description: 'the type of the identifier'
-          enum: [ "tokenId" ]
-        tokenId:
-          type: string
-          description: 'the token id binding'
-
+      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
     AssetBalanceInfoRequest:
       type: object
       required:
@@ -1579,15 +1375,8 @@ components:
           $ref: '#/components/schemas/asset'
         marker:
           $ref: '#/components/schemas/balanceMarker'
-
     assetBalanceAccount:
-      oneOf:
-        - $ref: '#/components/schemas/finIdAccount'
-      discriminator:
-        propertyName: type
-        mapping:
-          finId: '#/components/schemas/finIdAccount'
-
+      $ref: '#/components/schemas/finIdAccount'
     balanceMarker:
       description: marker of balance to denote the balance as of marker
       discriminator:
@@ -1598,32 +1387,31 @@ components:
       oneOf:
         - $ref: '#/components/schemas/balanceMarkerTimestamp'
         - $ref: '#/components/schemas/balanceMarkerTransactionBlock'
-
     balanceMarkerTimestamp:
       type: object
-      required: [ type, timestamp ]
+      required: [type, timestamp]
       properties:
         type:
           type: string
-          enum: [ timestamp ]
+          enum: [timestamp]
         timestamp:
           type: integer
           format: int64
           description: epoch timestamp in seconds
-
     balanceMarkerTransactionBlock:
       type: object
-      required: [ type, blockNumber, transaction ]
+      required: [type, blockNumber, transaction]
       properties:
         type:
           type: string
-          enum: [ transactionBlock ]
+          enum: [transactionBlock]
         blockNumber:
           type: integer
           format: int64
         transaction:
           type: string
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     AssetBalanceInfoResponse:
       type: object
       required:
@@ -1636,7 +1424,6 @@ components:
           $ref: '#/components/schemas/asset'
         balanceInfo:
           $ref: '#/components/schemas/assetBalance'
-
     assetBalance:
       type: object
       required:
@@ -1651,636 +1438,22 @@ components:
           type: string
           format: '^-?\d+(\.\d+)?$'
           description: The total amount currently in or owed by the account
+          pattern: .*\S.*
+          x-autoMinLength: true
         available:
           type: string
           format: '^-?\d+(\.\d+)?$'
           description: The amount immediately usable from the account
+          pattern: .*\S.*
+          x-autoMinLength: true
         held:
           type: string
           format: '^-?\d+(\.\d+)?$'
           description: The amount pending or on hold within the account
+          pattern: .*\S.*
+          x-autoMinLength: true
         receipts:
           description: list of receipt associated with the balance info
           type: array
           items:
             $ref: '#/components/schemas/receipt'
-
-
-    APIError:
-      type: object
-      required: [ code, message ]
-      properties:
-        code:
-          type: integer
-          description: |
-            Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference).
-        message:
-          type: string
-          description: A descriptive message providing context about the error.
-    APIErrors:
-      type: object
-      required: [errors]
-      properties:
-        errors:
-          type: array
-          minLength: 1
-          items:
-            $ref: "#/components/schemas/APIError"
-    APIErrorsTyped:
-      type: object
-      required: [ errors, type ]
-      properties:
-        type:
-          type: string
-          enum: [ "error" ]
-        errors:
-          type: array
-          minLength: 1
-          items:
-            $ref: "#/components/schemas/APIError"
-    ApproveExecutionPlanRequest:
-      type: object
-      required:
-        - executionPlan
-      properties:
-        executionPlan:
-          type: object
-          description: execution plan information
-          required: [ id ]
-          properties:
-            id:
-              type: string
-              description: execution plan id
-
-    ApproveExecutionPlanResponse:
-      allOf:
-        - $ref: '#/components/schemas/ExecutionPlanApprovalOperation'
-
-    executionPlanProposalRequest:
-      type: object
-      required:
-        - executionPlan
-      properties:
-        executionPlan:
-          type: object
-          description: execution plan information
-          required: [ id, proposal ]
-          properties:
-            id:
-              type: string
-              description: execution plan id
-            proposal:
-              type: object
-              description: type of proposal payload
-              oneOf:
-                - $ref: '#/components/schemas/executionPlanCancellationProposal'
-                - $ref: '#/components/schemas/executionPlanResetProposal'
-              #                        - $ref: '#/components/schemas/executionPlanProposal'
-              #                        - $ref: '#/components/schemas/executionPlanInstructionProposal'
-              discriminator:
-                propertyName: proposalType
-                mapping:
-                  cancel: '#/components/schemas/executionPlanCancellationProposal'
-                  reset: '#/components/schemas/executionPlanResetProposal'
-    #                          plan: '#/components/schemas/executionPlanProposal'
-    #                          instruction: '#/components/schemas/executionPlanInstructionProposal'
-
-    executionPlanProposalStatusRequest:
-      type: object
-      description: provides status update on the agreement reached for a specific proposal
-      required:  [ status, request ]
-      properties:
-        status:
-          type: string
-          enum: [ "approved", "rejected" ]
-        request:
-          allOf:
-            - $ref: '#/components/schemas/executionPlanProposalRequest'
-
-    executionPlanCancellationProposal:
-      type: object
-      required: [ proposalType ]
-      properties:
-        proposalType:
-          type: string
-          enum: [ 'cancel' ]
-
-    executionPlanResetProposal:
-      type: object
-      required: [ proposalType, proposedSequence ]
-      properties:
-        proposalType:
-          type: string
-          enum: [ 'reset' ]
-        proposedSequence:
-          type: integer
-          format: uint32
-          minimum: 1
-          description: sequence number of the instruction to reset and retry in the execution plan
-
-    executionPlanProposal:
-      type: object
-      required: [ proposalType ]
-      properties:
-        proposalType:
-          type: string
-          enum: [ 'plan' ]
-
-    ApiErrorClient4XX:
-      type: object
-      required: [ status, errors, type ]
-      properties:
-        type:
-          type: string
-          enum: [ "error" ]
-        status:
-          type: integer
-          enum: [ 400, 401, 403, 404, 409 ]
-          x-go-json-ignore: true
-          x-enumNames: [ 'value' ]
-        errors:
-          type: array
-          items:
-            oneOf:
-              - $ref: '#/components/schemas/AssetMetadataAndConfigError'
-              - $ref: '#/components/schemas/GeneralClientError'
-
-    # 10xx General Client Errors
-    GeneralClientError:
-      type: object
-      required: [ code, message ]
-      properties:
-        code:
-          type: integer
-          enum: [ 1000 ]
-        message:
-          type: string
-          enum: [ 'General client error' ]
-
-    AssetMetadataAndConfigError:
-      type: object
-      required: [ code, message ]
-      properties:
-        code:
-          type: integer
-          enum: [ 4108 ]
-        message:
-          type: string
-          enum: [ 'Asset metadata and config cannot be provided at the same time' ]
-
-    ApiErrorServer5XX:
-      type: object
-      required: [ status, errors, type ]
-      properties:
-        type:
-          type: string
-          enum: [ "error" ]
-        status:
-          type: integer
-          enum: [ 500, 502, 503, 504 ]
-          x-go-json-ignore: true
-          x-enumNames: [ 'value' ]
-        errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/GeneralServerError'
-
-    # 20xx General Server Errors
-    GeneralServerError:
-      type: object
-      required: [ code, message ]
-      properties:
-        code:
-          type: integer
-          enum: [ 2000 ]
-        message:
-          type: string
-          enum: [ 'General server error' ]
-
-    ApiAnyError:
-      allOf:
-        - oneOf:
-            - $ref: '#/components/schemas/ApiErrorClient4XX'
-            - $ref: '#/components/schemas/ApiErrorServer5XX'
-        - type: object
-          required: [ type ]
-          properties:
-            type:
-              type: string
-              enum: [ 'error' ]
-
-    CustomError:
-      type: object
-      required: [ code, message ]
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-
-    HealthCheckOperation:
-      allOf:
-        - $ref: '#/components/schemas/OperationBase'
-        - $ref: '#/components/schemas/HealthResponse'
-
-    HealthResponse:
-      type: object
-      required: [ health ]
-      properties:
-        health:
-          type: object
-          required: [ status ]
-          properties:
-            status:
-              type: string
-              example: 'ok/unavailable'
-
-    PlanApproved:
-      type: object
-      required: [ status ]
-      properties:
-        status:
-          type: string
-          enum: [ 'approved' ]
-
-    PlanRejected:
-      type: object
-      required: [ status ]
-      properties:
-        status:
-          type: string
-          enum: [ 'rejected' ]
-        failure:
-          oneOf:
-            - $ref: '#/components/schemas/ValidationFailure'
-            - $ref: '#/components/schemas/RegulationFailure'
-          discriminator:
-            propertyName: failureType
-            mapping:
-              validationFailure: '#/components/schemas/ValidationFailure'
-              regulationFailure: '#/components/schemas/RegulationFailure'
-
-    ExecutionPlanApprovalOperation:
-      allOf:
-        - $ref: '#/components/schemas/OperationBase'
-        - $ref: '#/components/schemas/PlanApprovalResponse'
-
-    PlanApprovalResponse:
-      type: object
-      properties:
-        approval:
-          oneOf:
-            - $ref: '#/components/schemas/PlanApproved'
-            - $ref: '#/components/schemas/PlanRejected'
-          discriminator:
-            propertyName: status
-            mapping:
-              approved: '#/components/schemas/PlanApproved'
-              rejected: '#/components/schemas/PlanRejected'
-
-    ValidationFailure:
-      type: object
-      required:
-        - failureType
-        - code
-        - message
-      properties:
-        failureType:
-          type: string
-          enum: [ validationFailure ]
-        code:
-          type: integer
-          format: uint32
-          description: ledger error code for validation
-        message:
-          type: string
-
-    RegulationFailure:
-      type: object
-      required:
-        - failureType
-        - errors
-      properties:
-        failureType:
-          type: string
-          enum: [ regulationFailure ]
-        errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/RegulationError'
-
-    RegulationError:
-      type: object
-      required:
-        - regulationType
-        - details
-      properties:
-        regulationType:
-          type: string
-          description: the type of regulation
-        details:
-          type: string
-          description: actionable details of the error
-
-    OperationBase:
-      type: object
-      required:
-        - cid
-        - isCompleted
-      properties:
-        cid:
-          type: string
-          description: unique correlation id which identify the operation
-        isCompleted:
-          type: boolean
-          description: flag indicating if the operation completed, if true then error or response must be present (but not both)
-          default: false
-        operationMetadata:
-          $ref: '#/components/schemas/OperationMetadata'
-
-    OperationMetadata:
-      type: object
-      description: additional metadata regarding the operation
-      properties:
-        operationResponseStrategy:
-          description: |
-            denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled 
-            optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
-          type: object
-          oneOf:
-            - $ref: '#/components/schemas/pollingResultsStrategy'
-            - $ref: '#/components/schemas/callbackResultsStrategy'
-          discriminator:
-            propertyName: type
-            mapping:
-              poll: '#/components/schemas/pollingResultsStrategy'
-              callback: '#/components/schemas/callbackResultsStrategy'
-
-
-    callbackResultsStrategy:
-      type: object
-      required: [ type, callback ]
-      properties:
-        type:
-          type: string
-          enum: [ callback ]
-        callback:
-          type: object
-          oneOf:
-            - $ref: '#/components/schemas/callbackEndpoint'
-          discriminator:
-            propertyName: type
-            mapping:
-              endpoint: '#/components/schemas/callbackEndpoint'
-
-    callbackEndpoint:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: string
-          enum: [ endpoint ]
-
-    pollingResultsStrategy:
-      type: object
-      required: [ type, polling ]
-      properties:
-        type:
-          type: string
-          enum: [ poll ]
-        polling:
-          type: object
-          oneOf:
-            - $ref: '#/components/schemas/randomPollingInterval'
-            - $ref: '#/components/schemas/absolutePollingInterval'
-            - $ref: '#/components/schemas/relativePollingInterval'
-          discriminator:
-            propertyName: type
-            mapping:
-              random: '#/components/schemas/pollingResultsStrategy'
-              absolute: '#/components/schemas/absolutePollingInterval'
-              relative: '#/components/schemas/relativePollingInterval'
-
-
-
-    relativePollingInterval:
-      type: object
-      required: [ type, duration ]
-      properties:
-        type:
-          type: string
-          enum: [ relative ]
-        duration:
-          type: string
-          description: ISO-8601 duration format
-          example: PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
-
-
-    absolutePollingInterval:
-      type: object
-      required: [ type, time ]
-      properties:
-        type:
-          type: string
-          enum: [ absolute ]
-        time:
-          type: integer
-          description: absolute time as epoch time seconds
-
-    randomPollingInterval:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: string
-          enum: [ random ]
-
-    paymentMethods:
-      type: array
-      items:
-        $ref: '#/components/schemas/paymentMethod'
-
-    paymentMethod:
-      type: object
-      required: [ description, currency, methodInstruction ]
-      properties:
-        description:
-          type: string
-        currency:
-          type: string
-          description: accepted currency for payment
-        methodInstruction:
-          oneOf:
-            - $ref: '#/components/schemas/wireTransfer'
-            - $ref: '#/components/schemas/wireTransferUSA'
-            - $ref: '#/components/schemas/cryptoTransfer'
-            - $ref: '#/components/schemas/paymentInstructions'
-          discriminator:
-            propertyName: type
-            mapping:
-              wireTransfer: '#/components/schemas/wireTransfer'
-              wireTransferUSA: '#/components/schemas/wireTransferUSA'
-              cryptoTransfer: '#/components/schemas/cryptoTransfer'
-              paymentInstructions: '#/components/schemas/paymentInstructions'
-
-
-    paymentInstructions:
-      type: object
-      required: [ type, instruction ]
-      properties:
-        type:
-          type: string
-          enum: [ 'paymentInstructions' ]
-        instruction:
-          type: "string"
-
-    cryptoTransfer:
-      type: object
-      required: [ type, network, contractAddress, walletAddress ]
-      properties:
-        type:
-          type: string
-          enum: [ 'cryptoTransfer' ]
-        network:
-          type: string
-        contractAddress:
-          type: string
-        walletAddress:
-          type: string
-
-    wireTransferUSA:
-      type: object
-      required: [ type, accountNumber, routingNumber ]
-      properties:
-        type:
-          type: string
-          enum: [ 'wireTransferUSA' ]
-        accountNumber:
-          type: string
-        routingNumber:
-          type: string
-        line1:
-          type: string
-        city:
-          type: string
-        postalCode:
-          type: string
-        country:
-          type: string
-        state:
-          type: string
-
-    wireTransfer:
-      type: object
-      required: [ type, accountHolderName, bankName, wireDetails ]
-      properties:
-        type:
-          type: string
-          enum: [ 'wireTransfer' ]
-        accountHolderName:
-          type: string
-        bankName:
-          type: string
-        wireDetails:
-          $ref: '#/components/schemas/wireDetails'
-        line1:
-          type: string
-        city:
-          type: string
-        postalCode:
-          type: string
-        country:
-          type: string
-
-    wireDetails:
-      discriminator:
-        propertyName: type
-        mapping:
-          iban: '#/components/schemas/ibanAccountDetails'
-          swift: '#/components/schemas/swiftAccountDetails'
-          sortCode: '#/components/schemas/sortCodeDetails'
-      oneOf:
-        - $ref: '#/components/schemas/ibanAccountDetails'
-        - $ref: '#/components/schemas/swiftAccountDetails'
-        - $ref: '#/components/schemas/sortCodeDetails'
-
-    ibanAccountDetails:
-      type: object
-      required: [ type, iban ]
-      properties:
-        type:
-          type: string
-          enum: [ 'iban' ]
-        iban:
-          type: string
-
-    swiftAccountDetails:
-      type: object
-      required: [ type, swiftCode, accountNumber ]
-      properties:
-        type:
-          type: string
-          enum: [ 'bic' ]
-        swiftCode:
-          type: string
-        accountNumber:
-          type: string
-
-    sortCodeDetails:
-      type: object
-      required: [ type, code, accountNumber]
-      properties:
-        type:
-          type: string
-          enum: [ 'sortCode' ]
-        code:
-          type: string
-          description: sort code has XX-XX-XX format
-          pattern: "^\\d{2}-\\d{2}-\\d{2}$"
-        accountNumber:
-          type: string
-
-    assetName:
-      type: string
-      pattern: '^[a-zA-Z0-9\-_. /]*$'
-      maxLength: 150
-      description: The name of the asset
-
-    ownerResourceId:
-      type: string
-      description: 'Owner resource id'
-      pattern: '^[^:](?:.+):101:(?:.+)'
-      maxLength: 150
-      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
-
-    assetIdentifierType:
-      type: string
-      enum: [ ISIN, CUSIP, SEDOL, DTI, CMU, FIGI, CUSTOM ]
-      description: Classification type standards
-
-    assetIdentifier:
-      type: object
-      required: [ assetIdentifierType, assetIdentifierValue ]
-      properties:
-        assetIdentifierType:
-          $ref: '#/components/schemas/assetIdentifierType'
-        assetIdentifierValue:
-          type: string
-          description: The classification standard used to identify the asset
-
-    assetDenominationType:
-      type: string
-      enum: [ fiat, cryptocurrency ]
-      description: Indicates how the asset is denominated
-
-    assetDenomination:
-      type: object
-      required: [ type, code ]
-      properties:
-        type:
-          $ref: '#/components/schemas/assetDenominationType'
-        code:
-          type: string
-          description: Unique code identifying the denomination asset type
-          pattern: '^[a-zA-Z0-9]*$'
-          maxLength: 150

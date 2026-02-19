@@ -350,8 +350,8 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     DepositInstructionRequest: {
-      destination: components['schemas']['destination'];
-      owner: components['schemas']['source'];
+      destination: components['schemas']['depositPayoutAccount'];
+      owner: components['schemas']['depositPayoutAccount'];
       asset: components['schemas']['depositAsset'];
       /** @description Amount to deposit */
       amount?: string;
@@ -361,19 +361,18 @@ export interface components {
     };
     DepositInstructionResponse: components['schemas']['depositOperation'];
     PayoutRequest: {
-      source: components['schemas']['source'];
-      destination?: components['schemas']['destination'];
+      source: components['schemas']['depositPayoutAccount'];
+      destination?: components['schemas']['depositPayoutAccount'];
       /** @description How many units of the asset */
       quantity: string;
       payoutInstruction?: components['schemas']['payoutInstruction'];
-      asset: components['schemas']['payoutAsset'];
+      asset: components['schemas']['finp2pAsset'];
       nonce?: components['schemas']['nonce'];
       signature?: components['schemas']['signature'];
     };
     PayoutResponse: components['schemas']['receiptOperation'];
     GetAssetBalanceRequest: {
-      owner: components['schemas']['source'];
-      asset: components['schemas']['asset'];
+      owner: components['schemas']['account'];
     };
     GetAssetBalanceResponse: components['schemas']['balance'];
     CreateAssetRequest: {
@@ -381,12 +380,11 @@ export interface components {
       metadata?: {
         [key: string]: unknown;
       };
-      asset: components['schemas']['asset'];
-      ledgerAssetBinding?: components['schemas']['ledgerAssetBinding'];
+      asset: components['schemas']['finp2pAsset'];
+      ledgerAssetBinding?: components['schemas']['ledgerAssetIdentifier'];
       name?: components['schemas']['assetName'];
       issuerId?: components['schemas']['ownerResourceId'];
       denomination?: components['schemas']['assetDenomination'];
-      assetIdentifier?: components['schemas']['assetIdentifier'];
     };
     CreateAssetResponse: components['schemas']['OperationBase'] & {
       error?: components['schemas']['createAssetOperationErrorInformation'];
@@ -394,10 +392,9 @@ export interface components {
     };
     IssueAssetsRequest: {
       nonce: components['schemas']['nonce'];
-      destination: components['schemas']['finIdAccount'];
+      destination: components['schemas']['account'];
       /** @description How many units of the asset tokens */
       quantity: string;
-      asset: components['schemas']['finp2pAsset'];
       /** @description Reference to the corresponding settlement operation */
       settlementRef: string;
       signature: components['schemas']['signature'];
@@ -407,10 +404,9 @@ export interface components {
     RedeemAssetsRequest: {
       nonce: components['schemas']['nonce'];
       operationId?: string;
-      source: components['schemas']['finIdAccount'];
+      source: components['schemas']['account'];
       /** @description How many units of the asset tokens */
       quantity: string;
-      asset: components['schemas']['finp2pAsset'];
       /** @description Reference to the corresponding payment operation */
       settlementRef: string;
       signature: components['schemas']['signature'];
@@ -419,11 +415,10 @@ export interface components {
     RedeemAssetsResponse: components['schemas']['receiptOperation'];
     TransferAssetRequest: {
       nonce: components['schemas']['nonce'];
-      source: components['schemas']['source'];
-      destination: components['schemas']['destination'];
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
       /** @description How many units of the asset tokens */
       quantity: string;
-      asset: components['schemas']['asset'];
       /** @description Reference to the corresponding payment operation */
       settlementRef: string;
       signature: components['schemas']['signature'];
@@ -435,11 +430,10 @@ export interface components {
       nonce: components['schemas']['nonce'];
       /** @description Escrow operation id */
       operationId: string;
-      source: components['schemas']['source'];
-      destination?: components['schemas']['destination'];
+      source: components['schemas']['account'];
+      destination?: components['schemas']['account'];
       /** @description How many units of the asset tokens */
       quantity: string;
-      asset: components['schemas']['asset'];
       /**
              * Format: uint64
              * @description ttl expiry value indicating the escrow hold time limitation
@@ -452,21 +446,19 @@ export interface components {
     ReleaseOperationRequest: {
       /** @description Hold operation id */
       operationId: string;
-      source: components['schemas']['source'];
-      destination: components['schemas']['destination'];
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
       /** @description How many units of the asset tokens */
       quantity: string;
-      asset: components['schemas']['asset'];
       executionContext?: components['schemas']['executionContext'];
     };
     ReleaseOperationResponse: components['schemas']['receiptOperation'];
     RollbackOperationRequest: {
       /** @description Hold operation id */
       operationId: string;
-      source: components['schemas']['source'];
+      source: components['schemas']['account'];
       /** @description How many units of the asset tokens */
       quantity: string;
-      asset: components['schemas']['asset'];
       executionContext?: components['schemas']['executionContext'];
     };
     RollbackOperationResponse: components['schemas']['receiptOperation'];
@@ -475,18 +467,9 @@ export interface components {
       cid?: string;
     };
     GetOperationStatusResponse: components['schemas']['operationStatus'];
-    /** @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-         *
-         *       const nonce = Buffer.alloc(32);
-         *       nonce.fill(crypto.randomBytes(24), 0, 24);
-         *
-         *       const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-         *       const t = BigInt(nowEpochSeconds);
-         *       nonce.writeBigInt64BE(t, 24);
-         *      */
-    nonce: string;
     depositInstruction: {
-      account: components['schemas']['destination'];
+      account: components['schemas']['depositPayoutAccount'];
+      asset?: components['schemas']['depositAsset'];
       /** @description Instructions for the deposit operation */
       description?: string;
       paymentOptions?: components['schemas']['paymentMethods'];
@@ -498,58 +481,22 @@ export interface components {
       /** @description operation id reference while will correlate with any receipt associated with the deposit operation */
       operationId?: string;
     };
-    asset: components['schemas']['cryptocurrencyAsset'] | components['schemas']['fiatAsset'] | components['schemas']['finp2pAsset'];
-    depositAsset: components['schemas']['cryptocurrencyAsset'] | components['schemas']['fiatAsset'] | components['schemas']['finp2pAsset'] | components['schemas']['customAsset'];
-    payoutAsset: components['schemas']['cryptocurrencyAsset'] | components['schemas']['fiatAsset'] | components['schemas']['finp2pAsset'];
+    asset: {
+      ledgerIdentifier?: components['schemas']['ledgerAssetIdentifier'];
+    } & components['schemas']['finp2pAsset'];
+    payoutAsset: components['schemas']['finp2pAsset'];
     payoutInstruction: {
       /** @description withdrawal description */
       description: string;
     };
-    cryptocurrencyAsset: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'cryptocurrency';
-      /** @description unique identifier symbol of the cryptocurrency */
-      code: string;
+    account: {
+      asset: components['schemas']['asset'];
+      finId: components['schemas']['finId'];
+      ledgerAccount?: components['schemas']['walletAccount'];
     };
-    fiatAsset: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'fiat';
-      /** @description unique identifier code of the fiat currency - based on ISO-4217 */
-      code: string;
-    };
-    finp2pAsset: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'finp2p';
-      /** @description Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format')
-             *      */
-      resourceId: string;
-    };
-    customAsset: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'custom';
-    };
-    source: {
-      /** @description FinID, public key of the user */
-      finId: string;
+    depositPayoutAccount: {
+      finId: components['schemas']['finId'];
       account: components['schemas']['finIdAccount'];
-    };
-    /** @description describes destination for remote operations operations */
-    destination: {
-      /** @description FinID, public key of the user */
-      finId: string;
-      account: components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'];
     };
     finIdAccount: {
       /**
@@ -557,26 +504,7 @@ export interface components {
              * @enum {string}
              */
       type: 'finId';
-      /** @description FinID, public key of the user */
-      finId: string;
-    };
-    cryptoWalletAccount: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'cryptoWallet';
-      /** @description address of the cryptocurrency wallet */
-      address: string;
-    };
-    fiatAccount: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'fiatAccount';
-      /** @description IBAN or other code to represent a fiat account */
-      code: string;
+      finId: components['schemas']['finId'];
     };
     balance: {
       asset: components['schemas']['asset'];
@@ -701,17 +629,17 @@ export interface components {
       /** Format: address */
       verifyingContract?: string;
     };
-    EIP712TypedValue: components['schemas']['EIP712TypeString'] | components['schemas']['EIP712TypeInteger'] | components['schemas']['EIP712TypeBool'] | components['schemas']['EIP712TypeByte'] | components['schemas']['EIP712TypeObject'];
+    EIP712TypedValue: components['schemas']['EIP712TypeString'] | components['schemas']['EIP712TypeInteger'] | components['schemas']['EIP712TypeBool'] | components['schemas']['EIP712TypeByte'] | components['schemas']['EIP712TypeObject'] | components['schemas']['EIP712TypeArray'];
     EIP712Types: {
-      definitions: components['schemas']['EIP712TypeDefinition'][];
+      definitions?: components['schemas']['EIP712TypeDefinition'][];
     };
     EIP712TypeDefinition: {
-      name: string;
-      fields: components['schemas']['EIP712FieldDefinition'][];
+      name?: string;
+      fields?: components['schemas']['EIP712FieldDefinition'][];
     };
     EIP712FieldDefinition: {
-      name: string;
-      type: string;
+      name?: string;
+      type?: string;
     };
     EIP712Template: {
       /**
@@ -744,7 +672,6 @@ export interface components {
     receipt: {
       /** @description the receipt id */
       id: string;
-      asset: components['schemas']['asset'];
       /** @description How many units of the asset tokens */
       quantity: string;
       /**
@@ -752,21 +679,12 @@ export interface components {
              * @description transaction timestamp
              */
       timestamp: number;
-      source?: components['schemas']['source'];
-      destination?: components['schemas']['destination'];
+      source?: components['schemas']['account'];
+      destination?: components['schemas']['account'];
       transactionDetails?: components['schemas']['transactionDetails'];
       operationType?: components['schemas']['operationType'];
       tradeDetails: components['schemas']['receiptTradeDetails'];
       proof?: components['schemas']['proofPolicy'];
-    };
-    receiptTradeDetails: {
-      intentId?: string;
-      intentVersion?: string;
-      executionContext?: components['schemas']['receiptExecutionContext'];
-    };
-    receiptExecutionContext: {
-      executionPlanId: string;
-      instructionSequenceNumber: number;
     };
     /** @description additional proof information attached to a receipt */
     proofPolicy: components['schemas']['signatureProofPolicy'] | components['schemas']['noProofPolicy'];
@@ -796,7 +714,7 @@ export interface components {
     /** @enum {string} */
     operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem';
     ledgerAssetInfo: {
-      ledgerTokenId: components['schemas']['ledgerTokenId'];
+      ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
       ledgerReference?: components['schemas']['contractDetails'];
     };
     contractDetails: {
@@ -805,8 +723,6 @@ export interface components {
              * @enum {string}
              */
       type: 'contractDetails';
-      /** @description the network */
-      network: string;
       /** @description the address */
       address: string;
       /** @description The standard of the token (e.g., ERC20, ERC721) */
@@ -819,16 +735,7 @@ export interface components {
       /** @description Indicates if allowance is required */
       allowanceRequired?: boolean;
     };
-    ledgerAssetBinding: components['schemas']['ledgerTokenId'];
-    ledgerTokenId: {
-      /**
-             * @description the type of the identifier (enum property replaced by openapi-typescript)
-             * @enum {string}
-             */
-      type: 'tokenId';
-      /** @description the token id binding */
-      tokenId: string;
-    };
+    ledgerAssetBinding: components['schemas']['ledgerAssetIdentifier'];
     AssetBalanceInfoRequest: {
       account: components['schemas']['assetBalanceAccount'];
       asset: components['schemas']['asset'];
@@ -884,21 +791,6 @@ export interface components {
       /** @description list of receipt associated with the balance info */
       receipts?: components['schemas']['receipt'][];
     };
-    APIError: {
-      /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference).
-             *      */
-      code: number;
-      /** @description A descriptive message providing context about the error. */
-      message: string;
-    };
-    APIErrors: {
-      errors: components['schemas']['APIError'][];
-    };
-    APIErrorsTyped: {
-      /** @enum {string} */
-      type: 'error';
-      errors: components['schemas']['APIError'][];
-    };
     ApproveExecutionPlanRequest: {
       /** @description execution plan information */
       executionPlan: {
@@ -906,22 +798,121 @@ export interface components {
         id: string;
       };
     };
+    pollingResultsStrategy: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'random';
+      polling: components['schemas']['randomPollingInterval'] | components['schemas']['absolutePollingInterval'] | components['schemas']['relativePollingInterval'];
+    };
+    absolutePollingInterval: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'absolute';
+      /** @description absolute time as epoch time seconds */
+      time: number;
+    };
+    relativePollingInterval: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'relative';
+      /**
+             * @description ISO-8601 duration format
+             * @example PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
+             */
+      duration: string;
+    };
+    randomPollingInterval: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'randomPollingInterval';
+    };
+    callbackEndpoint: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'endpoint';
+    };
+    callbackResultsStrategy: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'callback';
+      callback: components['schemas']['callbackEndpoint'];
+    };
+    /** @description additional metadata regarding the operation */
+    OperationMetadata: {
+      /** @description denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
+             *     optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
+             *      */
+      operationResponseStrategy?: components['schemas']['pollingResultsStrategy'] | components['schemas']['callbackResultsStrategy'];
+    };
+    OperationBase: {
+      /** @description unique correlation id which identify the operation */
+      cid: string;
+      /**
+             * @description flag indicating if the operation completed, if true then error or response must be present (but not both)
+             * @default false
+             */
+      isCompleted: boolean;
+      operationMetadata?: components['schemas']['OperationMetadata'];
+    };
+    PlanApproved: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      status: 'approved';
+    };
+    ValidationFailure: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      failureType: 'validationFailure';
+      /**
+             * Format: uint32
+             * @description ledger error code for validation
+             */
+      code: number;
+      message: string;
+    };
+    RegulationError: {
+      /** @description the type of regulation */
+      regulationType: string;
+      /** @description actionable details of the error */
+      details: string;
+    };
+    RegulationFailure: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      failureType: 'regulationFailure';
+      errors: components['schemas']['RegulationError'][];
+    };
+    PlanRejected: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      status: 'rejected';
+      failure?: components['schemas']['ValidationFailure'] | components['schemas']['RegulationFailure'];
+    };
+    PlanApprovalResponse: {
+      approval?: components['schemas']['PlanApproved'] | components['schemas']['PlanRejected'];
+    };
+    ExecutionPlanApprovalOperation: components['schemas']['OperationBase'] & components['schemas']['PlanApprovalResponse'];
     ApproveExecutionPlanResponse: components['schemas']['ExecutionPlanApprovalOperation'];
-    executionPlanProposalRequest: {
-      /** @description execution plan information */
-      executionPlan: {
-        /** @description execution plan id */
-        id: string;
-        /** @description type of proposal payload */
-        proposal: components['schemas']['executionPlanCancellationProposal'] | components['schemas']['executionPlanResetProposal'];
-      };
-    };
-    /** @description provides status update on the agreement reached for a specific proposal */
-    executionPlanProposalStatusRequest: {
-      /** @enum {string} */
-      status: 'approved' | 'rejected';
-      request: components['schemas']['executionPlanProposalRequest'];
-    };
     executionPlanCancellationProposal: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -941,225 +932,65 @@ export interface components {
              */
       proposedSequence: number;
     };
-    executionPlanProposal: {
-      /** @enum {string} */
-      proposalType: 'plan';
-    };
-    ApiErrorClient4XX: {
-      /** @enum {string} */
-      type: 'error';
-      /** @enum {integer} */
-      status: 400 | 401 | 403 | 404 | 409;
-      errors: (components['schemas']['AssetMetadataAndConfigError'] | components['schemas']['GeneralClientError'])[];
-    };
-    GeneralClientError: {
-      /** @enum {integer} */
-      code: 1000;
-      /** @enum {string} */
-      message: 'General client error';
-    };
-    AssetMetadataAndConfigError: {
-      /** @enum {integer} */
-      code: 4108;
-      /** @enum {string} */
-      message: 'Asset metadata and config cannot be provided at the same time';
-    };
-    ApiErrorServer5XX: {
-      /** @enum {string} */
-      type: 'error';
-      /** @enum {integer} */
-      status: 500 | 502 | 503 | 504;
-      errors: components['schemas']['GeneralServerError'][];
-    };
-    GeneralServerError: {
-      /** @enum {integer} */
-      code: 2000;
-      /** @enum {string} */
-      message: 'General server error';
-    };
-    ApiAnyError: (components['schemas']['ApiErrorClient4XX'] | components['schemas']['ApiErrorServer5XX']) & {
-      /** @enum {string} */
-      type: 'error';
-    };
-    CustomError: {
-      code: number;
-      message: string;
-    };
-    HealthCheckOperation: components['schemas']['OperationBase'] & components['schemas']['HealthResponse'];
-    HealthResponse: {
-      health: {
-        /** @example ok/unavailable */
-        status: string;
-      };
-    };
-    PlanApproved: {
+    executionPlanInstructionProposal: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-      status: 'approved';
-    };
-    PlanRejected: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      status: 'rejected';
-      failure?: components['schemas']['ValidationFailure'] | components['schemas']['RegulationFailure'];
-    };
-    ExecutionPlanApprovalOperation: components['schemas']['OperationBase'] & components['schemas']['PlanApprovalResponse'];
-    PlanApprovalResponse: {
-      approval?: components['schemas']['PlanApproved'] | components['schemas']['PlanRejected'];
-    };
-    ValidationFailure: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      failureType: 'validationFailure';
+      proposalType: 'instruction';
       /**
              * Format: uint32
-             * @description ledger error code for validation
+             * @description sequence number of the instruction completion event
              */
-      code: number;
-      message: string;
+      instructionSequence: number;
     };
-    RegulationFailure: {
+    executionPlanProposalRequest: {
+      /** @description execution plan information */
+      executionPlan: {
+        /** @description execution plan id */
+        id: string;
+        /** @description type of proposal payload */
+        proposal: components['schemas']['executionPlanCancellationProposal'] | components['schemas']['executionPlanInstructionProposal'] | components['schemas']['executionPlanResetProposal'];
+      };
+    };
+    /** @description provides status update on the agreement reached for a specific proposal */
+    executionPlanProposalStatusRequest: {
+      /** @enum {string} */
+      status: 'approved' | 'rejected';
+      request: components['schemas']['executionPlanProposalRequest'];
+    };
+    /**
+         * Format: finid
+         * @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed
+         */
+    finId: string;
+    finp2pAssetWithType: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-      failureType: 'regulationFailure';
-      errors: components['schemas']['RegulationError'][];
+      type: 'finp2p';
+      /** @description unique resource ID of the FinP2P asset */
+      resourceId: string;
     };
-    RegulationError: {
-      /** @description the type of regulation */
-      regulationType: string;
-      /** @description actionable details of the error */
-      details: string;
-    };
-    OperationBase: {
-      /** @description unique correlation id which identify the operation */
-      cid: string;
-      /**
-             * @description flag indicating if the operation completed, if true then error or response must be present (but not both)
-             * @default false
-             */
-      isCompleted: boolean;
-      operationMetadata?: components['schemas']['OperationMetadata'];
-    };
-    /** @description additional metadata regarding the operation */
-    OperationMetadata: {
-      /** @description denote the expected response strategy of the operation, i.e. how would completion and results of the operation should be handled
-             *     optional, if not provided [polling strategy](#/components/schema/pollingResultsStrategy) will be use with [random interval](#/components/schema/randomPollingInterval)
-             *      */
-      operationResponseStrategy?: components['schemas']['pollingResultsStrategy'] | components['schemas']['callbackResultsStrategy'];
-    };
-    callbackResultsStrategy: {
+    customAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-      type: 'callback';
-      callback: components['schemas']['callbackEndpoint'];
+      type: 'custom';
     };
-    callbackEndpoint: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'endpoint';
-    };
-    pollingResultsStrategy: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'poll';
-      polling: components['schemas']['randomPollingInterval'] | components['schemas']['absolutePollingInterval'] | components['schemas']['relativePollingInterval'];
-    };
-    relativePollingInterval: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'relative';
-      /**
-             * @description ISO-8601 duration format
-             * @example PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
-             */
-      duration: string;
-    };
-    absolutePollingInterval: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'absolute';
-      /** @description absolute time as epoch time seconds */
-      time: number;
-    };
-    randomPollingInterval: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'randomPollingInterval';
-    };
-    paymentMethods: components['schemas']['paymentMethod'][];
-    paymentMethod: {
-      description: string;
-      /** @description accepted currency for payment */
-      currency: string;
-      methodInstruction: components['schemas']['wireTransfer'] | components['schemas']['wireTransferUSA'] | components['schemas']['cryptoTransfer'] | components['schemas']['paymentInstructions'];
-    };
-    paymentInstructions: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'paymentInstructions';
-      instruction: string;
-    };
-    cryptoTransfer: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'cryptoTransfer';
-      network: string;
-      contractAddress: string;
-      walletAddress: string;
-    };
-    wireTransferUSA: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'wireTransferUSA';
-      accountNumber: string;
-      routingNumber: string;
-      line1?: string;
-      city?: string;
-      postalCode?: string;
-      country?: string;
-      state?: string;
-    };
-    wireTransfer: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'wireTransfer';
-      accountHolderName: string;
-      bankName: string;
-      wireDetails: components['schemas']['wireDetails'];
-      line1?: string;
-      city?: string;
-      postalCode?: string;
-      country?: string;
-    };
-    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    depositAsset: components['schemas']['finp2pAssetWithType'] | components['schemas']['customAsset'];
+    /** @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
+         *
+         *       const nonce = Buffer.alloc(32);
+         *       nonce.fill(crypto.randomBytes(24), 0, 24);
+         *
+         *       const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
+         *       const t = BigInt(nowEpochSeconds);
+         *       nonce.writeBigInt64BE(t, 24);
+         *      */
+    nonce: string;
     ibanAccountDetails: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1187,6 +1018,95 @@ export interface components {
       code: string;
       accountNumber: string;
     };
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireTransfer: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'wireTransfer';
+      accountHolderName: string;
+      bankName: string;
+      wireDetails: components['schemas']['wireDetails'];
+      line1?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    wireTransferUSA: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'wireTransferUSA';
+      accountNumber: string;
+      routingNumber: string;
+      line1?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+      state?: string;
+    };
+    cryptoTransfer: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'cryptoTransfer';
+      network: string;
+      contractAddress: string;
+      walletAddress: string;
+    };
+    paymentInstructions: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'paymentInstructions';
+      instruction: string;
+    };
+    paymentMethod: {
+      description: string;
+      /** @description accepted currency for payment */
+      currency: string;
+      methodInstruction: components['schemas']['wireTransfer'] | components['schemas']['wireTransferUSA'] | components['schemas']['cryptoTransfer'] | components['schemas']['paymentInstructions'];
+    };
+    paymentMethods: components['schemas']['paymentMethod'][];
+    finp2pAsset: {
+      /** @description unique resource ID of the FinP2P asset */
+      resourceId: string;
+    };
+    /**
+         * @description finp2p resource id format
+         * @example bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
+         */
+    resourceId: string;
+    'ledgerAssetIdentifierTypeCAIP-19': {
+      /**
+             * @description Classification type standards (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+      assetIdentifierType: 'CAIP-19';
+      network: string;
+      tokenId: string;
+      standard: string;
+      resourceId?: components['schemas']['resourceId'];
+    };
+    ledgerAssetIdentifier: components['schemas']['ledgerAssetIdentifierTypeCAIP-19'];
+    walletAccount: {
+      type: string;
+      /** @description address of the wallet */
+      address: string;
+    };
+    receiptExecutionContext: {
+      executionPlanId: string;
+      instructionSequenceNumber: number;
+    };
+    receiptTradeDetails: {
+      intentId?: string;
+      intentVersion?: string;
+      executionContext?: components['schemas']['receiptExecutionContext'];
+    };
     /** @description The name of the asset */
     assetName: string;
     /**
@@ -1195,20 +1115,10 @@ export interface components {
          */
     ownerResourceId: string;
     /**
-         * @description Classification type standards
-         * @enum {string}
-         */
-    assetIdentifierType: 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM';
-    assetIdentifier: {
-      assetIdentifierType: components['schemas']['assetIdentifierType'];
-      /** @description The classification standard used to identify the asset */
-      assetIdentifierValue: string;
-    };
-    /**
          * @description Indicates how the asset is denominated
          * @enum {string}
          */
-    assetDenominationType: 'fiat' | 'cryptocurrency';
+    assetDenominationType: 'finp2p' | 'fiat' | 'cryptocurrency';
     assetDenomination: {
       type: components['schemas']['assetDenominationType'];
       /** @description Unique code identifying the denomination asset type */
