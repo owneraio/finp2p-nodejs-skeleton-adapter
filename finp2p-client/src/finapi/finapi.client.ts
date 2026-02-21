@@ -1,4 +1,4 @@
-import createClient, { Client } from 'openapi-fetch';
+import createClient, { Client, Middleware } from 'openapi-fetch';
 import { components as FinAPIComponents, paths as FinAPIPaths } from './model-gen';
 import { components as OpComponents, paths as OpPaths } from './op-model-gen';
 import { sleep } from './utils';
@@ -20,9 +20,14 @@ export class FinAPIClient {
     this.opClient = createClient<OpPaths>({ baseUrl: finP2PUrl });
 
     if (authTokenResolver) {
-      const authMiddleware: import('openapi-fetch').Middleware = {
+      const authMiddleware: Middleware = {
         onRequest({ request }) {
-          request.headers.set('Authorization', `Bearer ${authTokenResolver()}`);
+          try {
+            const token = authTokenResolver();
+            request.headers.set('Authorization', `Bearer ${token}`);
+          } catch (error) {
+            throw new Error(`Failed to resolve auth token: ${error instanceof Error ? error.message : error}`);
+          }
           return request;
         },
       };
