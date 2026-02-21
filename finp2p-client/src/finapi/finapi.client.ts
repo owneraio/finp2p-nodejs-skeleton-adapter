@@ -18,6 +18,17 @@ export class FinAPIClient {
     this.authTokenResolver = authTokenResolver;
     this.apiClient = createClient<FinAPIPaths>({ baseUrl: finP2PUrl });
     this.opClient = createClient<OpPaths>({ baseUrl: finP2PUrl });
+
+    if (authTokenResolver) {
+      const authMiddleware: import('openapi-fetch').Middleware = {
+        onRequest({ request }) {
+          request.headers.set('Authorization', `Bearer ${authTokenResolver()}`);
+          return request;
+        },
+      };
+      this.apiClient.use(authMiddleware);
+      this.opClient.use(authMiddleware);
+    }
   }
 
   async createOwner() {
