@@ -1,5 +1,5 @@
 import { Asset, BusinessError } from '@owneraio/finp2p-adapter-models';
-import { HoldOperation } from './model';
+import { HoldOperation, Transaction } from './model';
 import { Account } from './accounts';
 
 
@@ -10,6 +10,16 @@ export class Storage {
   accounts: Record<string, Account> = {};
 
   holdOperations: Record<string, HoldOperation> = {};
+
+  transactions: Record<string, Transaction> = {};
+
+  registerTransaction(tx: Transaction) {
+    this.transactions[tx.id] = tx;
+  }
+
+  getTransaction(id: string): Transaction | undefined {
+    return this.transactions[id];
+  }
 
   createAsset(assetId: string, asset: Asset) {
     this.assets[assetId] = asset;

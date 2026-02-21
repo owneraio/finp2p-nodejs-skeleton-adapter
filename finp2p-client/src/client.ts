@@ -12,9 +12,9 @@ export class FinP2PClient {
 
   ossClient: OssClient;
 
-  constructor(finAPIUrl: string, ossUrl: string) {
-    this.finAPIClient = new FinAPIClient(finAPIUrl);
-    this.ossClient = new OssClient(ossUrl);
+  constructor(finAPIUrl: string, ossUrl: string, authTokenResolver?: (() => string)) {
+    this.finAPIClient = new FinAPIClient(finAPIUrl, authTokenResolver);
+    this.ossClient = new OssClient(ossUrl, authTokenResolver);
   }
 
   async createAsset(name: string, type: FinAPIComponents['schemas']['assetType'], issuerId: string,
