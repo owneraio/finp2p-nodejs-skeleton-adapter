@@ -120,7 +120,7 @@ export const register = (app: Application,
     `/${basePath}/assets/create`,
     async (req, res, next) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { asset, ledgerAssetBinding, metadata, name, issuerId, denomination, assetIdentifier } = req.body;
+      const { asset, ledgerAssetBinding, metadata, name, issuerId, denomination } = req.body;
 
       const result = await tokenService.createAsset(
         idempotencyKey,
@@ -130,7 +130,6 @@ export const register = (app: Application,
         name,
         issuerId,
         assetDenominationOptFromAPI(denomination),
-        assetIdentifierOptFromAPI(assetIdentifier),
       );
       return res.send(createAssetOperationToAPI(result));
     });

@@ -65,18 +65,22 @@ export type Balance = {
 
 export type TokenIdentifier = {
   tokenId: string
+  network: string
+  standard: string
 };
 
 export type AssetBind = {
-  tokenIdentifier: TokenIdentifier | undefined
+  tokenIdentifier: TokenIdentifier
 };
 
+/*
 export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM';
 
 export type AssetIdentifier = {
   type: AssetIdentifierType
   value: string
 };
+*/
 
 export type AssetDenominationType = 'fiat' | 'cryptocurrency';
 

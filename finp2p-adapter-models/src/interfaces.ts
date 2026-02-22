@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, DepositOperation, DepositAsset, FinIdAccount,
-  AssetBind, AssetDenomination, AssetIdentifier,
+  AssetBind, AssetDenomination,
 } from './model';
 
 
@@ -27,7 +27,7 @@ export interface TokenService {
 
   createAsset(idempotencyKey: string, asset: Asset,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
+    assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus>;
 
   getBalance(asset: Asset, finId: string): Promise<string>;
 

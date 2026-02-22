@@ -138,12 +138,9 @@ export const executionContextOptFromAPI = (ep: components['schemas']['executionC
 };
 
 export const assetBindingFromAPI = (assetBind: components['schemas']['ledgerAssetBinding']): AssetBind => {
-  if (assetBind.type !== 'tokenId') {
-    return { tokenIdentifier: undefined };
-  }
-  const { tokenId } = assetBind;
+  const { tokenId, network, standard } = assetBind;
   return {
-    tokenIdentifier: { tokenId },
+    tokenIdentifier: { tokenId, network, standard },
   };
 };
 
