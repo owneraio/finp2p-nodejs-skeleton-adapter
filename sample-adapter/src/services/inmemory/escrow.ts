@@ -2,7 +2,7 @@ import { CommonServiceImpl } from './common';
 import {
   Asset, BusinessError,
   Destination, EscrowService,
-  ExecutionContext, failedReceiptOperation, FinIdAccount,
+  ExecutionContext,
   ReceiptOperation,
   Signature,
   Source,
@@ -35,7 +35,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     this.storage.debit(source.finId, quantity, asset.assetId);
 
-    const tx = new Transaction(quantity, asset, source.account, undefined, exCtx, 'hold', operationId);
+    const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'hold', operationId);
     this.transactions[tx.id] = tx;
 
     let receipt = tx.toReceipt();
@@ -61,7 +61,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
 
     this.storage.removeHoldOperation(operationId);
 
-    const holdSource: FinIdAccount = { type: 'finId', finId: hold.finId };
+    const holdSource: Source = { finId: hold.finId, account: { type: 'finId', finId: hold.finId } };
     const tx = new Transaction(quantity, asset, holdSource, destination, exCtx, 'release', operationId);
     this.transactions[tx.id] = tx;
 
@@ -80,7 +80,7 @@ export class EscrowServiceImpl extends CommonServiceImpl implements EscrowServic
     if (hold === undefined) {
       throw new BusinessError(1, `unknown operation: ${operationId}`);
     }
-    const holdSource: FinIdAccount = { type: 'finId', finId: hold.finId };
+    const holdSource: Source = { finId: hold.finId, account: { type: 'finId', finId: hold.finId } };
     this.storage.credit(hold.finId, quantity, asset.assetId);
 
     this.storage.removeHoldOperation(operationId);

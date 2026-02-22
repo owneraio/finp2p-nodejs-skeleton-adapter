@@ -2,9 +2,9 @@ import {
   Asset,
   Destination,
   ExecutionContext,
-  FinIdAccount,
   OperationType,
   Receipt,
+  Source,
 } from '@owneraio/finp2p-adapter-models';
 import {
   generateId,
@@ -28,7 +28,7 @@ export class Transaction {
 
   id: string;
 
-  source?: FinIdAccount;
+  source?: Source;
 
   destination?: Destination;
 
@@ -45,7 +45,7 @@ export class Transaction {
   timestamp: number;
 
   constructor(quantity: string, asset: Asset,
-    source: FinIdAccount | undefined,
+    source: Source | undefined,
     destination: Destination | undefined,
     executionContext: ExecutionContext | undefined,
     operationType: OperationType,

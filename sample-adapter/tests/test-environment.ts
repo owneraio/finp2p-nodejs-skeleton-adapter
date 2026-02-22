@@ -65,7 +65,8 @@ class CustomTestEnvironment extends NodeEnvironment {
       },
       storage: {
         connectionString
-      }
+      },
+      service: {}
     })
     console.log("App created successfully.");
 

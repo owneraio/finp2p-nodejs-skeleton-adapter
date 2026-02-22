@@ -2,9 +2,9 @@ import { CommonServiceImpl } from './common';
 import {
   AssetBind, AssetCreationStatus,
   AssetDenomination,
-  AssetIdentifier, Balance, BusinessError, Destination, failedReceiptOperation,
+  Balance, BusinessError, Destination,
   FinIdAccount,
-  finIdDestination, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
+  LedgerAssetIdentifier, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
   TokenService,
   Asset, ExecutionContext,
   Signature,
@@ -27,7 +27,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
 
   public async createAsset(idempotencyKey: string, asset: Asset,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
+    assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus> {
     logger.info(`Creating asset ${asset.assetId}`, {
       idempotencyKey,
       assetBind,
@@ -35,20 +35,20 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       assetName,
       issuerId,
       assetDenomination,
-      assetIdentifier,
     });
-    let tokenId: string;
+    let ledgerIdentifier: LedgerAssetIdentifier;
     if (!assetBind || !assetBind.tokenIdentifier) {
-      tokenId = generateId();
+      ledgerIdentifier = { network: '', tokenId: generateId(), standard: '' };
       this.storage.createAsset(asset.assetId, asset);
     } else {
-      ({ tokenIdentifier: { tokenId } } = assetBind);
+      const { network, tokenId, standard } = assetBind.tokenIdentifier;
+      ledgerIdentifier = { network, tokenId, standard };
     }
-    return successfulAssetCreation({ tokenId, reference: undefined });
+    return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
   }
 
-  public async balance(assetId: string, finId: string): Promise<Balance> {
-    const balance = this.storage.getBalance(finId, assetId);
+  public async balance(asset: Asset, finId: string): Promise<Balance> {
+    const balance = this.storage.getBalance(finId, asset.assetId);
     return {
       current: balance,
       available: balance,
@@ -56,16 +56,16 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     } as Balance;
   }
 
-  public async getBalance(assetId: string, finId: string): Promise<string> {
-    return this.storage.getBalance(finId, assetId);
+  public async getBalance(asset: Asset, finId: string): Promise<string> {
+    return this.storage.getBalance(finId, asset.assetId);
   }
 
-  public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+  public async issue(idempotencyKey: string, asset: Asset, to: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
     const { finId } = to;
     logger.info(`Issuing ${quantity} of ${asset.assetId} to ${finId}`);
 
     this.storage.credit(finId, quantity, asset.assetId);
-    const tx = new Transaction(quantity, asset, undefined, finIdDestination(finId), exCtx, 'issue', undefined);
+    const tx = new Transaction(quantity, asset, undefined, to, exCtx, 'issue', undefined);
     this.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
@@ -74,18 +74,22 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return successfulReceiptOperation(receipt);
   }
 
-  public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
+  public async doesSupportCrosschainTransfer(sourceAsset: Asset, destinationAsset: Asset): Promise<boolean> {
+    return false;
+  }
+
+  public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
+    sourceAsset: Asset, destinationAsset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
-
-    logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
-    const signer = source.finId;
+    logger.info(`Transferring ${quantity} of ${sourceAsset.assetId} from ${source.finId} to ${destination.finId}`);
+    // const signer = source.finId;
     // if (!await verifySignature(signature, signer)) {
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
 
-    this.storage.move(source.finId, destination.finId, quantity, asset.assetId);
-    const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
+    this.storage.move(source.finId, destination.finId, quantity, sourceAsset.assetId);
+    const tx = new Transaction(quantity, sourceAsset, source, destination, exCtx, 'transfer', undefined);
     this.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
@@ -115,7 +119,8 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       this.storage.debit(source.finId, quantity, asset.assetId);
     }
 
-    const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);
+    const sourceAccount: Source = { finId: source.finId, account: source };
+    const tx = new Transaction(quantity, asset, sourceAccount, undefined, exCtx, 'redeem', operationId);
     this.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
