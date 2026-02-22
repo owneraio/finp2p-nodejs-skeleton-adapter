@@ -139,7 +139,7 @@ export const register = (app: Application,
   LedgerAPI['schemas']['GetAssetBalanceRequest']>(
     `/${basePath}/assets/getBalance`,
     async (req, res) => {
-      const { asset, owner: { finId } } = req.body;
+      const { owner: { finId, asset } } = req.body;
       const balance = await tokenService.getBalance(assetFromAPI(asset), finId);
       res.send({ asset, balance });
     });
