@@ -37,8 +37,7 @@ export class TestFixtures {
     // Issue tokens if balance > 0
     if (params.balance > 0) {
       const issueRequest = this.builder.buildIssueRequest({
-        destination: params.actor.source.account,
-        asset: params.asset,
+        destination: { finId: params.actor.finId, asset: params.asset },
         quantity: params.balance,
         settlementRef: generateId(),
       });
@@ -47,7 +46,7 @@ export class TestFixtures {
     }
 
     // Verify the balance
-    await this.client.expectBalance(params.actor.source, params.asset, params.balance);
+    await this.client.expectBalance({ finId: params.actor.finId, asset: params.asset }, params.balance);
 
     return {
       actor: params.actor,
@@ -89,7 +88,7 @@ export class TestFixtures {
     const receipt = await TestHelpers.issueAndGetReceipt(this.client, issueRequest);
 
     // Verify balance
-    await this.client.expectBalance(params.issuer.source, params.asset, params.amount);
+    await this.client.expectBalance({ finId: params.issuer.finId, asset: params.asset }, params.amount);
 
     return {
       issuer: params.issuer,
@@ -108,7 +107,7 @@ export class TestFixtures {
     initialBalance: number;
   }): Promise<{
       owner: TestActor;
-      asset: LedgerAPI['schemas']['fiatAsset'];
+      asset: LedgerAPI['schemas']['asset'];
       balance: number;
     }> {
     const asset = this.builder.buildFiatAsset(params.fiatCode);
@@ -131,20 +130,16 @@ export class TestFixtures {
     // Set initial balance if needed
     if (params.initialBalance > 0) {
       const issueRequest = this.builder.buildIssueRequest({
-        destination: params.owner.source.account,
-        asset: {
-          resourceId: asset.code,
-          type: 'finp2p',
-        },
+        destination: { finId: params.owner.finId, asset },
         quantity: params.initialBalance,
         settlementRef: generateId(),
       });
 
-      const setBalanceStatus = await TestHelpers.executeAndWaitForCompletion(this.client, () => this.client.tokens.issue(issueRequest));
+      await TestHelpers.executeAndWaitForCompletion(this.client, () => this.client.tokens.issue(issueRequest));
     }
 
     // Verify balance
-    await this.client.expectBalance(params.owner.source, asset, params.initialBalance);
+    await this.client.expectBalance({ finId: params.owner.finId, asset }, params.initialBalance);
 
     return {
       owner: params.owner,
@@ -216,16 +211,15 @@ export class TestFixtures {
 
     // Issue tokens to investor
     const issueRequest = this.builder.buildIssueRequest({
-      destination: params.investor.source.account,
-      asset: params.asset,
+      destination: { finId: params.investor.finId, asset: params.asset },
       quantity: params.issueAmount,
     });
 
     await TestHelpers.issueAndGetReceipt(this.client, issueRequest);
 
     // Verify balances
-    await this.client.expectBalance(params.investor.source, params.asset, params.issueAmount);
-    await this.client.expectBalance(params.issuer.source, params.asset, 0);
+    await this.client.expectBalance({ finId: params.investor.finId, asset: params.asset }, params.issueAmount);
+    await this.client.expectBalance({ finId: params.issuer.finId, asset: params.asset }, 0);
 
     return {
       investor: params.investor,

@@ -50,21 +50,20 @@ export function businessLogicTests() {
         });
 
         // Verify balance after hold (should be reduced)
-        await client.expectBalance(buyer.source, asset, initialBalance - holdAmount);
+        await client.expectBalance({ finId: buyer.finId, asset }, initialBalance - holdAmount);
 
         // Rollback the hold
         const rollbackRequest = {
           operationId: operationId,
-          source: buyer.source,
+          source: { finId: buyer.finId, asset },
           quantity: `${holdAmount}`,
-          asset: asset,
         };
 
         const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
         expect(rollbackStatus.error).toBeUndefined();
 
         // Verify funds are fully restored
-        await client.expectBalance(buyer.source, asset, initialBalance);
+        await client.expectBalance({ finId: buyer.finId, asset }, initialBalance);
       });
 
       test('should fail when rolling back non-existent hold', async () => {
@@ -80,9 +79,8 @@ export function businessLogicTests() {
         const fakeOperationId = generateId();
         const rollbackRequest = {
           operationId: fakeOperationId,
-          source: buyer.source,
+          source: { finId: buyer.finId, asset },
           quantity: '100',
-          asset: asset,
         };
 
         const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
@@ -131,9 +129,8 @@ export function businessLogicTests() {
         // Try to rollback already released hold
         const rollbackRequest = {
           operationId: operationId,
-          source: buyer.source,
+          source: { finId: buyer.finId, asset },
           quantity: `${holdAmount}`,
-          asset: asset,
         };
 
         const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
@@ -174,9 +171,8 @@ export function businessLogicTests() {
         // Try to rollback already redeemed hold
         const rollbackRequest = {
           operationId: operationId,
-          source: investor.source,
+          source: { finId: investor.finId, asset },
           quantity: '50',
-          asset: asset,
         };
 
         const rollbackStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.escrow.rollback(rollbackRequest));
@@ -285,9 +281,8 @@ export function businessLogicTests() {
 
         const rollbackRequest = {
           operationId: operationId,
-          source: buyer.source,
+          source: { finId: buyer.finId, asset },
           quantity: '500',
-          asset: asset,
         };
 
         // First rollback (should succeed)
@@ -400,8 +395,7 @@ export function businessLogicTests() {
 
         // Try to issue tokens for non-existent asset
         const issueRequest = builder.buildIssueRequest({
-          destination: actor.source.account,
-          asset: nonExistentAsset,
+          destination: { finId: actor.finId, asset: nonExistentAsset },
           quantity: 100,
           settlementRef: generateId(),
         });
@@ -428,8 +422,7 @@ export function businessLogicTests() {
 
         // Now issue should work
         const issueRequest = builder.buildIssueRequest({
-          destination: issuer.source.account,
-          asset,
+          destination: { finId: issuer.finId, asset },
           quantity: 100,
           settlementRef: generateId(),
         });
@@ -462,8 +455,8 @@ export function businessLogicTests() {
         });
 
         // Verify independent balances
-        await client.expectBalance(owner.source, asset1, 100);
-        await client.expectBalance(owner.source, asset2, 200);
+        await client.expectBalance({ finId: owner.finId, asset: asset1 }, 100);
+        await client.expectBalance({ finId: owner.finId, asset: asset2 }, 200);
       });
     });
 
@@ -497,8 +490,8 @@ export function businessLogicTests() {
         // Implementation-dependent: might succeed or fail
         if (!transferStatus.error) {
           // If succeeds, balances should be unchanged
-          await client.expectBalance(seller.source, asset, initialBalance);
-          await client.expectBalance(buyer.source, asset, 0);
+          await client.expectBalance({ finId: seller.finId, asset }, initialBalance);
+          await client.expectBalance({ finId: buyer.finId, asset }, 0);
         } else {
           // If fails, should have meaningful error
           expect(transferStatus.error).toBeDefined();
@@ -531,7 +524,7 @@ export function businessLogicTests() {
 
         // Implementation-dependent: might succeed or fail
         if (!holdStatus.error) {
-          await client.expectBalance(buyer.source, asset, 1000);
+          await client.expectBalance({ finId: buyer.finId, asset }, 1000);
         } else {
           expect(holdStatus.error).toBeDefined();
         }
@@ -653,7 +646,7 @@ export function businessLogicTests() {
         // Implementation-dependent: might support partial release or not
         if (!releaseStatus.error) {
           // If partial release is supported
-          await client.expectBalance(seller.source, asset, 300);
+          await client.expectBalance({ finId: seller.finId, asset }, 300);
         } else {
           // If not supported, should have error
           expect(releaseStatus.error).toBeDefined();

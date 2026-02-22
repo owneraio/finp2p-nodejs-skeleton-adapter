@@ -42,7 +42,7 @@ export function insufficientBalanceTest() {
         });
 
         // Verify initial balance
-        await client.expectBalance(issuer.source, asset, initialBalance);
+        await client.expectBalance({ finId: issuer.finId, asset }, initialBalance);
 
         // Attempt to transfer MORE than available balance
         const excessiveAmount = initialBalance + 50; // 150 tokens when only 100 available
@@ -63,8 +63,8 @@ export function insufficientBalanceTest() {
         expect(transferStatus.isCompleted).toBe(true);
 
         // Verify balances remain unchanged
-        await client.expectBalance(issuer.source, asset, initialBalance);
-        await client.expectBalance(buyer.source, asset, 0);
+        await client.expectBalance({ finId: issuer.finId, asset }, initialBalance);
+        await client.expectBalance({ finId: buyer.finId, asset }, 0);
       });
 
       test('should fail when transferring exact balance plus one', async () => {
@@ -98,8 +98,8 @@ export function insufficientBalanceTest() {
         expect(transferStatus.error).toBeDefined();
 
         // Balances should be unchanged
-        await client.expectBalance(seller.source, asset, exactBalance);
-        await client.expectBalance(buyer.source, asset, 0);
+        await client.expectBalance({ finId: seller.finId, asset }, exactBalance);
+        await client.expectBalance({ finId: buyer.finId, asset }, 0);
       });
     });
 
@@ -120,7 +120,7 @@ export function insufficientBalanceTest() {
         });
 
         // Verify balance before redemption attempt
-        await client.expectBalance(investor.source, asset, initialBalance);
+        await client.expectBalance({ finId: investor.finId, asset }, initialBalance);
 
         // Attempt to redeem MORE than available
         const excessiveRedeemAmount = initialBalance + 50;
@@ -142,7 +142,7 @@ export function insufficientBalanceTest() {
         expect(holdStatus.error).toBeDefined();
 
         // Balance should remain unchanged
-        await client.expectBalance(investor.source, asset, initialBalance);
+        await client.expectBalance({ finId: investor.finId, asset }, initialBalance);
       });
 
       test('should fail when redeeming from zero balance', async () => {
@@ -159,7 +159,7 @@ export function insufficientBalanceTest() {
         });
 
         // Verify zero balance
-        await client.expectBalance(investor.source, asset, 0);
+        await client.expectBalance({ finId: investor.finId, asset }, 0);
 
         // Try to redeem from zero balance
         const operationId = generateId();
@@ -178,7 +178,7 @@ export function insufficientBalanceTest() {
         expect(holdStatus.error).toBeDefined();
 
         // Balance should still be zero
-        await client.expectBalance(investor.source, asset, 0);
+        await client.expectBalance({ finId: investor.finId, asset }, 0);
       });
     });
 
@@ -197,7 +197,7 @@ export function insufficientBalanceTest() {
         });
 
         // Verify initial balance
-        await client.expectBalance(buyer.source, asset, initialBalance);
+        await client.expectBalance({ finId: buyer.finId, asset }, initialBalance);
 
         // Attempt to hold MORE than available
         const excessiveHoldAmount = initialBalance + 500;
@@ -220,7 +220,7 @@ export function insufficientBalanceTest() {
         expect(holdStatus.error).toBeDefined();
 
         // Balance should remain unchanged
-        await client.expectBalance(buyer.source, asset, initialBalance);
+        await client.expectBalance({ finId: buyer.finId, asset }, initialBalance);
       });
 
       test('should fail when holding from zero balance', async () => {
@@ -235,7 +235,7 @@ export function insufficientBalanceTest() {
         });
 
         // Verify zero balance
-        await client.expectBalance(buyer.source, asset, 0);
+        await client.expectBalance({ finId: buyer.finId, asset }, 0);
 
         // Try to hold any amount from zero balance
         const operationId = generateId();
@@ -257,7 +257,7 @@ export function insufficientBalanceTest() {
         expect(holdStatus.error).toBeDefined();
 
         // Balance should still be zero
-        await client.expectBalance(buyer.source, asset, 0);
+        await client.expectBalance({ finId: buyer.finId, asset }, 0);
       });
 
       test('should fail when holding after partial consumption of balance', async () => {
@@ -344,8 +344,8 @@ export function insufficientBalanceTest() {
         expect(firstStatus.error).toBeUndefined();
 
         // Verify balances after first transfer
-        await client.expectBalance(owner.source, asset, 40);
-        await client.expectBalance(recipient1.source, asset, 60);
+        await client.expectBalance({ finId: owner.finId, asset }, 40);
+        await client.expectBalance({ finId: recipient1.finId, asset }, 60);
 
         // Second transfer: 50 tokens (should fail - only 40 remaining)
         const secondTransfer = await builder.buildSignedTransferRequest({
@@ -362,8 +362,8 @@ export function insufficientBalanceTest() {
         expect(secondStatus.error).toBeDefined();
 
         // Balances should remain unchanged after failed transfer
-        await client.expectBalance(owner.source, asset, 40);
-        await client.expectBalance(recipient2.source, asset, 0);
+        await client.expectBalance({ finId: owner.finId, asset }, 40);
+        await client.expectBalance({ finId: recipient2.finId, asset }, 0);
       });
     });
   });

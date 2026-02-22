@@ -87,8 +87,8 @@ export class LedgerAPIClient {
     this.callbackServer = callbackServer;
   }
 
-  async expectBalance(owner: LedgerAPI['schemas']['source'], asset: LedgerAPI['schemas']['asset'], amount: number) {
-    const balance = await this.common.getBalance({ asset: asset, owner: owner });
+  async expectBalance(owner: LedgerAPI['schemas']['account'], amount: number) {
+    const balance = await this.common.getBalance({ owner });
     expect(parseInt(balance.balance)).toBe(amount);
   }
 

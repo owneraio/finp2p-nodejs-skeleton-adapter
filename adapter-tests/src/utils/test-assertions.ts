@@ -21,7 +21,7 @@ export class ReceiptAssertions {
       destinationFinId: string;
     },
   ) {
-    expect(receipt.asset).toStrictEqual(expected.asset);
+    expect(receipt.destination?.asset).toStrictEqual(expected.asset);
     expect(parseInt(receipt.quantity)).toBe(expected.quantity);
     expect(receipt.destination?.finId).toBe(expected.destinationFinId);
     expect(receipt.operationType).toBe('issue');
@@ -39,7 +39,7 @@ export class ReceiptAssertions {
       destinationFinId: string;
     },
   ) {
-    expect(receipt.asset).toStrictEqual(expected.asset);
+    expect(receipt.source?.asset).toStrictEqual(expected.asset);
     expect(parseInt(receipt.quantity)).toBe(expected.quantity);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
     expect(receipt.destination?.finId).toBe(expected.destinationFinId);
@@ -58,7 +58,7 @@ export class ReceiptAssertions {
       destinationShouldBeUndefined?: boolean;
     },
   ) {
-    expect(receipt.asset).toStrictEqual(expected.asset);
+    expect(receipt.source?.asset).toStrictEqual(expected.asset);
     expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
 
@@ -81,7 +81,7 @@ export class ReceiptAssertions {
       destinationFinId: string;
     },
   ) {
-    expect(receipt.asset).toStrictEqual(expected.asset);
+    expect(receipt.source?.asset).toStrictEqual(expected.asset);
     expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
     expect(receipt.destination?.finId).toBe(expected.destinationFinId);
@@ -99,7 +99,7 @@ export class ReceiptAssertions {
       sourceFinId: string;
     },
   ) {
-    expect(receipt.asset).toStrictEqual(expected.asset);
+    expect(receipt.source?.asset).toStrictEqual(expected.asset);
     expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
     expect(receipt.destination).toBeUndefined();
@@ -128,7 +128,7 @@ export class BalanceAssertions {
     asset: LedgerAPI['schemas']['asset'],
     expectedAmount: number,
   ) {
-    await client.expectBalance(actor.source, asset, expectedAmount);
+    await client.expectBalance({ finId: actor.finId, asset }, expectedAmount);
   }
 
   /**
@@ -143,7 +143,7 @@ export class BalanceAssertions {
     }>,
   ) {
     for (const { actor, asset, amount } of balances) {
-      await client.expectBalance(actor.source, asset, amount);
+      await client.expectBalance({ finId: actor.finId, asset }, amount);
     }
   }
 }

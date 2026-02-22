@@ -36,7 +36,7 @@ describe('Escrow Operations', () => {
     });
 
     // Verify seller has zero balance
-    await client.expectBalance(seller.source, asset, 0);
+    await client.expectBalance({ finId: seller.finId, asset }, 0);
 
     // Step 1: Hold funds in escrow
     const operationId = generateId();
@@ -60,7 +60,7 @@ describe('Escrow Operations', () => {
     });
 
     // Verify balance after hold
-    await client.expectBalance(buyer.source, asset, scenario.EXPECTED_AFTER_HOLD);
+    await client.expectBalance({ finId: buyer.finId, asset }, scenario.EXPECTED_AFTER_HOLD);
 
     // Step 2: Release funds to seller
     const releaseRequest = builder.buildReleaseRequest({
@@ -82,7 +82,7 @@ describe('Escrow Operations', () => {
     });
 
     // Verify final balance
-    await client.expectBalance(seller.source, asset, scenario.EXPECTED_AFTER_RELEASE);
+    await client.expectBalance({ finId: seller.finId, asset }, scenario.EXPECTED_AFTER_RELEASE);
   });
 
   test('should hold and redeem tokens', async () => {
@@ -122,7 +122,7 @@ describe('Escrow Operations', () => {
     });
 
     // Verify balance after hold (but before redeem)
-    await client.expectBalance(investor.source, asset, scenario.EXPECTED_AFTER_REDEEM);
+    await client.expectBalance({ finId: investor.finId, asset }, scenario.EXPECTED_AFTER_REDEEM);
 
     // Step 2: Redeem the held tokens
     const redeemReceipt = await TestHelpers.redeemAndGetReceipt(client, redeemRequest);
@@ -135,6 +135,6 @@ describe('Escrow Operations', () => {
     });
 
     // Verify final balances (tokens are burned)
-    await client.expectBalance(issuer.source, asset, scenario.EXPECTED_AFTER_REDEEM);
+    await client.expectBalance({ finId: issuer.finId, asset }, scenario.EXPECTED_AFTER_REDEEM);
   });
 });
