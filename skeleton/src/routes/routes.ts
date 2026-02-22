@@ -186,6 +186,13 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
+      if (srcAsset.assetId !== dstAsset.assetId) {
+        const supported = await tokenService.doesSupportCrosschainTransfer(srcAsset, dstAsset);
+        if (!supported) {
+          throw new Error(`Cross-chain transfer is not supported between assets ${srcAsset.assetId} and ${dstAsset.assetId}`);
+        }
+      }
+
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'transfer', src, dst, srcAsset, quantity, sgn, exCtx);
       const rsp = await tokenService.transfer(ik, nonce, src, dst, srcAsset, dstAsset, quantity, sgn, exCtx);
       pluginManager?.getTransactionHook()?.postTransaction(ik, 'transfer', src, dst, srcAsset, quantity, sgn, exCtx, rsp);

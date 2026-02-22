@@ -35,6 +35,8 @@ export interface TokenService {
 
   issue(idempotencyKey: string, asset: Asset, to: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
+  doesSupportCrosschainTransfer(sourceAsset: Asset, destinationAsset: Asset): Promise<boolean>;
+
   transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
     sourceAsset: Asset, destinationAsset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
