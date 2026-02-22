@@ -8,116 +8,50 @@ import {
   ReceiptOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
-  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, LedgerReference, AdditionalContractDetails,
+  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
+  FinIdAccount, AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails,
   AssetCreationResult, OperationMetadata, ValidationError,
 } from '@owneraio/finp2p-adapter-models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
 
-export const assetFromAPI = (asset: components['schemas']['asset']): Asset => {
-  switch (asset.type) {
-    case 'fiat':
-      return {
-        assetId: asset.code, assetType: 'fiat',
-      };
-    case 'finp2p':
-      return {
-        assetId: asset.resourceId, assetType: 'finp2p',
-      };
-    case 'cryptocurrency':
-      return {
-        assetId: asset.code, assetType: 'cryptocurrency',
-      };
-  }
+export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
+  return { assetId: asset.resourceId, assetType: 'finp2p' };
 };
 
 export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']): DepositAsset => {
-  switch (asset.type) {
-    case 'custom':
-      return {
-        assetType: 'custom',
-      };
-    default:
-      return assetFromAPI(asset);
+  if (asset.type === 'custom') {
+    return { assetType: 'custom' };
   }
+  return { assetId: asset.resourceId, assetType: 'finp2p' };
 };
 
 export const assetToAPI = (asset: Asset): components['schemas']['asset'] => {
-  switch (asset.assetType) {
-    case 'fiat':
-      return { type: 'fiat', code: asset.assetId };
-    case 'cryptocurrency':
-      return { type: 'cryptocurrency', code: asset.assetId };
-    case 'finp2p':
-      return { type: 'finp2p', resourceId: asset.assetId };
-  }
+  return { resourceId: asset.assetId };
 };
 
-export const sourceFromAPI = (source: components['schemas']['source']): Source => {
+type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
+
+export const sourceFromAPI = (source: AccountLike): Source => {
   const { finId } = source;
   return { finId, account: { type: 'finId', finId } };
 };
 
-export const sourceOptToAPI = (source: Source | undefined): components['schemas']['source'] | undefined => {
-  if (!source) {
-    return undefined;
-  }
-  const { finId } = source;
+export const destinationFromAPI = (destination: AccountLike): Destination => {
+  const { finId } = destination;
   return { finId, account: { type: 'finId', finId } };
 };
 
-export const destinationAccountFromAPI = (account: components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount']): DestinationAccount => {
-  switch (account.type) {
-    case 'finId':
-      const { finId } = account;
-      return { type: 'finId', finId };
-    case 'cryptoWallet':
-      const { address } = account;
-      return { type: 'crypto', address };
-    case 'fiatAccount':
-      const { code } = account;
-      return { type: 'iban', code };
-  }
-};
-
-export const destinationFromAPI = (destination: components['schemas']['destination']): Destination => {
-  const { finId, account } = destination;
-  return { finId, account: destinationAccountFromAPI(account) };
-};
-
-export const destinationOptFromAPI = (destination: components['schemas']['destination'] | undefined): Destination | undefined => {
+export const destinationOptFromAPI = (destination: AccountLike | undefined): Destination | undefined => {
   if (!destination) {
     return undefined;
   }
   return destinationFromAPI(destination);
 };
 
-export const destinationAccountToAPI = (account: DestinationAccount):
-components['schemas']['finIdAccount'] | components['schemas']['cryptoWalletAccount'] | components['schemas']['fiatAccount'] => {
-  switch (account.type) {
-    case 'finId':
-      const { finId } = account;
-      return { type: 'finId', finId };
-    case 'iban':
-      const { code } = account;
-      return { type: 'fiatAccount', code };
-    case 'crypto':
-      const { address } = account;
-      return { type: 'cryptoWallet', address };
-  }
-};
-
-export const destinationToAPI = (destination: Destination): components['schemas']['destination'] => {
-  const { finId, account } = destination;
-  return { finId, account: destinationAccountToAPI(account) };
-};
-
-export const destinationOptToAPI = (destination: Destination | undefined): components['schemas']['destination'] | undefined => {
-  if (!destination) {
-    return undefined;
-  }
-  return destinationToAPI(destination);
+export const depositPayoutAccountToAPI = (dest: Destination): components['schemas']['depositPayoutAccount'] => {
+  const { finId } = dest;
+  return { finId, account: { type: 'finId', finId } };
 };
 
 export const finIdAccountFromAPI = (account: components['schemas']['finIdAccount']): FinIdAccount => {
@@ -163,20 +97,6 @@ export const assetDenominationOptFromAPI = (denom: components['schemas']['assetD
   return assetDenominationFromAPI(denom);
 };
 
-export const assetIdentifierFromAPI = (identifier: components['schemas']['assetIdentifier']): AssetIdentifier => {
-  const { assetIdentifierType, assetIdentifierValue } = identifier;
-  return {
-    type: assetIdentifierType,
-    value: assetIdentifierValue,
-  };
-};
-
-export const assetIdentifierOptFromAPI = (identifier: components['schemas']['assetIdentifier'] | undefined): AssetIdentifier | undefined => {
-  if (!identifier) {
-    return undefined;
-  }
-  return assetIdentifierFromAPI(identifier);
-};
 
 export const hashListTemplateFromAPI = (template: components['schemas']['hashListTemplate']): HashListTemplate => {
   const { hash, hashGroups } = template;
@@ -191,9 +111,9 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
     throw new ValidationError('EIP712 types definitions are missing');
   }
   return types.definitions
-    .filter(d => d.name !== 'EIP712Domain')
+    .filter(d => d.name && d.name !== 'EIP712Domain')
     .reduce((d, { name, fields }) => {
-      d[name] = fields;
+      d[name!] = (fields ?? []) as Array<{ name: string; type: string }>;
       return d;
     }, {} as EIP712Types);
 };
@@ -243,7 +163,7 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
     case 'polling':
       return {
         operationResponseStrategy: {
-          type: 'poll',
+          type: 'random',
           polling: {
             type: 'randomPollingInterval',
           },
@@ -321,10 +241,9 @@ export const contractDetailsOptToAPI = (details: AdditionalContractDetails | und
 };
 
 export const ledgerReferenceToAPI = (reference: LedgerReference): components['schemas']['contractDetails'] => {
-  const { network, address, tokenStandard, additionalContractDetails: details } = reference;
+  const { address, tokenStandard, additionalContractDetails: details } = reference;
   return {
     type: 'contractDetails',
-    network,
     address,
     TokenStandard: tokenStandard,
     additionalContractDetails: contractDetailsOptToAPI(details),
@@ -339,11 +258,15 @@ export const ledgerReferenceOptToAPI = (reference: LedgerReference | undefined):
 };
 
 export const assetCreateResultToAPI = (result: AssetCreationResult): components['schemas']['assetCreateResponse'] => {
-  const { tokenId, reference } = result;
+  const { ledgerIdentifier, reference } = result;
   return {
     ledgerAssetInfo: {
-      ledgerTokenId: {
-        type: 'tokenId', tokenId,
+      ledgerIdentifier: {
+        assetIdentifierType: 'CAIP-19',
+        network: ledgerIdentifier.network,
+        tokenId: ledgerIdentifier.tokenId,
+        standard: ledgerIdentifier.standard,
+        resourceId: ledgerIdentifier.resourceId,
       },
       ledgerReference: ledgerReferenceOptToAPI(reference),
     },
@@ -494,17 +417,17 @@ export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt']
     proof,
     timestamp,
   } = receipt;
+  const apiAsset = assetToAPI(asset);
   return {
     id,
-    asset: assetToAPI(asset),
-    source: sourceOptToAPI(source),
-    destination: destinationOptToAPI(destination),
     quantity,
+    timestamp,
+    source: source ? { finId: source.finId, asset: apiAsset } : undefined,
+    destination: destination ? { finId: destination.finId, asset: apiAsset } : undefined,
     operationType: operationType as components['schemas']['operationType'],
     tradeDetails: tradeDetailsToAPI(tradeDetails),
     transactionDetails: transactionDetailsToAPI(transactionDetails),
     proof: proofPolicyOptToAPI(proof),
-    timestamp,
   };
 };
 
@@ -610,7 +533,7 @@ export const paymentMethodToAPI = (method: PaymentMethod): components['schemas']
 export const depositInstructionToAPI = (instruction: DepositInstruction): components['schemas']['depositInstruction'] => {
   const { account, description, operationId, details, paymentOptions } = instruction;
   return {
-    account: destinationToAPI(account),
+    account: depositPayoutAccountToAPI(account),
     description,
     paymentOptions: paymentOptions ? paymentOptions.map(paymentMethodToAPI) : [],
     operationId,

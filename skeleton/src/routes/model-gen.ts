@@ -661,9 +661,9 @@ export interface components {
     EIP712TypeInteger: number;
     EIP712TypeBool: boolean;
     EIP712TypeObject: {
-      [key: string]: components['schemas']['EIP712TypedValue'];
+      [key: string]: unknown;
     };
-    EIP712TypeArray: components['schemas']['EIP712TypedValue'][];
+    EIP712TypeArray: unknown[];
     /**
          * @description hash function types
          * @enum {string}

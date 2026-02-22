@@ -69,6 +69,13 @@ export type TokenIdentifier = {
   standard: string
 };
 
+export type LedgerAssetIdentifier = {
+  network: string;
+  tokenId: string;
+  standard: string;
+  resourceId?: string;
+};
+
 export type AssetBind = {
   tokenIdentifier: TokenIdentifier
 };
@@ -82,7 +89,7 @@ export type AssetIdentifier = {
 };
 */
 
-export type AssetDenominationType = 'fiat' | 'cryptocurrency';
+export type AssetDenominationType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
 export type AssetDenomination = {
   type: AssetDenominationType
@@ -288,7 +295,7 @@ export const pendingPlan = (correlationId: string, metadata: OperationMetadata |
 // -------------------------------------------------------------------
 
 export type AssetCreationResult = {
-  tokenId: string;
+  ledgerIdentifier: LedgerAssetIdentifier;
   reference: LedgerReference | undefined;
 };
 

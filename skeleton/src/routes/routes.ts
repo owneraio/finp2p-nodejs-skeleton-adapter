@@ -2,6 +2,7 @@ import {
   CommonService,
   Destination,
   EscrowService,
+  FinIdAccount,
   HealthService,
   PaymentService,
   PlanApprovalService,
@@ -18,14 +19,13 @@ import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
-  assetIdentifierOptFromAPI,
   balanceToAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
   depositOperationToAPI,
   destinationFromAPI,
   destinationOptFromAPI,
-  executionContextOptFromAPI, finIdAccountFromAPI,
+  executionContextOptFromAPI,
   operationStatusToAPI, planApprovalOperationToAPI,
   receiptOperationToAPI,
   signatureFromAPI,
@@ -159,7 +159,7 @@ export const register = (app: Application,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
       const { quantity, destination, /*signature,*/ executionContext } = req.body;
-      const asset = destination.asset
+      const asset = destination.asset;
       const ast = assetFromAPI(asset);
       const dst: Destination = { finId: destination.finId, account: { type: 'finId', finId: destination.finId } };
       // const sgn = signatureFromAPI(signature); // it's not provided by the router currently
@@ -178,10 +178,10 @@ export const register = (app: Application,
     `/${basePath}/assets/transfer`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, destination, asset, quantity, signature, executionContext } = req.body;
+      const { nonce, source, destination, quantity, signature, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
@@ -198,10 +198,10 @@ export const register = (app: Application,
     `/${basePath}/assets/redeem`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, asset, quantity, operationId, signature, executionContext } = req.body;
-      const finIdAcc = finIdAccountFromAPI(source);
-      const src: Source = { finId: finIdAcc.finId, account: finIdAcc };
-      const ast = assetFromAPI(asset);
+      const { nonce, source, quantity, operationId, signature, executionContext } = req.body;
+      const finIdAcc: FinIdAccount = { type: 'finId', finId: source.finId };
+      const src: Source = { finId: source.finId, account: finIdAcc };
+      const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
@@ -227,10 +227,10 @@ export const register = (app: Application,
     `/${basePath}/assets/hold`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, destination, asset, quantity, operationId, signature, executionContext } = req.body;
+      const { nonce, source, destination, quantity, operationId, signature, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationOptFromAPI(destination);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
@@ -246,10 +246,10 @@ export const register = (app: Application,
     `/${basePath}/assets/release`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { source, destination, asset, quantity, operationId, executionContext } = req.body;
+      const { source, destination, quantity, operationId, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'release', src, dst, ast, quantity, undefined, exCtx);
@@ -265,9 +265,9 @@ export const register = (app: Application,
     `/${basePath}/assets/rollback`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { source, asset, quantity, operationId, executionContext } = req.body;
+      const { source, quantity, operationId, executionContext } = req.body;
       const src = sourceFromAPI(source);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'rollback', src, undefined, ast, quantity, undefined, exCtx);
