@@ -1217,12 +1217,10 @@ components:
       type: boolean
     EIP712TypeObject:
       type: object
-      additionalProperties:
-        $ref: '#/components/schemas/EIP712TypedValue'
+      additionalProperties: {}
     EIP712TypeArray:
       type: array
-      items:
-        $ref: '#/components/schemas/EIP712TypedValue'
+      items: {}
     hashFunction:
       type: string
       enum:
