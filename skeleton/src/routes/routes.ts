@@ -158,15 +158,15 @@ export const register = (app: Application,
     `/${basePath}/assets/issue`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { asset, quantity, destination, /*signature,*/ executionContext } = req.body;
+      const { quantity, destination, /*signature,*/ executionContext } = req.body;
+      const asset = destination.asset
       const ast = assetFromAPI(asset);
-      const finIdAcc = finIdAccountFromAPI(destination);
-      const dst: Destination = { finId: finIdAcc.finId, account: finIdAcc };
+      const dst: Destination = { finId: destination.finId, account: { type: 'finId', finId: destination.finId } };
       // const sgn = signatureFromAPI(signature); // it's not provided by the router currently
       const exCtx = executionContextOptFromAPI(executionContext);
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'issue', undefined, dst, ast, quantity, undefined, exCtx);
-      const rsp = await tokenService.issue(ik, ast, finIdAcc, quantity, exCtx);
+      const rsp = await tokenService.issue(ik, ast, dst, quantity, exCtx);
       pluginManager?.getTransactionHook()?.postTransaction(ik, 'issue', undefined, dst, ast, quantity, undefined, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
