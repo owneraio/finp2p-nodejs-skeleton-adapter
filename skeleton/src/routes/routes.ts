@@ -181,13 +181,14 @@ export const register = (app: Application,
       const { nonce, source, destination, quantity, signature, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
-      const ast = assetFromAPI(source.asset);
+      const srcAsset = assetFromAPI(source.asset);
+      const dstAsset = assetFromAPI(destination.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'transfer', src, dst, ast, quantity, sgn, exCtx);
-      const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'transfer', src, dst, ast, quantity, sgn, exCtx, rsp);
+      pluginManager?.getTransactionHook()?.preTransaction(ik, 'transfer', src, dst, srcAsset, quantity, sgn, exCtx);
+      const rsp = await tokenService.transfer(ik, nonce, src, dst, srcAsset, dstAsset, quantity, sgn, exCtx);
+      pluginManager?.getTransactionHook()?.postTransaction(ik, 'transfer', src, dst, srcAsset, quantity, sgn, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });

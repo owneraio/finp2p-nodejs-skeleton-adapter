@@ -35,7 +35,8 @@ export interface TokenService {
 
   issue(idempotencyKey: string, asset: Asset, to: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
-  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
+  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
+    sourceAsset: Asset, destinationAsset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
   redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
