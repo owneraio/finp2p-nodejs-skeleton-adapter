@@ -66,7 +66,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
 
     this.storage.credit(finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, undefined, to, exCtx, 'issue', undefined);
-    this.registerTransaction(tx);
+    this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
       receipt = await this.proofProvider.ledgerProof(receipt);
@@ -90,7 +90,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
 
     this.storage.move(source.finId, destination.finId, quantity, sourceAsset.assetId);
     const tx = new Transaction(quantity, sourceAsset, source, destination, exCtx, 'transfer', undefined);
-    this.registerTransaction(tx);
+    this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
       receipt = await this.proofProvider.ledgerProof(receipt);
@@ -121,7 +121,7 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
 
     const sourceAccount: Source = { finId: source.finId, account: source };
     const tx = new Transaction(quantity, asset, sourceAccount, undefined, exCtx, 'redeem', operationId);
-    this.registerTransaction(tx);
+    this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
       receipt = await this.proofProvider.ledgerProof(receipt);
