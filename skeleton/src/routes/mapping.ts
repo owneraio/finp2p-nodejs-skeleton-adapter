@@ -165,7 +165,7 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
         operationResponseStrategy: {
           type: 'random',
           polling: {
-            type: 'random',
+            type: 'randomPollingInterval',
           },
         },
       };
