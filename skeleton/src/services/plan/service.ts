@@ -2,7 +2,7 @@ import {
   approvedPlan, Asset, DestinationAccount,
   ExecutionPlan,
   FinIdAccount, generateCid, pendingPlan,
-  PlanApprovalService,
+  PlanApprovalService, PlanProposal,
   PlanApprovalStatus, rejectedPlan,
 } from '@owneraio/finp2p-adapter-models';
 import { FinP2PClient } from '@owneraio/finp2p-client';
@@ -39,6 +39,25 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
     logger.debug('No FinP2P client, auto-approving plan');
     return approvedPlan();
+  }
+
+  public async proposeCancelPlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus> {
+    logger.info(`Got cancel plan proposal: planId=${planId}`);
+    return approvedPlan();
+  }
+
+  public async proposeResetPlan(idempotencyKey: string, planId: string, proposedSequence: number): Promise<PlanApprovalStatus> {
+    logger.info(`Got reset plan proposal: planId=${planId}, proposedSequence=${proposedSequence}`);
+    return approvedPlan();
+  }
+
+  public async proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus> {
+    logger.info(`Got instruction approval proposal: planId=${planId}, instructionSequence=${instructionSequence}`);
+    return approvedPlan();
+  }
+
+  public async proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void> {
+    logger.info(`Got plan proposal status: planId=${planId}, type=${proposal.proposalType}, status=${status}`);
   }
 
   private validatePlan(idempotencyKey: string, plan: ExecutionPlan): Promise<PlanApprovalStatus> {

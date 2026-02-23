@@ -51,6 +51,21 @@ export class PaymentsLedgerAPI extends ClientBase {
   }
 }
 
+export class PlanLedgerAPI extends ClientBase {
+
+  public async approvePlan(req: LedgerAPI['schemas']['ApproveExecutionPlanRequest']): Promise<LedgerAPI['schemas']['ApproveExecutionPlanResponse']> {
+    return this.post('/plan/approve', req);
+  }
+
+  public async proposal(req: LedgerAPI['schemas']['executionPlanProposalRequest']): Promise<LedgerAPI['schemas']['ApproveExecutionPlanResponse']> {
+    return this.post('/plan/proposal', req);
+  }
+
+  public async proposalStatus(req: LedgerAPI['schemas']['executionPlanProposalStatusRequest']): Promise<void> {
+    return this.post('/plan/proposal/status', req);
+  }
+}
+
 export class CommonLedgerAPI extends ClientBase {
 
   public async getReceipt(id: string): Promise<LedgerAPI['schemas']['GetReceiptResponse']> {
@@ -75,6 +90,8 @@ export class LedgerAPIClient {
 
   public readonly payments: PaymentsLedgerAPI;
 
+  public readonly plan: PlanLedgerAPI;
+
   public readonly common: CommonLedgerAPI;
 
   public readonly callbackServer: CallbackServer | undefined;
@@ -83,6 +100,7 @@ export class LedgerAPIClient {
     this.tokens = new TokensLedgerAPI(host);
     this.escrow = new EscrowLedgerAPI(host);
     this.payments = new PaymentsLedgerAPI(host);
+    this.plan = new PlanLedgerAPI(host);
     this.common = new CommonLedgerAPI(host);
     this.callbackServer = callbackServer;
   }

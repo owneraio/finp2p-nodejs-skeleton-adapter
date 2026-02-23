@@ -16,6 +16,10 @@ export class Storage {
     this.transactions[tx.id] = tx;
   }
 
+  getTransaction(id: string): Transaction | undefined {
+    return this.transactions[id];
+  }
+
   createAsset(assetId: string, asset: Asset) {
     this.assets[assetId] = asset;
   }

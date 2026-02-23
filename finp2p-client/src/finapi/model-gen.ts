@@ -608,7 +608,6 @@ export interface paths {
          * Request asset balance synchronization
          * @description Initiates a request to synchronize the asset account's balance with the ledger.
          *     The process is asynchronous and completes in the background.
-         *
          */
     post: operations['balance'];
     delete?: never;
@@ -672,8 +671,6 @@ export interface components {
          * @example bank-x:106:9929ccaf-8967-4ba3-9198-a4b8e3128388
          */
     executionPlanId: string;
-    /** @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed */
-    finId: string;
     primarySaleExecution: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -684,7 +681,7 @@ export interface components {
       issuer: components['schemas']['ownerId'];
       buyer: components['schemas']['ownerId'];
       asset: components['schemas']['issueRequestAssetOrder'];
-      settlement: components['schemas']['executeIntentRequestSettlement'];
+      settlement?: components['schemas']['executeIntentRequestSettlement'];
     };
     buyingIntentExecution: {
       /**
@@ -694,7 +691,7 @@ export interface components {
       type: 'buyingIntentExecution';
       nonce: components['schemas']['nonce'];
       asset: components['schemas']['transferRequestAssetOrder'];
-      settlement: components['schemas']['executeIntentRequestSettlement'];
+      settlement?: components['schemas']['executeIntentRequestSettlement'];
       seller: components['schemas']['ownerId'];
     };
     sellingIntentExecution: {
@@ -705,7 +702,7 @@ export interface components {
       type: 'sellingIntentExecution';
       nonce: components['schemas']['nonce'];
       asset: components['schemas']['transferRequestAssetOrder'];
-      settlement: components['schemas']['executeIntentRequestSettlement'];
+      settlement?: components['schemas']['executeIntentRequestSettlement'];
       buyer: components['schemas']['ownerId'];
     };
     loanIntentExecution: {
@@ -720,7 +717,7 @@ export interface components {
       borrower: components['schemas']['ownerId'];
       lender: components['schemas']['ownerId'];
       asset: components['schemas']['loanRequestAssetOrder'];
-      settlement: components['schemas']['executeLoanIntentRequestSettlement'];
+      settlement?: components['schemas']['executeLoanIntentRequestSettlement'];
       loanInstruction?: components['schemas']['loanInstruction'];
     };
     redemptionIntentExecution: {
@@ -733,7 +730,7 @@ export interface components {
       issuer: components['schemas']['ownerId'];
       seller: components['schemas']['ownerId'];
       asset: components['schemas']['transferRequestAssetOrder'];
-      settlement: components['schemas']['executeIntentRequestSettlement'];
+      settlement?: components['schemas']['executeIntentRequestSettlement'];
     };
     privateOfferIntentExecution: {
       /**
@@ -772,8 +769,8 @@ export interface components {
       buyer: string;
       assetTerm: components['schemas']['finp2pAssetTerm'];
       assetInstruction: components['schemas']['intentAssetInstruction'];
-      settlementTerm?: components['schemas']['settlementTerm'];
-      settlementInstruction: components['schemas']['buyingIntentSettlementInstruction'];
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction?: components['schemas']['buyingIntentSettlementInstruction'];
       signaturePolicy?: components['schemas']['presignedBuyIntentSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     sellingIntent: {
@@ -801,7 +798,7 @@ export interface components {
       lender: components['schemas']['ownerId'];
       assetTerm?: components['schemas']['finp2pAssetTerm'];
       assetInstruction?: components['schemas']['loanIntentAssetInstruction'];
-      settlementTerm?: components['schemas']['settlementTerm'];
+      settlementTerm: components['schemas']['settlementTerm'];
       settlementInstruction?: components['schemas']['loanIntentSettlementInstruction'];
       loanInstruction?: components['schemas']['loanInstruction'];
       signaturePolicy?: components['schemas']['presignedLoanIntentSignaturePolicy'];
@@ -815,8 +812,8 @@ export interface components {
       issuer: components['schemas']['ownerId'];
       assetTerm: components['schemas']['finp2pAssetTerm'];
       assetInstruction?: components['schemas']['intentAssetInstruction'];
-      settlementTerm?: components['schemas']['settlementTerm'];
-      settlementInstruction: components['schemas']['redemptionIntentSettlementInstruction'];
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction?: components['schemas']['redemptionIntentSettlementInstruction'];
       conditions?: components['schemas']['redemptionIntentConditions'];
       signaturePolicy?: components['schemas']['preSignedRedemptionIntentSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
@@ -830,14 +827,9 @@ export interface components {
       seller: components['schemas']['ownerId'];
       assetTerm: components['schemas']['finp2pAssetTerm'];
       assetInstruction?: components['schemas']['privateOfferIntentAssetInstruction'];
-      settlementTerm?: components['schemas']['settlementTerm'];
+      settlementTerm: components['schemas']['settlementTerm'];
       signaturePolicy?: components['schemas']['presignedSellIntentSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
       settlementInstruction?: components['schemas']['sellingIntentSettlementInstruction'];
-    };
-    settlementTerm: {
-      asset: components['schemas']['asset'];
-      /** @description A unit value represented as a string, the value is a decimal number */
-      unitValue: string;
     };
     assetTerm: {
       asset: components['schemas']['asset'];
@@ -911,6 +903,60 @@ export interface components {
       sourceAccount: components['schemas']['accountAsset'];
       destinationAccount: components['schemas']['accountAsset'];
     };
+    /** @description Defines whether settlement occurs on FinP2P and the settlement obligation required from the counterparty. */
+    settlementTerm: components['schemas']['noSettlementOption'] | components['schemas']['partialSettlementOption'] | components['schemas']['fullSettlementOption'];
+    /** @description Counterparty may settle for any amount up to the specified units, enabling partial fulfillment. */
+    partialSettlementOption: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'partialSettlement';
+      asset: components['schemas']['asset'];
+      unitValue: components['schemas']['unitValue'];
+    };
+    /** @description Counterparty must settle for the entire trade amount. Partial fulfillment is not permitted. */
+    fullSettlementOption: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'fullSettlement';
+      asset: components['schemas']['asset'];
+      amount: components['schemas']['amount'];
+    };
+    /** @description Indicates that settlement will not occur on the FinP2P network. The trade settlement is expected to be handled externally through an alternative payment rail. */
+    noSettlementOption: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'noSettlement';
+    };
+    noSettlementOptionUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'noSettlement';
+    };
+    partialSettlementOptionUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'partialSettlement';
+      unitValue: components['schemas']['unitValue'];
+    };
+    fullSettlementOptionUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'fullSettlement';
+      amount: components['schemas']['amount'];
+    };
+    settlementTermUpdate: components['schemas']['noSettlementOptionUpdate'] | components['schemas']['partialSettlementOptionUpdate'] | components['schemas']['fullSettlementOptionUpdate'];
     loanSettlementInstruction: {
       borrowerAccount: components['schemas']['accountAsset'];
       lenderAccount: components['schemas']['accountAsset'];
@@ -943,7 +989,7 @@ export interface components {
              * @description date and time operation ends, in epoch (seconds)
              */
       closeDate: number;
-      conditions: components['schemas']['loanConditions'];
+      conditions?: components['schemas']['loanConditions'];
     };
     presignedSellIntentSignaturePolicy: {
       /**
@@ -993,6 +1039,10 @@ export interface components {
     idResponse: {
       id: components['schemas']['ownerId'];
     };
+    certificateIdResponse: {
+      /** @description Certificate's ID */
+      id: string;
+    };
     intentIdResponse: {
       intentId: components['schemas']['ownerId'];
     };
@@ -1008,7 +1058,7 @@ export interface components {
              */
       isCompleted: boolean;
     };
-    operationResponse: components['schemas']['tokenOperation'] | components['schemas']['profileOperation'] | components['schemas']['depositOperation'] | components['schemas']['withdrawOperation'] | components['schemas']['executionOperation'] | components['schemas']['cancelExecutionOperation'] | components['schemas']['resetExecutionOperation'] | components['schemas']['accountOperation'];
+    operationResponse: components['schemas']['tokenOperation'] | components['schemas']['profileOperation'] | components['schemas']['depositOperation'] | components['schemas']['withdrawOperation'] | components['schemas']['executionOperation'] | components['schemas']['cancelExecutionOperation'] | components['schemas']['resetExecutionOperation'] | components['schemas']['accountOperation'] | components['schemas']['workflowOperation'];
     tokenOperation: components['schemas']['operationBase'] & {
       /** @enum {string} */
       type: 'token';
@@ -1066,6 +1116,29 @@ export interface components {
              */
       type: 'reset-execution';
     };
+    workflowOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'workflow';
+      metadata?: unknown;
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['workflowOperationResultResponse'];
+    } & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'workflow';
+    };
+    workflowOperationResultResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['workflowOperationResult'] & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'success';
+    };
+    workflowOperationResult: Record<string, never>;
     executionOperationResultResponse: {
       /** @enum {string} */
       type: 'success';
@@ -1114,10 +1187,8 @@ export interface components {
       type: 'success';
     };
     accountOperationResult: {
-      /** @description custodian org id */
-      custodyOrgId?: string;
-      /** @description hex representation of a secp256k1 resource public key 33 bytes compressed */
-      finId?: string;
+      custodyOrgId?: components['schemas']['orgId'];
+      finId?: components['schemas']['finId'];
     };
     executionOperationResult: {
       executionPlanId: components['schemas']['executionPlanId'];
@@ -1261,8 +1332,8 @@ export interface components {
              * @enum {string}
              */
       type: 'asset';
-      sourceFinId?: string;
-      destinationFinId?: string;
+      sourceFinId?: components['schemas']['finId'];
+      destinationFinId?: components['schemas']['finId'];
       transactionDetails: components['schemas']['receiptTransactionDetails'];
     };
     receiptPaymentDetails: {
@@ -1282,7 +1353,8 @@ export interface components {
       /** @description Operation id */
       operationId?: string;
     };
-    /** @description Signature = sign(sender private secp256k1 key, message)
+    /**
+         * @description Signature = sign(sender private secp256k1 key, message)
          *
          *     | order | value | type | comment |
          *     |--|--|--|--|
@@ -1294,10 +1366,10 @@ export interface components {
          *     | 6 | settlementAssetId   | string | |
          *     | 7 | settlementQuantity  | string | string representation of the quantity |
          *     | 8 | settlementExpiry    | string | string representation of the expiry value |
-         *      */
+         */
     wildcardTransferSignature: string;
-    /** @description
-         *     Asset Hash Group (AHG) structure:
+    /**
+         * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
          *
@@ -1316,14 +1388,14 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [AHG]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     transferSignature: string;
     signatureResultResponse: {
       /** @description Nonce */
       nonce?: string;
     };
-    /** @description
-         *     Asset Hash Group (AHG) structure:
+    /**
+         * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
          *
@@ -1356,9 +1428,10 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [AHG, SHG]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     transferWithSettlementSignature: string;
-    /** @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
+    /**
+         * @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
          *
          *       const nonce = Buffer.alloc(32);
          *       nonce.fill(crypto.randomBytes(24), 0, 24);
@@ -1366,9 +1439,10 @@ export interface components {
          *       const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
          *       const t = BigInt(nowEpochSeconds);
          *       nonce.writeBigInt64BE(t, 24);
-         *      */
+         */
     nonce: string;
-    /** @description Asset Hash Group (AHG) structure:
+    /**
+         * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
          *
@@ -1401,9 +1475,10 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [AHG, SHG]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     sellerTransferSignature: string;
-    /** @description Asset Hash Group (AHG) structure:
+    /**
+         * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
          *
@@ -1437,10 +1512,10 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [AHG, SHG]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     buyerTransferSignature: string;
-    /** @description
-         *     Asset Hash Group (AHG) structure:
+    /**
+         * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
          *
@@ -1472,9 +1547,10 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [AHG, SHG]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     issueSignature: string;
-    /** @description HG = hash('SHA3-256', [fields by order]);
+    /**
+         * @description HG = hash('SHA3-256', [fields by order]);
          *     | order | value | type | comment |
          *     |--|--|--|--|
          *     | 1 | nonce           | []byte  |  |
@@ -1488,9 +1564,10 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [HG]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     depositSignature: string;
-    /** @description HG = hash('SHA3-256', [fields by order]);
+    /**
+         * @description HG = hash('SHA3-256', [fields by order]);
          *
          *     | order | value | type | comment |
          *     |--|--|--|--|
@@ -1507,9 +1584,10 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [HG]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     withdrawSignature: string;
-    /** @description Loan signature:
+    /**
+         * @description Loan signature:
          *
          *     Single Hash Group (AHG) structure:
          *
@@ -1540,7 +1618,7 @@ export interface components {
          *     hashGroups = hash('SHA3-256', [HASH]);
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
-         *      */
+         */
     loanSignature: string;
     /** @description describes account information */
     accountAsset: {
@@ -1554,11 +1632,11 @@ export interface components {
              */
       type: 'finId';
       finId: components['schemas']['finId'];
-      orgId: string;
+      orgId: components['schemas']['orgId'];
       custodian?: components['schemas']['custodian'];
     };
     custodian: {
-      orgId: string;
+      orgId: components['schemas']['orgId'];
     };
     cryptoWalletAccount: {
       /**
@@ -1807,14 +1885,11 @@ export interface components {
              * @enum {string}
              */
       type: 'primarySale';
-      settlementTerm?: components['schemas']['primarySaleSettlementTermUpdate'];
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
       assetTerm?: components['schemas']['primarySaleAssetTermUpdate'];
     };
     primarySaleAssetTermUpdate: {
       amount: components['schemas']['amount'];
-    };
-    primarySaleSettlementTermUpdate: {
-      unitValue: components['schemas']['unitValue'];
     };
     /** @description allowed fields to be updated on given intent type */
     buyingIntentUpdatePayload: {
@@ -1823,11 +1898,8 @@ export interface components {
              * @enum {string}
              */
       type: 'buyingIntent';
-      settlementTerm?: components['schemas']['buyingIntentSettlementTermUpdate'];
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
       assetTerm?: components['schemas']['buyingIntentAssetTermUpdate'];
-    };
-    buyingIntentSettlementTermUpdate: {
-      unitValue: components['schemas']['unitValue'];
     };
     buyingIntentAssetTermUpdate: {
       amount: components['schemas']['amount'];
@@ -1839,11 +1911,8 @@ export interface components {
              * @enum {string}
              */
       type: 'sellingIntent';
-      settlementTerm?: components['schemas']['sellingIntentSettlementTermUpdate'];
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
       assetTerm?: components['schemas']['sellingIntentAssetTermUpdate'];
-    };
-    sellingIntentSettlementTermUpdate: {
-      unitValue: components['schemas']['unitValue'];
     };
     sellingIntentAssetTermUpdate: {
       amount: components['schemas']['amount'];
@@ -1855,11 +1924,8 @@ export interface components {
              * @enum {string}
              */
       type: 'loanIntent';
-      settlementTerm?: components['schemas']['loanIntentSettlementTermUpdate'];
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
       assetTerm?: components['schemas']['loanIntentAssetTermUpdate'];
-    };
-    loanIntentSettlementTermUpdate: {
-      unitValue: components['schemas']['unitValue'];
     };
     loanIntentAssetTermUpdate: {
       amount: components['schemas']['amount'];
@@ -1871,11 +1937,8 @@ export interface components {
              * @enum {string}
              */
       type: 'redemptionIntent';
-      settlementTerm?: components['schemas']['redemptionIntentSettlementTermUpdate'];
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
       assetTerm?: components['schemas']['redemptionIntentAssetTermUpdate'];
-    };
-    redemptionIntentSettlementTermUpdate: {
-      unitValue: components['schemas']['unitValue'];
     };
     redemptionIntentAssetTermUpdate: {
       amount: components['schemas']['amount'];
@@ -1894,16 +1957,17 @@ export interface components {
              * @enum {string}
              */
       type: 'privateOfferIntent';
-      settlementTerm?: components['schemas']['privateOfferIntentSettlementTermUpdate'];
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
       assetTerm?: components['schemas']['privateOfferIntentAssetTermUpdate'];
-    };
-    privateOfferIntentSettlementTermUpdate: {
-      unitValue: components['schemas']['unitValue'];
     };
     privateOfferIntentAssetTermUpdate: {
       amount: components['schemas']['amount'];
     };
-    ledgerAssetBinding: components['schemas']['ledgerTokenId'];
+    ledgerAssetBinding: {
+      /** @description The name of the ledger to which the asset will be bound. Must match the name defined in /ledger/bind API call */
+      ledger: string;
+      bind?: components['schemas']['ledgerTokenId'];
+    };
     ledgerTokenId: {
       /**
              * @description the type of the identifier (enum property replaced by openapi-typescript)
@@ -2044,11 +2108,27 @@ export interface components {
       account: components['schemas']['finIdAccount'];
       asset: components['schemas']['asset'];
     };
+    /** @description Organization Id */
+    orgId: string;
+    /**
+         * Format: finid
+         * @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed
+         */
+    finId: string;
+    /**
+         * @description The type of the asset
+         *     Payment asset classification:
+         *     - Fiat: Government-issued currencies identified by ISO 4217 codes (e.g., USD, EUR, GBP)
+         *     - Cryptocurrency: Blockchain-based digital currencies identified by appropriate crypto identifiers (e.g., BTC, ETH)
+         *     - TokenizedCash: Blockchain-based digital cash maintaining 1:1 fiat peg (stablecoins, deposit tokens, CBDCs)
+         * @enum {string}
+         */
+    assetType: 'Equity' | 'Debt' | 'Loans' | 'Fund' | 'RealEstate' | 'Commodity' | 'Fiat' | 'Cryptocurrency' | 'TokenizedCash' | 'DigitalNatives' | 'Basket' | 'Other';
     /**
          * @description Indicates how the asset is denominated
          * @enum {string}
          */
-    assetDenominationType: 'fiat' | 'cryptocurrency';
+    assetDenominationType: 'finp2p' | 'fiat' | 'cryptocurrency';
     assetDenomination: {
       type: components['schemas']['assetDenominationType'];
       /** @description Unique code identifying the denomination asset type */
@@ -2058,15 +2138,19 @@ export interface components {
          * @description Classification type standards
          * @enum {string}
          */
-    assetIdentifierType: 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM';
+    assetIdentifierType: 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM' | 'ISO4217';
     assetIdentifier: {
       assetIdentifierType: components['schemas']['assetIdentifierType'];
       /** @description The classification standard used to identify the asset */
       assetIdentifierValue: string;
+      /** @description Additional network information for the asset identifier */
+      networkInfo?: {
+        /** @description Identifier of the network associated with the asset (e.g., blockchain network name or code). */
+        networkId?: string;
+      };
     };
     APIError: {
-      /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference).
-             *      */
+      /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference). */
       code: number;
       /** @description A descriptive message providing context about the error. */
       message: string;
@@ -2192,15 +2276,6 @@ export interface operations {
           'application/json': components['schemas']['resourceIdResponse'];
         };
       };
-      /** @description accepted operation */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['operationBase'];
-        };
-      };
     };
   };
   addAccount: {
@@ -2218,8 +2293,7 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
-          /** @description Org ID for the custodian of the account */
-          orgId: string;
+          orgId: components['schemas']['orgId'];
         };
       };
     };
@@ -2270,13 +2344,22 @@ export interface operations {
           intentTypes?: components['schemas']['intentTypesAllowEmpty'];
           name: components['schemas']['name'];
           symbol?: components['schemas']['symbol'];
-          /** @description The type of the asset */
-          type: string;
-          issuerId: components['schemas']['ownerId'];
+          type: components['schemas']['assetType'];
+          issuerId?: components['schemas']['ownerId'];
           denomination: components['schemas']['assetDenomination'];
-          ledgerAssetBinding?: components['schemas']['ledgerAssetBinding'];
+          ledgerAssetBinding: components['schemas']['ledgerAssetBinding'];
           assetPolicies?: components['schemas']['assetPolicies'];
-          assetIdentifier?: components['schemas']['assetIdentifier'];
+          assetIdentifier: components['schemas']['assetIdentifier'];
+          /**
+                     * @description Flag to indicate if default policy fallback is allowed when no matching policy is found
+                     * @default true
+                     */
+          allowPolicyDefaultFallback?: boolean;
+          /**
+                     * Format: int32
+                     * @description Defines how many decimal places the asset supports. Used to determine the smallest divisible unit (e.g., cents for USD with 2 decimals, satoshis for BTC with 8 decimals).
+                     */
+          decimalPlaces?: number;
         };
       };
     };
@@ -2746,7 +2829,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['idResponse'];
+          'application/json': components['schemas']['certificateIdResponse'];
         };
       };
     };
@@ -2891,15 +2974,9 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
-          /**
-                     * Format: int64
-                     * @description The issuance date of the Certificate in epoch time seconds
-                     */
+          /** @description The issuance date of the Certificate in epoch time seconds */
           issuanceDate?: number;
-          /**
-                     * Format: int64
-                     * @description The expiration date of the Certificate in epoch time seconds
-                     */
+          /** @description The expiration date of the Certificate in epoch time seconds */
           expirationDate?: number;
           /** @description Serilized data objects that contain one or more properties that are each related to the subject of the Certificate */
           data?: string;
@@ -2933,11 +3010,8 @@ export interface operations {
     requestBody?: {
       content: {
         'multipart/form-data': {
-          /**
-                     * Format: binary
-                     * @description the document in binary format
-                     */
-          file?: string;
+          /** @description the documents in binary format */
+          files: string[];
         };
       };
     };
@@ -2999,7 +3073,7 @@ export interface operations {
                      * Format: binary
                      * @description the document in binary format
                      */
-          file?: string;
+          file: string;
         };
       };
     };
@@ -3041,15 +3115,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['executionOperationResult'];
-        };
-      };
-      /** @description accepted operation */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['operationBase'];
         };
       };
     };
@@ -3118,15 +3183,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['executionOperationResult'];
-        };
-      };
-      /** @description accepted operation */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['operationBase'];
         };
       };
     };
@@ -3555,7 +3611,7 @@ export interface operations {
     };
     responses: {
       /** @description sync request received, sync in progress */
-      204: {
+      202: {
         headers: {
           [name: string]: unknown;
         };

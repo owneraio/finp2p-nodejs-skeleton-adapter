@@ -12,20 +12,20 @@ export class FinP2PClient {
 
   ossClient: OssClient;
 
-  constructor(finAPIUrl: string, ossUrl: string) {
-    this.finAPIClient = new FinAPIClient(finAPIUrl);
-    this.ossClient = new OssClient(ossUrl);
+  constructor(finAPIUrl: string, ossUrl: string, authTokenResolver?: (() => string)) {
+    this.finAPIClient = new FinAPIClient(finAPIUrl, authTokenResolver);
+    this.ossClient = new OssClient(ossUrl, authTokenResolver);
   }
 
-  async createAsset(name: string, type: string, issuerId: string,
+  async createAsset(name: string, type: FinAPIComponents['schemas']['assetType'], issuerId: string,
     symbol: string | undefined,
     denomination: FinAPIComponents['schemas']['assetDenomination'],
     intentTypes: FinAPIComponents['schemas']['intentType'][],
-    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'] | undefined,
+    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'],
     assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
     config: string | undefined,
     metadata: any | undefined,
-    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier'] | undefined) {
+    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier']) {
     return this.finAPIClient.createAsset(
       name, type, issuerId, symbol, denomination, intentTypes,
       ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier,

@@ -1,0 +1,771 @@
+openapi: 3.0.1
+info:
+  title: Custody Adapter Specification
+  description: This is the API specification for the Custody Adapter, it provides abstraction on top of various industry key management/custody solutions.
+  termsOfService: 'https://ownera.io/terms/'
+  contact:
+    email: support@ownera.io
+  version: x.x.x
+tags:
+  - name: accounts
+    description: Account Management
+  - name: signatures
+    description: Signature management
+paths:
+  /plan/approve:
+    post:
+      tags:
+        - execution
+      summary: Approve execution plan
+      description: Expects a ledger to approve the upcoming execution plan
+      operationId: approveExecutionPlan
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanRequest'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/PlanApprovalResponse'
+        '202':
+          description: Operation is pending
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        '400':
+          description: Invalid Input
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '502':
+          description: Bad Gateway
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+  /plan/proposal:
+    post:
+      tags:
+        - execution
+      summary: Approve a plan proposal plan
+      description: Request adapter approval or rejection to a proposal in an execution plan
+      operationId: executionPlanProposal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: 'common-external-components.yaml#/components/schemas/executionPlanProposalRequest'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
+        '400':
+          description: Invalid Input
+          content: {}
+        '500':
+          description: System error
+          content: {}
+  /plan/proposal/status:
+    post:
+      tags:
+        - execution
+      summary: Notify the adapter on the agreement status (Approve/Rejected) for a specific proposal
+      description: notify the adapter on proposal status
+      operationId: executionPlanProposalStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: 'common-external-components.yaml#/components/schemas/executionPlanProposalStatusRequest'
+      responses:
+        '200':
+          description: successful operation
+          content: {}
+        '204':
+          description: successful operation
+          content: {}
+        '400':
+          description: Invalid Input
+          content: {}
+        '500':
+          description: System error
+          content: {}
+  /accounts:
+    post:
+      tags:
+        - accounts
+      summary: create account
+      description: create an account, allocates a cryptographic private/public key
+      operationId: createAccount
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+        required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/accountResponse'
+        '202':
+          description: Operation is pending
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        '400':
+          description: Invalid Input
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '502':
+          description: Bad Gateway
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+  /signatures:
+    post:
+      tags:
+        - signatures
+      summary: create a signing request
+      description: 'create a signature request to sign the payload hash'
+      operationId: createSignatureRequest
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSignatureRequest'
+        required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/signatureResponse'
+        '202':
+          description: Operation is pending
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        '400':
+          description: Invalid Input
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '502':
+          description: Bad Gateway
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+  /operations/status/{cid}:
+    get:
+      tags:
+        - operations
+      summary: 'Get Operation Status'
+      description: 'Get the operation status by an operation correlation id'
+      operationId: getOperation
+      parameters:
+        - name: cid
+          in: path
+          description: 'correlation id of an operation'
+          required: true
+          schema:
+            type: string
+            x-allowEmpty: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetOperationStatusResponse'
+        '400':
+          description: Invalid Input
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '502':
+          description: Bad Gateway
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '504':
+          description: Gateway Timeout
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the service.
+      operationId: getHealth
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                    pattern: .*\S.*
+                    x-autoMinLength: true
+        '503':
+          description: Service is unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: unavailable
+                    pattern: .*\S.*
+                    x-autoMinLength: true
+components:
+  schemas:
+    GetOperationStatusResponse:
+      $ref: '#/components/schemas/operationStatus'
+    operationStatus:
+      type: object
+      required:
+        - type
+        - operation
+      properties:
+        type:
+          type: string
+          enum: [createAccountOperation, signatureRequestOperation, planApprovalOperation]
+        operation:
+          oneOf:
+            - $ref: '#/components/schemas/createAccountOperation'
+            - $ref: '#/components/schemas/signatureRequestOperation'
+            - $ref: '#/components/schemas/planApprovalOperation'
+          discriminator:
+            propertyName: type
+            mapping:
+              createAccountOperation: '#/components/schemas/createAccountOperation'
+              signatureRequestOperation: '#/components/schemas/signatureRequestOperation'
+              planApprovalOperation: '#/components/schemas/planApprovalOperation'
+    createAccountOperation:
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - $ref: '#/components/schemas/createAccountOperationResponse'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              $ref: '#/components/schemas/createAccountOperationType'
+    
+    createAccountOperationType:
+      type: string
+      enum: [createAccountOperation]
+              
+    createAccountOperationResponse:
+      type: object
+      properties:
+        account:
+          oneOf:
+            - $ref: '#/components/schemas/generalErrorArray'
+            - $ref: '#/components/schemas/accountResponse'
+          discriminator:
+            propertyName: type
+            mapping:
+              generalErrorArray: '#/components/schemas/generalErrorArray'
+              accountResponse: '#/components/schemas/accountResponse'
+    accountResponse:
+      type: object
+      required:
+        - finId
+        - type
+      properties:
+        finId:
+          $ref: "common-external-components.yaml#/components/schemas/finId"
+        type:
+          type: string
+          enum: [accountResponse]
+    generalErrorArray:
+      type: object
+      required:
+        - type
+        - errors
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/CustomError'
+        type:
+          type: string
+          enum: [generalErrorArray]
+    accountResponseErrorInformation:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: uint32
+        message:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        details:
+          type: object
+    signatureRequestOperation:
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - $ref: '#/components/schemas/signatureRequestOperationResponse'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              $ref: '#/components/schemas/signatureRequestOperationType'
+
+    signatureRequestOperationType:
+      type: string
+      enum: [signatureRequestOperation]
+
+    signatureRequestOperationResponse:
+      type: object
+      properties:
+        signature:
+          oneOf:
+            - $ref: '#/components/schemas/generalErrorArray'
+            - $ref: '#/components/schemas/signatureResponse'
+          discriminator:
+            propertyName: type
+            mapping:
+              generalErrorArray: '#/components/schemas/generalErrorArray'
+              signatureResponse: '#/components/schemas/signatureResponse'
+    signatureResponse:
+      type: object
+      required:
+        - signature
+        - type
+      properties:
+        signature:
+          type: string
+          description: the hex representation of the signature
+          x-allowEmpty: true
+        type:
+          type: string
+          enum: [signatureResponse]
+    planApprovalOperation:
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              $ref: '#/components/schemas/planApprovalOperationType'
+
+    planApprovalOperationType:
+      type: string
+      enum: [planApprovalOperation]
+
+    signatureTemplate:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/hashListTemplate'
+        - $ref: '#/components/schemas/EIP712Template'
+      discriminator:
+        propertyName: type
+        mapping:
+          hashList: '#/components/schemas/hashListTemplate'
+          EIP712: '#/components/schemas/EIP712Template'
+    hashListTemplate:
+      description: 'ordered list of hash groups'
+      required: [type, hashGroups, hash]
+      type: object
+      properties:
+        type:
+          type: string
+          enum: ["hashList"]
+        hashGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/hashGroup'
+        hash:
+          type: string
+          description: 'hex representation of the combined hash groups hash value'
+          x-allowEmpty: true
+    hashGroup:
+      type: object
+      required: [fields, hash]
+      properties:
+        hash:
+          type: string
+          description: 'hex representation of the hash group hash value'
+          x-allowEmpty: true
+        fields:
+          description: 'list of fields by order they appear in the hash group'
+          type: array
+          items:
+            $ref: '#/components/schemas/field'
+    field:
+      type: object
+      required:
+        - name
+        - type
+        - value
+      description: 'describing a field in the hash group'
+      properties:
+        name:
+          type: string
+          description: 'name of field'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        type:
+          type: string
+          enum: ["string", "int"]
+          description: 'type of field'
+        value:
+          type: string
+          description: 'hex representation of the field value'
+          x-allowEmpty: true
+    EIP712Domain:
+      type: object
+      properties:
+        name:
+          type: string
+          x-allowEmpty: true
+        version:
+          type: string
+          x-allowEmpty: true
+        chainId:
+          type: integer
+          format: uint64
+        verifyingContract:
+          type: string
+          format: address
+          x-allowEmpty: true
+    EIP712TypedValue:
+      oneOf:
+        - $ref: '#/components/schemas/EIP712TypeString'
+        - $ref: '#/components/schemas/EIP712TypeInteger'
+        - $ref: '#/components/schemas/EIP712TypeBool'
+        - $ref: '#/components/schemas/EIP712TypeByte'
+        - $ref: '#/components/schemas/EIP712TypeObject'
+        - $ref: '#/components/schemas/EIP712TypeArray'
+    EIP712Types:
+      type: object
+      properties:
+        definitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EIP712TypeDefinition'
+    EIP712TypeDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+          x-allowEmpty: true
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/EIP712FieldDefinition'
+    EIP712FieldDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+          x-allowEmpty: true
+        type:
+          type: string
+          x-allowEmpty: true
+    EIP712Template:
+      required: [type, domain, message, primaryType, types, hash]
+      type: object
+      properties:
+        type:
+          type: string
+          enum: ["EIP712"]
+        domain:
+          $ref: '#/components/schemas/EIP712Domain'
+        message:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/EIP712TypedValue'
+        types:
+          $ref: '#/components/schemas/EIP712Types'
+        primaryType:
+          type: string
+          x-allowEmpty: true
+        hash:
+          type: string
+          description: 'hex representation of template hash'
+          x-allowEmpty: true
+    signatureRequestReference:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/ExecutionPlanReference'
+      discriminator:
+        propertyName: type
+        mapping:
+          executionPlanRef: '#/components/schemas/ExecutionPlanReference'
+    ExecutionPlanReference:
+      type: object
+      required:
+        - type
+        - id
+      properties:
+        type:
+          type: string
+          enum: [executionPlanRef]
+        id:
+          type: string
+          description: execution plan resource id
+          pattern: .*\S.*
+          x-autoMinLength: true
+    CreateAccountRequest:
+      required:
+        - ownerId
+      properties:
+        ownerId:
+          $ref: '#/components/schemas/ownerId'
+    CreateSignatureRequest:
+      required:
+        - finId
+        - template
+      type: object
+      properties:
+        finId:
+          $ref: "common-external-components.yaml#/components/schemas/finId"
+        template:
+          $ref: '#/components/schemas/signatureTemplate'
+        reference:
+          $ref: '#/components/schemas/signatureRequestReference'
+    ownerId:
+      type: string
+      description: 'ID of the owner profile'
+      pattern: '^[^:](?:.+):101:(?:.+)'
+      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+    EIP712TypeString:
+      type: string
+      pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
+      x-allowEmpty: true
+    EIP712TypeByte:
+      type: string
+      pattern: '^0x[0-9a-fA-F]+$' # matches hexadecimal string starting with '0x'
+      minLength: 3
+      maxLength: 320
+    EIP712TypeInteger:
+      type: integer
+    EIP712TypeBool:
+      type: boolean
+    EIP712TypeObject:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/EIP712TypedValue'
+    EIP712TypeArray:
+      type: array
+      items:
+        $ref: '#/components/schemas/EIP712TypedValue'

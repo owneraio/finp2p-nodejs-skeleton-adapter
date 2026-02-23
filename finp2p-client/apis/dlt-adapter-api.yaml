@@ -6,7 +6,6 @@ info:
   contact:
     email: support@ownera.io
   version: x.x.x
-
 tags:
   - name: payments
     description: Payments
@@ -22,7 +21,6 @@ tags:
     description: Operations
   - name: health
     description: health
-
 paths:
   /plan/approve:
     post:
@@ -45,12 +43,10 @@ paths:
                 $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
-
+          content: {}
   /plan/proposal:
     post:
       tags:
@@ -72,11 +68,10 @@ paths:
                 $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /plan/proposal/status:
     post:
       tags:
@@ -92,17 +87,16 @@ paths:
       responses:
         '200':
           description: successful operation
-          content: { }
+          content: {}
         '204':
           description: successful operation
-          content: { }
+          content: {}
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /payments/depositInstruction:
     post:
       tags:
@@ -131,11 +125,10 @@ paths:
                 $ref: '#/components/schemas/DepositInstructionResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /payments/payout:
     post:
       tags:
@@ -164,11 +157,10 @@ paths:
                 $ref: '#/components/schemas/PayoutResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/getBalance:
     post:
       deprecated: true
@@ -191,11 +183,10 @@ paths:
                 $ref: '#/components/schemas/GetAssetBalanceResponse'
         '404':
           description: Owner not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/create:
     post:
       tags:
@@ -224,11 +215,10 @@ paths:
                 $ref: '#/components/schemas/CreateAssetResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/issue:
     post:
       tags:
@@ -257,11 +247,10 @@ paths:
                 $ref: '#/components/schemas/IssueAssetsResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/redeem:
     post:
       tags:
@@ -290,11 +279,10 @@ paths:
                 $ref: '#/components/schemas/RedeemAssetsResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/transfer:
     post:
       tags:
@@ -323,11 +311,10 @@ paths:
                 $ref: '#/components/schemas/TransferAssetResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/receipts/{transactionId}:
     get:
       tags:
@@ -342,6 +329,8 @@ paths:
           required: true
           schema:
             type: string
+            pattern: .*\S.*
+            x-autoMinLength: true
       responses:
         '200':
           description: successful operation
@@ -351,11 +340,10 @@ paths:
                 $ref: '#/components/schemas/GetReceiptResponse'
         '404':
           description: Transaction not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/hold:
     post:
       tags:
@@ -384,11 +372,10 @@ paths:
                 $ref: '#/components/schemas/HoldOperationResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/release:
     post:
       tags:
@@ -417,11 +404,10 @@ paths:
                 $ref: '#/components/schemas/ReleaseOperationResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /assets/rollback:
     post:
       tags:
@@ -450,11 +436,10 @@ paths:
                 $ref: '#/components/schemas/RollbackOperationResponse'
         '400':
           description: Invalid Input
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /operations/status/{cid}:
     get:
       tags:
@@ -469,6 +454,7 @@ paths:
           required: true
           schema:
             type: string
+            x-allowEmpty: true
       responses:
         '200':
           description: successful operation
@@ -478,15 +464,14 @@ paths:
                 $ref: '#/components/schemas/GetOperationStatusResponse'
         '404':
           description: Transaction not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /asset/balance:
     post:
       tags:
-        - transaction
+        - transactions
       summary: Get asset balance information
       description: Get asset balance information for finId
       operationId: GetAssetBalanceInfo
@@ -505,11 +490,10 @@ paths:
                 $ref: '#/components/schemas/AssetBalanceInfoResponse'
         '404':
           description: Owner not found
-          content: { }
+          content: {}
         '500':
           description: System error
-          content: { }
-
+          content: {}
   /health:
     get:
       summary: Health check
@@ -528,6 +512,8 @@ paths:
                   status:
                     type: string
                     example: ok
+                    pattern: .*\S.*
+                    x-autoMinLength: true
         '503':
           description: Service is unavailable
           content:
@@ -538,7 +524,8 @@ paths:
                   status:
                     type: string
                     example: unavailable
-
+                    pattern: .*\S.*
+                    x-autoMinLength: true
 components:
   schemas:
     DepositInstructionRequest:
@@ -557,17 +544,17 @@ components:
         amount:
           type: string
           description: Amount to deposit
+          pattern: .*\S.*
+          x-autoMinLength: true
         details:
           type: object
         nonce:
           $ref: '#/components/schemas/nonce'
         signature:
           $ref: '#/components/schemas/signature'
-
     DepositInstructionResponse:
       allOf:
         - $ref: '#/components/schemas/depositOperation'
-
     PayoutRequest:
       type: object
       required:
@@ -582,6 +569,8 @@ components:
         quantity:
           type: string
           description: 'How many units of the asset'
+          pattern: .*\S.*
+          x-autoMinLength: true
         payoutInstruction:
           $ref: '#/components/schemas/payoutInstruction'
         asset:
@@ -590,11 +579,9 @@ components:
           $ref: '#/components/schemas/nonce'
         signature:
           $ref: '#/components/schemas/signature'
-
     PayoutResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     GetAssetBalanceRequest:
       type: object
       required:
@@ -605,11 +592,9 @@ components:
           $ref: '#/components/schemas/source'
         asset:
           $ref: '#/components/schemas/asset'
-
     GetAssetBalanceResponse:
       allOf:
         - $ref: '#/components/schemas/balance'
-
     CreateAssetRequest:
       type: object
       required:
@@ -631,7 +616,6 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/assetDenomination'
         assetIdentifier:
           $ref: 'common-external-components.yaml#/components/schemas/assetIdentifier'
-
     CreateAssetResponse:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
@@ -641,7 +625,6 @@ components:
               $ref: '#/components/schemas/createAssetOperationErrorInformation'
             response:
               $ref: '#/components/schemas/assetCreateResponse'
-
     IssueAssetsRequest:
       type: object
       required:
@@ -659,22 +642,22 @@ components:
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         asset:
           $ref: '#/components/schemas/finp2pAsset'
         settlementRef:
           type: string
           description: 'Reference to the corresponding settlement operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
-
     IssueAssetsResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
-
     RedeemAssetsRequest:
       type: object
       required:
@@ -690,25 +673,29 @@ components:
         operationId:
           type: string
           x-go-type-skip-optional-pointer: true
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
           $ref: '#/components/schemas/finIdAccount'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         asset:
           $ref: '#/components/schemas/finp2pAsset'
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     RedeemAssetsResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     TransferAssetRequest:
       type: object
       required:
@@ -729,24 +716,25 @@ components:
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         asset:
           $ref: '#/components/schemas/asset'
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     TransferAssetResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     GetReceiptResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     HoldOperationRequest:
       type: object
       required:
@@ -763,6 +751,8 @@ components:
         operationId:
           type: string
           description: 'Escrow operation id'
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
           $ref: '#/components/schemas/source'
         destination:
@@ -770,6 +760,8 @@ components:
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         asset:
           $ref: '#/components/schemas/asset'
         expiry:
@@ -780,11 +772,9 @@ components:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     HoldOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     ReleaseOperationRequest:
       type: object
       required:
@@ -797,6 +787,8 @@ components:
         operationId:
           type: string
           description: 'Hold operation id'
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
           $ref: '#/components/schemas/source'
         destination:
@@ -804,15 +796,15 @@ components:
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         asset:
           $ref: '#/components/schemas/asset'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     ReleaseOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
     RollbackOperationRequest:
       type: object
       required:
@@ -824,42 +816,43 @@ components:
         operationId:
           type: string
           description: 'Hold operation id'
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
           $ref: '#/components/schemas/source'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         asset:
           $ref: '#/components/schemas/asset'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-
     RollbackOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
-
-
     GetOperationStatusRequest:
       type: object
       properties:
         cid:
           type: string
           description: 'correlation id of an operation'
-
+          x-allowEmpty: true
     GetOperationStatusResponse:
       $ref: '#/components/schemas/operationStatus'
-
     nonce:
       type: string
       description: |
         32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-        
+
           const nonce = Buffer.alloc(32);
           nonce.fill(crypto.randomBytes(24), 0, 24);
 
           const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
           const t = BigInt(nowEpochSeconds);
           nonce.writeBigInt64BE(t, 24);
+      x-allowEmpty: true
     depositInstruction:
       required:
         - account
@@ -870,6 +863,8 @@ components:
         description:
           type: string
           description: 'Instructions for the deposit operation'
+          pattern: .*\S.*
+          x-autoMinLength: true
         paymentOptions:
           $ref: 'common-external-components.yaml#/components/schemas/paymentMethods'
         details:
@@ -879,9 +874,8 @@ components:
         operationId:
           type: string
           description: operation id reference while will correlate with any receipt associated with the deposit operation
-
-
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     asset:
       type: object
       discriminator:
@@ -894,7 +888,6 @@ components:
         - $ref: '#/components/schemas/cryptocurrencyAsset'
         - $ref: '#/components/schemas/fiatAsset'
         - $ref: '#/components/schemas/finp2pAsset'
-
     depositAsset:
       type: object
       discriminator:
@@ -909,7 +902,6 @@ components:
         - $ref: '#/components/schemas/fiatAsset'
         - $ref: '#/components/schemas/finp2pAsset'
         - $ref: '#/components/schemas/customAsset'
-
     payoutAsset:
       type: object
       discriminator:
@@ -922,7 +914,6 @@ components:
         - $ref: '#/components/schemas/cryptocurrencyAsset'
         - $ref: '#/components/schemas/fiatAsset'
         - $ref: '#/components/schemas/finp2pAsset'
-
     payoutInstruction:
       type: object
       required:
@@ -931,7 +922,8 @@ components:
         description:
           type: string
           description: 'withdrawal description'
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     cryptocurrencyAsset:
       type: object
       required:
@@ -940,11 +932,12 @@ components:
       properties:
         type:
           type: "string"
-          enum: [ "cryptocurrency" ]
+          enum: ["cryptocurrency"]
         code:
           type: "string"
           description: 'unique identifier symbol of the cryptocurrency'
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     fiatAsset:
       type: object
       required:
@@ -953,11 +946,12 @@ components:
       properties:
         type:
           type: "string"
-          enum: [ "fiat" ]
+          enum: ["fiat"]
         code:
           type: "string"
           description: 'unique identifier code of the fiat currency - based on ISO-4217'
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     finp2pAsset:
       type: object
       required:
@@ -966,12 +960,13 @@ components:
       properties:
         type:
           type: "string"
-          enum: [ "finp2p" ]
+          enum: ["finp2p"]
         resourceId:
           type: "string"
           description: |
             Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format')
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     customAsset:
       type: object
       required:
@@ -979,8 +974,7 @@ components:
       properties:
         type:
           type: "string"
-          enum: [ "custom" ]
-
+          enum: ["custom"]
     source:
       type: object
       required:
@@ -988,8 +982,7 @@ components:
         - account
       properties:
         finId:
-          type: string
-          description: FinID, public key of the user
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         account:
           oneOf:
             - $ref: '#/components/schemas/finIdAccount'
@@ -997,7 +990,6 @@ components:
             propertyName: type
             mapping:
               finId: '#/components/schemas/finIdAccount'
-
     destination:
       description: 'describes destination for remote operations operations'
       type: object
@@ -1006,8 +998,7 @@ components:
         - account
       properties:
         finId:
-          type: string
-          description: FinID, public key of the user
+          $ref: "common-external-components.yaml#/components/schemas/finId"
         account:
           oneOf:
             - $ref: '#/components/schemas/finIdAccount'
@@ -1019,7 +1010,6 @@ components:
               finId: '#/components/schemas/finIdAccount'
               cryptoWallet: '#/components/schemas/cryptoWalletAccount'
               fiatAccount: '#/components/schemas/fiatAccount'
-
     finIdAccount:
       type: object
       required:
@@ -1028,11 +1018,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ "finId" ]
+          enum: ["finId"]
         finId:
-          type: "string"
-          description: FinID, public key of the user
-
+          $ref: "common-external-components.yaml#/components/schemas/finId"
     cryptoWalletAccount:
       type: object
       required:
@@ -1041,11 +1029,12 @@ components:
       properties:
         type:
           type: string
-          enum: [ "cryptoWallet" ]
+          enum: ["cryptoWallet"]
         address:
           type: "string"
           description: 'address of the cryptocurrency wallet'
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     fiatAccount:
       type: object
       required:
@@ -1054,12 +1043,12 @@ components:
       properties:
         type:
           type: string
-          enum: [ "fiatAccount" ]
+          enum: ["fiatAccount"]
         code:
           type: "string"
           description: 'IBAN or other code to represent a fiat account'
-
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     balance:
       type: object
       required:
@@ -1071,7 +1060,8 @@ components:
         balance:
           type: string
           description: the number of asset tokens
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     receiptOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
@@ -1081,7 +1071,6 @@ components:
               $ref: '#/components/schemas/receiptOperationErrorInformation'
             response:
               $ref: '#/components/schemas/receipt'
-
     createAssetOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
@@ -1091,15 +1080,13 @@ components:
               $ref: '#/components/schemas/createAssetOperationErrorInformation'
             response:
               $ref: '#/components/schemas/assetCreateResponse'
-
     assetCreateResponse:
-        type: object
-        required:
-            - ledgerAssetInfo
-        properties:
-            ledgerAssetInfo:
-              $ref: '#/components/schemas/ledgerAssetInfo'
-
+      type: object
+      required:
+        - ledgerAssetInfo
+      properties:
+        ledgerAssetInfo:
+          $ref: '#/components/schemas/ledgerAssetInfo'
     depositOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
@@ -1109,11 +1096,9 @@ components:
               $ref: '#/components/schemas/depositOperationErrorInformation'
             response:
               $ref: '#/components/schemas/depositInstruction'
-
     depositOperationErrorInformation:
       type: object
-      properties: { }
-
+      properties: {}
     createAssetOperationErrorInformation:
       type: object
       properties:
@@ -1122,7 +1107,8 @@ components:
           format: uint32
         message:
           type: string
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     receiptOperationErrorInformation:
       type: object
       required:
@@ -1135,15 +1121,15 @@ components:
           description: 1 for failure in regApps validation, 4 failure in signature verification
         message:
           type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
         regulationErrorDetails:
           type: array
           items:
             $ref: 'common-external-components.yaml#/components/schemas/RegulationError'
-
     executionOperationErrorInformation:
       type: object
-      properties: { }
-
+      properties: {}
     executionContext:
       type: object
       required:
@@ -1153,11 +1139,12 @@ components:
         executionPlanId:
           type: string
           description: execution plan id
+          pattern: .*\S.*
+          x-autoMinLength: true
         instructionSequenceNumber:
           type: integer
           format: uint32
           description: execution instruction sequence number
-
     operationStatus:
       type: object
       oneOf:
@@ -1172,7 +1159,6 @@ components:
           deposit: '#/components/schemas/operationStatusDeposit'
           receipt: '#/components/schemas/operationStatusReceipt'
           approval: '#/components/schemas/operationStatusApproval'
-
     operationStatusCreateAsset:
       type: object
       required:
@@ -1181,10 +1167,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ createAsset ]
+          enum: [createAsset]
         operation:
-            $ref: '#/components/schemas/createAssetOperation'
-
+          $ref: '#/components/schemas/createAssetOperation'
     operationStatusDeposit:
       type: object
       required:
@@ -1193,10 +1178,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ deposit ]
+          enum: [deposit]
         operation:
           $ref: '#/components/schemas/depositOperation'
-
     operationStatusReceipt:
       type: object
       required:
@@ -1205,10 +1189,9 @@ components:
       properties:
         type:
           type: string
-          enum: [ receipt ]
+          enum: [receipt]
         operation:
           $ref: '#/components/schemas/receiptOperation'
-
     operationStatusApproval:
       type: object
       required:
@@ -1217,23 +1200,23 @@ components:
       properties:
         type:
           type: string
-          enum: [ approval ]
+          enum: [approval]
         operation:
           $ref: 'common-external-components.yaml#/components/schemas/ExecutionPlanApprovalOperation'
-
     signature:
       type: object
-      required: [ signature, template, hashFunc ]
+      required: [signature, template, hashFunc]
       description: 'represent a signature template information'
       properties:
         signature:
           type: string
           description: 'hex representation of the signature'
+          pattern: .*\S.*
+          x-autoMinLength: true
         template:
           $ref: '#/components/schemas/signatureTemplate'
         hashFunc:
           $ref: '#/components/schemas/hashFunction'
-
     signatureTemplate:
       type: object
       oneOf:
@@ -1244,15 +1227,14 @@ components:
         mapping:
           hashList: '#/components/schemas/hashListTemplate'
           EIP712: '#/components/schemas/EIP712Template'
-
     hashListTemplate:
       description: 'ordered list of hash groups'
-      required: [ type, hashGroups, hash ]
+      required: [type, hashGroups, hash]
       type: object
       properties:
         type:
           type: string
-          enum: [ "hashList" ]
+          enum: ["hashList"]
         hashGroups:
           type: array
           items:
@@ -1260,7 +1242,7 @@ components:
         hash:
           type: string
           description: 'hex representation of the combined hash groups hash value'
-
+          x-allowEmpty: true
     hashGroup:
       type: object
       required:
@@ -1270,12 +1252,12 @@ components:
         hash:
           type: string
           description: 'hex representation of the hash group hash value'
+          x-allowEmpty: true
         fields:
           description: 'list of fields by order they appear in the hash group'
           type: array
           items:
             $ref: '#/components/schemas/field'
-
     field:
       type: object
       description: 'describing a field in the hash group'
@@ -1287,27 +1269,32 @@ components:
         name:
           type: string
           description: 'name of field'
+          pattern: .*\S.*
+          x-autoMinLength: true
         type:
           type: string
-          enum: [ "string", "int", "bytes" ]
+          enum: ["string", "int", "bytes"]
           description: 'type of field'
         value:
           type: string
           description: 'hex representation of the field value'
-
+          x-allowEmpty: true
     EIP712Domain:
       type: object
       properties:
         name:
           type: string
+          x-allowEmpty: true
         version:
           type: string
+          x-allowEmpty: true
         chainId:
           type: integer
           format: uint64
         verifyingContract:
           type: string
           format: address
+          x-allowEmpty: true
     EIP712TypedValue:
       oneOf:
         - $ref: '#/components/schemas/EIP712TypeString'
@@ -1328,6 +1315,7 @@ components:
       properties:
         name:
           type: string
+          x-allowEmpty: true
         fields:
           type: array
           items:
@@ -1337,15 +1325,17 @@ components:
       properties:
         name:
           type: string
+          x-allowEmpty: true
         type:
           type: string
+          x-allowEmpty: true
     EIP712Template:
-      required: [ type, domain, message, primaryType, types, hash ]
+      required: [type, domain, message, primaryType, types, hash]
       type: object
       properties:
         type:
           type: string
-          enum: [ "EIP712" ]
+          enum: ["EIP712"]
         domain:
           $ref: '#/components/schemas/EIP712Domain'
         message:
@@ -1356,36 +1346,32 @@ components:
           $ref: '#/components/schemas/EIP712Types'
         primaryType:
           type: string
+          x-allowEmpty: true
         hash:
           type: string
           description: 'hex representation of template hash'
-
+          x-allowEmpty: true
     EIP712TypeString:
       type: string
       pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
-
+      x-allowEmpty: true
     EIP712TypeByte:
       type: string
       pattern: '^0x[0-9a-fA-F]+$' # matches hexadecimal string starting with '0x'
       minLength: 3
       maxLength: 320
-
     EIP712TypeInteger:
       type: integer
-
     EIP712TypeBool:
       type: boolean
-
     EIP712TypeObject:
       type: object
       additionalProperties:
         $ref: '#/components/schemas/EIP712TypedValue'
-
     EIP712TypeArray:
       type: array
       items:
         $ref: '#/components/schemas/EIP712TypedValue'
-
     hashFunction:
       type: string
       enum:
@@ -1396,7 +1382,6 @@ components:
         - keccak_256
         - keccak-256
       description: hash function types
-
     receipt:
       type: object
       required:
@@ -1409,11 +1394,15 @@ components:
         id:
           type: string
           description: the receipt id
+          pattern: .*\S.*
+          x-autoMinLength: true
         asset:
           $ref: '#/components/schemas/asset'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
+          pattern: .*\S.*
+          x-autoMinLength: true
         timestamp:
           type: integer
           format: int64
@@ -1430,26 +1419,29 @@ components:
           $ref: '#/components/schemas/receiptTradeDetails'
         proof:
           $ref: '#/components/schemas/proofPolicy'
-
     receiptTradeDetails:
       type: object
       properties:
         intentId:
           type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
         intentVersion:
           type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
         executionContext:
           $ref: '#/components/schemas/receiptExecutionContext'
-
     receiptExecutionContext:
       type: object
-      required: [ executionPlanId, instructionSequenceNumber ]
+      required: [executionPlanId, instructionSequenceNumber]
       properties:
         executionPlanId:
           type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
         instructionSequenceNumber:
           type: integer
-
     proofPolicy:
       description: additional proof information attached to a receipt
       type: object
@@ -1461,26 +1453,23 @@ components:
       oneOf:
         - $ref: '#/components/schemas/signatureProofPolicy'
         - $ref: '#/components/schemas/noProofPolicy'
-
     noProofPolicy:
       type: object
-      required: [ type ]
+      required: [type]
       properties:
         type:
           type: string
-          enum: [ "noProofPolicy" ]
+          enum: ["noProofPolicy"]
       description: "no proof validation required for this policy"
-
     signatureProofPolicy:
       type: object
       required: [type]
       properties:
         type:
           type: string
-          enum: [ "signatureProofPolicy" ]
+          enum: ["signatureProofPolicy"]
         signature:
           $ref: '#/components/schemas/signature'
-
     transactionDetails:
       description: additional ledger specific
       type: object
@@ -1490,14 +1479,16 @@ components:
         transactionId:
           type: string
           description: The Transaction id on the underlying ledger
+          pattern: .*\S.*
+          x-autoMinLength: true
         operationId:
           type: string
           description: The Operation id
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     operationType:
       type: string
       enum: ['issue', 'transfer', 'hold', 'release', 'redeem']
-
     ledgerAssetInfo:
       type: object
       required: [ledgerTokenId]
@@ -1511,7 +1502,6 @@ components:
             propertyName: type
             mapping:
               contractDetails: '#/components/schemas/contractDetails'
-
     contractDetails:
       type: object
       required: [network, address, type]
@@ -1519,30 +1509,36 @@ components:
         type:
           type: string
           description: 'the type of the identifier'
-          enum: [ "contractDetails" ]
+          enum: ["contractDetails"]
         network:
           type: string
           description: 'the network'
+          pattern: .*\S.*
+          x-autoMinLength: true
         address:
           type: string
           description: 'the address'
+          pattern: .*\S.*
+          x-autoMinLength: true
         TokenStandard:
           type: string
           description: 'The standard of the token (e.g., ERC20, ERC721)'
+          pattern: .*\S.*
+          x-autoMinLength: true
         additionalContractDetails:
           anyOf:
             - $ref: '#/components/schemas/finP2PEVMOperatorDetails'
-
     finP2PEVMOperatorDetails:
       type: object
       properties:
         FinP2POperatorContractAddress:
           type: string
           description: 'The FinP2P Operator Contract Address'
+          pattern: .*\S.*
+          x-autoMinLength: true
         allowanceRequired:
           type: boolean
           description: 'Indicates if allowance is required'
-
     ledgerAssetBinding:
       type: object
       oneOf:
@@ -1551,19 +1547,19 @@ components:
         propertyName: type
         mapping:
           tokenId: '#/components/schemas/ledgerTokenId'
-
     ledgerTokenId:
       type: object
-      required: [ tokenId, type ]
+      required: [tokenId, type]
       properties:
         type:
           type: string
           description: 'the type of the identifier'
-          enum: [ "tokenId" ]
+          enum: ["tokenId"]
         tokenId:
           type: string
           description: 'the token id binding'
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     AssetBalanceInfoRequest:
       type: object
       required:
@@ -1576,7 +1572,6 @@ components:
           $ref: '#/components/schemas/asset'
         marker:
           $ref: '#/components/schemas/balanceMarker'
-
     assetBalanceAccount:
       oneOf:
         - $ref: '#/components/schemas/finIdAccount'
@@ -1584,7 +1579,6 @@ components:
         propertyName: type
         mapping:
           finId: '#/components/schemas/finIdAccount'
-
     balanceMarker:
       description: marker of balance to denote the balance as of marker
       discriminator:
@@ -1595,32 +1589,31 @@ components:
       oneOf:
         - $ref: '#/components/schemas/balanceMarkerTimestamp'
         - $ref: '#/components/schemas/balanceMarkerTransactionBlock'
-
     balanceMarkerTimestamp:
       type: object
-      required: [ type, timestamp ]
+      required: [type, timestamp]
       properties:
         type:
           type: string
-          enum: [ timestamp ]
+          enum: [timestamp]
         timestamp:
           type: integer
           format: int64
           description: epoch timestamp in seconds
-
     balanceMarkerTransactionBlock:
       type: object
-      required: [ type, blockNumber, transaction ]
+      required: [type, blockNumber, transaction]
       properties:
         type:
           type: string
-          enum: [ transactionBlock ]
+          enum: [transactionBlock]
         blockNumber:
           type: integer
           format: int64
         transaction:
           type: string
-
+          pattern: .*\S.*
+          x-autoMinLength: true
     AssetBalanceInfoResponse:
       type: object
       required:
@@ -1633,7 +1626,6 @@ components:
           $ref: '#/components/schemas/asset'
         balanceInfo:
           $ref: '#/components/schemas/assetBalance'
-
     assetBalance:
       type: object
       required:
@@ -1648,14 +1640,20 @@ components:
           type: string
           format: '^-?\d+(\.\d+)?$'
           description: The total amount currently in or owed by the account
+          pattern: .*\S.*
+          x-autoMinLength: true
         available:
           type: string
           format: '^-?\d+(\.\d+)?$'
           description: The amount immediately usable from the account
+          pattern: .*\S.*
+          x-autoMinLength: true
         held:
           type: string
           format: '^-?\d+(\.\d+)?$'
           description: The amount pending or on hold within the account
+          pattern: .*\S.*
+          x-autoMinLength: true
         receipts:
           description: list of receipt associated with the balance info
           type: array

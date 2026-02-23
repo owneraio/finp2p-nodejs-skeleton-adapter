@@ -8,9 +8,9 @@ import {
   ReceiptOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
-  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
+  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
   FinIdAccount, AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails,
-  AssetCreationResult, OperationMetadata, ValidationError,
+  AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
 } from '@owneraio/finp2p-adapter-models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -87,7 +87,7 @@ export const assetBindingOptFromAPI = (assetBind: components['schemas']['ledgerA
 
 export const assetDenominationFromAPI = (denom: components['schemas']['assetDenomination']): AssetDenomination => {
   const { type, code } = denom;
-  return { type, code };
+  return { type: type as AssetDenomination['type'], code };
 };
 
 export const assetDenominationOptFromAPI = (denom: components['schemas']['assetDenomination'] | undefined): AssetDenomination | undefined => {
@@ -113,7 +113,7 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
   return types.definitions
     .filter(d => d.name && d.name !== 'EIP712Domain')
     .reduce((d, { name, fields }) => {
-      d[name!] = (fields ?? []) as Array<{ name: string; type: string }>;
+      d[name!] = fields as EIP712Types[string];
       return d;
     }, {} as EIP712Types);
 };
@@ -165,7 +165,7 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
         operationResponseStrategy: {
           type: 'random',
           polling: {
-            type: 'randomPollingInterval',
+            type: 'random',
           },
         },
       };
@@ -605,4 +605,17 @@ export const balanceToAPI = (
       held,
     },
   };
+};
+
+export const planProposalFromAPI = (
+  proposal: components['schemas']['executionPlanCancellationProposal'] | components['schemas']['executionPlanInstructionProposal'] | components['schemas']['executionPlanResetProposal'],
+): PlanProposal => {
+  switch (proposal.proposalType) {
+    case 'cancel':
+      return { proposalType: 'cancel' };
+    case 'reset':
+      return { proposalType: 'reset', proposedSequence: proposal.proposedSequence };
+    case 'instruction':
+      return { proposalType: 'instruction', instructionSequence: proposal.instructionSequence };
+  }
 };
