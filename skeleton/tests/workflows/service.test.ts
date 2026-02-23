@@ -92,7 +92,11 @@ describe("Service operation tests", () => {
               tokenStandard: "ERC20",
               type: "ledgerReference",
             },
-            tokenId: "123",
+            ledgerIdentifier: {
+              network: "fake",
+              standard: "mock",
+              tokenId: "123"
+            }
           }),
         );
       }
@@ -219,7 +223,11 @@ describe("Service operation tests", () => {
         amount: string,
       ): Promise<OperationStatus> {
         return successfulAssetCreation({
-          tokenId: idempotencyKey,
+          ledgerIdentifier: {
+            network: "fake",
+            standard: "mock",
+            tokenId: idempotencyKey
+          },
           reference: {
             type: "ledgerReference",
             tokenStandard: "createAsset",
@@ -285,7 +293,11 @@ describe("Service operation tests", () => {
     await expect(storage().operation(row1.cid)).resolves.toEqual({
       ...row1,
       outputs: successfulAssetCreation({
-        tokenId: "fake-idempotency-key-1",
+        ledgerIdentifier: {
+          network: "fake",
+          standard: "mock",
+          tokenId: "fake-idempotency-key-1",
+        },
         reference: {
           type: "ledgerReference",
           tokenStandard: "createAsset",
