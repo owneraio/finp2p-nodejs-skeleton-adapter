@@ -4,13 +4,13 @@ import { Account } from './accounts';
 
 export class Storage {
 
-  transactions: Record<string, Transaction> = {};
+  private transactions: Record<string, Transaction> = {};
 
-  assets: Record<string, Asset> = {};
+  private assets: Record<string, Asset> = {};
 
-  accounts: Record<string, Account> = {};
+  private accounts: Record<string, Account> = {};
 
-  holdOperations: Record<string, HoldOperation> = {};
+  private holdOperations: Record<string, HoldOperation> = {};
 
   registerTransaction(tx: Transaction) {
     this.transactions[tx.id] = tx;
