@@ -10,38 +10,17 @@ import {
   Source,
 } from '@owneraio/finp2p-adapter-models';
 import { OpComponents } from '@owneraio/finp2p-client';
-import { depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
-
-const assetToFinAPI = (asset: Asset): OpComponents['schemas']['schemas-asset'] => {
-  switch (asset.assetType) {
-    case 'fiat':
-      return { type: 'fiat', code: asset.assetId };
-    case 'cryptocurrency':
-      return { type: 'cryptocurrency', code: asset.assetId };
-    case 'finp2p':
-      return { type: 'finp2p', resourceId: asset.assetId };
-  }
-};
-
-const sourceToFinAPI = (source: Source): OpComponents['schemas']['source'] => {
-  const { finId } = source;
-  return { finId, account: { type: 'finId', finId } };
-};
-
-const destinationToFinAPI = (destination: Destination): OpComponents['schemas']['destination'] => {
-  const { finId } = destination;
-  return { finId, account: { type: 'finId', finId } };
-};
+import { contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
 
 const receiptToFinAPI = (receipt: Receipt): OpComponents['schemas']['receipt'] => {
   const { id, asset, source, destination, quantity, operationType, tradeDetails, transactionDetails, proof, timestamp } = receipt;
+  const apiAsset: OpComponents['schemas']['asset'] = { resourceId: asset.assetId };
   return {
     id,
-    asset: assetToFinAPI(asset),
     quantity,
     timestamp,
-    source: source ? sourceToFinAPI(source) : undefined,
-    destination: destination ? destinationToFinAPI(destination) : undefined,
+    source: source ? { finId: source.finId, asset: apiAsset } : undefined,
+    destination: destination ? { finId: destination.finId, asset: apiAsset } : undefined,
     operationType: operationType as OpComponents['schemas']['operationType'],
     tradeDetails: tradeDetailsToAPI(tradeDetails),
     transactionDetails: transactionDetails ? transactionDetailsToAPI(transactionDetails) : undefined,
@@ -56,10 +35,11 @@ export const createAssetOperationToFinAPI = (operationStatus: AssetCreationStatu
       const { result: { ledgerIdentifier, reference } } = operationStatus;
       let ledgerReference: OpComponents['schemas']['contractDetails'] | undefined;
       if (reference) {
-        const { network, address, tokenStandard: TokenStandard, additionalContractDetails } = reference;
+        const { address, tokenStandard: TokenStandard, additionalContractDetails } = reference;
         ledgerReference = {
           type: 'contractDetails',
-          network, address, TokenStandard, additionalContractDetails,
+          address, TokenStandard,
+          additionalContractDetails: contractDetailsOptToAPI(additionalContractDetails) as OpComponents['schemas']['finP2PEVMOperatorDetails'] | undefined,
         };
       }
       return {
@@ -69,9 +49,12 @@ export const createAssetOperationToFinAPI = (operationStatus: AssetCreationStatu
           isCompleted: true,
           response: {
             ledgerAssetInfo: {
-              ledgerTokenId: {
-                type: 'tokenId',
+              ledgerIdentifier: {
+                assetIdentifierType: 'CAIP-19',
+                network: ledgerIdentifier.network,
                 tokenId: ledgerIdentifier.tokenId,
+                standard: ledgerIdentifier.standard,
+                resourceId: ledgerIdentifier.resourceId,
               },
               ledgerReference,
             },
