@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@owneraio/finp2p-adapter-models": "^0.28.0-custody-native.0",
-    "@owneraio/finp2p-client": "^0.28.0-custody-native.0",
+    "@owneraio/finp2p-client": "^0.28.0-custody-native.1",
     "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.0-custody-native.3",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
