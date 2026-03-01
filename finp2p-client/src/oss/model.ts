@@ -1,5 +1,11 @@
+export type LedgerIdentifier = {
+  network: string;
+  standard: string;
+  tokenId: string;
+};
+
 export type LedgerAssetInfo = {
-  tokenId: string
+  ledgerIdentifier?: LedgerIdentifier
   ledgerReference?: LedgerReference
 };
 
@@ -58,7 +64,7 @@ export type OssAsset = {
   },
   issuerId: string,
   config: string,
-  assetIdentifier: AssetIdentifier;
+  financialIdentifier: AssetIdentifier;
   allowedIntents: string[],
   regulationVerifiers: {
     id: string,
