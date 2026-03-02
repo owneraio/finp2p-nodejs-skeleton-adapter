@@ -1,74 +1,53 @@
 import { LedgerAPIClient } from './api/api';
-import { TestDataBuilder } from './utils/test-builders';
-import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
-import { TestFixtures } from './utils/test-fixtures';
-import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
+import { TestHelpers } from './utils/test-assertions';
+import { TestSetup } from './utils/test-setup';
+import { TestConfig } from './config';
+import {
+  issueRequest,
+  transferRequest,
+  source,
+  finp2pAsset,
+} from './plan/plan-request-builders';
 
-export function tokenLifecycleTests() {
+export function tokenLifecycleTests(config: TestConfig) {
   describe('Token Lifecycle', () => {
 
     let client: LedgerAPIClient;
-    let builder: TestDataBuilder;
-    let fixtures: TestFixtures;
-    let orgId: string;
+    let setup: TestSetup;
 
-    beforeAll(async () => {
-      // @ts-ignore
-      client = new LedgerAPIClient(global.serverAddress, global.callbackServer);
-      // @ts-ignore
-      orgId = global.orgId;
-
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS);
-      fixtures = new TestFixtures(client, builder);
+    beforeAll(() => {
+      client = config.network.anyClient();
+      setup = new TestSetup(client, config.orgId);
     });
 
     test('should issue, transfer, and verify balances', async () => {
-      // Setup: Create actors and asset
-      const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-      const primaryBuyer = builder.buildActor('primaryBuyer');
-      const secondaryBuyer = builder.buildActor('secondaryBuyer');
-      const asset = builder.buildFinP2PAsset();
+      const issuer = setup.newFinId();
+      const buyer = setup.newFinId();
+      const assetId = setup.newAssetId();
 
-      const scenario = SCENARIOS.ISSUE_TRANSFER_REDEEM;
+      // Create asset
+      await setup.createAsset(assetId);
 
-      // Step 1: Setup issued tokens
-      const { receipt: issueReceipt } = await fixtures.setupIssuedTokens({
-        issuer,
-        buyer: primaryBuyer,
-        asset,
-        amount: scenario.ISSUE_AMOUNT,
-        settlementAmount: scenario.ISSUE_SETTLEMENT,
-      });
+      // Issue 1000 tokens to issuer
+      const issueRes = await TestHelpers.executeAndWaitForCompletion(client, () =>
+        client.tokens.issue(issueRequest(assetId, issuer, '1000')),
+      );
+      expect(issueRes.isCompleted).toBe(true);
+      expect(issueRes.error).toBeUndefined();
 
-      // Verify issue receipt
-      ReceiptAssertions.expectIssueReceipt(issueReceipt, {
-        asset,
-        quantity: scenario.ISSUE_AMOUNT,
-        destinationFinId: issuer.finId,
-      });
+      // Verify issuer balance
+      await client.expectBalance(source(issuer), finp2pAsset(assetId), 1000);
 
-      // Step 2: Transfer tokens to secondary buyer
-      const transferRequest = await builder.buildSignedTransferRequest({
-        seller: issuer,
-        buyer: secondaryBuyer,
-        asset,
-        amount: scenario.TRANSFER_AMOUNT,
-        settlementAmount: scenario.TRANSFER_SETTLEMENT,
-      });
-
-      const transferReceipt = await TestHelpers.transferAndGetReceipt(client, transferRequest);
-
-      // Verify transfer receipt
-      ReceiptAssertions.expectTransferReceipt(transferReceipt, {
-        asset,
-        quantity: scenario.TRANSFER_AMOUNT,
-        sourceFinId: issuer.finId,
-        destinationFinId: secondaryBuyer.finId,
-      });
+      // Transfer 600 tokens from issuer to buyer
+      const transferRes = await TestHelpers.executeAndWaitForCompletion(client, () =>
+        client.tokens.transfer(transferRequest(assetId, issuer, buyer, '600')),
+      );
+      expect(transferRes.isCompleted).toBe(true);
+      expect(transferRes.error).toBeUndefined();
 
       // Verify final balances
-      await client.expectBalance(issuer.source, asset, scenario.EXPECTED_SELLER_BALANCE);
-      await client.expectBalance(secondaryBuyer.source, asset, scenario.EXPECTED_BUYER_BALANCE);
+      await client.expectBalance(source(issuer), finp2pAsset(assetId), 400);
+      await client.expectBalance(source(buyer), finp2pAsset(assetId), 600);
     });
   });
 }

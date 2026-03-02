@@ -1,5 +1,5 @@
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { CallbackServer } from '../callback-server/server';
+import { MockServer } from '../mock-server';
 import { ClientError } from '../utils/error';
 import { OpenAPIValidator } from '../utils/openapi-validator';
 import { sleep } from '../utils/utils';
@@ -94,9 +94,9 @@ export class LedgerAPIClient {
 
   public readonly common: CommonLedgerAPI;
 
-  public readonly callbackServer: CallbackServer | undefined;
+  public readonly callbackServer: MockServer | undefined;
 
-  constructor(host: string, callbackServer?: CallbackServer) {
+  constructor(host: string, callbackServer?: MockServer) {
     this.tokens = new TokensLedgerAPI(host);
     this.escrow = new EscrowLedgerAPI(host);
     this.payments = new PaymentsLedgerAPI(host);

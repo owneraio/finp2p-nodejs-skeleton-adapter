@@ -1,5 +1,4 @@
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { TestActor } from './test-builders';
 import { LedgerAPIClient } from '../api/api';
 import { sleep } from './utils';
 import { ClientError } from './error';
@@ -124,11 +123,15 @@ export class BalanceAssertions {
    */
   static async expectBalance(
     client: LedgerAPIClient,
-    actor: TestActor,
-    asset: LedgerAPI['schemas']['asset'],
+    finId: string,
+    assetId: string,
     expectedAmount: number,
   ) {
-    await client.expectBalance(actor.source, asset, expectedAmount);
+    await client.expectBalance(
+      { finId, account: { type: 'finId', finId } },
+      { type: 'finp2p', resourceId: assetId },
+      expectedAmount,
+    );
   }
 
   /**
@@ -137,13 +140,13 @@ export class BalanceAssertions {
   static async expectBalances(
     client: LedgerAPIClient,
     balances: Array<{
-      actor: TestActor;
-      asset: LedgerAPI['schemas']['asset'];
+      finId: string;
+      assetId: string;
       amount: number;
     }>,
   ) {
-    for (const { actor, asset, amount } of balances) {
-      await client.expectBalance(actor.source, asset, amount);
+    for (const { finId, assetId, amount } of balances) {
+      await this.expectBalance(client, finId, assetId, amount);
     }
   }
 }
