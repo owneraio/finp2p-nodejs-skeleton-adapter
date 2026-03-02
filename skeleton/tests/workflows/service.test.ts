@@ -298,19 +298,19 @@ describe("Service operation tests", () => {
         },
       }),
       status: "succeeded",
-      updated_at: expect.any(Date),
+      updatedAt: expect.any(Date),
     });
 
     await expect(storage().operation(row2.cid)).resolves.toEqual({
       ...row2,
-      updated_at: expect.any(Date),
+      updatedAt: expect.any(Date),
       outputs: rejectedPlan(404, "should-fail-idempotency:plan-id-0"),
       status: "failed",
     });
 
     await expect(storage().operation(row3.cid)).resolves.toEqual({
       ...row3,
-      updated_at: expect.any(Date),
+      updatedAt: expect.any(Date),
       outputs: expect.anything(),
       status: "failed",
     });

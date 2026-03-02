@@ -39,8 +39,8 @@ describe('Storage operations', () => {
     expect(row.status).toEqual(ix.status);
     expect(row.inputs).toEqual({ value: 32 });
     expect(row.outputs).toEqual({ signature: { tx: "hash" } });
-    expectDateToBeClose(row.created_at, creationDate);
-    expectDateToBeClose(row.updated_at, creationDate);
+    expectDateToBeClose(row.createdAt, creationDate);
+    expectDateToBeClose(row.updatedAt, creationDate);
   });
 
   test("providing optional fields may be reset", async () => {
@@ -50,8 +50,8 @@ describe('Storage operations', () => {
       method: "nonExistent",
       status: "in_progress" as const,
       cid: "should be overriden",
-      created_at: new Date(2000, 1, 2, 3, 4, 5),
-      updated_at: new Date(1990, 1, 2, 3, 4, 5),
+      createdAt: new Date(2000, 1, 2, 3, 4, 5),
+      updatedAt: new Date(1990, 1, 2, 3, 4, 5),
     };
     const creationDate = new Date();
 
@@ -59,11 +59,11 @@ describe('Storage operations', () => {
     expect(inserted).toBe(true);
     expect(row.cid).toEqual("should be overriden");
     expect(row.status).toEqual(ix.status);
-    expectDateToBeClose(row.created_at, creationDate);
-    expectDateToBeClose(row.updated_at, creationDate);
+    expectDateToBeClose(row.createdAt, creationDate);
+    expectDateToBeClose(row.updatedAt, creationDate);
   });
 
-  test("updating row should autopopulate updated_at field but not created_at", async () => {
+  test("updating row should autopopulate updatedAt field but not createdAt", async () => {
     const ix = {
       cid: Math.random().toString(),
       inputs: [ 32 ],
@@ -81,16 +81,16 @@ describe('Storage operations', () => {
       assetBalance: { name: "USDC", value: 12345 },
     });
 
-    expectDateToBeClose(row.created_at, urow.created_at);
-    expectDateToBeClose(urow.updated_at, updateDate);
+    expectDateToBeClose(row.createdAt, urow.createdAt);
+    expectDateToBeClose(urow.updatedAt, updateDate);
     expect(urow.status).toEqual("failed");
     expect(urow.outputs).toEqual({
       assetBalance: { name: "USDC", value: 12345 },
     });
 
     const grow = await storage().operation(row.cid);
-    expectDateToBeClose(row.created_at, urow.created_at);
-    expectDateToBeClose(urow.updated_at, updateDate);
+    expectDateToBeClose(row.createdAt, urow.createdAt);
+    expectDateToBeClose(urow.updatedAt, updateDate);
     expect(urow.status).toEqual("failed");
     expect(urow.outputs).toEqual({
       assetBalance: { name: "USDC", value: 12345 },
