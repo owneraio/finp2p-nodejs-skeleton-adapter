@@ -129,4 +129,16 @@ export class FinP2PClient {
     return this.ossClient.getOwnerBalances(assetId);
   }
 
+  async getLedgers() {
+    return this.ossClient.getLedgers();
+  }
+
+  async getLedger(name: string) {
+    return this.ossClient.getLedger(name);
+  }
+
+  async getApprovalConfigs() {
+    return this.ossClient.getApprovalConfigs();
+  }
+
 }

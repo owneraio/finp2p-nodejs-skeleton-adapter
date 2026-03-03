@@ -1,0 +1,17 @@
+query GetLedgers($filter: [Filter!]) {
+    ledgers(filter: $filter) {
+        nodes {
+            name
+            endpoint
+            displayName
+            requestTimeout
+            backoff
+            singleRequestTimeout
+            balanceSyncAllowed
+            idempotency {
+                idempotent
+                transientFailureCodes
+            }
+        }
+    }
+}
