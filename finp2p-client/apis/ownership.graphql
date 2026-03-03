@@ -97,12 +97,73 @@ type Asset implements Profile  {
 
     "asset resource version"
     version: String!
+
+    "to fallback to default allowed policy if no specific policy is set"
+    allowPolicyDefaultFallback: Boolean!
+
+    "decimal places for the asset"
+    decimalPlaces: Int!
+
+    "whether the asset is auto-shared"
+    autoShare: Boolean!
 }
 
 type LedgerAssetInfo {
     tokenId: String!
     ledgerReference: LedgerReference
+    ledgerBinding: LedgerBinding
 }
+
+enum LedgerAuthType {
+    OAUTH
+    MTLS
+    API_KEY
+}
+
+type LedgerBindings {
+    "Collection of Ledger Binding Objects, conforms to the Filter input if provided."
+    nodes: [LedgerBinding!]
+
+    "Keeps pagination info in-case limit input wes provided"
+    pageInfo: PageInfo
+}
+
+type LedgerBinding {
+    name: String!
+    endpoint: String!
+    idempotency: LedgerIdempotencyOptions
+    displayName: String
+    requestTimeout: String!
+    backoff: String!
+    singleRequestTimeout: String!
+    balanceSyncAllowed: Boolean!
+}
+
+type LedgerIdempotencyOptions {
+    idempotent: Boolean!
+    transientFailureCodes: [String!]!
+}
+
+union LedgerAuthOptions = LedgerOAuthOptions | LedgerMtlsOptions | LedgerApiKeyOptions
+
+type LedgerOAuthOptions {
+    oauthClientId: String!
+    oauthClientSecret: String!
+    oauthServerEndpoint: String!
+    alg: String!
+    jwtKey: String!
+}
+
+type LedgerMtlsOptions {
+    clientCertificate: String!
+    caCertificate: String!
+    key: String!
+}
+
+type LedgerApiKeyOptions {
+    apiKey: String!
+}
+
 
 union LedgerReference = ContractDetails
 
@@ -534,10 +595,24 @@ type Cryptocurrency {
     "Symbol of the Cryptocurrnecy"
     symbol: String!
 }
+union SettlementTermOptionType = PartialSettlement | FullSettlement | NoSettlement
 
-type SettlementTerm {
+type PartialSettlement {
     asset: AssetDetails!
     unitValue: String!
+}
+
+type FullSettlement {
+    asset: AssetDetails!
+    amount: String!
+}
+
+type NoSettlement {
+    _ignore: Boolean
+}
+
+type SettlementTerm {
+    details: SettlementTermOptionType!
 }
 
 type SettlementInstruction {
@@ -562,72 +637,10 @@ type RedemptionConditions {
     redemptionDuration: String!
 }
 
-
-type Escrows {
-    "Collection of escrow Objects, conforms to the Filter input if provided."
-    nodes: [Escrow!]
-
-    "Keeps pagination info in-case limit input wes provided"
-    pageInfo: PageInfo
-}
-
-"Represents an Escrow in the network."
-type Escrow {
-    "FinP2P Organization Id of the Escrow"
-    orgId: String!
-
-    "Payment Asset"
-    paymentAsset: PaymentAsset!
-
-    "Payment asset resource id"
-    paymentAssetId: String!
-}
-
-
-"Represents supported asset types and conversions in Escrow."
-type PaymentAsset {
-    "PaymentAsset id"
-    id: String
-
-    "Type of account, f.e.: 'Escrow'"
-    accountType: String
-
-    "List of supported assets"
-    assets: [ConvertibleAsset]
-
-    "payment asset orgID"
-    orgId: String!
-
-    "payment asset resource version"
-    version: String!
-}
-
-type ConvertibleAsset {
-    "Type of the asset"
-    type: AssetType
-
-    "ISO-4217 code of the fiat currency or other common codes like BTC for cryptocurrencies"
-    code: String
-
-    "List of available conversions"
-    conversions: [AssetConversion]
-
-    "Describe the policies active on the asset"
-    policies: AssetPolicies
-}
-
 enum AssetType {
     finp2p,
     fiat,
     cryptocurrency
-}
-
-type AssetConversion {
-    "Type of accounts"
-    accountType: AccountIdentifier
-
-    "List of symbols"
-    symbols: [String]
 }
 
 enum ExecutionPlanStatus {
@@ -658,6 +671,9 @@ type ExecutionPlan {
     "plan's list of instructions"
     instructions: [ExecutionPlanInstruction]!
 
+    "plan's contract details"
+    contract: ExecutionPlanContract!
+
     "list of plan approvals"
     approvals: [PlanApproval]!
 
@@ -666,6 +682,99 @@ type ExecutionPlan {
 
     "last time plan was modified (epoch time seconds)"
     lastModified: Int!
+
+    "version of the execution plan"
+    version: Int!
+}
+
+type ExecutionPlanContract {
+    investors: [ExecutionPlanInvestor!]!
+    contractDetails: ExecutionPlanContractDetails
+}
+
+type ExecutionPlanInvestor {
+    investor: String! # resource id of the investor
+    role: InvestorRole!
+}
+
+enum InvestorRole {
+    BUYER
+    SELLER
+    LENDER
+    BORROWER
+    ISSUER
+}
+
+union ExecutionPlanContractDetails = IssuanceContractDetails | BuyingContractDetails | SellingContractDetails | LoanContractDetails
+    | TransferContractDetails | RedemptionContractDetails | PrivateOfferContractDetails | RequestForTransferContractDetails
+
+type IssuanceContractDetails {
+    asset: AssetOrder!
+    settlement: AssetOrder
+}
+
+type BuyingContractDetails {
+    asset: AssetOrder!
+    settlement: AssetOrder
+}
+
+type SellingContractDetails {
+    asset: AssetOrder!
+    settlement: AssetOrder
+}
+
+type LoanContractDetails {
+    asset: LoanOrder!
+    settlement: LoanOrder
+    instruction: LoanInstruction
+}
+
+type TransferContractDetails {
+    asset: AssetOrder!
+}
+
+type RedemptionContractDetails {
+    asset: AssetOrder!
+    settlement: AssetOrder
+}
+
+type PrivateOfferContractDetails {
+    asset: AssetOrder!
+    settlement: AssetOrder
+}
+
+type RequestForTransferContractDetails {
+    asset: AssetOrder!
+}
+
+type AssetOrder {
+    term: AssetOrderTerm!
+    instruction: AssetOrderInstruction!
+}
+
+type LoanOrder {
+    term: AssetOrderTerm!
+    instruction: LoanOrderInstruction!
+}
+
+type AssetOrderTerm {
+    asset: AssetDetails!
+    amount: String!
+}
+
+type Account {
+    asset: AssetDetails
+    identifier: AccountIdentifier
+}
+
+type AssetOrderInstruction {
+    sourceAccount: Account
+    destinationAccount: Account
+}
+
+type LoanOrderInstruction {
+    borrowerAccount: Account
+    lenderAccount: Account
 }
 
 enum ApprovalStatus {
@@ -691,6 +800,7 @@ type InstructionApproval {
     sequence: Int!
     orgId: String!
     status: String!
+    reason: String!
 }
 
 union InstructionDetails = IssueInstruction | TransferInstruction | HoldInstruction | ReleaseInstruction | RevertHoldInstruction | AwaitInstruction | RedeemInstruction
@@ -715,6 +825,8 @@ type ExecutionPlanInstruction {
     state: InstructionCompletionState!
     approvals(filter:[Filter!]): InstructionApprovals!
     transitions: InstructionTransition!
+    version: Int!
+    workflows: [Workflow!]!
 }
 
 union Transition = StatusTransition | SequenceTransition
@@ -792,6 +904,8 @@ type ReleaseInstruction {
 type RevertHoldInstruction {
     "destination account information"
     destinationAccount: AccountInstruction!
+    "hold instruction sequence number to be reverted"
+    holdInstructionSequence: Int!
 }
 
 type AwaitInstruction {
@@ -1223,7 +1337,6 @@ type Receipts {
     pageInfo: PageInfo
 }
 
-
 "Result of Aggregation function applied on an Object numeric field."
 type AggregateResult {
     "The Object's field which this results refer to."
@@ -1257,7 +1370,7 @@ input Aggregate {
 "The query root of Ownera's GraphQL interface."
 type Query {
     "Look up Assets, Optional provide Filters or Aggregates."
-    assets(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: AssetOrder): Assets!
+    assets(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: AssetOrderInput): Assets!
 
     "Look up Users, Optional provide Filter or Aggregate."
     users(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Users!
@@ -1274,14 +1387,17 @@ type Query {
     "Look up Organizations, Optional provide Filter or Aggregate."
     organizations(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Organizations!
 
-    "List of escrows"
-    escrows(filter: [Filter!]): Escrows!
-
     "Look up Execution Plans, Optional provide Filter."
     plans(filter:[Filter!], paginate: PaginateInput = {}, orderBy: ExecutionPlanOrder): ExecutionsPlans!
 
     "Look up Workflows, Optional provide Filter."
     workflows(filter: [Filter!], paginate: PaginateInput = {}, orderBy: WorkflowOrder): Workflows!
+
+    ledgers(filter: [Filter!], paginate: PaginateInput = {}): LedgerBindings!
+
+    approvalConfigs(paginate: PaginateInput = {}): ApprovalConfigs!
+
+    pinningConfig: PinningConfigs
 }
 
 type PageInfo {
@@ -1332,7 +1448,7 @@ input PaginateInput {
     after: String
 }
 
-input AssetOrder {
+input AssetOrderInput {
     field: AssetOrderField
     direction: SortOrder
 }
@@ -1446,6 +1562,7 @@ enum AssetIdentifierType {
     DTI
     CMU
     FIGI
+    ISO4217
     CUSTOM
 }
 
@@ -1472,9 +1589,11 @@ type WorkflowMetadata {
     traceId: String!
 
     correlationIds: [String!]
+}
 
+type Reference {
+    workflowId: String!
     referenceId: String!
-
     referenceType: String!
 }
 
@@ -1497,8 +1616,84 @@ type Workflow {
     "metadata of the workflow"
     metadata: WorkflowMetadata!
 
+    "list of reference information of the workflow"
+    references: [Reference!]!
+
     "the time workflow expires"
     expires: Int!
+
+    "Health status and admin information for the workflow"
+    health: WorkflowHealth
+
+    "Available admin actions for this workflow"
+    availableActions: [WorkflowAdminAction!]!
+
+    "Admin operations history and metadata"
+    adminMetadata: WorkflowAdminMetadata
+
+    "Workflow creation timestamp"
+    creationTimestamp: Int!
+}
+
+"Health status of a workflow"
+type WorkflowHealth {
+    "Current health status"
+    status: WorkflowHealthStatus!
+
+    "List of health issues detected"
+    issues: [String!]!
+
+    "health stuck since timestamp"
+    stuckSince: Int!
+
+    "Timestamp when health was last assessed"
+    lastAssessed: Int!
+
+    "Additional health metadata"
+    metadata: WorkflowHealthMetadata
+}
+
+"Health status enumeration"
+enum WorkflowHealthStatus {
+    HEALTHY
+    STALE
+    STUCK
+    UNHEALTHY
+}
+
+"Additional health assessment metadata"
+type WorkflowHealthMetadata {
+    "Time since last state transition"
+    timeSinceLastTransition: Int
+
+    "Number of retry attempts"
+    retryCount: Int
+
+    "Workflow age in seconds"
+    age: Int
+}
+
+"Available admin actions for workflows"
+enum WorkflowAdminAction {
+    RESET
+    RESUME
+    RETRY
+    CANCEL
+}
+
+"Admin operations metadata and history"
+type WorkflowAdminMetadata {
+    "Last admin action performed"
+    lastAction: WorkflowAdminAction
+
+    "Timestamp of last admin action"
+    lastActionTimestamp: Int
+
+    "User who performed last action"
+    lastActionBy: String
+
+    "Total number of admin actions performed"
+    totalActions: Int!
 }
 
 enum WorkflowOrderField {
@@ -1506,9 +1701,64 @@ enum WorkflowOrderField {
     NAME
     STATUS
     REFERENCE_ID
+    HEALTH_STATUS
+    CORRELATION_ID
 }
 
 input WorkflowOrder {
     field: WorkflowOrderField
     direction: SortOrder
 }
+
+type ApprovalConfig {
+    "proposal approval configuration"
+    id: String!
+    config: String!
+    createdAt: String!
+}
+
+type ApprovalConfigs {
+    nodes: [ApprovalConfig!]
+
+    "Keeps pagination info in-case limit input was provided"
+    pageInfo: PageInfo
+}
+
+type PinningConfigs {
+    "pinning service configuration data"
+    nodes: [PinningConfig!]
+}
+
+type PinningConfig {
+    "pinning config unique id"
+    id: String!
+
+    "pinning service configuration data"
+    nodes: [PinningConfigNodeEntry!]!
+}
+
+type PinningConfigNodeEntry {
+    "entry unique id"
+    id: String!
+
+    token: String!
+
+    addresses: [NodeAddress!]!
+}
+
+enum HttpSchemas {
+    HTTP1_1
+    HTTP2
+}
+
+type NodeAddress {
+    "address value"
+    address: String!
+
+    "node port"
+    port: Int!
+
+    "supported http schemas"
+    schemas: [HttpSchemas!]!
+}
+

@@ -150,6 +150,34 @@ export type OssOrganizationNodes = {
   organizations: { nodes: OssOrganization[] }
 };
 
+export type OssLedgerBinding = {
+  name: string;
+  endpoint: string;
+  displayName: string | null;
+  requestTimeout: string;
+  backoff: string;
+  singleRequestTimeout: string;
+  balanceSyncAllowed: boolean;
+  idempotency: {
+    idempotent: boolean;
+    transientFailureCodes: string[];
+  } | null;
+};
+
+export type OssLedgerBindingNodes = {
+  ledgers: { nodes: OssLedgerBinding[] }
+};
+
+export type OssApprovalConfig = {
+  id: string;
+  config: string;
+  createdAt: string;
+};
+
+export type OssApprovalConfigNodes = {
+  approvalConfigs: { nodes: OssApprovalConfig[] }
+};
+
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {
   const rawObject: unknown = JSON.parse(jsonString);
 

@@ -1,0 +1,9 @@
+query GetApprovalConfigs {
+    approvalConfigs {
+        nodes {
+            id
+            config
+            createdAt
+        }
+    }
+}
