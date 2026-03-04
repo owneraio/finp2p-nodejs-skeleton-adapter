@@ -2,16 +2,15 @@ import { Asset, BusinessError } from '@owneraio/finp2p-adapter-models';
 import { HoldOperation, Transaction } from './model';
 import { Account } from './accounts';
 
-
 export class Storage {
 
-  assets: Record<string, Asset> = {};
+  private transactions: Record<string, Transaction> = {};
 
-  accounts: Record<string, Account> = {};
+  private assets: Record<string, Asset> = {};
 
-  holdOperations: Record<string, HoldOperation> = {};
+  private accounts: Record<string, Account> = {};
 
-  transactions: Record<string, Transaction> = {};
+  private holdOperations: Record<string, HoldOperation> = {};
 
   registerTransaction(tx: Transaction) {
     this.transactions[tx.id] = tx;
