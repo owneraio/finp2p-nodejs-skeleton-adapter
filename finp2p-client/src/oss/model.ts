@@ -1,5 +1,11 @@
+export type LedgerIdentifier = {
+  network: string;
+  standard: string;
+  tokenId: string;
+};
+
 export type LedgerAssetInfo = {
-  tokenId: string
+  ledgerIdentifier?: LedgerIdentifier
   ledgerReference?: LedgerReference
 };
 
@@ -58,7 +64,7 @@ export type OssAsset = {
   },
   issuerId: string,
   config: string,
-  assetIdentifier: AssetIdentifier;
+  financialIdentifier: AssetIdentifier;
   allowedIntents: string[],
   regulationVerifiers: {
     id: string,
@@ -148,34 +154,6 @@ export type OssOrganization = {
 
 export type OssOrganizationNodes = {
   organizations: { nodes: OssOrganization[] }
-};
-
-export type OssLedgerBinding = {
-  name: string;
-  endpoint: string;
-  displayName: string | null;
-  requestTimeout: string;
-  backoff: string;
-  singleRequestTimeout: string;
-  balanceSyncAllowed: boolean;
-  idempotency: {
-    idempotent: boolean;
-    transientFailureCodes: string[];
-  } | null;
-};
-
-export type OssLedgerBindingNodes = {
-  ledgers: { nodes: OssLedgerBinding[] }
-};
-
-export type OssApprovalConfig = {
-  id: string;
-  config: string;
-  createdAt: string;
-};
-
-export type OssApprovalConfigNodes = {
-  approvalConfigs: { nodes: OssApprovalConfig[] }
 };
 
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {

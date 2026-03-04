@@ -25,10 +25,10 @@ export class FinP2PClient {
     assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
     config: string | undefined,
     metadata: any | undefined,
-    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier']) {
+    financialIdentifier: FinAPIComponents['schemas']['financialAssetIdentifier'] | undefined) {
     return this.finAPIClient.createAsset(
       name, type, issuerId, symbol, denomination, intentTypes,
-      ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier,
+      ledgerAssetBinding, assetPolicies, config, metadata, financialIdentifier,
     );
   }
 
@@ -127,18 +127,6 @@ export class FinP2PClient {
 
   async getOwnerBalances(assetId: string) {
     return this.ossClient.getOwnerBalances(assetId);
-  }
-
-  async getLedgers() {
-    return this.ossClient.getLedgers();
-  }
-
-  async getLedger(name: string) {
-    return this.ossClient.getLedger(name);
-  }
-
-  async getApprovalConfigs() {
-    return this.ossClient.getApprovalConfigs();
   }
 
 }

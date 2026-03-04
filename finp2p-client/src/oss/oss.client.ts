@@ -5,9 +5,7 @@ import OWNERS from './graphql/owners.graphql';
 import ORGANIZATIONS from './graphql/organization.graphql';
 import ASSETS from './graphql/assets.graphql';
 import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
-import LEDGERS from './graphql/ledgers.graphql';
-import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
-import { OssApprovalConfigNodes, OssAssetNodes, OssEscrowNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
+import { OssAssetNodes, OssEscrowNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
 export class OssClient {
@@ -99,30 +97,6 @@ export class OssClient {
       throw new ItemNotFoundError(`${orgId}:${assetCode}`, 'Payment asset');
     }
     return ast;
-  }
-
-  async getLedgers() {
-    const resp = await this.queryOss<OssLedgerBindingNodes>(LEDGERS, {});
-    return resp.ledgers.nodes;
-  }
-
-  async getLedger(name: string) {
-    const resp = await this.queryOss<OssLedgerBindingNodes>(LEDGERS, {
-      filter: {
-        key: 'name',
-        operator: 'EQ',
-        value: name,
-      },
-    });
-    if (resp.ledgers.nodes.length == 0) {
-      throw new ItemNotFoundError(name, 'Ledger');
-    }
-    return resp.ledgers.nodes[0];
-  }
-
-  async getApprovalConfigs() {
-    const resp = await this.queryOss<OssApprovalConfigNodes>(APPROVAL_CONFIGS, {});
-    return resp.approvalConfigs.nodes;
   }
 
   async getOrganization(orgId: string) {

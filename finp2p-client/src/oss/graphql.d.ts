@@ -14,20 +14,8 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
-export type Account = {
-  __typename?: 'Account';
-  asset?: Maybe<AssetDetails>;
-  identifier?: Maybe<AccountIdentifier>;
-};
-
-export type AccountIdentifier = CryptoWalletAccount | FinP2PAssetAccount | Iban;
-
-export type AccountInstruction = {
-  __typename?: 'AccountInstruction';
-  /** Asset type associated with the account */
-  asset: AssetDetails;
-  identifier?: Maybe<AccountIdentifier>;
-};
+/** Account identifier - supports FinP2P, crypto wallets, and IBAN */
+export type AccountIdentifier = CryptoWalletAccount | FinP2PAccount | Iban;
 
 export enum ActionType {
   Request = 'request',
@@ -95,8 +83,6 @@ export type Asset = Profile & {
   allowPolicyDefaultFallback: Scalars['Boolean']['output'];
   /** Allowed intent types to be used on the asset */
   allowedIntents?: Maybe<Array<IntentTypes>>;
-  /** classification standard used to identify the asset */
-  assetIdentifier?: Maybe<AssetIdentifier>;
   /** whether the asset is auto-shared */
   autoShare: Scalars['Boolean']['output'];
   /** Collection of certificates associated with the Profile. */
@@ -107,6 +93,8 @@ export type Asset = Profile & {
   decimalPlaces: Scalars['Int']['output'];
   /** Denomination currency of the Asset */
   denomination: FiatAsset;
+  /** classification standard used to identify the financial asset */
+  financialIdentifier?: Maybe<FinancialIdentifier>;
   id: Scalars['String']['output'];
   /** Collection of Intents associated with the Asset. */
   intents: Intents;
@@ -153,31 +141,8 @@ export type AssetIssuedTokensArgs = {
   filter?: InputMaybe<Array<Filter>>;
 };
 
-export type AssetDetails = Cryptocurrency | FiatAsset | FinP2PAsset;
-
-export type AssetIdentifier = {
-  __typename?: 'AssetIdentifier';
-  type: AssetIdentifierType;
-  value: Scalars['String']['output'];
-};
-
-export enum AssetIdentifierType {
-  Cmu = 'CMU',
-  Cusip = 'CUSIP',
-  Custom = 'CUSTOM',
-  Dti = 'DTI',
-  Figi = 'FIGI',
-  Isin = 'ISIN',
-  Iso4217 = 'ISO4217',
-  Sedol = 'SEDOL',
-  Unspecified = 'UNSPECIFIED',
-}
-
-export type AssetInstruction = {
-  __typename?: 'AssetInstruction';
-  account: AccountInstruction;
-  destinationAccount?: Maybe<AccountInstruction>;
-};
+/** Asset details - now always FinP2P */
+export type AssetDetails = FinP2PAsset;
 
 export type AssetIssuer = {
   __typename?: 'AssetIssuer';
@@ -205,14 +170,13 @@ export type AssetOrderInput = {
 
 export type AssetOrderInstruction = {
   __typename?: 'AssetOrderInstruction';
-  destinationAccount?: Maybe<Account>;
-  sourceAccount?: Maybe<Account>;
+  destinationAccount?: Maybe<LedgerAccountAsset>;
+  sourceAccount?: Maybe<LedgerAccountAsset>;
 };
 
 export type AssetOrderTerm = {
   __typename?: 'AssetOrderTerm';
   amount: Scalars['String']['output'];
-  asset: AssetDetails;
 };
 
 export type AssetPolicies = {
@@ -224,7 +188,6 @@ export type AssetTerm = {
   __typename?: 'AssetTerm';
   /** Total amount of asset allocated */
   amount: Scalars['String']['output'];
-  asset: AssetDetails;
 };
 
 export enum AssetType {
@@ -266,12 +229,12 @@ export type BuyingContractDetails = {
 
 export type BuyingIntent = {
   __typename?: 'BuyingIntent';
-  /** Asset instruction specifies the asset source of destination account of the intent */
-  assetInstruction: AssetInstruction;
   /** Asset term specifies the asset information and amount of the intent */
   assetTerm: AssetTerm;
   /** resource id of the buyer */
   buyer?: Maybe<Scalars['String']['output']>;
+  /** Destination account - where buyer receives the asset */
+  destination: FinP2PAssetAccount;
   settlementInstruction: BuyingSettlementInstruction;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
@@ -282,10 +245,22 @@ export type BuyingIntent = {
 
 export type BuyingSettlementInstruction = {
   __typename?: 'BuyingSettlementInstruction';
-  account: AccountInstruction;
+  /** Source account where buyer pays from */
+  account?: Maybe<FinP2PAssetAccount>;
 };
 
 export type BuyingSignaturePolicy = ManualIntentSignaturePolicy | PresignedBuyingIntentSignaturePolicy;
+
+/** CAIP-19 format ledger identifier */
+export type Caip19Identifier = {
+  __typename?: 'Caip19Identifier';
+  /** CAIP-2 network identifier (e.g., eip155:1, solana:mainnet) */
+  network: Scalars['String']['output'];
+  /** Token standard (e.g., erc20, erc721) */
+  standard: Scalars['String']['output'];
+  /** Token ID or contract address */
+  tokenId: Scalars['String']['output'];
+};
 
 /** Represents a Certificate in the network. */
 export type Certificate = {
@@ -347,16 +322,11 @@ export type ContractDetails = {
 
 export type Correspondent = AssetIssuer;
 
+/** Crypto wallet account */
 export type CryptoWalletAccount = {
   __typename?: 'CryptoWalletAccount';
   /** Wallet address represented as a hexadecimal string prefixed with 0x */
   address: Scalars['String']['output'];
-};
-
-export type Cryptocurrency = {
-  __typename?: 'Cryptocurrency';
-  /** Symbol of the Cryptocurrnecy */
-  symbol: Scalars['String']['output'];
 };
 
 export type Custodian = {
@@ -514,6 +484,7 @@ export type ExecutionsPlans = {
   pageInfo?: Maybe<PageInfo>;
 };
 
+/** Fiat currency asset for denomination purposes */
 export type FiatAsset = {
   __typename?: 'FiatAsset';
   /** ISO-4217 code of the fiat currency */
@@ -541,26 +512,33 @@ export type Filter = {
   value: Scalars['String']['input'];
 };
 
+/** FinP2P account - represents a user account in the FinP2P network */
 export type FinP2PAccount = {
   __typename?: 'FinP2PAccount';
-  custodian: Custodian;
+  /** Custodian for the finId */
+  custodian?: Maybe<Custodian>;
+  /** FinId -- a user's public key represented as a hexadecimal string */
   finId: Scalars['String']['output'];
+  /** Organization id of the account */
+  orgId: Scalars['String']['output'];
 };
 
+/** FinP2P asset with resource ID and ledger identifier */
 export type FinP2PAsset = {
   __typename?: 'FinP2PAsset';
+  /** Ledger identifier for the asset */
+  ledgerIdentifier?: Maybe<LedgerIdentifier>;
   /** Resource ID of the FinP2P asset */
   resourceId: Scalars['String']['output'];
 };
 
+/** FinP2P asset account - combines asset info with account info (matches proto FinP2PAssetAccount) */
 export type FinP2PAssetAccount = {
   __typename?: 'FinP2PAssetAccount';
-  /** custodian for the finId */
-  custodian?: Maybe<Custodian>;
-  /** FinId -- a user's public key represented as a hexadecimal string, associated with a user on the FinP2P network */
-  finId: Scalars['String']['output'];
-  /** organization id of the Asset's source ledger, the Asset's organization */
-  orgId: Scalars['String']['output'];
+  /** FinP2P account information */
+  account?: Maybe<FinP2PAccount>;
+  /** FinP2P asset information */
+  asset?: Maybe<FinP2PAsset>;
 };
 
 export type FinP2PevmOperatorDetails = {
@@ -569,10 +547,22 @@ export type FinP2PevmOperatorDetails = {
   finP2POperatorContractAddress: Scalars['String']['output'];
 };
 
+export type FinancialIdentifier = {
+  __typename?: 'FinancialIdentifier';
+  type: FinancialIdentifierType;
+  value: Scalars['String']['output'];
+};
+
+export enum FinancialIdentifierType {
+  Custom = 'CUSTOM',
+  Isin = 'ISIN',
+  Iso4217 = 'ISO4217',
+  Unspecified = 'UNSPECIFIED',
+}
+
 export type FullSettlement = {
   __typename?: 'FullSettlement';
   amount: Scalars['String']['output'];
-  asset: AssetDetails;
 };
 
 export type HashGroup = {
@@ -591,19 +581,15 @@ export type HoldInstruction = {
   __typename?: 'HoldInstruction';
   /** asset's hold amount */
   amount: Scalars['String']['output'];
-  /** resource id of the destination user */
-  destination: Scalars['String']['output'];
   /** destination account information */
-  destinationAccount?: Maybe<AccountInstruction>;
-  /** resource id of the source user */
-  source: Scalars['String']['output'];
+  destination?: Maybe<LedgerAccountAsset>;
   /** source account information */
-  sourceAccount: AccountInstruction;
+  source: LedgerAccountAsset;
 };
 
 export type Holding = {
   __typename?: 'Holding';
-  account: FinP2PAssetAccount;
+  account: FinP2PAccount;
   asset: AssetDetails;
   assetType: AssetType;
   availableBalance: Scalars['String']['output'];
@@ -638,6 +624,7 @@ export enum HttpSchemas {
   Http2 = 'HTTP2',
 }
 
+/** IBAN bank account */
 export type Iban = {
   __typename?: 'Iban';
   /** IBAN code */
@@ -757,10 +744,8 @@ export type IssueInstruction = {
   __typename?: 'IssueInstruction';
   /** asset's issuance amount */
   amount: Scalars['String']['output'];
-  /** resource id of the buyer */
-  buyer: Scalars['String']['output'];
-  /** buyer's account */
-  destinationAccount: AccountInstruction;
+  /** destination account for issuance */
+  destination: LedgerAccountAsset;
 };
 
 /** Represents an Issuer in the network. */
@@ -805,6 +790,15 @@ export type Issuers = {
   pageInfo?: Maybe<PageInfo>;
 };
 
+/** Ledger account asset - combines FinP2P account with optional network account */
+export type LedgerAccountAsset = {
+  __typename?: 'LedgerAccountAsset';
+  /** FinP2P asset account */
+  finp2pAccount: FinP2PAssetAccount;
+  /** Network account (e.g., wallet) */
+  networkAccount?: Maybe<NetworkAccount>;
+};
+
 export type LedgerApiKeyOptions = {
   __typename?: 'LedgerApiKeyOptions';
   apiKey: Scalars['String']['output'];
@@ -813,8 +807,8 @@ export type LedgerApiKeyOptions = {
 export type LedgerAssetInfo = {
   __typename?: 'LedgerAssetInfo';
   ledgerBinding?: Maybe<LedgerBinding>;
+  ledgerIdentifier?: Maybe<LedgerIdentifier>;
   ledgerReference?: Maybe<LedgerReference>;
-  tokenId: Scalars['String']['output'];
 };
 
 export type LedgerAuthOptions = LedgerApiKeyOptions | LedgerMtlsOptions | LedgerOAuthOptions;
@@ -851,6 +845,9 @@ export type LedgerIdempotencyOptions = {
   transientFailureCodes: Array<Scalars['String']['output']>;
 };
 
+/** Ledger identifier union - currently only CAIP-19 supported */
+export type LedgerIdentifier = Caip19Identifier;
+
 export type LedgerMtlsOptions = {
   __typename?: 'LedgerMtlsOptions';
   caCertificate: Scalars['String']['output'];
@@ -868,12 +865,6 @@ export type LedgerOAuthOptions = {
 };
 
 export type LedgerReference = ContractDetails;
-
-export type LoanAssetInstruction = {
-  __typename?: 'LoanAssetInstruction';
-  borrowerAccount: AccountInstruction;
-  lenderAccount: AccountInstruction;
-};
 
 export type LoanConditions = CloseAmountRate | InterestRate | RepaymentTerm;
 
@@ -893,14 +884,16 @@ export type LoanInstruction = {
 
 export type LoanIntent = {
   __typename?: 'LoanIntent';
-  /** Asset instruction specifies the asset source of destination account of the intent */
-  assetInstruction: LoanAssetInstruction;
   /** Asset term specifies the asset information and amount of the intent */
   assetTerm: AssetTerm;
   /** resource id of the borrower */
   borrower: Scalars['String']['output'];
+  /** Borrower's account for the loan asset */
+  borrowerAccount: FinP2PAssetAccount;
   /** resource id of the lender */
   lender: Scalars['String']['output'];
+  /** Lender's account for the loan asset */
+  lenderAccount: FinP2PAssetAccount;
   loanInstruction: LoanInstruction;
   /** Signature policy type */
   loanSettlementInstruction: LoanSettlementInstruction;
@@ -918,14 +911,16 @@ export type LoanOrder = {
 
 export type LoanOrderInstruction = {
   __typename?: 'LoanOrderInstruction';
-  borrowerAccount?: Maybe<Account>;
-  lenderAccount?: Maybe<Account>;
+  borrowerAccount?: Maybe<LedgerAccountAsset>;
+  lenderAccount?: Maybe<LedgerAccountAsset>;
 };
 
 export type LoanSettlementInstruction = {
   __typename?: 'LoanSettlementInstruction';
-  borrowerAccount?: Maybe<AccountIdentifier>;
-  lenderAccount?: Maybe<AccountIdentifier>;
+  /** Borrower's account for settlement */
+  borrowerAccount?: Maybe<FinP2PAssetAccount>;
+  /** Lender's account for settlement */
+  lenderAccount?: Maybe<FinP2PAssetAccount>;
 };
 
 export type LoanSignaturePolicy = PresignedLoanIntentSignaturePolicy;
@@ -960,6 +955,13 @@ export type MessageRecipients = {
 export type Messages = {
   __typename?: 'Messages';
   nodes?: Maybe<Array<Message>>;
+};
+
+/** Network account - represents external network accounts like wallets */
+export type NetworkAccount = {
+  __typename?: 'NetworkAccount';
+  /** Wallet account if present */
+  wallet?: Maybe<WalletAccount>;
 };
 
 export type NoProof = {
@@ -1123,7 +1125,6 @@ export type PaginateInput = {
 
 export type PartialSettlement = {
   __typename?: 'PartialSettlement';
-  asset: AssetDetails;
   unitValue: Scalars['String']['output'];
 };
 
@@ -1214,8 +1215,6 @@ export type PresignedSellingIntentSignaturePolicy = {
 
 export type PrimarySale = {
   __typename?: 'PrimarySale';
-  /** Asset instruction specifies the asset source of destination account of the intent */
-  assetInstruction: AssetInstruction;
   /** Asset term specifies the asset information and amount of the intent */
   assetTerm: AssetTerm;
   /** Issuer id */
@@ -1223,6 +1222,8 @@ export type PrimarySale = {
   sellingSettlementInstruction: SellingSettlementInstruction;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
+  /** Source account - issuer's account from which asset is sold */
+  source: FinP2PAssetAccount;
 };
 
 export type PrivateOfferContractDetails = {
@@ -1233,8 +1234,6 @@ export type PrivateOfferContractDetails = {
 
 export type PrivateOfferIntent = {
   __typename?: 'PrivateOfferIntent';
-  /** Asset instruction specifies the asset source of destination account of the intent */
-  assetInstruction: AssetInstruction;
   /** Asset term specifies the asset information and amount of the intent */
   assetTerm: AssetTerm;
   /** resource id of the buyer */
@@ -1247,6 +1246,8 @@ export type PrivateOfferIntent = {
   signaturePolicy: PrivateOfferSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
+  /** Source account - seller's account from which asset is sold */
+  source: FinP2PAssetAccount;
 };
 
 export type PrivateOfferSignaturePolicy = ManualIntentSignaturePolicy | PresignedPrivateOfferIntentSignaturePolicy;
@@ -1381,12 +1382,8 @@ export type QueryWorkflowsArgs = {
 
 export type Receipt = {
   __typename?: 'Receipt';
-  /** Asset type related to holding updated */
-  asset: AssetDetails;
-  /** Account related to destination of transaction */
-  destination: User;
-  /** Account related to destination of transaction */
-  destinationAccount?: Maybe<AccountIdentifier>;
+  /** Destination of transaction */
+  destination: LedgerAccountAsset;
   id: Scalars['String']['output'];
   /** Operation id */
   operationId?: Maybe<Scalars['String']['output']>;
@@ -1396,10 +1393,8 @@ export type Receipt = {
   proof?: Maybe<Proof>;
   /** Number of asset units with the transaction */
   quantity: Scalars['String']['output'];
-  /** User  related to source of transaction */
-  source: User;
-  /** Account related to source of transaction */
-  sourceAccount?: Maybe<AccountIdentifier>;
+  /** Source of transaction */
+  source: LedgerAccountAsset;
   /** Receipt status */
   status: ReceiptStatus;
   /** Receipt timestamp */
@@ -1444,10 +1439,10 @@ export type Recipient = Investor;
 
 export type RedeemInstruction = {
   __typename?: 'RedeemInstruction';
-  /** asset's release amount */
+  /** asset's redeem amount */
   amount: Scalars['String']['output'];
   /** source account information */
-  sourceAccount: AccountInstruction;
+  source: LedgerAccountAsset;
 };
 
 export type RedemptionConditions = {
@@ -1467,10 +1462,10 @@ export type RedemptionIntent = {
   assetTerm: AssetTerm;
   /** Intent conditions */
   conditions: RedemptionConditions;
+  /** Destination account - where redeemed asset goes (to issuer) */
+  destination?: Maybe<FinP2PAssetAccount>;
   /** Issuer id */
   issuerId: Scalars['String']['output'];
-  /** Asset instruction specifies the asset source of destination account of the intent */
-  redeemAssetInstruction?: Maybe<AssetInstruction>;
   /** Specify settlement accounts */
   redemptionSettlementInstruction?: Maybe<RedemptionSettlementInstruction>;
   /** Settlement term */
@@ -1482,7 +1477,8 @@ export type RedemptionIntent = {
 
 export type RedemptionSettlementInstruction = {
   __typename?: 'RedemptionSettlementInstruction';
-  accounts?: Maybe<Array<AccountInstruction>>;
+  /** Source accounts where payment comes from */
+  accounts?: Maybe<Array<FinP2PAssetAccount>>;
 };
 
 export type RedemptionSignaturePolicy = ManualIntentSignaturePolicy | PresignedRedemptionIntentSignaturePolicy;
@@ -1499,9 +1495,9 @@ export type ReleaseInstruction = {
   /** asset's release amount */
   amount: Scalars['String']['output'];
   /** destination account information */
-  destinationAccount: AccountInstruction;
+  destination: LedgerAccountAsset;
   /** source account information */
-  sourceAccount: AccountInstruction;
+  source: LedgerAccountAsset;
 };
 
 export type RepaymentTerm = {
@@ -1519,17 +1515,19 @@ export type RequestForTransferIntent = {
   __typename?: 'RequestForTransferIntent';
   /** Action type of the intent */
   actionType: ActionType;
-  /** Asset instruction specifies the asset source of destination account of the intent */
-  assetInstruction: AssetInstruction;
   /** Asset term specifies the asset information and amount of the intent */
   assetTerm: AssetTerm;
   /** resource id of the creditor */
   creditor?: Maybe<Scalars['String']['output']>;
   /** resource id of the debitor */
   debitor?: Maybe<Scalars['String']['output']>;
+  /** Destination account - used when actionType is REQUEST */
+  destination?: Maybe<FinP2PAssetAccount>;
   signaturePolicy: RequestForTransferSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
+  /** Source account - used when actionType is SEND */
+  source?: Maybe<FinP2PAssetAccount>;
 };
 
 export type RequestForTransferSignaturePolicy = ManualIntentSignaturePolicy | PresignedRequestForTransferIntentSignaturePolicy;
@@ -1537,7 +1535,7 @@ export type RequestForTransferSignaturePolicy = ManualIntentSignaturePolicy | Pr
 export type RevertHoldInstruction = {
   __typename?: 'RevertHoldInstruction';
   /** destination account information */
-  destinationAccount: AccountInstruction;
+  destination: LedgerAccountAsset;
   /** hold instruction sequence number to be reverted */
   holdInstructionSequence: Scalars['Int']['output'];
 };
@@ -1550,8 +1548,6 @@ export type SellingContractDetails = {
 
 export type SellingIntent = {
   __typename?: 'SellingIntent';
-  /** Asset instruction specifies the asset source of destination account of the intent */
-  assetInstruction: AssetInstruction;
   /** Asset term specifies the asset information and amount of the intent */
   assetTerm: AssetTerm;
   /** resource id of the seller */
@@ -1562,11 +1558,14 @@ export type SellingIntent = {
   signaturePolicy: SellingSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
+  /** Source account - seller's account from which asset is sold */
+  source: FinP2PAssetAccount;
 };
 
 export type SellingSettlementInstruction = {
   __typename?: 'SellingSettlementInstruction';
-  accounts?: Maybe<Array<AccountInstruction>>;
+  /** Destination accounts where seller receives payment */
+  accounts?: Maybe<Array<FinP2PAssetAccount>>;
 };
 
 export type SellingSignaturePolicy = ManualIntentSignaturePolicy | PresignedSellingIntentSignaturePolicy;
@@ -1700,14 +1699,10 @@ export type TransferInstruction = {
   __typename?: 'TransferInstruction';
   /** asset's transfer amount */
   amount: Scalars['String']['output'];
-  /** resource id of the destination */
-  destination: Scalars['String']['output'];
   /** destination account information */
-  destinationAccount: AccountInstruction;
-  /** resource id of the source */
-  source: Scalars['String']['output'];
+  destination: LedgerAccountAsset;
   /** source account information */
-  sourceAccount: AccountInstruction;
+  source: LedgerAccountAsset;
 };
 
 export type Transition = SequenceTransition | StatusTransition;
@@ -1793,6 +1788,15 @@ export type Verifier = {
   name?: Maybe<Scalars['String']['output']>;
   /** Provider type: REG_APP_STORE, OTHER */
   provider?: Maybe<Scalars['String']['output']>;
+};
+
+/** Wallet account for blockchain wallets */
+export type WalletAccount = {
+  __typename?: 'WalletAccount';
+  /** Wallet address */
+  address: Scalars['String']['output'];
+  /** Type of wallet (e.g., ethereum) */
+  type: Scalars['String']['output'];
 };
 
 export type Workflow = {
