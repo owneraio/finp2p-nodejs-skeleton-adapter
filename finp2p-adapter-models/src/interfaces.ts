@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier,
+  FinIdAccount, AssetBind, AssetDenomination,
 } from './model';
 
 
@@ -27,15 +27,18 @@ export interface TokenService {
 
   createAsset(idempotencyKey: string, asset: Asset,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
+    assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus>;
 
   getBalance(asset: Asset, finId: string): Promise<string>;
 
   balance(asset: Asset, finId: string): Promise<Balance>;
 
-  issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
+  issue(idempotencyKey: string, asset: Asset, to: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
-  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
+  doesSupportCrosschainTransfer(sourceAsset: Asset, destinationAsset: Asset): Promise<boolean>;
+
+  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
+    sourceAsset: Asset, destinationAsset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
   redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,

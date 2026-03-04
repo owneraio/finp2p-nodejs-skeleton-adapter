@@ -65,20 +65,22 @@ export type Balance = {
 
 export type TokenIdentifier = {
   tokenId: string
+  network: string
+  standard: string
+};
+
+export type LedgerAssetIdentifier = {
+  network: string;
+  tokenId: string;
+  standard: string;
+  resourceId?: string;
 };
 
 export type AssetBind = {
-  tokenIdentifier: TokenIdentifier | undefined
+  tokenIdentifier: TokenIdentifier
 };
 
-export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM' | 'ISO4217';
-
-export type AssetIdentifier = {
-  type: AssetIdentifierType
-  value: string
-};
-
-export type AssetDenominationType = 'fiat' | 'cryptocurrency' | 'finp2p';
+export type AssetDenominationType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
 export type AssetDenomination = {
   type: AssetDenominationType
@@ -289,7 +291,7 @@ export const pendingPlan = (correlationId: string, metadata: OperationMetadata |
 // -------------------------------------------------------------------
 
 export type AssetCreationResult = {
-  tokenId: string;
+  ledgerIdentifier: LedgerAssetIdentifier;
   reference: LedgerReference | undefined;
 };
 
