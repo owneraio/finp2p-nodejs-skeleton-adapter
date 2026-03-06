@@ -53,8 +53,6 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     /** @enum {string} */
-    ownerRole: 'investor' | 'venue';
-    /** @enum {string} */
     ownerStatus: 'active' | 'inactive';
     accountMappings: {
       /** @description Ledger-specific account identifier for the holder (e.g. Canton party ID "auth0_00abc123::1220def456...") */
@@ -63,14 +61,12 @@ export interface components {
     ownerMapping: {
       /** @description FinP2P identity (hex secp256k1 compressed public key) */
       finId: string;
-      role: components['schemas']['ownerRole'];
       status: components['schemas']['ownerStatus'];
       accountMappings: components['schemas']['accountMappings'];
     };
     createOwnerMappingRequest: {
       /** @description FinP2P identity (hex secp256k1 compressed public key) */
       finId: string;
-      role?: components['schemas']['ownerRole'];
       status?: components['schemas']['ownerStatus'];
       accountMappings: components['schemas']['accountMappings'];
     };

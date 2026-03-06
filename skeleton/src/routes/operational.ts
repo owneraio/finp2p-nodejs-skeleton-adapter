@@ -20,7 +20,7 @@ type AccountMappingField = MappingAPI['schemas']['accountMappingField'];
  * Return value is merged into the response (e.g. credentialCid, credentialStatus).
  */
 export interface MappingProvisionHook {
-  afterSave(finId: string, ledgerAccountId: string, role: string, status: string): Promise<Partial<CreateOwnerMappingResponse>>;
+  afterSave(finId: string, ledgerAccountId: string, status: string): Promise<Partial<CreateOwnerMappingResponse>>;
 }
 
 export interface MappingConfig {
@@ -31,7 +31,6 @@ export interface MappingConfig {
 function toOwnerMapping(m: AccountMapping): OwnerMapping {
   return {
     finId: m.fin_id,
-    role: 'investor',
     status: 'active',
     accountMappings: { ledgerAccountId: m.account },
   };
@@ -51,7 +50,7 @@ export function registerMappingRoutes(
   app.post('/mapping/owners', async (req, res) => {
     try {
       const body: CreateOwnerMappingRequest = req.body;
-      const { finId, accountMappings, role, status } = body;
+      const { finId, accountMappings, status } = body;
 
       if (!finId || !accountMappings?.ledgerAccountId) {
         res.status(400).json({ error: 'finId and accountMappings.ledgerAccountId are required' });
@@ -59,7 +58,6 @@ export function registerMappingRoutes(
       }
 
       const ledgerAccountId = accountMappings.ledgerAccountId;
-      const ownerRole = role ?? 'investor';
       const ownerStatus = status ?? 'active';
 
       if (ownerStatus !== 'active' && ownerStatus !== 'inactive') {
@@ -76,7 +74,7 @@ export function registerMappingRoutes(
       if (ownerStatus === 'inactive') {
         await deleteAccountMapping(finId, ledgerAccountId);
         logger.info('Owner mapping disabled', { finId });
-        const result: CreateOwnerMappingResponse = { finId, role: ownerRole, status: 'inactive', accountMappings: { ledgerAccountId } };
+        const result: CreateOwnerMappingResponse = { finId, status: 'inactive', accountMappings: { ledgerAccountId } };
         res.json(result);
         return;
       }
@@ -85,14 +83,13 @@ export function registerMappingRoutes(
 
       const result: CreateOwnerMappingResponse = {
         finId,
-        role: ownerRole,
         status: 'active',
         accountMappings: { ledgerAccountId },
       };
 
       if (config.provisionHook) {
         try {
-          const extra = await config.provisionHook.afterSave(finId, ledgerAccountId, ownerRole, ownerStatus);
+          const extra = await config.provisionHook.afterSave(finId, ledgerAccountId, ownerStatus);
           Object.assign(result, extra);
         } catch (e: any) {
           logger.warning('Provision hook failed', { finId, error: e.message });

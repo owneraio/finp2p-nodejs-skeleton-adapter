@@ -97,12 +97,6 @@ paths:
 
 components:
   schemas:
-    ownerRole:
-      type: string
-      enum:
-        - investor
-        - venue
-
     ownerStatus:
       type: string
       enum:
@@ -124,15 +118,12 @@ components:
       type: object
       required:
         - finId
-        - role
         - status
         - accountMappings
       properties:
         finId:
           type: string
           description: FinP2P identity (hex secp256k1 compressed public key)
-        role:
-          $ref: '#/components/schemas/ownerRole'
         status:
           $ref: '#/components/schemas/ownerStatus'
         accountMappings:
@@ -147,8 +138,6 @@ components:
         finId:
           type: string
           description: FinP2P identity (hex secp256k1 compressed public key)
-        role:
-          $ref: '#/components/schemas/ownerRole'
         status:
           $ref: '#/components/schemas/ownerStatus'
         accountMappings:
