@@ -8,7 +8,7 @@ CREATE TABLE ledger_adapter.account_mappings(
   PRIMARY KEY (fin_id, account)
 );
 CREATE INDEX account_mappings_fin_id_idx ON ledger_adapter.account_mappings(fin_id);
-CREATE INDEX account_mappings_account_idx ON ledger_adapter.account_mappings(LOWER(account));
+CREATE INDEX account_mappings_account_idx ON ledger_adapter.account_mappings(account);
 -- +goose StatementEnd
 
 -- +goose StatementBegin

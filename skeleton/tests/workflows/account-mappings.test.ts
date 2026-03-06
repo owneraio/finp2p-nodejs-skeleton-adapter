@@ -25,12 +25,12 @@ describe("account mappings", () => {
   test("save and retrieve mapping by finId", async () => {
     const saved = await workflows.saveAccountMapping("fin-1", "0xABC123");
     expect(saved.fin_id).toBe("fin-1");
-    expect(saved.account).toBe("0xABC123");
+    expect(saved.account).toBe("0xabc123");
     expect(saved.created_at).toBeDefined();
 
     const mappings = await workflows.getAccountMappings("fin-1");
     expect(mappings).toHaveLength(1);
-    expect(mappings[0].account).toBe("0xABC123");
+    expect(mappings[0].account).toBe("0xabc123");
   });
 
   test("multiple accounts per finId", async () => {
@@ -39,7 +39,7 @@ describe("account mappings", () => {
 
     const mappings = await workflows.getAccountMappings("fin-1");
     expect(mappings).toHaveLength(2);
-    expect(mappings.map(m => m.account).sort()).toEqual(["0xAAA", "0xBBB"]);
+    expect(mappings.map(m => m.account).sort()).toEqual(["0xaaa", "0xbbb"]);
   });
 
   test("duplicate insert is idempotent", async () => {
@@ -53,11 +53,16 @@ describe("account mappings", () => {
     expect(all).toHaveLength(1);
   });
 
-  test("retrieve mappings by account (case-insensitive)", async () => {
+  test("retrieve mappings by account (case-insensitive input)", async () => {
     await workflows.saveAccountMapping("fin-1", "0xAbCdEf");
     await workflows.saveAccountMapping("fin-2", "0xABCDEF");
 
-    const byAccount = await workflows.getAccountMappingsByAccount("0xabcdef");
+    // Both stored as lowercase, so they are the same account — idempotent
+    const all = await workflows.listAccountMappings();
+    expect(all).toHaveLength(2);
+
+    // Querying with any casing finds them
+    const byAccount = await workflows.getAccountMappingsByAccount("0xABCDEF");
     expect(byAccount).toHaveLength(2);
     expect(byAccount.map(m => m.fin_id).sort()).toEqual(["fin-1", "fin-2"]);
   });
@@ -70,7 +75,15 @@ describe("account mappings", () => {
 
     const mappings = await workflows.getAccountMappings("fin-1");
     expect(mappings).toHaveLength(1);
-    expect(mappings[0].account).toBe("0xBBB");
+    expect(mappings[0].account).toBe("0xbbb");
+  });
+
+  test("delete with different casing still matches", async () => {
+    await workflows.saveAccountMapping("fin-1", "0xAbC");
+    await workflows.deleteAccountMapping("fin-1", "0xABC");
+
+    const mappings = await workflows.getAccountMappings("fin-1");
+    expect(mappings).toHaveLength(0);
   });
 
   test("delete all mappings for finId", async () => {

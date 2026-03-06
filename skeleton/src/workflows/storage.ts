@@ -117,25 +117,25 @@ export async function getAccountMappings(finId: string): Promise<AccountMapping[
 
 export async function getAccountMappingsByAccount(account: string): Promise<AccountMapping[]> {
   const result = await getFirstConnectionOrDie().query(
-    'SELECT * FROM ledger_adapter.account_mappings WHERE LOWER(account) = LOWER($1) ORDER BY created_at',
-    [account],
+    'SELECT * FROM ledger_adapter.account_mappings WHERE account = $1 ORDER BY created_at',
+    [account.toLowerCase()],
   );
   return result.rows;
 }
 
 export async function saveAccountMapping(finId: string, account: string): Promise<AccountMapping> {
+  const normalizedAccount = account.toLowerCase();
   const result = await getFirstConnectionOrDie().query(
     `INSERT INTO ledger_adapter.account_mappings (fin_id, account)
     VALUES ($1, $2)
     ON CONFLICT (fin_id, account) DO NOTHING
     RETURNING *;`,
-    [finId, account],
+    [finId, normalizedAccount],
   );
   if (result.rows.length === 0) {
-    // Already exists — fetch and return it
     const existing = await getFirstConnectionOrDie().query(
-      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND LOWER(account) = LOWER($2)',
-      [finId, account],
+      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
+      [finId, normalizedAccount],
     );
     return existing.rows[0];
   }
@@ -146,7 +146,7 @@ export async function deleteAccountMapping(finId: string, account?: string): Pro
   if (account) {
     await getFirstConnectionOrDie().query(
       'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
-      [finId, account],
+      [finId, account.toLowerCase()],
     );
   } else {
     await getFirstConnectionOrDie().query(
