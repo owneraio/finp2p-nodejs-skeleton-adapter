@@ -1,11 +1,13 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE ledger_adapter.account_mappings(
-  fin_id VARCHAR(255) PRIMARY KEY,
+  fin_id VARCHAR(255) NOT NULL,
   account VARCHAR(255) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (fin_id, account)
 );
+CREATE INDEX account_mappings_fin_id_idx ON ledger_adapter.account_mappings(fin_id);
 CREATE INDEX account_mappings_account_idx ON ledger_adapter.account_mappings(LOWER(account));
 -- +goose StatementEnd
 

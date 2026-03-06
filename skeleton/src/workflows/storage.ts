@@ -107,39 +107,53 @@ export interface AccountMapping {
   updated_at: Date;
 }
 
-export async function getAccountMapping(finId: string): Promise<AccountMapping | undefined> {
+export async function getAccountMappings(finId: string): Promise<AccountMapping[]> {
   const result = await getFirstConnectionOrDie().query(
     'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1',
     [finId],
   );
-  return result.rows.at(0);
+  return result.rows;
 }
 
-export async function getAccountMappingByAccount(account: string): Promise<AccountMapping | undefined> {
+export async function getAccountMappingsByAccount(account: string): Promise<AccountMapping[]> {
   const result = await getFirstConnectionOrDie().query(
     'SELECT * FROM ledger_adapter.account_mappings WHERE LOWER(account) = LOWER($1)',
     [account],
   );
-  return result.rows.at(0);
+  return result.rows;
 }
 
 export async function saveAccountMapping(finId: string, account: string): Promise<AccountMapping> {
   const result = await getFirstConnectionOrDie().query(
     `INSERT INTO ledger_adapter.account_mappings (fin_id, account)
     VALUES ($1, $2)
-    ON CONFLICT (fin_id) DO UPDATE SET account = $2, updated_at = CURRENT_TIMESTAMP
+    ON CONFLICT (fin_id, account) DO NOTHING
     RETURNING *;`,
     [finId, account],
   );
-  if (result.rows.length === 0) throw new Error('Failed to save account mapping to DB');
-  return result.rows.at(0);
+  if (result.rows.length === 0) {
+    // Already exists — fetch and return it
+    const existing = await getFirstConnectionOrDie().query(
+      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND LOWER(account) = LOWER($2)',
+      [finId, account],
+    );
+    return existing.rows[0];
+  }
+  return result.rows[0];
 }
 
-export async function deleteAccountMapping(finId: string): Promise<void> {
-  await getFirstConnectionOrDie().query(
-    'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
-    [finId],
-  );
+export async function deleteAccountMapping(finId: string, account?: string): Promise<void> {
+  if (account) {
+    await getFirstConnectionOrDie().query(
+      'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
+      [finId, account],
+    );
+  } else {
+    await getFirstConnectionOrDie().query(
+      'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
+      [finId],
+    );
+  }
 }
 
 export async function listAccountMappings(): Promise<AccountMapping[]> {
