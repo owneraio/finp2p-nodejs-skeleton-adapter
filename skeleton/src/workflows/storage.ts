@@ -100,6 +100,55 @@ export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>)
   return result.rows.at(0);
 }
 
+export interface AccountMapping {
+  fin_id: string;
+  account: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export async function getAccountMapping(finId: string): Promise<AccountMapping | undefined> {
+  const result = await getFirstConnectionOrDie().query(
+    'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1',
+    [finId],
+  );
+  return result.rows.at(0);
+}
+
+export async function getAccountMappingByAccount(account: string): Promise<AccountMapping | undefined> {
+  const result = await getFirstConnectionOrDie().query(
+    'SELECT * FROM ledger_adapter.account_mappings WHERE LOWER(account) = LOWER($1)',
+    [account],
+  );
+  return result.rows.at(0);
+}
+
+export async function saveAccountMapping(finId: string, account: string): Promise<AccountMapping> {
+  const result = await getFirstConnectionOrDie().query(
+    `INSERT INTO ledger_adapter.account_mappings (fin_id, account)
+    VALUES ($1, $2)
+    ON CONFLICT (fin_id) DO UPDATE SET account = $2, updated_at = CURRENT_TIMESTAMP
+    RETURNING *;`,
+    [finId, account],
+  );
+  if (result.rows.length === 0) throw new Error('Failed to save account mapping to DB');
+  return result.rows.at(0);
+}
+
+export async function deleteAccountMapping(finId: string): Promise<void> {
+  await getFirstConnectionOrDie().query(
+    'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
+    [finId],
+  );
+}
+
+export async function listAccountMappings(): Promise<AccountMapping[]> {
+  const result = await getFirstConnectionOrDie().query(
+    'SELECT * FROM ledger_adapter.account_mappings',
+  );
+  return result.rows;
+}
+
 export class Storage {
   private c: Pool;
 
