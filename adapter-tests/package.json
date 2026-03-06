@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.27.1-rc.2",
+  "version": "0.27.1-rc.3",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.27.2-rc.0",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.27.2-rc.1",
     "@owneraio/finp2p-adapter-models": "^0.27.0",
     "axios": "^1.12.2",
     "secp256k1": "^3.7.1",
