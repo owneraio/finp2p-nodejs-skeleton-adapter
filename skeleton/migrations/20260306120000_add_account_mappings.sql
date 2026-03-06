@@ -7,8 +7,8 @@ CREATE TABLE ledger_adapter.account_mappings(
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (fin_id, account)
 );
-CREATE INDEX account_mappings_fin_id_idx ON ledger_adapter.account_mappings(fin_id);
-CREATE INDEX account_mappings_account_idx ON ledger_adapter.account_mappings(account);
+CREATE INDEX account_mappings_fin_id_idx ON ledger_adapter.account_mappings(fin_id, created_at, account);
+CREATE INDEX account_mappings_account_idx ON ledger_adapter.account_mappings(account, created_at, fin_id);
 -- +goose StatementEnd
 
 -- +goose StatementBegin

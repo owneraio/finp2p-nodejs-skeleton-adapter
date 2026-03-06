@@ -105,6 +105,42 @@ describe("account mappings", () => {
     expect(all).toHaveLength(3);
   });
 
+  test("getAccountMappings returns oldest mapping first", async () => {
+    await workflows.saveAccountMapping("fin-order", "0xfirst");
+    // Insert a second row with a slightly later timestamp
+    await workflows.saveAccountMapping("fin-order", "0xsecond");
+
+    const mappings = await workflows.getAccountMappings("fin-order");
+    expect(mappings).toHaveLength(2);
+    expect(mappings[0].account).toBe("0xfirst");
+    expect(mappings[1].account).toBe("0xsecond");
+  });
+
+  test("getAccountMappingsByAccount returns oldest mapping first", async () => {
+    await workflows.saveAccountMapping("fin-a", "0xshared");
+    await workflows.saveAccountMapping("fin-b", "0xshared");
+
+    const mappings = await workflows.getAccountMappingsByAccount("0xSHARED");
+    expect(mappings).toHaveLength(2);
+    expect(mappings[0].fin_id).toBe("fin-a");
+    expect(mappings[1].fin_id).toBe("fin-b");
+  });
+
+  test("secondary sort is stable when timestamps are equal", async () => {
+    // Insert two rows in a single transaction so created_at is identical
+    const pool = (storage as any).c;
+    await pool.query(`
+      INSERT INTO ledger_adapter.account_mappings (fin_id, account, created_at)
+      VALUES ('fin-tie', '0xzzz', NOW()), ('fin-tie', '0xaaa', NOW())
+    `);
+
+    const mappings = await workflows.getAccountMappings("fin-tie");
+    expect(mappings).toHaveLength(2);
+    // Secondary sort by account ASC: 0xaaa < 0xzzz
+    expect(mappings[0].account).toBe("0xaaa");
+    expect(mappings[1].account).toBe("0xzzz");
+  });
+
   test("empty result for nonexistent finId", async () => {
     const mappings = await workflows.getAccountMappings("does-not-exist");
     expect(mappings).toHaveLength(0);

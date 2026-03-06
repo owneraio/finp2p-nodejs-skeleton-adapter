@@ -109,7 +109,7 @@ export interface AccountMapping {
 
 export async function getAccountMappings(finId: string): Promise<AccountMapping[]> {
   const result = await getFirstConnectionOrDie().query(
-    'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 ORDER BY created_at',
+    'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 ORDER BY created_at ASC, account ASC',
     [finId],
   );
   return result.rows;
@@ -117,7 +117,7 @@ export async function getAccountMappings(finId: string): Promise<AccountMapping[
 
 export async function getAccountMappingsByAccount(account: string): Promise<AccountMapping[]> {
   const result = await getFirstConnectionOrDie().query(
-    'SELECT * FROM ledger_adapter.account_mappings WHERE account = $1 ORDER BY created_at',
+    'SELECT * FROM ledger_adapter.account_mappings WHERE account = $1 ORDER BY created_at ASC, fin_id ASC',
     [account.toLowerCase()],
   );
   return result.rows;
