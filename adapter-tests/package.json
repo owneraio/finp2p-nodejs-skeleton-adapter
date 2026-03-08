@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@owneraio/finp2p-adapter-models": "^0.28.0-custody-native.1",
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.0-custody-native.4",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.0-custody-native.5",
     "axios": "^1.12.2",
     "secp256k1": "^3.7.1",
     "yaml": "^2.8.1",
