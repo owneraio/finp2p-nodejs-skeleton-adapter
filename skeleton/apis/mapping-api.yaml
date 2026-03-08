@@ -1,0 +1,184 @@
+openapi: 3.0.1
+info:
+  title: Adapter Mapping API
+  description: >-
+    Operational mapping API for FinP2P adapter identity provisioning.
+    Associates FinP2P investor identities (finId) with ledger-specific
+    account identifiers.
+  termsOfService: 'https://ownera.io/terms/'
+  contact:
+    email: support@ownera.io
+  version: 0.1.0
+tags:
+  - name: mapping
+    description: Owner identity mapping operations
+
+paths:
+  /mapping/owners:
+    post:
+      tags:
+        - mapping
+      summary: Create or update owner mapping
+      description: >-
+        Associate a FinP2P finId with a ledger-specific account identifier.
+        Also provisions an on-ledger credential when possible.
+      operationId: createOwnerMapping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createOwnerMappingRequest'
+      responses:
+        '200':
+          description: Mapping created or updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/createOwnerMappingResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+
+    get:
+      tags:
+        - mapping
+      summary: Query owner mappings
+      description: Retrieve provisioned owner mappings, optionally filtered by finId list.
+      operationId: getOwnerMappings
+      parameters:
+        - name: finIds
+          in: query
+          required: false
+          description: Comma-separated list of finIds to filter by
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of owner mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ownerMapping'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+
+  /mapping/fields:
+    get:
+      tags:
+        - mapping
+      summary: Get supported account mapping fields
+      description: Returns metadata describing the structure of account mapping fields.
+      operationId: getMappingFields
+      responses:
+        '200':
+          description: List of account mapping field descriptors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/accountMappingField'
+
+components:
+  schemas:
+    ownerStatus:
+      type: string
+      enum:
+        - active
+        - inactive
+
+    accountMappings:
+      type: object
+      required:
+        - ledgerAccountId
+      properties:
+        ledgerAccountId:
+          type: string
+          description: >-
+            Ledger-specific account identifier for the holder
+            (e.g. Canton party ID "auth0_00abc123::1220def456...")
+
+    ownerMapping:
+      type: object
+      required:
+        - finId
+        - status
+        - accountMappings
+      properties:
+        finId:
+          type: string
+          description: FinP2P identity (hex secp256k1 compressed public key)
+        status:
+          $ref: '#/components/schemas/ownerStatus'
+        accountMappings:
+          $ref: '#/components/schemas/accountMappings'
+
+    createOwnerMappingRequest:
+      type: object
+      required:
+        - finId
+        - accountMappings
+      properties:
+        finId:
+          type: string
+          description: FinP2P identity (hex secp256k1 compressed public key)
+        status:
+          $ref: '#/components/schemas/ownerStatus'
+        accountMappings:
+          $ref: '#/components/schemas/accountMappings'
+
+    createOwnerMappingResponse:
+      allOf:
+        - $ref: '#/components/schemas/ownerMapping'
+        - type: object
+          properties:
+            credentialCid:
+              type: string
+              description: Contract ID of the on-ledger FinID credential (or "none")
+            credentialStatus:
+              type: string
+              description: >-
+                Status of on-ledger credential provisioning
+                (e.g. "created", "existing", "skipped")
+
+    accountMappingField:
+      type: object
+      required:
+        - field
+        - description
+        - exampleValue
+      properties:
+        field:
+          type: string
+          description: The field name within accountMappings
+        description:
+          type: string
+          description: Human-readable description of the field
+        exampleValue:
+          type: string
+          description: Example value for the field
+
+    errorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
