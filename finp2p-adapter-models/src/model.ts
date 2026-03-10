@@ -36,9 +36,15 @@ export type IbanIdentifier = {
 
 export type SourceAccount = FinIdAccount;
 
+export type LedgerAccount = {
+  type: string;
+  address: string;
+};
+
 export type Source = {
   finId: string
   account: SourceAccount
+  ledgerAccount?: LedgerAccount
 };
 
 export type Account = FinIdAccount | CryptocurrencyWallet | IbanIdentifier;
@@ -47,6 +53,7 @@ export type DestinationAccount = Account;
 export type Destination = {
   finId: string
   account: DestinationAccount
+  ledgerAccount?: LedgerAccount
 };
 
 export const finIdDestination = (finId: string): Destination => {
