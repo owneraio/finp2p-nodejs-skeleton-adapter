@@ -43,7 +43,7 @@ export class OmnibusStorage {
 
   async ensureAccount(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<void> {
     await this.pool.query(
-      `INSERT INTO ledger_adapter.omnibus_accounts (fin_id, asset_id, asset_type)
+      `INSERT INTO ledger_adapter.accounts (fin_id, asset_id, asset_type)
        VALUES ($1, $2, $3)
        ON CONFLICT (fin_id, asset_id) DO NOTHING`,
       [finId, assetId, assetType],
@@ -87,7 +87,7 @@ export class OmnibusStorage {
   async getBalance(finId: string, assetId: string): Promise<OmnibusBalance> {
     const result = await this.pool.query(
       `SELECT balance::TEXT, held::TEXT, (balance - held)::TEXT AS available
-       FROM ledger_adapter.omnibus_accounts
+       FROM ledger_adapter.accounts
        WHERE fin_id = $1 AND asset_id = $2`,
       [finId, assetId],
     );
@@ -102,7 +102,7 @@ export class OmnibusStorage {
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
               action, details, created_at
-       FROM ledger_adapter.omnibus_transactions WHERE id = $1`,
+       FROM ledger_adapter.transactions WHERE id = $1`,
       [txId],
     );
     return result.rows[0];
@@ -113,7 +113,7 @@ export class OmnibusStorage {
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
               action, details, created_at
-       FROM ledger_adapter.omnibus_transactions
+       FROM ledger_adapter.transactions
        WHERE details->>'operation_id' = $1`,
       [operationId],
     );
@@ -161,11 +161,11 @@ export class OmnibusStorage {
           SELECT t.id, t.asset_id, t.asset_type, t.source, t.destination,
                  t.amount::TEXT, t.source_held::TEXT, t.destination_held::TEXT,
                  t.action, t.details, t.created_at
-          FROM ledger_adapter.omnibus_transactions t, params p
+          FROM ledger_adapter.transactions t, params p
           WHERE t.details->>'idempotency_key' = p.details->>'idempotency_key'
         ),
         src_upd AS (
-          UPDATE ledger_adapter.omnibus_accounts a
+          UPDATE ledger_adapter.accounts a
           SET balance = a.balance - p.amount,
               held = a.held + p.src_hold,
               updated_at = NOW()
@@ -176,7 +176,7 @@ export class OmnibusStorage {
           RETURNING a.fin_id
         ),
         dst_upd AS (
-          UPDATE ledger_adapter.omnibus_accounts a
+          UPDATE ledger_adapter.accounts a
           SET balance = a.balance + p.amount,
               held = a.held + p.dst_hold,
               updated_at = NOW()
@@ -187,7 +187,7 @@ export class OmnibusStorage {
           RETURNING a.fin_id
         ),
         insert_tx AS (
-          INSERT INTO ledger_adapter.omnibus_transactions
+          INSERT INTO ledger_adapter.transactions
             (id, asset_id, asset_type, source, destination, amount, source_held, destination_held, action, details)
           SELECT p.tx_id, p.asset_id, p.asset_type,
                  NULLIF(s.fin_id, ''), NULLIF(d.fin_id, ''),
@@ -220,7 +220,7 @@ export class OmnibusStorage {
     } catch (err: any) {
       if (err instanceof BusinessError) throw err;
       const msg = err.message || '';
-      if (msg.includes('omnibus_accounts_balance_check') || msg.includes('omnibus_accounts_check')) {
+      if (msg.includes('accounts_balance_check') || msg.includes('accounts_check')) {
         throw new BusinessError(1, `Insufficient balance for ${action} on account ${source || destination}`);
       }
       throw err;
