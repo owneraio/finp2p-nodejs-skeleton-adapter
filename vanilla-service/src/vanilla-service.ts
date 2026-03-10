@@ -1,55 +1,22 @@
-import { Pool } from 'pg';
 import {
   Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetIdentifier,
   Balance, CommonService, Destination, EscrowService, ExecutionContext, FinIdAccount,
-  HealthService, OperationStatus, OperationType, ReceiptOperation, Signature, Source,
+  HealthService, MappingService, OperationStatus, OperationType, OwnerMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
   failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
-import { EscrowDelegate, PayoutDelegate } from './interfaces';
-import { LedgerStorage, LedgerTransaction } from './storage';
+import { AssetDelegate, EscrowDelegate, PayoutDelegate } from './interfaces';
+import { LedgerStorage } from './storage';
 import { logger } from './logger';
-import { generateCid } from './utils';
+import { buildReceipt, generateCid } from './utils';
 
-export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService {
+export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService {
   constructor(
     private storage: LedgerStorage,
-    private payoutDelegate: PayoutDelegate,
-    private pool: Pool,
+    private payoutDelegate?: PayoutDelegate,
+    private assetDelegate?: AssetDelegate,
     private escrowDelegate?: EscrowDelegate,
   ) {}
-
-  // ─── Receipt helpers ──────────────────────────────────────────────────
-
-  private buildReceipt(
-    tx: LedgerTransaction,
-    asset: Asset,
-    source: Source | undefined,
-    destination: Destination | undefined,
-    quantity: string,
-    operationType: OperationType,
-    exCtx: ExecutionContext | undefined,
-    operationId: string | undefined,
-    externalTransactionId?: string,
-  ) {
-    return {
-      id: tx.id,
-      asset,
-      source,
-      destination,
-      quantity,
-      transactionDetails: {
-        transactionId: externalTransactionId ?? tx.id,
-        operationId,
-      },
-      tradeDetails: {
-        executionContext: exCtx,
-      },
-      operationType,
-      proof: undefined,
-      timestamp: tx.created_at.getTime(),
-    };
-  }
 
   // ─── TokenService ─────────────────────────────────────────────────────
 
@@ -60,6 +27,14 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined,
   ): Promise<AssetCreationStatus> {
     logger.info(`Creating asset ${asset.assetId}`, { idempotencyKey });
+
+    if (this.assetDelegate) {
+      const result = await this.assetDelegate.createAsset(
+        idempotencyKey, asset, assetBind, assetMetadata,
+        assetName, issuerId, assetDenomination, assetIdentifier,
+      );
+      return successfulAssetCreation(result);
+    }
 
     const tokenId = assetBind?.tokenIdentifier?.tokenId ?? generateCid();
     return successfulAssetCreation({ tokenId, reference: undefined });
@@ -78,7 +53,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
-    const receipt = this.buildReceipt(
+    const receipt = buildReceipt(
       tx, asset, undefined, finIdDestination(to.finId), quantity, 'issue', exCtx, undefined,
     );
     return successfulReceiptOperation(receipt);
@@ -99,13 +74,17 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     if (destination.account.type === 'finId') {
       await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
       const tx = await this.storage.move(source.finId, destination.finId, quantity, asset.assetId, details, asset.assetType);
-      const receipt = this.buildReceipt(
+      const receipt = buildReceipt(
         tx, asset, source, destination, quantity, 'transfer', exCtx, undefined,
       );
       return successfulReceiptOperation(receipt);
     }
 
     // External destination: lock → external transfer → unlockAndDebit / unlock
+    if (!this.payoutDelegate) {
+      return failedReceiptOperation(1, 'External transfer requires a payout delegate');
+    }
+
     await this.storage.lock(source.finId, quantity, asset.assetId, {
       ...details, idempotency_key: `${idempotencyKey}:hold`,
     }, asset.assetType);
@@ -124,7 +103,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     const tx = await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, {
       ...details, idempotency_key: `${idempotencyKey}:debit`,
     }, asset.assetType);
-    const receipt = this.buildReceipt(
+    const receipt = buildReceipt(
       tx, asset, source, destination, quantity, 'transfer', exCtx, undefined, extResult.transactionId,
     );
     return successfulReceiptOperation(receipt);
@@ -148,7 +127,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       ? await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, details, asset.assetType)
       : await this.storage.debit(source.finId, quantity, asset.assetId, details, asset.assetType);
 
-    const receipt = this.buildReceipt(
+    const receipt = buildReceipt(
       tx, asset, { finId: source.finId, account: source }, undefined, quantity, 'redeem', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
@@ -199,7 +178,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       }
     }
 
-    const receipt = this.buildReceipt(
+    const receipt = buildReceipt(
       tx, asset, source, destination, quantity, 'hold', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
@@ -230,7 +209,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
         execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
       }, asset.assetType,
     );
-    const receipt = this.buildReceipt(
+    const receipt = buildReceipt(
       tx, asset, source, destination, quantity, 'release', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
@@ -250,7 +229,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
-    const receipt = this.buildReceipt(
+    const receipt = buildReceipt(
       tx, asset, source, undefined, quantity, 'release', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
@@ -288,10 +267,60 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async liveness(): Promise<void> {
-    await this.pool.query('SELECT 1');
+    await this.storage.ping();
   }
 
   async readiness(): Promise<void> {
-    await this.pool.query('SELECT 1');
+    await this.storage.ping();
+  }
+
+  // ─── MappingService ──────────────────────────────────────────────────
+
+  private toOwnerMapping(row: any): OwnerMapping {
+    return { finId: row.fin_id, account: row.account };
+  }
+
+  async getOwnerMappings(finId: string): Promise<OwnerMapping[]> {
+    const result = await this.storage.query(
+      'SELECT fin_id, account FROM ledger_adapter.account_mappings WHERE fin_id = $1 ORDER BY created_at ASC, account ASC',
+      [finId],
+    );
+    return result.rows.map((r: any) => this.toOwnerMapping(r));
+  }
+
+  async listOwnerMappings(): Promise<OwnerMapping[]> {
+    const result = await this.storage.query(
+      'SELECT fin_id, account FROM ledger_adapter.account_mappings ORDER BY created_at ASC',
+    );
+    return result.rows.map((r: any) => this.toOwnerMapping(r));
+  }
+
+  async saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping> {
+    const normalizedAccount = account.toLowerCase();
+    const result = await this.storage.query(
+      `INSERT INTO ledger_adapter.account_mappings (fin_id, account)
+       VALUES ($1, $2)
+       ON CONFLICT (fin_id, account) DO NOTHING
+       RETURNING fin_id, account`,
+      [finId, normalizedAccount],
+    );
+    if (result.rows.length === 0) {
+      return { finId, account: normalizedAccount };
+    }
+    return this.toOwnerMapping(result.rows[0]);
+  }
+
+  async deleteOwnerMapping(finId: string, account?: string): Promise<void> {
+    if (account) {
+      await this.storage.query(
+        'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
+        [finId, account.toLowerCase()],
+      );
+    } else {
+      await this.storage.query(
+        'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
+        [finId],
+      );
+    }
   }
 }

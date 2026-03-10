@@ -54,7 +54,7 @@ describe('vanilla services', () => {
     await runMigrations(goosePath, container.connectionString);
     pool = new Pool({ connectionString: container.connectionString });
     storage = new LedgerStorage(pool);
-    service = new VanillaServiceImpl(storage, mockDelegate, pool);
+    service = new VanillaServiceImpl(storage, mockDelegate);
 
     payoutCalls = [];
     payoutResult = { success: true, transactionId: 'ext-tx-1' };
@@ -270,7 +270,7 @@ describe('vanilla services', () => {
       holdResult = { success: true, transactionId: 'ext-hold-1' };
       releaseResult = { success: true, transactionId: 'ext-release-1' };
 
-      delegatedService = new VanillaServiceImpl(storage, mockDelegate, pool, mockEscrowDelegate);
+      delegatedService = new VanillaServiceImpl(storage, mockDelegate, undefined, mockEscrowDelegate);
 
       await storage.ensureAccount('alice', asset.assetId, asset.assetType);
       await storage.ensureAccount('bob', asset.assetId, asset.assetType);

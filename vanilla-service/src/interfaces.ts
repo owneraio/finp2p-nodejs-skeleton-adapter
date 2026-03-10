@@ -1,5 +1,6 @@
 import {
-  Asset, Destination, ExecutionContext, Source,
+  Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetIdentifier,
+  Destination, ExecutionContext, Source,
 } from '@owneraio/finp2p-adapter-models';
 
 /**
@@ -10,6 +11,23 @@ import {
 export type DelegateResult =
   | { success: true; transactionId: string }
   | { success: false; error: string };
+
+/**
+ * Optional delegate for asset creation.
+ * When provided, createAsset calls the delegate instead of generating a local tokenId.
+ */
+export interface AssetDelegate {
+  createAsset(
+    idempotencyKey: string,
+    asset: Asset,
+    assetBind: AssetBind | undefined,
+    assetMetadata: any | undefined,
+    assetName: string | undefined,
+    issuerId: string | undefined,
+    assetDenomination: AssetDenomination | undefined,
+    assetIdentifier: AssetIdentifier | undefined,
+  ): Promise<AssetCreationResult>;
+}
 
 /**
  * Delegate for external payout operations (on-chain transfers, IBAN payouts).

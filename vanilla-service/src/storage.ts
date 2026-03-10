@@ -109,6 +109,14 @@ export class LedgerStorage {
     return result.rows[0];
   }
 
+  async ping(): Promise<void> {
+    await this.pool.query('SELECT 1');
+  }
+
+  async query(sql: string, params?: any[]): Promise<any> {
+    return this.pool.query(sql, params);
+  }
+
   async findByOperationId(operationId: string): Promise<LedgerTransaction | undefined> {
     const result = await this.pool.query(
       `SELECT id, asset_id, asset_type, source, destination,

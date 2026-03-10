@@ -20,7 +20,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-adapter-models": "^0.27.1",
+    "@owneraio/finp2p-adapter-models": "file:../finp2p-adapter-models",
     "bs58": "^6.0.0",
     "pg": "^8.15.6",
     "winston": "^3.18.3"

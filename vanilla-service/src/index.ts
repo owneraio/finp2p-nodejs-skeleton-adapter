@@ -1,12 +1,12 @@
 import { Pool } from 'pg';
 import {
-  CommonService, EscrowService, HealthService, TokenService,
+  CommonService, EscrowService, HealthService, MappingService, TokenService,
 } from '@owneraio/finp2p-adapter-models';
-import { EscrowDelegate, PayoutDelegate } from './interfaces';
+import { AssetDelegate, EscrowDelegate, PayoutDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { VanillaServiceImpl } from './vanilla-service';
 
-export { PayoutDelegate, EscrowDelegate, DelegateResult } from './interfaces';
+export { AssetDelegate, PayoutDelegate, EscrowDelegate, DelegateResult } from './interfaces';
 export { LedgerStorage, LedgerTransaction, LedgerBalance, LedgerDetails } from './storage';
 export { VanillaServiceImpl } from './vanilla-service';
 
@@ -18,10 +18,12 @@ export interface VanillaServices {
   tokenService: TokenService;
   escrowService: EscrowService;
   commonService: CommonService & HealthService;
+  mappingService: MappingService;
 }
 
 export interface VanillaDelegates {
-  payout: PayoutDelegate;
+  payout?: PayoutDelegate;
+  asset?: AssetDelegate;
   escrow?: EscrowDelegate;
 }
 
@@ -38,10 +40,11 @@ export interface VanillaDelegates {
 export function createVanillaServices(delegates: VanillaDelegates, config: LedgerConfig): VanillaServices {
   const pool = new Pool({ connectionString: config.connectionString });
   const storage = new LedgerStorage(pool);
-  const service = new VanillaServiceImpl(storage, delegates.payout, pool, delegates.escrow);
+  const service = new VanillaServiceImpl(storage, delegates.payout, delegates.asset, delegates.escrow);
   return {
     tokenService: service,
     escrowService: service,
     commonService: service,
+    mappingService: service,
   };
 }

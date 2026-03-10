@@ -3,6 +3,7 @@
 CREATE SCHEMA IF NOT EXISTS ledger_adapter;
 
 CREATE TABLE ledger_adapter.accounts(
+  id BIGSERIAL PRIMARY KEY,
   fin_id VARCHAR(255) NOT NULL,
   asset_id VARCHAR(255) NOT NULL,
   asset_type VARCHAR(64) NOT NULL DEFAULT 'finp2p',
@@ -10,10 +11,20 @@ CREATE TABLE ledger_adapter.accounts(
   held NUMERIC NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (fin_id, asset_id, asset_type),
+  UNIQUE (fin_id, asset_id, asset_type),
   CHECK (balance >= 0),
   CHECK (held >= 0 AND held <= balance)
 );
+
+CREATE TABLE ledger_adapter.account_mappings(
+  fin_id VARCHAR(255) NOT NULL,
+  account VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (fin_id, account)
+);
+CREATE INDEX account_mappings_fin_id_idx ON ledger_adapter.account_mappings(fin_id, created_at, account);
+CREATE INDEX account_mappings_account_idx ON ledger_adapter.account_mappings(account, created_at, fin_id);
 
 CREATE TABLE ledger_adapter.transactions(
   id VARCHAR(50) PRIMARY KEY,
@@ -48,6 +59,8 @@ DO $$
 
         IF users_exist THEN
             EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE ledger_adapter.accounts TO %I;', ledger_adapter_user);
+            EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE ledger_adapter.accounts_id_seq TO %I;', ledger_adapter_user);
+            EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE ledger_adapter.account_mappings TO %I;', ledger_adapter_user);
             EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE ledger_adapter.transactions TO %I;', ledger_adapter_user);
         END IF;
     END $$;
@@ -56,5 +69,6 @@ DO $$
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE IF EXISTS ledger_adapter.transactions;
+DROP TABLE IF EXISTS ledger_adapter.account_mappings;
 DROP TABLE IF EXISTS ledger_adapter.accounts;
 -- +goose StatementEnd
