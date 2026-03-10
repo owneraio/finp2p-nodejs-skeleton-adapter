@@ -30,7 +30,7 @@ export class EscrowServiceImpl implements EscrowService {
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
-    const receipt = await this.receiptBuilder.build(
+    const receipt = this.receiptBuilder.build(
       tx, asset, source, destination, quantity, 'hold', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
@@ -56,7 +56,7 @@ export class EscrowServiceImpl implements EscrowService {
       const tx = await this.storage.unlockAndMove(
         source.finId, destination.finId, quantity, asset.assetId, details, asset.assetType,
       );
-      const receipt = await this.receiptBuilder.build(
+      const receipt = this.receiptBuilder.build(
         tx, asset, source, destination, quantity, 'release', exCtx, operationId,
       );
       return successfulReceiptOperation(receipt);
@@ -69,7 +69,7 @@ export class EscrowServiceImpl implements EscrowService {
     const extResult = await this.delegate.executeExternalTransfer(
       idempotencyKey, source, destination, asset, quantity, exCtx,
     );
-    const receipt = await this.receiptBuilder.build(
+    const receipt = this.receiptBuilder.build(
       tx, asset, source, destination, quantity, 'release', exCtx, operationId, extResult.transactionId,
     );
     return successfulReceiptOperation(receipt);
@@ -89,7 +89,7 @@ export class EscrowServiceImpl implements EscrowService {
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
-    const receipt = await this.receiptBuilder.build(
+    const receipt = this.receiptBuilder.build(
       tx, asset, source, undefined, quantity, 'release', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);

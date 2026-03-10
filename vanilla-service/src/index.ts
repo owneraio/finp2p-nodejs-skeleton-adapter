@@ -39,7 +39,7 @@ export interface VanillaServices {
 export function createVanillaServices(delegate: ExternalTransferDelegate, config: LedgerConfig): VanillaServices {
   const pool = new Pool({ connectionString: config.connectionString });
   const storage = new LedgerStorage(pool);
-  const receiptBuilder = new ReceiptBuilder(delegate);
+  const receiptBuilder = new ReceiptBuilder();
   return {
     tokenService: new TokenServiceImpl(storage, delegate, receiptBuilder),
     escrowService: new EscrowServiceImpl(storage, delegate, receiptBuilder),

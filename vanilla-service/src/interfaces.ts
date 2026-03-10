@@ -1,6 +1,5 @@
 import {
-  Asset, AssetBind, Destination, ExecutionContext,
-  LedgerReference, OperationType, Receipt, Source,
+  Asset, Destination, ExecutionContext, Source,
 } from '@owneraio/finp2p-adapter-models';
 
 /**
@@ -20,29 +19,4 @@ export interface ExternalTransferDelegate {
     quantity: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<{ transactionId: string }>;
-
-  /**
-   * Optional: called on createAsset for ledger-specific setup (e.g. deploy smart contract).
-   */
-  onAssetCreated?(
-    idempotencyKey: string,
-    asset: Asset,
-    assetBind: AssetBind | undefined,
-    assetMetadata: any | undefined,
-  ): Promise<{ tokenId: string; reference: LedgerReference | undefined }>;
-
-  /**
-   * Optional: custom receipt/proof generation.
-   * If not provided, a basic receipt is built from the transaction record.
-   */
-  generateReceipt?(
-    asset: Asset,
-    source: Source | undefined,
-    destination: Destination | undefined,
-    quantity: string,
-    operationType: OperationType,
-    transactionId: string,
-    exCtx: ExecutionContext | undefined,
-    operationId: string | undefined,
-  ): Promise<Receipt>;
 }

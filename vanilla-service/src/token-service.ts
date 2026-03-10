@@ -26,11 +26,6 @@ export class TokenServiceImpl implements TokenService {
   ): Promise<AssetCreationStatus> {
     logger.info(`Creating asset ${asset.assetId}`, { idempotencyKey });
 
-    if (this.delegate.onAssetCreated) {
-      const result = await this.delegate.onAssetCreated(idempotencyKey, asset, assetBind, assetMetadata);
-      return successfulAssetCreation(result);
-    }
-
     const tokenId = assetBind?.tokenIdentifier?.tokenId ?? generateCid();
     return successfulAssetCreation({ tokenId, reference: undefined });
   }
@@ -48,7 +43,7 @@ export class TokenServiceImpl implements TokenService {
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
-    const receipt = await this.receiptBuilder.build(
+    const receipt = this.receiptBuilder.build(
       tx, asset, undefined, finIdDestination(to.finId), quantity, 'issue', exCtx, undefined,
     );
     return successfulReceiptOperation(receipt);
@@ -69,7 +64,7 @@ export class TokenServiceImpl implements TokenService {
     if (destination.account.type === 'finId') {
       await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
       const tx = await this.storage.move(source.finId, destination.finId, quantity, asset.assetId, details, asset.assetType);
-      const receipt = await this.receiptBuilder.build(
+      const receipt = this.receiptBuilder.build(
         tx, asset, source, destination, quantity, 'transfer', exCtx, undefined,
       );
       return successfulReceiptOperation(receipt);
@@ -80,7 +75,7 @@ export class TokenServiceImpl implements TokenService {
     const extResult = await this.delegate.executeExternalTransfer(
       idempotencyKey, source, destination, asset, quantity, exCtx,
     );
-    const receipt = await this.receiptBuilder.build(
+    const receipt = this.receiptBuilder.build(
       tx, asset, source, destination, quantity, 'transfer', exCtx, undefined, extResult.transactionId,
     );
     return successfulReceiptOperation(receipt);
@@ -104,7 +99,7 @@ export class TokenServiceImpl implements TokenService {
       ? await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, details, asset.assetType)
       : await this.storage.debit(source.finId, quantity, asset.assetId, details, asset.assetType);
 
-    const receipt = await this.receiptBuilder.build(
+    const receipt = this.receiptBuilder.build(
       tx, asset, { finId: source.finId, account: source }, undefined, quantity, 'redeem', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
