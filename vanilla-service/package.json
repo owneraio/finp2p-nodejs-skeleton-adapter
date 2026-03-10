@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-vanilla-service",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "description": "Vanilla DB ledger service for FinP2P adapters — per-investor balance segregation in PostgreSQL",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-adapter-models": "file:../finp2p-adapter-models",
+    "@owneraio/finp2p-adapter-models": "^0.27.3",
     "bs58": "^6.0.0",
     "pg": "^8.15.6",
     "winston": "^3.18.3"
