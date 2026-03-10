@@ -9,7 +9,7 @@ import {
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
-  FinIdAccount, AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails,
+  FinIdAccount, AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
 } from '@owneraio/finp2p-adapter-models';
 import { components } from './model-gen';
@@ -38,12 +38,20 @@ type AccountLike = components['schemas']['account'] | components['schemas']['dep
 
 export const sourceFromAPI = (source: AccountLike): Source => {
   const { finId } = source;
-  return { finId, account: { type: 'finId', finId } };
+  const result: Source = { finId, account: { type: 'finId', finId } };
+  if ('ledgerAccount' in source && source.ledgerAccount) {
+    result.ledgerAccount = source.ledgerAccount as LedgerAccount;
+  }
+  return result;
 };
 
 export const destinationFromAPI = (destination: AccountLike): Destination => {
   const { finId } = destination;
-  return { finId, account: { type: 'finId', finId } };
+  const result: Destination = { finId, account: { type: 'finId', finId } };
+  if ('ledgerAccount' in destination && destination.ledgerAccount) {
+    result.ledgerAccount = destination.ledgerAccount as LedgerAccount;
+  }
+  return result;
 };
 
 export const destinationOptFromAPI = (destination: AccountLike | undefined): Destination | undefined => {
