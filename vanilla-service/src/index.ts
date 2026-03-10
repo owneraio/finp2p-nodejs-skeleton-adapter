@@ -1,3 +1,4 @@
+import winston from 'winston';
 import { Pool } from 'pg';
 import {
   CommonService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
@@ -5,10 +6,12 @@ import {
 import { AssetDelegate, EscrowDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { VanillaServiceImpl } from './service';
+import { setLogger } from './logger';
 
 export { AssetDelegate, TransferDelegate, EscrowDelegate, DelegateResult, InboundTransferVerificationError } from './interfaces';
 export { LedgerStorage, LedgerTransaction, LedgerBalance, LedgerDetails } from './storage';
 export { VanillaServiceImpl } from './service';
+export { setLogger } from './logger';
 
 export interface LedgerConfig {
   connectionString: string;
@@ -38,7 +41,10 @@ export interface VanillaDelegates {
  * const services = createVanillaServices({ transfer, escrow: myEscrowDelegate }, { connectionString });
  * ```
  */
-export function createVanillaServices(delegates: VanillaDelegates, config: LedgerConfig): VanillaServices {
+export function createVanillaServices(delegates: VanillaDelegates, config: LedgerConfig, logger?: winston.Logger): VanillaServices {
+  if (logger) {
+    setLogger(logger);
+  }
   const pool = new Pool({ connectionString: config.connectionString });
   const storage = new LedgerStorage(pool);
   const service = new VanillaServiceImpl(storage, delegates.transfer, delegates.asset, delegates.escrow);

@@ -8,7 +8,7 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { AssetDelegate, EscrowDelegate, InboundTransferVerificationError, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
-import { logger } from './logger';
+import { getLogger } from './logger';
 import { buildReceipt, generateCid } from './utils';
 
 export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, InboundTransferHook {
@@ -27,7 +27,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     assetName: string | undefined, issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined,
   ): Promise<AssetCreationStatus> {
-    logger.info(`Creating asset ${asset.assetId}`, { idempotencyKey });
+    getLogger().info(`Creating asset ${asset.assetId}`, { idempotencyKey });
 
     if (this.assetDelegate) {
       const result = await this.assetDelegate.createAsset(
@@ -45,7 +45,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     idempotencyKey: string, asset: Asset, to: FinIdAccount,
     quantity: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Issuing ${quantity} of ${asset.assetId} to ${to.finId}`);
+    getLogger().info(`Issuing ${quantity} of ${asset.assetId} to ${to.finId}`);
 
     await this.storage.ensureAccount(to.finId, asset.assetId, asset.assetType);
     const tx = await this.storage.credit(to.finId, quantity, asset.assetId, {
@@ -64,7 +64,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     idempotencyKey: string, nonce: string, source: Source, destination: Destination,
     asset: Asset, quantity: string, signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
+    getLogger().info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -115,7 +115,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
+    getLogger().info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -156,7 +156,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     quantity: string, signature: Signature, operationId: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Hold operation', { source: source.finId, asset: asset.assetId, quantity, operationId });
+    getLogger().info('Hold operation', { source: source.finId, asset: asset.assetId, quantity, operationId });
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -190,7 +190,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     asset: Asset, quantity: string, operationId: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Release operation', { source: source.finId, destination: destination.finId, quantity, operationId });
+    getLogger().info('Release operation', { source: source.finId, destination: destination.finId, quantity, operationId });
 
     if (this.escrowDelegate) {
       const result = await this.escrowDelegate.release(
@@ -221,7 +221,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     quantity: string, operationId: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Rollback operation', { source: source.finId, quantity, operationId });
+    getLogger().info('Rollback operation', { source: source.finId, quantity, operationId });
 
     const tx = await this.storage.unlock(source.finId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,

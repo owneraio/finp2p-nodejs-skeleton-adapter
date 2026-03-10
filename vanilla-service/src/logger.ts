@@ -1,6 +1,6 @@
 import winston from 'winston';
 
-export const logger = winston.createLogger({
+let logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -8,3 +8,11 @@ export const logger = winston.createLogger({
   ),
   transports: [new winston.transports.Console()],
 });
+
+export function setLogger(l: winston.Logger) {
+  logger = l;
+}
+
+export function getLogger(): winston.Logger {
+  return logger;
+}
