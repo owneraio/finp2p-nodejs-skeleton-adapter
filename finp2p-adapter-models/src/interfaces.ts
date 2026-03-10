@@ -82,9 +82,7 @@ export interface PlanApprovalService {
 }
 
 export interface MappingService {
-  getOwnerMappings(finId: string): Promise<OwnerMapping[]>
-
-  listOwnerMappings(): Promise<OwnerMapping[]>
+  getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]>
 
   saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping>
 

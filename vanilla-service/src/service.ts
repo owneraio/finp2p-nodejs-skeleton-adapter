@@ -290,17 +290,16 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     return { finId: row.fin_id, account: row.account };
   }
 
-  async getOwnerMappings(finId: string): Promise<OwnerMapping[]> {
+  async getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]> {
+    if (finIds && finIds.length > 0) {
+      const result = await this.storage.query(
+        'SELECT fin_id, account FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY created_at ASC, account ASC',
+        [finIds],
+      );
+      return result.rows.map((r: any) => this.toOwnerMapping(r));
+    }
     const result = await this.storage.query(
-      'SELECT fin_id, account FROM ledger_adapter.account_mappings WHERE fin_id = $1 ORDER BY created_at ASC, account ASC',
-      [finId],
-    );
-    return result.rows.map((r: any) => this.toOwnerMapping(r));
-  }
-
-  async listOwnerMappings(): Promise<OwnerMapping[]> {
-    const result = await this.storage.query(
-      'SELECT fin_id, account FROM ledger_adapter.account_mappings ORDER BY created_at ASC',
+      'SELECT fin_id, account FROM ledger_adapter.account_mappings ORDER BY created_at ASC, account ASC',
     );
     return result.rows.map((r: any) => this.toOwnerMapping(r));
   }
