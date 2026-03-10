@@ -1,5 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
+CREATE SCHEMA IF NOT EXISTS ledger_adapter;
+
 CREATE TABLE ledger_adapter.accounts(
   fin_id VARCHAR(255) NOT NULL,
   asset_id VARCHAR(255) NOT NULL,

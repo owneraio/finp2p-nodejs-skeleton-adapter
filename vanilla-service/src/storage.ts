@@ -3,7 +3,7 @@ import { BusinessError } from '@owneraio/finp2p-adapter-models';
 import { randomBytes } from 'node:crypto';
 import bs58 from 'bs58';
 
-export interface OmnibusTransaction {
+export interface LedgerTransaction {
   id: string;
   asset_id: string;
   asset_type: string;
@@ -17,7 +17,7 @@ export interface OmnibusTransaction {
   created_at: Date;
 }
 
-export interface OmnibusBalance {
+export interface LedgerBalance {
   balance: string;
   held: string;
   available: string;
@@ -35,11 +35,11 @@ type Action = 'credit' | 'debit' | 'lock' | 'unlock' | 'move' | 'unlock-and-move
 const generateTxId = (): string => bs58.encode(Uint8Array.from(randomBytes(32)));
 
 /**
- * Omnibus ledger storage backed by PostgreSQL.
+ * Ledger storage backed by PostgreSQL.
  * Provides atomic balance operations with idempotency via CTE-based queries,
  * ported from the Go vanilla adapter.
  */
-export class OmnibusStorage {
+export class LedgerStorage {
   constructor(private pool: Pool) {}
 
   async ensureAccount(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<void> {
@@ -51,41 +51,41 @@ export class OmnibusStorage {
     );
   }
 
-  async credit(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<OmnibusTransaction> {
+  async credit(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<LedgerTransaction> {
     return this.transfer('', finId, amount, '0', '0', assetId, assetType, 'credit', details);
   }
 
-  async debit(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<OmnibusTransaction> {
+  async debit(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<LedgerTransaction> {
     return this.transfer(finId, '', amount, '0', '0', assetId, assetType, 'debit', details);
   }
 
-  async lock(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<OmnibusTransaction> {
+  async lock(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<LedgerTransaction> {
     return this.transfer(finId, '', '0', amount, '0', assetId, assetType, 'lock', details);
   }
 
-  async unlock(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<OmnibusTransaction> {
+  async unlock(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<LedgerTransaction> {
     return this.transfer(finId, '', '0', `-${amount}`, '0', assetId, assetType, 'unlock', details);
   }
 
-  async move(srcFinId: string, dstFinId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<OmnibusTransaction> {
+  async move(srcFinId: string, dstFinId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<LedgerTransaction> {
     if (srcFinId === dstFinId) {
       throw new BusinessError(1, `Cannot move from account to itself: ${srcFinId}`);
     }
     return this.transfer(srcFinId, dstFinId, amount, '0', '0', assetId, assetType, 'move', details);
   }
 
-  async unlockAndMove(srcFinId: string, dstFinId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<OmnibusTransaction> {
+  async unlockAndMove(srcFinId: string, dstFinId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<LedgerTransaction> {
     if (srcFinId === dstFinId) {
       throw new BusinessError(1, `Cannot move from account to itself: ${srcFinId}`);
     }
     return this.transfer(srcFinId, dstFinId, amount, `-${amount}`, '0', assetId, assetType, 'unlock-and-move', details);
   }
 
-  async unlockAndDebit(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<OmnibusTransaction> {
+  async unlockAndDebit(finId: string, amount: string, assetId: string, details: LedgerDetails, assetType: string = 'finp2p'): Promise<LedgerTransaction> {
     return this.transfer(finId, '', amount, `-${amount}`, '0', assetId, assetType, 'unlock-and-debit', details);
   }
 
-  async getBalance(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<OmnibusBalance> {
+  async getBalance(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<LedgerBalance> {
     const result = await this.pool.query(
       `SELECT balance::TEXT, held::TEXT, (balance - held)::TEXT AS available
        FROM ledger_adapter.accounts
@@ -98,7 +98,7 @@ export class OmnibusStorage {
     return result.rows[0];
   }
 
-  async getTransaction(txId: string): Promise<OmnibusTransaction | undefined> {
+  async getTransaction(txId: string): Promise<LedgerTransaction | undefined> {
     const result = await this.pool.query(
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
@@ -109,7 +109,7 @@ export class OmnibusStorage {
     return result.rows[0];
   }
 
-  async findByOperationId(operationId: string): Promise<OmnibusTransaction | undefined> {
+  async findByOperationId(operationId: string): Promise<LedgerTransaction | undefined> {
     const result = await this.pool.query(
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
@@ -141,7 +141,7 @@ export class OmnibusStorage {
     assetType: string,
     action: Action,
     details: LedgerDetails,
-  ): Promise<OmnibusTransaction> {
+  ): Promise<LedgerTransaction> {
     const txId = generateTxId();
 
     try {

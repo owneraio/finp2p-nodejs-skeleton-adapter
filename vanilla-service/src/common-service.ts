@@ -3,10 +3,10 @@ import {
   ValidationError, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
 import { Pool } from 'pg';
-import { OmnibusStorage } from './storage';
+import { LedgerStorage } from './storage';
 
-export class OmnibusCommonService implements CommonService, HealthService {
-  constructor(private storage: OmnibusStorage, private pool: Pool) {}
+export class CommonServiceImpl implements CommonService, HealthService {
+  constructor(private storage: LedgerStorage, private pool: Pool) {}
 
   async getReceipt(id: string): Promise<ReceiptOperation> {
     const tx = await this.storage.getTransaction(id);
@@ -34,7 +34,7 @@ export class OmnibusCommonService implements CommonService, HealthService {
   }
 
   async operationStatus(cid: string): Promise<OperationStatus> {
-    // Operation status is managed by the workflow proxy layer, not the omnibus ledger.
+    // Operation status is managed by the workflow proxy layer, not the ledger.
     // This will be overridden by createServiceProxy if workflow persistence is enabled.
     throw new ValidationError(`Operation ${cid} not found`);
   }

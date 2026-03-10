@@ -1,31 +1,24 @@
 import { Pool } from 'pg';
-import { OmnibusStorage } from '../../src/services/omnibus/storage';
-import * as workflows from '../../src/workflows';
+import { LedgerStorage } from '../src/storage';
+import { runMigrations } from './migrate';
 
-describe('omnibus storage', () => {
-  let container: { connectionString: string; storageUser: string; cleanup: () => Promise<void> };
+describe('ledger storage', () => {
+  let container: { connectionString: string; cleanup: () => Promise<void> };
   let pool: Pool;
-  let storage: OmnibusStorage;
-  let wfStorage: workflows.Storage;
+  let storage: LedgerStorage;
 
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
-    await workflows.migrateIfNeeded({
-      connectionString: container.connectionString,
-      // @ts-ignore
-      gooseExecutablePath: await global.whichGoose(),
-      migrationListTableName: 'finp2p_nodejs_skeleton_migrations',
-      storageUser: container.storageUser,
-    });
+    // @ts-ignore
+    const goosePath = await global.whichGoose();
+    await runMigrations(goosePath, container.connectionString);
     pool = new Pool({ connectionString: container.connectionString });
-    storage = new OmnibusStorage(pool);
-    wfStorage = new workflows.Storage(container);
+    storage = new LedgerStorage(pool);
   });
 
   afterEach(async () => {
     await pool.end();
-    await wfStorage.closeConnections();
     await container.cleanup();
   });
 
@@ -78,7 +71,6 @@ describe('omnibus storage', () => {
     await storage.ensureAccount('alice', assetId, assetType);
     await storage.credit('alice', '100', assetId, nextDetails());
 
-    // held must be <= balance, so locking 101 should fail
     await expect(storage.lock('alice', '101', assetId, nextDetails()))
       .rejects.toThrow(/Insufficient balance/);
   });
@@ -142,10 +134,8 @@ describe('omnibus storage', () => {
     const tx1 = await storage.debit('alice', '25', assetId, details);
     const tx2 = await storage.debit('alice', '25', assetId, details);
 
-    // Same transaction returned
     expect(tx1.id).toBe(tx2.id);
 
-    // Balance only debited once
     const bal = await storage.getBalance('alice', assetId);
     expect(bal.balance).toBe('75');
   });
@@ -180,10 +170,7 @@ describe('omnibus storage', () => {
   test('ensureAccount is idempotent', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
     await storage.ensureAccount('alice', assetId, assetType);
-    // Should not throw
   });
-
-  // --- Transaction field assertions (ported from Go Basic/Swaps tests) ---
 
   test('credit transaction has correct fields', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
@@ -251,26 +238,20 @@ describe('omnibus storage', () => {
     expect(tx.destination_held).toBe('0');
   });
 
-  // --- Debit violating held constraint (Go Basic test pattern) ---
-
   test('debit fails when it would make balance < held', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
     await storage.credit('alice', '100', assetId, nextDetails());
     await storage.lock('alice', '20', assetId, nextDetails());
 
-    // balance=100, held=20: debit 100 would leave balance=0 < held=20
     await expect(storage.debit('alice', '100', assetId, nextDetails()))
       .rejects.toThrow(/Insufficient balance/);
 
-    // But debit 80 should succeed (balance=20 >= held=20)
     await storage.debit('alice', '80', assetId, nextDetails());
     const bal = await storage.getBalance('alice', assetId);
     expect(bal.balance).toBe('20');
     expect(bal.held).toBe('20');
     expect(bal.available).toBe('0');
   });
-
-  // --- Unlock more than held (Go Basic test pattern) ---
 
   test('unlock more than held fails', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
@@ -280,8 +261,6 @@ describe('omnibus storage', () => {
     await expect(storage.unlock('alice', '30', assetId, nextDetails()))
       .rejects.toThrow(/Insufficient balance/);
   });
-
-  // --- Operations on nonexistent accounts (Go BalanceExceeded tests) ---
 
   test('lock on nonexistent account fails', async () => {
     await expect(storage.lock('nobody', '10', assetId, nextDetails()))
@@ -310,8 +289,6 @@ describe('omnibus storage', () => {
       .rejects.toThrow(/account not found/);
   });
 
-  // --- Same-account self-transfer (Go SameAccountMovements test) ---
-
   test('move to same account fails', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
     await storage.credit('alice', '100', assetId, nextDetails());
@@ -329,21 +306,16 @@ describe('omnibus storage', () => {
       .rejects.toThrow(/Cannot move from account to itself/);
   });
 
-  // --- Multi-step swap scenario (Go Swaps test) ---
-
   test('multi-step DvP swap across two accounts', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
     await storage.ensureAccount('bob', assetId, assetType);
 
-    // Alice gets 100, Bob gets 80
     await storage.credit('alice', '100', assetId, nextDetails());
     await storage.credit('bob', '80', assetId, nextDetails());
 
-    // Both lock for a DvP
     await storage.lock('alice', '40', assetId, nextDetails());
     await storage.lock('bob', '30', assetId, nextDetails());
 
-    // Alice sends 40 to Bob (move, not from held)
     await storage.move('alice', 'bob', '40', assetId, nextDetails());
 
     let aliceBal = await storage.getBalance('alice', assetId);
@@ -353,7 +325,6 @@ describe('omnibus storage', () => {
     expect(bobBal.balance).toBe('120');
     expect(bobBal.held).toBe('30');
 
-    // Both unlock
     await storage.unlock('alice', '40', assetId, nextDetails());
     await storage.unlock('bob', '30', assetId, nextDetails());
 
@@ -366,8 +337,6 @@ describe('omnibus storage', () => {
     expect(bobBal.held).toBe('0');
     expect(bobBal.available).toBe('120');
   });
-
-  // --- Balance exceeded for all two-party operations (Go BalanceExceeded) ---
 
   test('move exceeding balance fails', async () => {
     await storage.ensureAccount('alice', assetId, assetType);

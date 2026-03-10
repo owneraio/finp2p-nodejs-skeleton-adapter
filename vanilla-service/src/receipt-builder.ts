@@ -1,14 +1,14 @@
 import {
-  Asset, Destination, ExecutionContext, OmnibusDelegate,
-  OperationType, Receipt, Source,
+  Asset, Destination, ExecutionContext, OperationType, Receipt, Source,
 } from '@owneraio/finp2p-adapter-models';
-import { OmnibusTransaction } from './storage';
+import { ExternalTransferDelegate } from './interfaces';
+import { LedgerTransaction } from './storage';
 
 export class ReceiptBuilder {
-  constructor(private delegate: OmnibusDelegate) {}
+  constructor(private delegate: ExternalTransferDelegate) {}
 
   async build(
-    tx: OmnibusTransaction,
+    tx: LedgerTransaction,
     asset: Asset,
     source: Source | undefined,
     destination: Destination | undefined,

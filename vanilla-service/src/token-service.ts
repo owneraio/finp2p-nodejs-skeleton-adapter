@@ -1,19 +1,20 @@
 import {
   Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetIdentifier,
-  Balance, Destination, ExecutionContext, FinIdAccount, OmnibusDelegate,
+  Balance, Destination, ExecutionContext, FinIdAccount,
   ReceiptOperation, Signature, Source,
   TokenService,
   failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
-import { OmnibusStorage } from './storage';
+import { ExternalTransferDelegate } from './interfaces';
+import { LedgerStorage } from './storage';
 import { ReceiptBuilder } from './receipt-builder';
-import { logger } from '../../helpers';
-import { generateCid } from '../../workflows/storage';
+import { logger } from './logger';
+import { generateCid } from './utils';
 
-export class OmnibusTokenService implements TokenService {
+export class TokenServiceImpl implements TokenService {
   constructor(
-    private storage: OmnibusStorage,
-    private delegate: OmnibusDelegate,
+    private storage: LedgerStorage,
+    private delegate: ExternalTransferDelegate,
     private receiptBuilder: ReceiptBuilder,
   ) {}
 

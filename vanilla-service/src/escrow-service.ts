@@ -1,16 +1,17 @@
 import {
-  Asset, Destination, EscrowService, ExecutionContext, OmnibusDelegate,
+  Asset, Destination, EscrowService, ExecutionContext,
   ReceiptOperation, Signature, Source,
   finIdDestination, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
-import { OmnibusStorage } from './storage';
+import { ExternalTransferDelegate } from './interfaces';
+import { LedgerStorage } from './storage';
 import { ReceiptBuilder } from './receipt-builder';
-import { logger } from '../../helpers';
+import { logger } from './logger';
 
-export class OmnibusEscrowService implements EscrowService {
+export class EscrowServiceImpl implements EscrowService {
   constructor(
-    private storage: OmnibusStorage,
-    private delegate: OmnibusDelegate,
+    private storage: LedgerStorage,
+    private delegate: ExternalTransferDelegate,
     private receiptBuilder: ReceiptBuilder,
   ) {}
 

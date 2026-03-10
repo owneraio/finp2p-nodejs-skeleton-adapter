@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, LedgerReference, Receipt,
+  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier,
 } from './model';
 
 
@@ -79,49 +79,4 @@ export interface PlanApprovalService {
   proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus>
 
   proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void>
-}
-
-/**
- * Delegate interface for omnibus ledger operations that require
- * external/on-chain interaction. Adapter developers implement this
- * when opting into the omnibus DB ledger.
- */
-export interface OmnibusDelegate {
-  /**
-   * Called when release/transfer targets an external destination (crypto/IBAN).
-   * Internal DB bookkeeping (unlock/debit) is already done.
-   */
-  executeExternalTransfer(
-    idempotencyKey: string,
-    source: Source,
-    destination: Destination,
-    asset: Asset,
-    quantity: string,
-    exCtx: ExecutionContext | undefined,
-  ): Promise<{ transactionId: string }>;
-
-  /**
-   * Optional: called on createAsset for ledger-specific setup (e.g. deploy smart contract).
-   */
-  onAssetCreated?(
-    idempotencyKey: string,
-    asset: Asset,
-    assetBind: AssetBind | undefined,
-    assetMetadata: any | undefined,
-  ): Promise<{ tokenId: string; reference: LedgerReference | undefined }>;
-
-  /**
-   * Optional: custom receipt/proof generation.
-   * If not provided, the omnibus builds a basic receipt.
-   */
-  generateReceipt?(
-    asset: Asset,
-    source: Source | undefined,
-    destination: Destination | undefined,
-    quantity: string,
-    operationType: string,
-    transactionId: string,
-    exCtx: ExecutionContext | undefined,
-    operationId: string | undefined,
-  ): Promise<Receipt>;
 }
