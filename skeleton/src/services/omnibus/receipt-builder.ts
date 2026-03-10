@@ -16,11 +16,12 @@ export class ReceiptBuilder {
     operationType: OperationType,
     exCtx: ExecutionContext | undefined,
     operationId: string | undefined,
+    externalTransactionId?: string,
   ): Promise<Receipt> {
     if (this.delegate.generateReceipt) {
       return this.delegate.generateReceipt(
         asset, source, destination, quantity,
-        operationType, tx.id, exCtx, operationId,
+        operationType, externalTransactionId ?? tx.id, exCtx, operationId,
       );
     }
 
@@ -31,7 +32,7 @@ export class ReceiptBuilder {
       destination,
       quantity,
       transactionDetails: {
-        transactionId: tx.id,
+        transactionId: externalTransactionId ?? tx.id,
         operationId,
       },
       tradeDetails: {

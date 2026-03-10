@@ -26,6 +26,7 @@ export interface OmnibusBalance {
 export interface LedgerDetails {
   idempotency_key: string;
   operation_id?: string;
+  operation_type?: string;
   execution_context?: { planId: string; sequence: number };
 }
 
@@ -45,7 +46,7 @@ export class OmnibusStorage {
     await this.pool.query(
       `INSERT INTO ledger_adapter.accounts (fin_id, asset_id, asset_type)
        VALUES ($1, $2, $3)
-       ON CONFLICT (fin_id, asset_id) DO NOTHING`,
+       ON CONFLICT (fin_id, asset_id, asset_type) DO NOTHING`,
       [finId, assetId, assetType],
     );
   }
@@ -84,12 +85,12 @@ export class OmnibusStorage {
     return this.transfer(finId, '', amount, `-${amount}`, '0', assetId, assetType, 'unlock-and-debit', details);
   }
 
-  async getBalance(finId: string, assetId: string): Promise<OmnibusBalance> {
+  async getBalance(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<OmnibusBalance> {
     const result = await this.pool.query(
       `SELECT balance::TEXT, held::TEXT, (balance - held)::TEXT AS available
        FROM ledger_adapter.accounts
-       WHERE fin_id = $1 AND asset_id = $2`,
-      [finId, assetId],
+       WHERE fin_id = $1 AND asset_id = $2 AND asset_type = $3`,
+      [finId, assetId, assetType],
     );
     if (result.rows.length === 0) {
       return { balance: '0', held: '0', available: '0' };
@@ -172,6 +173,7 @@ export class OmnibusStorage {
           FROM params p
           WHERE a.fin_id = p.source
             AND a.asset_id = p.asset_id
+            AND a.asset_type = p.asset_type
             AND NOT EXISTS (SELECT 1 FROM found_tx)
           RETURNING a.fin_id
         ),
@@ -183,6 +185,7 @@ export class OmnibusStorage {
           FROM params p
           WHERE a.fin_id = p.destination
             AND a.asset_id = p.asset_id
+            AND a.asset_type = p.asset_type
             AND NOT EXISTS (SELECT 1 FROM found_tx)
           RETURNING a.fin_id
         ),

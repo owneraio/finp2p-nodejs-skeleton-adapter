@@ -25,6 +25,7 @@ export class OmnibusEscrowService implements EscrowService {
     const tx = await this.storage.lock(source.finId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,
       operation_id: operationId,
+      operation_type: 'hold',
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
@@ -44,6 +45,7 @@ export class OmnibusEscrowService implements EscrowService {
     const details = {
       idempotency_key: idempotencyKey,
       operation_id: operationId,
+      operation_type: 'release' as const,
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     };
 
@@ -67,7 +69,7 @@ export class OmnibusEscrowService implements EscrowService {
       idempotencyKey, source, destination, asset, quantity, exCtx,
     );
     const receipt = await this.receiptBuilder.build(
-      { ...tx, id: extResult.transactionId }, asset, source, destination, quantity, 'release', exCtx, operationId,
+      tx, asset, source, destination, quantity, 'release', exCtx, operationId, extResult.transactionId,
     );
     return successfulReceiptOperation(receipt);
   }
@@ -82,6 +84,7 @@ export class OmnibusEscrowService implements EscrowService {
     const tx = await this.storage.unlock(source.finId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,
       operation_id: operationId,
+      operation_type: 'release',
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 

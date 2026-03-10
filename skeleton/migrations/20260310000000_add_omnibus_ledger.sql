@@ -8,7 +8,7 @@ CREATE TABLE ledger_adapter.accounts(
   held NUMERIC NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (fin_id, asset_id),
+  PRIMARY KEY (fin_id, asset_id, asset_type),
   CHECK (balance >= 0),
   CHECK (held >= 0 AND held <= balance)
 );

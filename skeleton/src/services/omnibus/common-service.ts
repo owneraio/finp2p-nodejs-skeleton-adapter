@@ -1,5 +1,5 @@
 import {
-  CommonService, HealthService, OperationStatus, ReceiptOperation,
+  CommonService, HealthService, OperationStatus, OperationType, ReceiptOperation,
   ValidationError, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
 import { Pool } from 'pg';
@@ -27,7 +27,7 @@ export class OmnibusCommonService implements CommonService, HealthService {
       tradeDetails: {
         executionContext: tx.details?.execution_context,
       },
-      operationType: tx.action as any,
+      operationType: (tx.details?.operation_type ?? tx.action) as OperationType,
       proof: undefined,
       timestamp: tx.created_at.getTime(),
     });

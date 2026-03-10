@@ -43,6 +43,7 @@ export class OmnibusTokenService implements TokenService {
     await this.storage.ensureAccount(to.finId, asset.assetId, asset.assetType);
     const tx = await this.storage.credit(to.finId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,
+      operation_type: 'issue',
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
@@ -60,6 +61,7 @@ export class OmnibusTokenService implements TokenService {
 
     const details = {
       idempotency_key: idempotencyKey,
+      operation_type: 'transfer' as const,
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     };
 
@@ -78,7 +80,7 @@ export class OmnibusTokenService implements TokenService {
       idempotencyKey, source, destination, asset, quantity, exCtx,
     );
     const receipt = await this.receiptBuilder.build(
-      { ...tx, id: extResult.transactionId }, asset, source, destination, quantity, 'transfer', exCtx, undefined,
+      tx, asset, source, destination, quantity, 'transfer', exCtx, undefined, extResult.transactionId,
     );
     return successfulReceiptOperation(receipt);
   }
@@ -93,17 +95,14 @@ export class OmnibusTokenService implements TokenService {
     const details = {
       idempotency_key: idempotencyKey,
       operation_id: operationId,
+      operation_type: 'redeem' as const,
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     };
 
-    if (operationId) {
-      await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, details, asset.assetType);
-    } else {
-      await this.storage.debit(source.finId, quantity, asset.assetId, details, asset.assetType);
-    }
+    const tx = operationId
+      ? await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, details, asset.assetType)
+      : await this.storage.debit(source.finId, quantity, asset.assetId, details, asset.assetType);
 
-    const tx = await this.storage.findByOperationId(operationId ?? idempotencyKey)
-      ?? { id: generateCid(), created_at: new Date() } as any;
     const receipt = await this.receiptBuilder.build(
       tx, asset, { finId: source.finId, account: source }, undefined, quantity, 'redeem', exCtx, operationId,
     );
@@ -111,12 +110,12 @@ export class OmnibusTokenService implements TokenService {
   }
 
   async getBalance(asset: Asset, finId: string): Promise<string> {
-    const bal = await this.storage.getBalance(finId, asset.assetId);
+    const bal = await this.storage.getBalance(finId, asset.assetId, asset.assetType);
     return bal.available;
   }
 
   async balance(asset: Asset, finId: string): Promise<Balance> {
-    const bal = await this.storage.getBalance(finId, asset.assetId);
+    const bal = await this.storage.getBalance(finId, asset.assetId, asset.assetType);
     return {
       current: bal.balance,
       available: bal.available,
