@@ -95,20 +95,20 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           instruction.organizations.includes(this.orgId)) {
 
         const event = execution.instructionsCompletionEvents
-          .find(e => e.instructionSequenceNumber === instructionSequence);
+          ?.find(e => e.instructionSequenceNumber === instructionSequence);
         const result = mapInstructionResult(event);
-        if (!result) {
-          return rejectedPlan(1, `No completion event for instruction ${instructionSequence} in plan ${planId}`);
+        if (result) {
+          await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
+            planId,
+            instructionSequence,
+            asset: operation.asset,
+            destination: operation.destination,
+            amount: operation.amount,
+            result,
+          });
+        } else {
+          logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
         }
-
-        await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
-          planId,
-          instructionSequence,
-          asset: operation.asset,
-          destination: operation.destination,
-          amount: operation.amount,
-          result,
-        });
       }
     }
 

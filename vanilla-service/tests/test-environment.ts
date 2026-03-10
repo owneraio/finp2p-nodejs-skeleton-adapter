@@ -2,7 +2,6 @@ import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import * as console from "console";
 import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
-import { RandomPortGenerator } from "testcontainers";
 
 class CustomTestEnvironment extends NodeEnvironment {
 
@@ -14,7 +13,6 @@ class CustomTestEnvironment extends NodeEnvironment {
   async teardown() { }
 
   private async startPostgresContainer() {
-    const exposedPort = await new RandomPortGenerator().generatePort()
     const startedContainer = await new PostgreSqlContainer("postgres:14.19")
       .start()
     const connectionString = startedContainer.getConnectionUri()

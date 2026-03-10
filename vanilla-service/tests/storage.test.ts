@@ -18,8 +18,8 @@ describe('ledger storage', () => {
   });
 
   afterEach(async () => {
-    await pool.end();
-    await container.cleanup();
+    if (pool) await pool.end();
+    if (container) await container.cleanup();
   });
 
   const assetId = 'test-asset-1';

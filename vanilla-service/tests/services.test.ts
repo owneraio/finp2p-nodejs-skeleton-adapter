@@ -61,8 +61,8 @@ describe('vanilla services', () => {
   });
 
   afterEach(async () => {
-    await pool.end();
-    await container.cleanup();
+    if (pool) await pool.end();
+    if (container) await container.cleanup();
   });
 
   // ─── token transfer: external payout ──────────────────────────────────
