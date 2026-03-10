@@ -30,16 +30,27 @@ export interface AssetDelegate {
 }
 
 /**
- * Delegate for external payout operations (on-chain transfers, IBAN payouts).
+ * Thrown by TransferDelegate.onInboundTransfer when the on-chain transfer
+ * cannot be verified. The vanilla service catches this and skips the credit.
+ */
+export class InboundTransferVerificationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InboundTransferVerificationError';
+  }
+}
+
+/**
+ * Delegate for external transfer operations (on-chain transfers, IBAN payouts).
  *
  * The vanilla service wraps each call with local DB safeguards:
  * 1. Lock funds in the local ledger
- * 2. Call payout
+ * 2. Call outboundTransfer
  * 3. On success → unlock and debit locally
  * 4. On failure → unlock locally (funds return to available)
  */
-export interface PayoutDelegate {
-  payout(
+export interface TransferDelegate {
+  outboundTransfer(
     idempotencyKey: string,
     source: Source,
     destination: Destination,
@@ -47,6 +58,20 @@ export interface PayoutDelegate {
     quantity: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<DelegateResult>;
+
+  /**
+   * Called before crediting a destination account for an inbound transfer.
+   * The delegate should verify that the transfer actually happened on-chain.
+   * Throw InboundTransferVerificationError if the transfer cannot be verified.
+   */
+  onInboundTransfer?(
+    transactionId: string,
+    source: Source,
+    asset: Asset,
+    destination: Destination,
+    amount: string,
+    exCtx: ExecutionContext | undefined,
+  ): Promise<void>;
 }
 
 /**
@@ -56,6 +81,7 @@ export interface PayoutDelegate {
  *
  * hold: called after local lock. On failure → local unlock.
  * release: called before local unlockAndMove. On failure → funds stay held.
+ * rollback: called before local unlock. On failure → funds stay held.
  */
 export interface EscrowDelegate {
   hold(
@@ -72,6 +98,15 @@ export interface EscrowDelegate {
     idempotencyKey: string,
     source: Source,
     destination: Destination,
+    asset: Asset,
+    quantity: string,
+    operationId: string,
+    exCtx: ExecutionContext | undefined,
+  ): Promise<DelegateResult>;
+
+  rollback(
+    idempotencyKey: string,
+    source: Source,
     asset: Asset,
     quantity: string,
     operationId: string,

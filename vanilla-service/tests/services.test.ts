@@ -3,9 +3,9 @@ import {
   Asset, Destination, ReceiptOperation, Signature, Source,
   finIdDestination,
 } from '@owneraio/finp2p-adapter-models';
-import { DelegateResult, EscrowDelegate, PayoutDelegate } from '../src/interfaces';
+import { DelegateResult, EscrowDelegate, TransferDelegate } from '../src/interfaces';
 import { LedgerStorage } from '../src/storage';
-import { VanillaServiceImpl } from '../src/vanilla-service';
+import { VanillaServiceImpl } from '../src/service';
 import { runMigrations } from './migrate';
 
 const dummySig = {} as Signature;
@@ -31,8 +31,8 @@ describe('vanilla services', () => {
   let payoutCalls: Array<{ idempotencyKey: string; source: Source; destination: Destination; asset: Asset; quantity: string }>;
   let payoutResult: DelegateResult;
 
-  const mockDelegate: PayoutDelegate = {
-    async payout(idempotencyKey, source, destination, asset, quantity, _exCtx) {
+  const mockDelegate: TransferDelegate = {
+    async outboundTransfer(idempotencyKey, source, destination, asset, quantity, _exCtx) {
       payoutCalls.push({ idempotencyKey, source, destination, asset, quantity });
       return payoutResult;
     },
@@ -252,6 +252,7 @@ describe('vanilla services', () => {
     let escrowDelegateCalls: { method: string; operationId: string }[];
     let holdResult: DelegateResult;
     let releaseResult: DelegateResult;
+    let rollbackResult: DelegateResult;
     let delegatedService: VanillaServiceImpl;
 
     const mockEscrowDelegate: EscrowDelegate = {
@@ -263,12 +264,17 @@ describe('vanilla services', () => {
         escrowDelegateCalls.push({ method: 'release', operationId });
         return releaseResult;
       },
+      async rollback(_ik, _src, _asset, _qty, operationId, _exCtx) {
+        escrowDelegateCalls.push({ method: 'rollback', operationId });
+        return rollbackResult;
+      },
     };
 
     beforeEach(async () => {
       escrowDelegateCalls = [];
       holdResult = { success: true, transactionId: 'ext-hold-1' };
       releaseResult = { success: true, transactionId: 'ext-release-1' };
+      rollbackResult = { success: true, transactionId: 'ext-rollback-1' };
 
       delegatedService = new VanillaServiceImpl(storage, mockDelegate, undefined, mockEscrowDelegate);
 

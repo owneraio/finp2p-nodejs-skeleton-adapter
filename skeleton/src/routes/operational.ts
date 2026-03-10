@@ -1,15 +1,9 @@
 import { Application } from 'express';
-import {
-  getAccountMappings,
-  saveAccountMapping,
-  deleteAccountMapping,
-  listAccountMappings,
-  AccountMapping,
-} from '../workflows/storage';
+import { MappingService, OwnerMapping } from '@owneraio/finp2p-adapter-models';
 import { logger } from '../helpers';
 import { components as MappingAPI } from './mapping-api-gen';
 
-type OwnerMapping = MappingAPI['schemas']['ownerMapping'];
+type APIMappingResponse = MappingAPI['schemas']['ownerMapping'];
 type CreateOwnerMappingRequest = MappingAPI['schemas']['createOwnerMappingRequest'];
 type CreateOwnerMappingResponse = MappingAPI['schemas']['createOwnerMappingResponse'];
 type AccountMappingField = MappingAPI['schemas']['accountMappingField'];
@@ -28,9 +22,9 @@ export interface MappingConfig {
   provisionHook?: MappingProvisionHook;
 }
 
-function toOwnerMapping(m: AccountMapping): OwnerMapping {
+function toAPIMappingResponse(m: OwnerMapping): APIMappingResponse {
   return {
-    finId: m.fin_id,
+    finId: m.finId,
     status: 'active',
     accountMappings: { ledgerAccountId: m.account },
   };
@@ -45,6 +39,7 @@ function toOwnerMapping(m: AccountMapping): OwnerMapping {
 export function registerMappingRoutes(
   app: Application,
   config: MappingConfig,
+  mappingService: MappingService,
 ): void {
 
   app.post('/mapping/owners', async (req, res) => {
@@ -72,14 +67,14 @@ export function registerMappingRoutes(
       });
 
       if (ownerStatus === 'inactive') {
-        await deleteAccountMapping(finId, ledgerAccountId);
+        await mappingService.deleteOwnerMapping(finId, ledgerAccountId);
         logger.info('Owner mapping disabled', { finId });
         const result: CreateOwnerMappingResponse = { finId, status: 'inactive', accountMappings: { ledgerAccountId } };
         res.json(result);
         return;
       }
 
-      await saveAccountMapping(finId, ledgerAccountId);
+      await mappingService.saveOwnerMapping(finId, ledgerAccountId);
 
       const result: CreateOwnerMappingResponse = {
         finId,
@@ -107,21 +102,15 @@ export function registerMappingRoutes(
   app.get('/mapping/owners', async (req, res) => {
     try {
       const finIdsParam = req.query.finIds as string | undefined;
-      const filterFinIds = finIdsParam
+      const finIds = finIdsParam
         ? finIdsParam.split(',').map(s => s.trim()).filter(Boolean)
         : undefined;
 
-      logger.info('Owner mapping query', { filter: filterFinIds?.length ?? 'all' });
+      logger.info('Owner mapping query', { filter: finIds?.length ?? 'all' });
 
-      let mappings: AccountMapping[];
-      if (filterFinIds) {
-        const results = await Promise.all(filterFinIds.map(fid => getAccountMappings(fid)));
-        mappings = results.flat();
-      } else {
-        mappings = await listAccountMappings();
-      }
+      const mappings = await mappingService.getOwnerMappings(finIds);
 
-      const response: OwnerMapping[] = mappings.map(toOwnerMapping);
+      const response: APIMappingResponse[] = mappings.map(toAPIMappingResponse);
       res.json(response);
     } catch (e: any) {
       logger.error('Owner mapping query failed', { error: e.message });

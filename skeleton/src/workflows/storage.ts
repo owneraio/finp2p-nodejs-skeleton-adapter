@@ -107,10 +107,16 @@ export interface AccountMapping {
   updated_at: Date;
 }
 
-export async function getAccountMappings(finId: string): Promise<AccountMapping[]> {
+export async function getAccountMappings(finIds?: string[]): Promise<AccountMapping[]> {
+  if (finIds && finIds.length > 0) {
+    const result = await getFirstConnectionOrDie().query(
+      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY created_at ASC, account ASC',
+      [finIds],
+    );
+    return result.rows;
+  }
   const result = await getFirstConnectionOrDie().query(
-    'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 ORDER BY created_at ASC, account ASC',
-    [finId],
+    'SELECT * FROM ledger_adapter.account_mappings ORDER BY created_at ASC, account ASC',
   );
   return result.rows;
 }
@@ -156,12 +162,6 @@ export async function deleteAccountMapping(finId: string, account?: string): Pro
   }
 }
 
-export async function listAccountMappings(): Promise<AccountMapping[]> {
-  const result = await getFirstConnectionOrDie().query(
-    'SELECT * FROM ledger_adapter.account_mappings',
-  );
-  return result.rows;
-}
 
 export class Storage {
   private c: Pool;

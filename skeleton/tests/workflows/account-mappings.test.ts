@@ -28,7 +28,7 @@ describe("account mappings", () => {
     expect(saved.account).toBe("0xabc123");
     expect(saved.created_at).toBeDefined();
 
-    const mappings = await workflows.getAccountMappings("fin-1");
+    const mappings = await workflows.getAccountMappings(["fin-1"]);
     expect(mappings).toHaveLength(1);
     expect(mappings[0].account).toBe("0xabc123");
   });
@@ -37,7 +37,7 @@ describe("account mappings", () => {
     await workflows.saveAccountMapping("fin-1", "0xAAA");
     await workflows.saveAccountMapping("fin-1", "0xBBB");
 
-    const mappings = await workflows.getAccountMappings("fin-1");
+    const mappings = await workflows.getAccountMappings(["fin-1"]);
     expect(mappings).toHaveLength(2);
     expect(mappings.map(m => m.account).sort()).toEqual(["0xaaa", "0xbbb"]);
   });
@@ -49,7 +49,7 @@ describe("account mappings", () => {
     expect(second.fin_id).toBe(first.fin_id);
     expect(second.account).toBe(first.account);
 
-    const all = await workflows.listAccountMappings();
+    const all = await workflows.getAccountMappings();
     expect(all).toHaveLength(1);
   });
 
@@ -58,7 +58,7 @@ describe("account mappings", () => {
     await workflows.saveAccountMapping("fin-2", "0xABCDEF");
 
     // Both stored as lowercase, so they are the same account — idempotent
-    const all = await workflows.listAccountMappings();
+    const all = await workflows.getAccountMappings();
     expect(all).toHaveLength(2);
 
     // Querying with any casing finds them
@@ -73,7 +73,7 @@ describe("account mappings", () => {
 
     await workflows.deleteAccountMapping("fin-1", "0xAAA");
 
-    const mappings = await workflows.getAccountMappings("fin-1");
+    const mappings = await workflows.getAccountMappings(["fin-1"]);
     expect(mappings).toHaveLength(1);
     expect(mappings[0].account).toBe("0xbbb");
   });
@@ -82,7 +82,7 @@ describe("account mappings", () => {
     await workflows.saveAccountMapping("fin-1", "0xAbC");
     await workflows.deleteAccountMapping("fin-1", "0xABC");
 
-    const mappings = await workflows.getAccountMappings("fin-1");
+    const mappings = await workflows.getAccountMappings(["fin-1"]);
     expect(mappings).toHaveLength(0);
   });
 
@@ -92,7 +92,7 @@ describe("account mappings", () => {
 
     await workflows.deleteAccountMapping("fin-1");
 
-    const mappings = await workflows.getAccountMappings("fin-1");
+    const mappings = await workflows.getAccountMappings(["fin-1"]);
     expect(mappings).toHaveLength(0);
   });
 
@@ -101,7 +101,7 @@ describe("account mappings", () => {
     await workflows.saveAccountMapping("fin-2", "0xBBB");
     await workflows.saveAccountMapping("fin-3", "0xCCC");
 
-    const all = await workflows.listAccountMappings();
+    const all = await workflows.getAccountMappings();
     expect(all).toHaveLength(3);
   });
 
@@ -110,7 +110,7 @@ describe("account mappings", () => {
     // Insert a second row with a slightly later timestamp
     await workflows.saveAccountMapping("fin-order", "0xsecond");
 
-    const mappings = await workflows.getAccountMappings("fin-order");
+    const mappings = await workflows.getAccountMappings(["fin-order"]);
     expect(mappings).toHaveLength(2);
     expect(mappings[0].account).toBe("0xfirst");
     expect(mappings[1].account).toBe("0xsecond");
@@ -134,7 +134,7 @@ describe("account mappings", () => {
       VALUES ('fin-tie', '0xzzz', NOW()), ('fin-tie', '0xaaa', NOW())
     `);
 
-    const mappings = await workflows.getAccountMappings("fin-tie");
+    const mappings = await workflows.getAccountMappings(["fin-tie"]);
     expect(mappings).toHaveLength(2);
     // Secondary sort by account ASC: 0xaaa < 0xzzz
     expect(mappings[0].account).toBe("0xaaa");
@@ -142,7 +142,7 @@ describe("account mappings", () => {
   });
 
   test("empty result for nonexistent finId", async () => {
-    const mappings = await workflows.getAccountMappings("does-not-exist");
+    const mappings = await workflows.getAccountMappings(["does-not-exist"]);
     expect(mappings).toHaveLength(0);
   });
 });

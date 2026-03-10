@@ -6,15 +6,15 @@ import {
   TokenService, ValidationError,
   failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
-import { AssetDelegate, EscrowDelegate, PayoutDelegate } from './interfaces';
+import { AssetDelegate, EscrowDelegate, InboundTransferVerificationError, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
-import { logger } from './logger';
+import { getLogger } from './logger';
 import { buildReceipt, generateCid } from './utils';
 
 export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, InboundTransferHook {
   constructor(
     private storage: LedgerStorage,
-    private payoutDelegate?: PayoutDelegate,
+    private transferDelegate?: TransferDelegate,
     private assetDelegate?: AssetDelegate,
     private escrowDelegate?: EscrowDelegate,
   ) {}
@@ -27,7 +27,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     assetName: string | undefined, issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined,
   ): Promise<AssetCreationStatus> {
-    logger.info(`Creating asset ${asset.assetId}`, { idempotencyKey });
+    getLogger().info(`Creating asset ${asset.assetId}`, { idempotencyKey });
 
     if (this.assetDelegate) {
       const result = await this.assetDelegate.createAsset(
@@ -45,7 +45,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     idempotencyKey: string, asset: Asset, to: FinIdAccount,
     quantity: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Issuing ${quantity} of ${asset.assetId} to ${to.finId}`);
+    getLogger().info(`Issuing ${quantity} of ${asset.assetId} to ${to.finId}`);
 
     await this.storage.ensureAccount(to.finId, asset.assetId, asset.assetType);
     const tx = await this.storage.credit(to.finId, quantity, asset.assetId, {
@@ -64,7 +64,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     idempotencyKey: string, nonce: string, source: Source, destination: Destination,
     asset: Asset, quantity: string, signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
+    getLogger().info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -82,15 +82,15 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     }
 
     // External destination: lock → external transfer → unlockAndDebit / unlock
-    if (!this.payoutDelegate) {
-      return failedReceiptOperation(1, 'External transfer requires a payout delegate');
+    if (!this.transferDelegate) {
+      return failedReceiptOperation(1, 'External transfer requires a transfer delegate');
     }
 
     await this.storage.lock(source.finId, quantity, asset.assetId, {
       ...details, idempotency_key: `${idempotencyKey}:hold`,
     }, asset.assetType);
 
-    const extResult = await this.payoutDelegate.payout(
+    const extResult = await this.transferDelegate.outboundTransfer(
       idempotencyKey, source, destination, asset, quantity, exCtx,
     );
 
@@ -115,7 +115,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
+    getLogger().info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -156,7 +156,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     quantity: string, signature: Signature, operationId: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Hold operation', { source: source.finId, asset: asset.assetId, quantity, operationId });
+    getLogger().info('Hold operation', { source: source.finId, asset: asset.assetId, quantity, operationId });
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -190,7 +190,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     asset: Asset, quantity: string, operationId: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Release operation', { source: source.finId, destination: destination.finId, quantity, operationId });
+    getLogger().info('Release operation', { source: source.finId, destination: destination.finId, quantity, operationId });
 
     if (this.escrowDelegate) {
       const result = await this.escrowDelegate.release(
@@ -221,7 +221,16 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     quantity: string, operationId: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info('Rollback operation', { source: source.finId, quantity, operationId });
+    getLogger().info('Rollback operation', { source: source.finId, quantity, operationId });
+
+    if (this.escrowDelegate) {
+      const result = await this.escrowDelegate.rollback(
+        idempotencyKey, source, asset, quantity, operationId, exCtx,
+      );
+      if (!result.success) {
+        return failedReceiptOperation(1, result.error);
+      }
+    }
 
     const tx = await this.storage.unlock(source.finId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,
@@ -281,17 +290,16 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     return { finId: row.fin_id, account: row.account };
   }
 
-  async getOwnerMappings(finId: string): Promise<OwnerMapping[]> {
+  async getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]> {
+    if (finIds && finIds.length > 0) {
+      const result = await this.storage.query(
+        'SELECT fin_id, account FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY created_at ASC, account ASC',
+        [finIds],
+      );
+      return result.rows.map((r: any) => this.toOwnerMapping(r));
+    }
     const result = await this.storage.query(
-      'SELECT fin_id, account FROM ledger_adapter.account_mappings WHERE fin_id = $1 ORDER BY created_at ASC, account ASC',
-      [finId],
-    );
-    return result.rows.map((r: any) => this.toOwnerMapping(r));
-  }
-
-  async listOwnerMappings(): Promise<OwnerMapping[]> {
-    const result = await this.storage.query(
-      'SELECT fin_id, account FROM ledger_adapter.account_mappings ORDER BY created_at ASC',
+      'SELECT fin_id, account FROM ledger_adapter.account_mappings ORDER BY created_at ASC, account ASC',
     );
     return result.rows.map((r: any) => this.toOwnerMapping(r));
   }
@@ -336,7 +344,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void> {
-    const { planId, instructionSequence, asset, destination, amount, result } = ctx;
+    const { planId, instructionSequence, source, asset, destination, amount, result } = ctx;
 
     if (result.type === 'error') {
       return;
@@ -344,6 +352,17 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
     if (destination.type !== 'finId') {
       return;
+    }
+
+    if (this.transferDelegate?.onInboundTransfer) {
+      const exCtx = { planId, sequence: instructionSequence };
+      await this.transferDelegate.onInboundTransfer(
+        result.transactionId,
+        { finId: (source as FinIdAccount).finId, account: source as FinIdAccount },
+        asset,
+        { finId: destination.finId, account: destination },
+        amount, exCtx,
+      );
     }
 
     await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);

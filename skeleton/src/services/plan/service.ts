@@ -101,6 +101,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
             planId,
             instructionSequence,
+            source: operation.source,
             asset: operation.asset,
             destination: operation.destination,
             amount: operation.amount,
@@ -143,7 +144,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           }
           if (this.inboundTransferHook) {
             await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
-              planId, asset, destination, amount,
+              planId, source, asset, destination, amount,
             });
           }
           return this.validateTransfer(idempotencyKey, source, destination, asset, amount);
