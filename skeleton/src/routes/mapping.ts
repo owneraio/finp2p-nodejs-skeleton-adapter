@@ -15,8 +15,12 @@ import {
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
 
-export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
-  return { assetId: asset.resourceId, assetType: 'finp2p' };
+export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAssetBase']): Asset => {
+  const result: Asset = { assetId: asset.resourceId, assetType: 'finp2p' };
+  if ('ledgerIdentifier' in asset && asset.ledgerIdentifier) {
+    result.ledgerIdentifier = asset.ledgerIdentifier;
+  }
+  return result;
 };
 
 export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']): DepositAsset => {
@@ -54,7 +58,7 @@ export const depositPayoutAccountToAPI = (dest: Destination): components['schema
   return { finId, account: { type: 'finId', finId } };
 };
 
-export const finIdAccountFromAPI = (account: components['schemas']['finIdAccount']): FinIdAccount => {
+export const finIdAccountFromAPI = (account: components['schemas']['finIdAccountBase']): FinIdAccount => {
   const { finId } = account;
   return { type: 'finId', finId };
 };
@@ -266,7 +270,6 @@ export const assetCreateResultToAPI = (result: AssetCreationResult): components[
         network: ledgerIdentifier.network,
         tokenId: ledgerIdentifier.tokenId,
         standard: ledgerIdentifier.standard,
-        resourceId: ledgerIdentifier.resourceId,
       },
       ledgerReference: ledgerReferenceOptToAPI(reference),
     },

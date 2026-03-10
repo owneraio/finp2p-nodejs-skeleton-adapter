@@ -602,7 +602,7 @@ components:
           description: The asset metadata
           additionalProperties: true
         asset:
-          $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
+          $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
         ledgerAssetBinding:
           $ref: '#/components/schemas/ledgerAssetBinding'
         name:
@@ -849,9 +849,9 @@ components:
           properties:
             ledgerIdentifier:
                $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
-        - $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
+        - $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
     payoutAsset:
-      $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
+      $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
     payoutInstruction:
       type: object
       required:
@@ -884,12 +884,12 @@ components:
           $ref: "common-external-components.yaml#/components/schemas/finId"
         account:
           oneOf:
-            - $ref: '#/components/schemas/finIdAccount'
+            - $ref: '#/components/schemas/finIdAccountBase'
           discriminator:
             propertyName: type
             mapping:
-              finId: '#/components/schemas/finIdAccount'
-    finIdAccount:
+              finId: '#/components/schemas/finIdAccountBase'
+    finIdAccountBase:
       type: object
       required:
         - finId
@@ -1376,7 +1376,7 @@ components:
         marker:
           $ref: '#/components/schemas/balanceMarker'
     assetBalanceAccount:
-      $ref: '#/components/schemas/finIdAccount'
+      $ref: '#/components/schemas/finIdAccountBase'
     balanceMarker:
       description: marker of balance to denote the balance as of marker
       discriminator:

@@ -372,7 +372,7 @@ export interface components {
       /** @description How many units of the asset */
       quantity: string;
       payoutInstruction?: components['schemas']['payoutInstruction'];
-      asset: components['schemas']['finp2pAsset'];
+      asset: components['schemas']['finp2pAssetBase'];
       nonce?: components['schemas']['nonce'];
       signature?: components['schemas']['signature'];
     };
@@ -386,7 +386,7 @@ export interface components {
       metadata?: {
         [key: string]: unknown;
       };
-      asset: components['schemas']['finp2pAsset'];
+      asset: components['schemas']['finp2pAssetBase'];
       ledgerAssetBinding?: components['schemas']['ledgerAssetIdentifier'];
       name?: components['schemas']['assetName'];
       issuerId?: components['schemas']['ownerResourceId'];
@@ -489,8 +489,8 @@ export interface components {
     };
     asset: {
       ledgerIdentifier?: components['schemas']['ledgerAssetIdentifier'];
-    } & components['schemas']['finp2pAsset'];
-    payoutAsset: components['schemas']['finp2pAsset'];
+    } & components['schemas']['finp2pAssetBase'];
+    payoutAsset: components['schemas']['finp2pAssetBase'];
     payoutInstruction: {
       /** @description withdrawal description */
       description: string;
@@ -502,9 +502,9 @@ export interface components {
     };
     depositPayoutAccount: {
       finId: components['schemas']['finId'];
-      account: components['schemas']['finIdAccount'];
+      account: components['schemas']['finIdAccountBase'];
     };
-    finIdAccount: {
+    finIdAccountBase: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -745,7 +745,7 @@ export interface components {
       asset: components['schemas']['asset'];
       marker?: components['schemas']['balanceMarker'];
     };
-    assetBalanceAccount: components['schemas']['finIdAccount'];
+    assetBalanceAccount: components['schemas']['finIdAccountBase'];
     /** @description marker of balance to denote the balance as of marker */
     balanceMarker: components['schemas']['balanceMarkerTimestamp'] | components['schemas']['balanceMarkerTransactionBlock'];
     balanceMarkerTimestamp: {
@@ -1076,15 +1076,10 @@ export interface components {
       methodInstruction: components['schemas']['wireTransfer'] | components['schemas']['wireTransferUSA'] | components['schemas']['cryptoTransfer'] | components['schemas']['paymentInstructions'];
     };
     paymentMethods: components['schemas']['paymentMethod'][];
-    finp2pAsset: {
+    finp2pAssetBase: {
       /** @description unique resource ID of the FinP2P asset */
       resourceId: string;
     };
-    /**
-         * @description finp2p resource id format
-         * @example bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
-         */
-    resourceId: string;
     'ledgerAssetIdentifierTypeCAIP-19': {
       /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
@@ -1094,7 +1089,6 @@ export interface components {
       network: string;
       tokenId: string;
       standard: string;
-      resourceId?: components['schemas']['resourceId'];
     };
     ledgerAssetIdentifier: components['schemas']['ledgerAssetIdentifierTypeCAIP-19'];
     walletAccount: {

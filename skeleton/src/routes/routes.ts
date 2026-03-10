@@ -225,7 +225,12 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      if (srcAsset.assetId !== dstAsset.assetId) {
+      const srcL = srcAsset.ledgerIdentifier;
+      const dstL = dstAsset.ledgerIdentifier;
+      const isCrosschain = (srcL && dstL)
+        ? srcL.network !== dstL.network || srcL.tokenId !== dstL.tokenId || srcL.standard !== dstL.standard
+        : srcAsset.assetId !== dstAsset.assetId;
+      if (isCrosschain) {
         const supported = await tokenService.doesSupportCrosschainTransfer(srcAsset, dstAsset);
         if (!supported) {
           throw new Error(`Cross-chain transfer is not supported between assets ${srcAsset.assetId} and ${dstAsset.assetId}`);
