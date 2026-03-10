@@ -4,11 +4,11 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { AssetDelegate, EscrowDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
-import { VanillaServiceImpl } from './vanilla-service';
+import { VanillaServiceImpl } from './service';
 
 export { AssetDelegate, TransferDelegate, EscrowDelegate, DelegateResult, InboundTransferVerificationError } from './interfaces';
 export { LedgerStorage, LedgerTransaction, LedgerBalance, LedgerDetails } from './storage';
-export { VanillaServiceImpl } from './vanilla-service';
+export { VanillaServiceImpl } from './service';
 
 export interface LedgerConfig {
   connectionString: string;

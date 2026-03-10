@@ -5,7 +5,7 @@ import {
 } from '@owneraio/finp2p-adapter-models';
 import { DelegateResult, EscrowDelegate, TransferDelegate } from '../src/interfaces';
 import { LedgerStorage } from '../src/storage';
-import { VanillaServiceImpl } from '../src/vanilla-service';
+import { VanillaServiceImpl } from '../src/service';
 import { runMigrations } from './migrate';
 
 const dummySig = {} as Signature;
