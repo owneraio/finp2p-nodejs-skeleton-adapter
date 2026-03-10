@@ -223,6 +223,15 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   ): Promise<ReceiptOperation> {
     getLogger().info('Rollback operation', { source: source.finId, quantity, operationId });
 
+    if (this.escrowDelegate) {
+      const result = await this.escrowDelegate.rollback(
+        idempotencyKey, source, asset, quantity, operationId, exCtx,
+      );
+      if (!result.success) {
+        return failedReceiptOperation(1, result.error);
+      }
+    }
+
     const tx = await this.storage.unlock(source.finId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,
       operation_id: operationId,

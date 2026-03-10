@@ -81,6 +81,7 @@ export interface TransferDelegate {
  *
  * hold: called after local lock. On failure → local unlock.
  * release: called before local unlockAndMove. On failure → funds stay held.
+ * rollback: called before local unlock. On failure → funds stay held.
  */
 export interface EscrowDelegate {
   hold(
@@ -97,6 +98,15 @@ export interface EscrowDelegate {
     idempotencyKey: string,
     source: Source,
     destination: Destination,
+    asset: Asset,
+    quantity: string,
+    operationId: string,
+    exCtx: ExecutionContext | undefined,
+  ): Promise<DelegateResult>;
+
+  rollback(
+    idempotencyKey: string,
+    source: Source,
     asset: Asset,
     quantity: string,
     operationId: string,

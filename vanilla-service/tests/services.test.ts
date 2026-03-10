@@ -252,6 +252,7 @@ describe('vanilla services', () => {
     let escrowDelegateCalls: { method: string; operationId: string }[];
     let holdResult: DelegateResult;
     let releaseResult: DelegateResult;
+    let rollbackResult: DelegateResult;
     let delegatedService: VanillaServiceImpl;
 
     const mockEscrowDelegate: EscrowDelegate = {
@@ -263,12 +264,17 @@ describe('vanilla services', () => {
         escrowDelegateCalls.push({ method: 'release', operationId });
         return releaseResult;
       },
+      async rollback(_ik, _src, _asset, _qty, operationId, _exCtx) {
+        escrowDelegateCalls.push({ method: 'rollback', operationId });
+        return rollbackResult;
+      },
     };
 
     beforeEach(async () => {
       escrowDelegateCalls = [];
       holdResult = { success: true, transactionId: 'ext-hold-1' };
       releaseResult = { success: true, transactionId: 'ext-release-1' };
+      rollbackResult = { success: true, transactionId: 'ext-rollback-1' };
 
       delegatedService = new VanillaServiceImpl(storage, mockDelegate, undefined, mockEscrowDelegate);
 
