@@ -1,0 +1,32 @@
+name: Publish Vanilla Service
+
+on:
+  push:
+    tags:
+      - "vanilla-service-v*"
+
+jobs:
+  publish-vanilla-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./vanilla-service
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@owneraio"
+
+      - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: npm run build
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

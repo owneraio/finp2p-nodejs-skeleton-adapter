@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier,
+  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, OwnerMapping,
 } from './model';
 
 
@@ -79,4 +79,14 @@ export interface PlanApprovalService {
   proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus>
 
   proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void>
+}
+
+export interface MappingService {
+  getOwnerMappings(finId: string): Promise<OwnerMapping[]>
+
+  listOwnerMappings(): Promise<OwnerMapping[]>
+
+  saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping>
+
+  deleteOwnerMapping(finId: string, account?: string): Promise<void>
 }
