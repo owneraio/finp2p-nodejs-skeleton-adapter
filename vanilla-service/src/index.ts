@@ -2,11 +2,11 @@ import { Pool } from 'pg';
 import {
   CommonService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
 } from '@owneraio/finp2p-adapter-models';
-import { AssetDelegate, EscrowDelegate, PayoutDelegate } from './interfaces';
+import { AssetDelegate, EscrowDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { VanillaServiceImpl } from './vanilla-service';
 
-export { AssetDelegate, PayoutDelegate, EscrowDelegate, DelegateResult } from './interfaces';
+export { AssetDelegate, TransferDelegate, EscrowDelegate, DelegateResult, InboundTransferVerificationError } from './interfaces';
 export { LedgerStorage, LedgerTransaction, LedgerBalance, LedgerDetails } from './storage';
 export { VanillaServiceImpl } from './vanilla-service';
 
@@ -23,7 +23,7 @@ export interface VanillaServices {
 }
 
 export interface VanillaDelegates {
-  payout?: PayoutDelegate;
+  transfer?: TransferDelegate;
   asset?: AssetDelegate;
   escrow?: EscrowDelegate;
 }
@@ -33,15 +33,15 @@ export interface VanillaDelegates {
  *
  * Usage:
  * ```
- * const services = createVanillaServices({ payout: myPayoutDelegate }, { connectionString });
+ * const services = createVanillaServices({ transfer: myTransferDelegate }, { connectionString });
  * // With optional escrow delegation:
- * const services = createVanillaServices({ payout, escrow: myEscrowDelegate }, { connectionString });
+ * const services = createVanillaServices({ transfer, escrow: myEscrowDelegate }, { connectionString });
  * ```
  */
 export function createVanillaServices(delegates: VanillaDelegates, config: LedgerConfig): VanillaServices {
   const pool = new Pool({ connectionString: config.connectionString });
   const storage = new LedgerStorage(pool);
-  const service = new VanillaServiceImpl(storage, delegates.payout, delegates.asset, delegates.escrow);
+  const service = new VanillaServiceImpl(storage, delegates.transfer, delegates.asset, delegates.escrow);
   return {
     tokenService: service,
     escrowService: service,

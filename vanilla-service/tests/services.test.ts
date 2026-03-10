@@ -3,7 +3,7 @@ import {
   Asset, Destination, ReceiptOperation, Signature, Source,
   finIdDestination,
 } from '@owneraio/finp2p-adapter-models';
-import { DelegateResult, EscrowDelegate, PayoutDelegate } from '../src/interfaces';
+import { DelegateResult, EscrowDelegate, TransferDelegate } from '../src/interfaces';
 import { LedgerStorage } from '../src/storage';
 import { VanillaServiceImpl } from '../src/vanilla-service';
 import { runMigrations } from './migrate';
@@ -31,8 +31,8 @@ describe('vanilla services', () => {
   let payoutCalls: Array<{ idempotencyKey: string; source: Source; destination: Destination; asset: Asset; quantity: string }>;
   let payoutResult: DelegateResult;
 
-  const mockDelegate: PayoutDelegate = {
-    async payout(idempotencyKey, source, destination, asset, quantity, _exCtx) {
+  const mockDelegate: TransferDelegate = {
+    async outboundTransfer(idempotencyKey, source, destination, asset, quantity, _exCtx) {
       payoutCalls.push({ idempotencyKey, source, destination, asset, quantity });
       return payoutResult;
     },

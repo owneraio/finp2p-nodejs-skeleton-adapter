@@ -6,7 +6,7 @@ import {
   TokenService, ValidationError,
   failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
-import { AssetDelegate, EscrowDelegate, PayoutDelegate } from './interfaces';
+import { AssetDelegate, EscrowDelegate, InboundTransferVerificationError, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { logger } from './logger';
 import { buildReceipt, generateCid } from './utils';
@@ -14,7 +14,7 @@ import { buildReceipt, generateCid } from './utils';
 export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, InboundTransferHook {
   constructor(
     private storage: LedgerStorage,
-    private payoutDelegate?: PayoutDelegate,
+    private transferDelegate?: TransferDelegate,
     private assetDelegate?: AssetDelegate,
     private escrowDelegate?: EscrowDelegate,
   ) {}
@@ -82,15 +82,15 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     }
 
     // External destination: lock → external transfer → unlockAndDebit / unlock
-    if (!this.payoutDelegate) {
-      return failedReceiptOperation(1, 'External transfer requires a payout delegate');
+    if (!this.transferDelegate) {
+      return failedReceiptOperation(1, 'External transfer requires a transfer delegate');
     }
 
     await this.storage.lock(source.finId, quantity, asset.assetId, {
       ...details, idempotency_key: `${idempotencyKey}:hold`,
     }, asset.assetType);
 
-    const extResult = await this.payoutDelegate.payout(
+    const extResult = await this.transferDelegate.outboundTransfer(
       idempotencyKey, source, destination, asset, quantity, exCtx,
     );
 
@@ -336,7 +336,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void> {
-    const { planId, instructionSequence, asset, destination, amount, result } = ctx;
+    const { planId, instructionSequence, source, asset, destination, amount, result } = ctx;
 
     if (result.type === 'error') {
       return;
@@ -344,6 +344,17 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
     if (destination.type !== 'finId') {
       return;
+    }
+
+    if (this.transferDelegate?.onInboundTransfer) {
+      const exCtx = { planId, sequence: instructionSequence };
+      await this.transferDelegate.onInboundTransfer(
+        result.transactionId,
+        { finId: (source as FinIdAccount).finId, account: source as FinIdAccount },
+        asset,
+        { finId: destination.finId, account: destination },
+        amount, exCtx,
+      );
     }
 
     await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
