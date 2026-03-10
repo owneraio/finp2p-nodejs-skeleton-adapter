@@ -1,7 +1,8 @@
 import {
   Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetIdentifier,
   Balance, CommonService, Destination, EscrowService, ExecutionContext, FinIdAccount,
-  HealthService, MappingService, OperationStatus, OperationType, OwnerMapping, ReceiptOperation, Signature, Source,
+  HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, MappingService, OperationStatus, OperationType,
+  OwnerMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
   failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
@@ -10,7 +11,7 @@ import { LedgerStorage } from './storage';
 import { logger } from './logger';
 import { buildReceipt, generateCid } from './utils';
 
-export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService {
+export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, InboundTransferHook {
   constructor(
     private storage: LedgerStorage,
     private payoutDelegate?: PayoutDelegate,
@@ -322,5 +323,35 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
         [finId],
       );
     }
+  }
+
+  // ─── InboundTransferHook ─────────────────────────────────────────────
+
+  async onPlannedInboundTransfer(_idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void> {
+    const { asset, destination } = ctx;
+    if (destination.type !== 'finId') {
+      return;
+    }
+    await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
+  }
+
+  async onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void> {
+    const { planId, instructionSequence, asset, destination, amount, result } = ctx;
+
+    if (result.type === 'error') {
+      return;
+    }
+
+    if (destination.type !== 'finId') {
+      return;
+    }
+
+    await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
+    await this.storage.credit(destination.finId, amount, asset.assetId, {
+      idempotency_key: idempotencyKey,
+      operation_type: 'transfer',
+      execution_context: { planId, sequence: instructionSequence },
+      transaction_id: result.transactionId,
+    }, asset.assetType);
   }
 }

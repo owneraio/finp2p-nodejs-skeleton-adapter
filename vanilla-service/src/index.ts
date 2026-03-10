@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import {
-  CommonService, EscrowService, HealthService, MappingService, TokenService,
+  CommonService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
 } from '@owneraio/finp2p-adapter-models';
 import { AssetDelegate, EscrowDelegate, PayoutDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
@@ -19,6 +19,7 @@ export interface VanillaServices {
   escrowService: EscrowService;
   commonService: CommonService & HealthService;
   mappingService: MappingService;
+  inboundTransferHook?: InboundTransferHook;
 }
 
 export interface VanillaDelegates {
@@ -46,5 +47,6 @@ export function createVanillaServices(delegates: VanillaDelegates, config: Ledge
     escrowService: service,
     commonService: service,
     mappingService: service,
+    inboundTransferHook: service,
   };
 }

@@ -1,6 +1,6 @@
 
 import {
-  Asset, DepositAsset,
+  Account, Asset, DepositAsset,
   DepositOperation, Destination,
   DestinationAccount, ExecutionContext,
   FinIdAccount,
@@ -75,5 +75,28 @@ export interface TransactionHook {
 
 export interface LedgerCallbackService {
   sendOperationResult(cid: string, operation: OperationStatus): Promise<void>
+}
+
+//------------------------------------------------------------
+
+export type InstructionResult =
+  | { type: 'receipt'; transactionId: string }
+  | { type: 'error'; code: number; message: string };
+
+export interface PlannedInboundTransferContext {
+  planId: string;
+  asset: Asset;
+  destination: Account;
+  amount: string;
+}
+
+export interface InboundTransferContext extends PlannedInboundTransferContext {
+  instructionSequence: number;
+  result: InstructionResult;
+}
+
+export interface InboundTransferHook {
+  onPlannedInboundTransfer(idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void>;
+  onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void>;
 }
 

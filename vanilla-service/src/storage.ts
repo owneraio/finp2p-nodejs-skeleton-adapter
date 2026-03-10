@@ -28,6 +28,7 @@ export interface LedgerDetails {
   operation_id?: string;
   operation_type?: string;
   execution_context?: { planId: string; sequence: number };
+  transaction_id?: string;
 }
 
 type Action = 'credit' | 'debit' | 'lock' | 'unlock' | 'move' | 'unlock-and-move' | 'unlock-and-debit';
