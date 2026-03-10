@@ -2,9 +2,17 @@ import { EIP712Template } from './eip712';
 
 export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
+export type Caip19LedgerAssetIdentifier = {
+  assetIdentifierType: 'CAIP-19';
+  network: string;
+  tokenId: string;
+  standard: string;
+};
+
 export type Asset = {
   assetId: string
   assetType: AssetType
+  ledgerIdentifier?: Caip19LedgerAssetIdentifier
 };
 
 export type DepositAsset = Asset | {
