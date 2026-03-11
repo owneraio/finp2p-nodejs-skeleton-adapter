@@ -85,9 +85,10 @@ export type InstructionResult =
 
 export interface PlannedInboundTransferContext {
   planId: string;
-  source: Account;
-  asset: Asset;
-  destination: Account;
+  sourceAccount: Account;
+  sourceAsset: Asset;
+  destinationAccount: Account;
+  destinationAsset: Asset;
   amount: string;
 }
 
