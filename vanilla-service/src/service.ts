@@ -359,14 +359,14 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
-    const omnibusDb = await this.storage.getBalance(OMNIBUS_FIN_ID, assetId, assetType);
-    const distributed = await this.storage.getSumBalanceExcluding(OMNIBUS_FIN_ID, assetId, assetType);
-    const omnibusBalance = (BigInt(omnibusDb.balance) + BigInt(distributed)).toString();
-    return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: omnibusDb.balance };
+    const { omnibusBalance, distributed, available } = await this.storage.getDistributionStatus(
+      OMNIBUS_FIN_ID, assetId, assetType,
+    );
+    return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: available };
   }
 
   async distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    if (BigInt(amount) <= 0n) {
+    if (Number(amount) <= 0) {
       throw new ValidationError('amount must be positive');
     }
     await this.storage.ensureAccount(finId, assetId, assetType);
@@ -377,7 +377,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    if (BigInt(amount) <= 0n) {
+    if (Number(amount) <= 0) {
       throw new ValidationError('amount must be positive');
     }
     await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {

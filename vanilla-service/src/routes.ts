@@ -51,7 +51,7 @@ export function registerDistributionRoutes(
         res.status(400).json({ error: 'finId, assetId, and amount are required' });
         return;
       }
-      if (BigInt(amount) <= 0n) {
+      if (Number(amount) <= 0) {
         res.status(400).json({ error: 'amount must be positive' });
         return;
       }
@@ -70,7 +70,7 @@ export function registerDistributionRoutes(
         res.status(400).json({ error: 'finId, assetId, and amount are required' });
         return;
       }
-      if (BigInt(amount) <= 0n) {
+      if (Number(amount) <= 0) {
         res.status(400).json({ error: 'amount must be positive' });
         return;
       }

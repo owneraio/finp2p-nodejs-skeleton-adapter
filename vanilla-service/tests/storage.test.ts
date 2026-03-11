@@ -462,6 +462,38 @@ describe('ledger storage', () => {
     expect(aliceBal.balance).toBe('250');
   });
 
+  test('fractional balances work with distribution', async () => {
+    await storage.setBalance('omnibus', assetId, '1000.50');
+    await storage.ensureAccount('alice', assetId, assetType);
+
+    await storage.move('omnibus', 'alice', '205.66000001', assetId, nextDetails());
+
+    const omnibusBal = await storage.getBalance('omnibus', assetId);
+    const aliceBal = await storage.getBalance('alice', assetId);
+    expect(omnibusBal.balance).toBe('794.83999999');
+    expect(aliceBal.balance).toBe('205.66000001');
+  });
+
+  test('syncOmnibusBalance works with fractional on-chain balance', async () => {
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '205.66000001', assetId, nextDetails());
+
+    const synced = await storage.syncOmnibusBalance('omnibus', assetId, '1000.50', assetType);
+    expect(synced.distributed).toBe('205.66000001');
+    expect(synced.available).toBe('794.83999999');
+  });
+
+  test('getDistributionStatus works with fractional balances', async () => {
+    await storage.setBalance('omnibus', assetId, '794.84');
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '205.66', assetId, nextDetails());
+
+    const status = await storage.getDistributionStatus('omnibus', assetId, assetType);
+    expect(status.available).toBe('794.84');
+    expect(status.distributed).toBe('205.66');
+    expect(status.omnibusBalance).toBe('1000.50');
+  });
+
   test('high precision amounts are preserved', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
     const bigAmount = '123456789012345678.123456789012345678';

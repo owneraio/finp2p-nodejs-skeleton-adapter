@@ -125,6 +125,29 @@ export class LedgerStorage {
   }
 
   /**
+   * Returns omnibus + distributed breakdown, with all arithmetic done in SQL.
+   */
+  async getDistributionStatus(
+    omnibusFinId: string, assetId: string, assetType: string = 'finp2p',
+  ): Promise<{ omnibusBalance: string; distributed: string; available: string }> {
+    const result = await this.pool.query(
+      `SELECT
+         COALESCE(o.balance, 0)::TEXT AS available,
+         COALESCE(d.total, 0)::TEXT   AS distributed,
+         (COALESCE(o.balance, 0) + COALESCE(d.total, 0))::TEXT AS omnibus_balance
+       FROM
+         (SELECT balance FROM ledger_adapter.accounts
+          WHERE fin_id = $1 AND asset_id = $2 AND asset_type = $3) o
+       FULL JOIN
+         (SELECT SUM(balance) AS total FROM ledger_adapter.accounts
+          WHERE asset_id = $2 AND asset_type = $3 AND fin_id != $1) d ON TRUE`,
+      [omnibusFinId, assetId, assetType],
+    );
+    const row = result.rows[0] ?? { available: '0', distributed: '0', omnibus_balance: '0' };
+    return { omnibusBalance: row.omnibus_balance, distributed: row.distributed, available: row.available };
+  }
+
+  /**
    * Sets an account's balance to an exact target value.
    */
   async setBalance(finId: string, assetId: string, targetBalance: string, assetType: string = 'finp2p'): Promise<void> {
