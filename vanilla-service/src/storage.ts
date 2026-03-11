@@ -110,14 +110,32 @@ export class LedgerStorage {
     return result.rows[0];
   }
 
-  async getDistributedBalance(assetId: string, assetType: string = 'finp2p'): Promise<string> {
+  /**
+   * Returns the sum of balances for all accounts matching the asset,
+   * excluding a specific finId (e.g. the omnibus account).
+   */
+  async getSumBalanceExcluding(excludeFinId: string, assetId: string, assetType: string = 'finp2p'): Promise<string> {
     const result = await this.pool.query(
       `SELECT COALESCE(SUM(balance), 0)::TEXT AS total
        FROM ledger_adapter.accounts
-       WHERE asset_id = $1 AND asset_type = $2`,
-      [assetId, assetType],
+       WHERE asset_id = $1 AND asset_type = $2 AND fin_id != $3`,
+      [assetId, assetType, excludeFinId],
     );
     return result.rows[0].total;
+  }
+
+  /**
+   * Sets an account's balance to an exact target value.
+   * Used to reconcile the omnibus DB account with the on-chain balance.
+   */
+  async setBalance(finId: string, assetId: string, targetBalance: string, assetType: string = 'finp2p'): Promise<void> {
+    await this.ensureAccount(finId, assetId, assetType);
+    await this.pool.query(
+      `UPDATE ledger_adapter.accounts
+       SET balance = $1::NUMERIC, updated_at = NOW()
+       WHERE fin_id = $2 AND asset_id = $3 AND asset_type = $4`,
+      [targetBalance, finId, assetId, assetType],
+    );
   }
 
   async ping(): Promise<void> {
