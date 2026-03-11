@@ -1,5 +1,5 @@
 import {
-  Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetIdentifier,
+  Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetIdentifier, AssetType,
   Destination, ExecutionContext, Source,
 } from '@owneraio/finp2p-adapter-models';
 
@@ -112,4 +112,12 @@ export interface EscrowDelegate {
     operationId: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<DelegateResult>;
+}
+
+/**
+ * Delegate for querying the omnibus wallet balance on-chain.
+ * The adapter must implement this to enable distribution tracking.
+ */
+export interface OmnibusDelegate {
+  getOmnibusBalance(assetId: string, assetType: AssetType): Promise<string>;
 }
