@@ -1,3 +1,4 @@
+import path from 'node:path';
 import winston from 'winston';
 import { Pool } from 'pg';
 import {
@@ -12,6 +13,12 @@ export { AssetDelegate, TransferDelegate, EscrowDelegate, DelegateResult, Inboun
 export { LedgerStorage, LedgerTransaction, LedgerBalance, LedgerDetails } from './storage';
 export { VanillaServiceImpl } from './service';
 export { setLogger } from './logger';
+
+/** Directory containing vanilla-service goose migration files */
+export const migrationsDir = path.join(__dirname, '..', 'migrations');
+
+/** Goose table name for vanilla-service migrations */
+export const migrationsTableName = 'finp2p_vanilla_service_migrations';
 
 export interface LedgerConfig {
   connectionString: string;
