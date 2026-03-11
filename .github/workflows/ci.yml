@@ -77,6 +77,22 @@ jobs:
 
         # ----------------------------------
 
+      - name: vanilla-service install dependencies
+        working-directory: ./vanilla-service
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: vanilla-service build
+        working-directory: ./vanilla-service
+        run: npm run build
+
+      - name: vanilla-service test
+        working-directory: ./vanilla-service
+        run: npm run test
+
+        # ----------------------------------
+
       - name: sample-adapter install dependencies
         working-directory: ./sample-adapter
         run: npm ci

@@ -535,4 +535,15 @@ export type Receipt = {
 
 // -------------------------------------------------------------------
 
+export type OwnerMapping = {
+  finId: string;
+  account: string;
+};
 
+export type DistributionStatus = {
+  assetId: string;
+  assetType: AssetType;
+  omnibusBalance: string;
+  distributedBalance: string;
+  availableBalance: string;
+};
