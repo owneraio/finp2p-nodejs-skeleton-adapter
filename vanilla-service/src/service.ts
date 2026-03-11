@@ -353,6 +353,9 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     if (!this.omnibusDelegate) {
       throw new ValidationError('Distribution requires an omnibus delegate');
     }
+    if (BigInt(amount) <= 0n) {
+      throw new ValidationError('amount must be positive');
+    }
     const omnibusBalance = await this.omnibusDelegate.getOmnibusBalance(assetId, assetType);
     const distributedBalance = await this.storage.getDistributedBalance(assetId, assetType);
     const available = BigInt(omnibusBalance) - BigInt(distributedBalance);
@@ -367,6 +370,9 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
+    if (BigInt(amount) <= 0n) {
+      throw new ValidationError('amount must be positive');
+    }
     await this.storage.debit(finId, amount, assetId, {
       idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'reclaim',
