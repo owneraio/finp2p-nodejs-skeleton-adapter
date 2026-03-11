@@ -728,8 +728,6 @@ components:
           type: string
           pattern: .*\S.*
           x-autoMinLength: true
-        resourceId:
-          $ref: '#/components/schemas/resourceId'
     networkInfo:
       type: object
       required: [networkId]
@@ -782,13 +780,22 @@ components:
           $ref: '#/components/schemas/custodian'
     finp2pAssetAccount:
       type: object
-      description: 'describes account information'
+      description: 'describes account and asset information'
       required: [account, asset]
       properties:
         account:
           $ref: '#/components/schemas/finIdAccount'
         asset:
-          $ref: '#/components/schemas/ledgerAssetIdentifier'
+          $ref: '#/components/schemas/finp2pAsset'
+    finp2pAsset:
+        type: object
+        description: 'describes asset information'
+        required: [id, ledgerIdentifier]
+        properties:
+          id:
+            $ref: '#/components/schemas/resourceId'
+          ledgerIdentifier:
+            $ref: '#/components/schemas/ledgerAssetIdentifier'
     ledgerAccountAsset:
       type: object
       description: 'describes account information'
@@ -806,7 +813,7 @@ components:
         account:
           $ref: '#/components/schemas/finIdAccount'
         asset:
-          $ref: '#/components/schemas/ledgerAssetIdentifier'
+          $ref: '#/components/schemas/finp2pAsset'
     importTxAccount:
         type: object
         required:
@@ -822,7 +829,7 @@ components:
         account:
             $ref: '#/components/schemas/importTxAccount'
         asset:
-          $ref: '#/components/schemas/ledgerAssetIdentifier'
+          $ref: '#/components/schemas/finp2pAsset'
     importTxLedgerAssetAccount:
       type: object
       description: 'describes account information'
@@ -1028,7 +1035,7 @@ components:
         issuer:
           $ref: '#/components/schemas/ownerId'
         asset:
-          $ref: '#/components/schemas/buyingAsset'
+          $ref: '#/components/schemas/redemptionAsset'
         settlement:
           $ref: '#/components/schemas/buyingSettlements'
         conditions:
@@ -1352,7 +1359,7 @@ components:
         account:
           $ref: '#/components/schemas/finIdAccount'
         asset:
-          $ref: '#/components/schemas/finp2pAsset'
+          $ref: '#/components/schemas/finp2pAssetBase'
     depositAccount:
       type: object
       description: 'describes account information'
@@ -1399,8 +1406,8 @@ components:
             mapping:
               finId: '#/components/schemas/finIdAccount'
         asset:
-          $ref: '#/components/schemas/finp2pAsset'
-    finp2pAsset:
+          $ref: '#/components/schemas/finp2pAssetBase'
+    finp2pAssetBase:
       type: object
       required: [resourceId]
       properties:

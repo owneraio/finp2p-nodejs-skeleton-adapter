@@ -1657,12 +1657,12 @@ components:
               $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
             instruction:
               type: object
-              required: [ sourceAccount ]
+              required: [ sourceAccount, destinationAccount ]
               properties:
                 sourceAccount:
                   $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
                 destinationAccount:
-                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
+                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccountOptional'
         settlement:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
 
@@ -1683,10 +1683,10 @@ components:
               $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
             instruction:
               type: object
-              required: [ destinationAccount ]
+              required: [ sourceAccount, destinationAccount ]
               properties:
                 sourceAccount:
-                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
+                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccountOptional'
                 destinationAccount:
                   $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
         settlement:
@@ -2619,7 +2619,7 @@ components:
         account:
           $ref: 'common-external-components.yaml#/components/schemas/finIdAccount'
         asset:
-          $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
+          $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
 
     # Proofs
 
