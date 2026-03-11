@@ -2,14 +2,14 @@ import path from 'node:path';
 import winston from 'winston';
 import { Pool } from 'pg';
 import {
-  CommonService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
+  CommonService, DistributionService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
 } from '@owneraio/finp2p-adapter-models';
-import { AssetDelegate, EscrowDelegate, TransferDelegate } from './interfaces';
+import { AssetDelegate, EscrowDelegate, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { VanillaServiceImpl } from './service';
 import { setLogger } from './logger';
 
-export { AssetDelegate, TransferDelegate, EscrowDelegate, DelegateResult, InboundTransferVerificationError } from './interfaces';
+export { AssetDelegate, TransferDelegate, EscrowDelegate, OmnibusDelegate, DelegateResult, InboundTransferVerificationError } from './interfaces';
 export { LedgerStorage, LedgerTransaction, LedgerBalance, LedgerDetails } from './storage';
 export { VanillaServiceImpl } from './service';
 export { setLogger } from './logger';
@@ -29,6 +29,7 @@ export interface VanillaServices {
   escrowService: EscrowService;
   commonService: CommonService & HealthService;
   mappingService: MappingService;
+  distributionService?: DistributionService;
   inboundTransferHook?: InboundTransferHook;
 }
 
@@ -36,6 +37,7 @@ export interface VanillaDelegates {
   transfer?: TransferDelegate;
   asset?: AssetDelegate;
   escrow?: EscrowDelegate;
+  omnibus?: OmnibusDelegate;
 }
 
 /**
@@ -54,12 +56,13 @@ export function createVanillaServices(delegates: VanillaDelegates, config: Ledge
   }
   const pool = new Pool({ connectionString: config.connectionString });
   const storage = new LedgerStorage(pool);
-  const service = new VanillaServiceImpl(storage, delegates.transfer, delegates.asset, delegates.escrow);
+  const service = new VanillaServiceImpl(storage, delegates.transfer, delegates.asset, delegates.escrow, delegates.omnibus);
   return {
     tokenService: service,
     escrowService: service,
     commonService: service,
     mappingService: service,
+    distributionService: delegates.omnibus ? service : undefined,
     inboundTransferHook: service,
   };
 }

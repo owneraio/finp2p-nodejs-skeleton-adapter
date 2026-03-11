@@ -1,5 +1,5 @@
 import { Application } from 'express';
-import { MappingService, OwnerMapping } from '@owneraio/finp2p-adapter-models';
+import { AssetType, DistributionService, MappingService, OwnerMapping } from '@owneraio/finp2p-adapter-models';
 import { logger } from '../helpers';
 import { components as MappingAPI } from './mapping-api-gen';
 
@@ -121,5 +121,73 @@ export function registerMappingRoutes(
   app.get('/mapping/fields', (_req, res) => {
     const response: AccountMappingField[] = config.fields;
     res.json(response);
+  });
+}
+
+/**
+ * Register distribution endpoints:
+ *   GET  /distribution/status?assetId=&assetType=  — omnibus vs distributed balance
+ *   POST /distribution/distribute                  — allocate omnibus value to investor
+ *   POST /distribution/reclaim                     — return investor value to undistributed pool
+ */
+export function registerDistributionRoutes(
+  app: Application,
+  distributionService: DistributionService,
+): void {
+
+  app.get('/distribution/status', async (req, res) => {
+    try {
+      const assetId = req.query.assetId as string;
+      const assetType = (req.query.assetType as AssetType) ?? 'finp2p';
+      if (!assetId) {
+        res.status(400).json({ error: 'assetId query parameter is required' });
+        return;
+      }
+      const status = await distributionService.getDistributionStatus(assetId, assetType);
+      res.json(status);
+    } catch (e: any) {
+      logger.error('Distribution status failed', { error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/distribution/distribute', async (req, res) => {
+    try {
+      const { finId, assetId, assetType, amount } = req.body;
+      if (!finId || !assetId || !amount) {
+        res.status(400).json({ error: 'finId, assetId, and amount are required' });
+        return;
+      }
+      if (BigInt(amount) <= 0n) {
+        res.status(400).json({ error: 'amount must be positive' });
+        return;
+      }
+      await distributionService.distribute(finId, assetId, assetType ?? 'finp2p', amount);
+      res.json({ status: 'ok' });
+    } catch (e: any) {
+      logger.error('Distribution failed', { error: e.message });
+      const code = e.name === 'BusinessError' ? 409 : 500;
+      res.status(code).json({ error: e.message });
+    }
+  });
+
+  app.post('/distribution/reclaim', async (req, res) => {
+    try {
+      const { finId, assetId, assetType, amount } = req.body;
+      if (!finId || !assetId || !amount) {
+        res.status(400).json({ error: 'finId, assetId, and amount are required' });
+        return;
+      }
+      if (BigInt(amount) <= 0n) {
+        res.status(400).json({ error: 'amount must be positive' });
+        return;
+      }
+      await distributionService.reclaim(finId, assetId, assetType ?? 'finp2p', amount);
+      res.json({ status: 'ok' });
+    } catch (e: any) {
+      logger.error('Reclaim failed', { error: e.message });
+      const code = e.name === 'BusinessError' ? 409 : 500;
+      res.status(code).json({ error: e.message });
+    }
   });
 }

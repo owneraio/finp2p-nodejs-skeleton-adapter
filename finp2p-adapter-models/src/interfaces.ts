@@ -1,12 +1,12 @@
 import {
-  Asset,
+  Asset, AssetType,
   AssetCreationStatus,
   Destination,
   ExecutionContext,
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, OwnerMapping,
+  FinIdAccount, AssetBind, AssetDenomination, OwnerMapping, DistributionStatus,
 } from './model';
 
 
@@ -90,4 +90,12 @@ export interface MappingService {
   saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping>
 
   deleteOwnerMapping(finId: string, account?: string): Promise<void>
+}
+
+export interface DistributionService {
+  getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus>
+
+  distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void>
+
+  reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void>
 }
