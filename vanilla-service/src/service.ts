@@ -76,7 +76,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     };
 
-    if (destination.account.type === 'finId') {
+    if (destination.account.type === 'finId' && !destination.ledgerAccount) {
       await this.storage.ensureAccount(destination.finId, destinationAsset.assetId, destinationAsset.assetType);
       const tx = await this.storage.move(source.finId, destination.finId, quantity, sourceAsset.assetId, details, sourceAsset.assetType);
       const receipt = buildReceipt(
