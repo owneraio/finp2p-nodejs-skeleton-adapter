@@ -28,12 +28,12 @@ describe('vanilla services', () => {
   let storage: LedgerStorage;
   let service: VanillaServiceImpl;
 
-  let payoutCalls: Array<{ idempotencyKey: string; source: Source; destination: Destination; asset: Asset; quantity: string }>;
+  let payoutCalls: Array<{ idempotencyKey: string; source: Source; destination: Destination; sourceAsset: Asset; destinationAsset: Asset; quantity: string }>;
   let payoutResult: DelegateResult;
 
   const mockDelegate: TransferDelegate = {
-    async outboundTransfer(idempotencyKey, source, destination, asset, quantity, _exCtx) {
-      payoutCalls.push({ idempotencyKey, source, destination, asset, quantity });
+    async outboundTransfer(idempotencyKey, source, destination, sourceAsset, destinationAsset, quantity, _exCtx) {
+      payoutCalls.push({ idempotencyKey, source, destination, sourceAsset, destinationAsset, quantity });
       return payoutResult;
     },
   };
@@ -75,7 +75,7 @@ describe('vanilla services', () => {
 
     test('successful payout: locks, calls delegate, unlocks and debits', async () => {
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '200', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '200', dummySig, undefined,
       );
 
       const success = expectSuccess(result);
@@ -93,7 +93,7 @@ describe('vanilla services', () => {
       payoutResult = { success: true, transactionId: 'chain-tx-42' };
 
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '100', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '100', dummySig, undefined,
       );
 
       const success = expectSuccess(result);
@@ -104,7 +104,7 @@ describe('vanilla services', () => {
       payoutResult = { success: false, error: 'chain reverted' };
 
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '300', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '300', dummySig, undefined,
       );
 
       const failure = expectFailure(result);
@@ -121,7 +121,7 @@ describe('vanilla services', () => {
       payoutResult = { success: false, error: 'insufficient gas' };
 
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '50', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '50', dummySig, undefined,
       );
 
       const failure = expectFailure(result);
@@ -140,7 +140,7 @@ describe('vanilla services', () => {
 
     test('moves funds locally, does not call payout delegate', async () => {
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, bobDest, asset, '100', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, bobDest, asset, asset, '100', dummySig, undefined,
       );
 
       expectSuccess(result);
