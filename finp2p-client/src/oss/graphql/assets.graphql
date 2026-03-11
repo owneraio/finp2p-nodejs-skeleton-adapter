@@ -11,7 +11,7 @@ query GetAssets($filter: [Filter!]) {
             issuerId
             config
             allowedIntents
-            assetIdentifier {
+            financialIdentifier {
                 type,
                 value
             }
@@ -53,7 +53,13 @@ fragment proofInfo on ProofPolicy {
 }
 
 fragment assetInfo on LedgerAssetInfo {
-    tokenId
+    ledgerIdentifier {
+        ... on Caip19Identifier {
+            network
+            standard
+            tokenId
+        }
+    }
     ledgerReference {
         ... on ContractDetails {
             network
