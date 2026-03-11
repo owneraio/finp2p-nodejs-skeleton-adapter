@@ -126,7 +126,6 @@ export class LedgerStorage {
 
   /**
    * Sets an account's balance to an exact target value.
-   * Used to reconcile the omnibus DB account with the on-chain balance.
    */
   async setBalance(finId: string, assetId: string, targetBalance: string, assetType: string = 'finp2p'): Promise<void> {
     await this.ensureAccount(finId, assetId, assetType);
@@ -136,6 +135,35 @@ export class LedgerStorage {
        WHERE fin_id = $2 AND asset_id = $3 AND asset_type = $4`,
       [targetBalance, finId, assetId, assetType],
     );
+  }
+
+  /**
+   * Atomically reconcile the omnibus DB account with the on-chain balance.
+   *
+   * Single UPDATE locks the omnibus row first, then computes
+   * target = onChainBalance − SUM(other investor balances) in a subquery.
+   * This serializes against concurrent move() calls that also lock the row.
+   *
+   * Returns { distributed, available } as strings.
+   */
+  async syncOmnibusBalance(
+    omnibusFinId: string, assetId: string, onChainBalance: string, assetType: string = 'finp2p',
+  ): Promise<{ distributed: string; available: string }> {
+    await this.ensureAccount(omnibusFinId, assetId, assetType);
+    const result = await this.pool.query(
+      `WITH distributed AS (
+         SELECT COALESCE(SUM(balance), 0) AS total
+         FROM ledger_adapter.accounts
+         WHERE asset_id = $2 AND asset_type = $3 AND fin_id != $1
+       )
+       UPDATE ledger_adapter.accounts a
+       SET balance = $4::NUMERIC - d.total, updated_at = NOW()
+       FROM distributed d
+       WHERE a.fin_id = $1 AND a.asset_id = $2 AND a.asset_type = $3
+       RETURNING d.total::TEXT AS distributed, a.balance::TEXT AS available`,
+      [omnibusFinId, assetId, assetType, onChainBalance],
+    );
+    return { distributed: result.rows[0].distributed, available: result.rows[0].available };
   }
 
   async ping(): Promise<void> {

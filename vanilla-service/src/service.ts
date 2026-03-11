@@ -345,15 +345,17 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       throw new ValidationError('Distribution requires an omnibus delegate');
     }
     const omnibusBalance = await this.omnibusDelegate.getOmnibusBalance(assetId, assetType);
-    const distributed = await this.storage.getSumBalanceExcluding(OMNIBUS_FIN_ID, assetId, assetType);
-    const target = BigInt(omnibusBalance) - BigInt(distributed);
-    if (target < 0n) {
-      throw new BusinessError(
-        1, `on-chain balance (${omnibusBalance}) is less than already distributed (${distributed})`,
+    try {
+      const { distributed, available } = await this.storage.syncOmnibusBalance(
+        OMNIBUS_FIN_ID, assetId, omnibusBalance, assetType,
       );
+      return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: available };
+    } catch (e: any) {
+      if (e.code === '23514') { // CHECK constraint violation — balance went negative
+        throw new BusinessError(1, `on-chain balance (${omnibusBalance}) is less than already distributed`);
+      }
+      throw e;
     }
-    await this.storage.setBalance(OMNIBUS_FIN_ID, assetId, target.toString(), assetType);
-    return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: target.toString() };
   }
 
   async getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
