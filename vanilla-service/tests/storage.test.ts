@@ -404,6 +404,26 @@ describe('ledger storage', () => {
     expect(sum).toBe('0');
   });
 
+  test('syncOmnibusBalance updates omnibus and returns distributed/available', async () => {
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '250', assetId, nextDetails());
+
+    const synced = await storage.syncOmnibusBalance('omnibus', assetId, '1000', assetType);
+    expect(synced.distributed).toBe('250');
+    expect(synced.available).toBe('750');
+
+    const omnibusBal = await storage.getBalance('omnibus', assetId, assetType);
+    expect(omnibusBal.balance).toBe('750');
+  });
+
+  test('syncOmnibusBalance fails when on-chain balance is below distributed balance', async () => {
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '1200', assetId, nextDetails());
+
+    await expect(storage.syncOmnibusBalance('omnibus', assetId, '1000', assetType))
+      .rejects.toThrow();
+  });
+
   test('distribution via move: omnibus to investor', async () => {
     // Simulate omnibus with 1000, distribute 400 to alice
     await storage.setBalance('omnibus', assetId, '1000');
