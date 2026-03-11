@@ -24,7 +24,8 @@ export function registerDistributionRoutes(
       const status = await distributionService.syncOmnibus(assetId, assetType ?? 'finp2p');
       res.json(status);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      const code = e instanceof BusinessError ? 409 : 500;
+      res.status(code).json({ error: e.message });
     }
   });
 

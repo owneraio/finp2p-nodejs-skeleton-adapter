@@ -346,9 +346,14 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     }
     const omnibusBalance = await this.omnibusDelegate.getOmnibusBalance(assetId, assetType);
     const distributed = await this.storage.getSumBalanceExcluding(OMNIBUS_FIN_ID, assetId, assetType);
-    const target = (BigInt(omnibusBalance) - BigInt(distributed)).toString();
-    await this.storage.setBalance(OMNIBUS_FIN_ID, assetId, target, assetType);
-    return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: target };
+    const target = BigInt(omnibusBalance) - BigInt(distributed);
+    if (target < 0n) {
+      throw new BusinessError(
+        1, `on-chain balance (${omnibusBalance}) is less than already distributed (${distributed})`,
+      );
+    }
+    await this.storage.setBalance(OMNIBUS_FIN_ID, assetId, target.toString(), assetType);
+    return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: target.toString() };
   }
 
   async getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
