@@ -110,6 +110,16 @@ export class LedgerStorage {
     return result.rows[0];
   }
 
+  async getDistributedBalance(assetId: string, assetType: string = 'finp2p'): Promise<string> {
+    const result = await this.pool.query(
+      `SELECT COALESCE(SUM(balance), 0)::TEXT AS total
+       FROM ledger_adapter.accounts
+       WHERE asset_id = $1 AND asset_type = $2`,
+      [assetId, assetType],
+    );
+    return result.rows[0].total;
+  }
+
   async ping(): Promise<void> {
     await this.pool.query('SELECT 1');
   }
