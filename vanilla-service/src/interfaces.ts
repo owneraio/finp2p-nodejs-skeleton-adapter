@@ -1,5 +1,5 @@
 import {
-  Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetType,
+  Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetIdentifier, AssetType,
   Destination, ExecutionContext, Source,
 } from '@owneraio/finp2p-adapter-models';
 
@@ -25,6 +25,7 @@ export interface AssetDelegate {
     assetName: string | undefined,
     issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined,
+    assetIdentifier: AssetIdentifier | undefined,
   ): Promise<AssetCreationResult>;
 }
 
@@ -53,8 +54,7 @@ export interface TransferDelegate {
     idempotencyKey: string,
     source: Source,
     destination: Destination,
-    sourceAsset: Asset,
-    destinationAsset: Asset,
+    asset: Asset,
     quantity: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<DelegateResult>;

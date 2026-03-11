@@ -1,11 +1,11 @@
 import {
-  Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetType,
+  Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetIdentifier, AssetType,
   Balance, BusinessError, CommonService, Destination, DistributionService, DistributionStatus,
   EscrowService, ExecutionContext, FinIdAccount,
   HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, MappingService, OperationStatus, OperationType,
   OwnerMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
-  failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
+  failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
 import { AssetDelegate, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
@@ -27,26 +27,24 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     idempotencyKey: string, asset: Asset,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined,
     assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined,
+    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined,
   ): Promise<AssetCreationStatus> {
     getLogger().info(`Creating asset ${asset.assetId}`, { idempotencyKey });
 
     if (this.assetDelegate) {
       const result = await this.assetDelegate.createAsset(
         idempotencyKey, asset, assetBind, assetMetadata,
-        assetName, issuerId, assetDenomination,
+        assetName, issuerId, assetDenomination, assetIdentifier,
       );
       return successfulAssetCreation(result);
     }
 
-    const ledgerIdentifier = assetBind?.tokenIdentifier
-      ? { tokenId: assetBind.tokenIdentifier.tokenId, network: assetBind.tokenIdentifier.network, standard: assetBind.tokenIdentifier.standard }
-      : { tokenId: generateCid(), network: 'db', standard: 'vanilla' };
-    return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
+    const tokenId = assetBind?.tokenIdentifier?.tokenId ?? generateCid();
+    return successfulAssetCreation({ tokenId, reference: undefined });
   }
 
   async issue(
-    idempotencyKey: string, asset: Asset, to: Destination,
+    idempotencyKey: string, asset: Asset, to: FinIdAccount,
     quantity: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     getLogger().info(`Issuing ${quantity} of ${asset.assetId} to ${to.finId}`);
@@ -59,16 +57,16 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     }, asset.assetType);
 
     const receipt = buildReceipt(
-      tx, asset, undefined, to, quantity, 'issue', exCtx, undefined,
+      tx, asset, undefined, finIdDestination(to.finId), quantity, 'issue', exCtx, undefined,
     );
     return successfulReceiptOperation(receipt);
   }
 
   async transfer(
     idempotencyKey: string, nonce: string, source: Source, destination: Destination,
-    sourceAsset: Asset, destinationAsset: Asset, quantity: string, signature: Signature, exCtx: ExecutionContext | undefined,
+    asset: Asset, quantity: string, signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    getLogger().info(`Transferring ${quantity} of ${sourceAsset.assetId} from ${source.finId} to ${destination.finId}`);
+    getLogger().info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -77,10 +75,10 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     };
 
     if (destination.account.type === 'finId') {
-      await this.storage.ensureAccount(destination.finId, destinationAsset.assetId, destinationAsset.assetType);
-      const tx = await this.storage.move(source.finId, destination.finId, quantity, sourceAsset.assetId, details, sourceAsset.assetType);
+      await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
+      const tx = await this.storage.move(source.finId, destination.finId, quantity, asset.assetId, details, asset.assetType);
       const receipt = buildReceipt(
-        tx, sourceAsset, source, destination, quantity, 'transfer', exCtx, undefined,
+        tx, asset, source, destination, quantity, 'transfer', exCtx, undefined,
       );
       return successfulReceiptOperation(receipt);
     }
@@ -90,32 +88,28 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       return failedReceiptOperation(1, 'External transfer requires a transfer delegate');
     }
 
-    await this.storage.lock(source.finId, quantity, sourceAsset.assetId, {
+    await this.storage.lock(source.finId, quantity, asset.assetId, {
       ...details, idempotency_key: `${idempotencyKey}:hold`,
-    }, sourceAsset.assetType);
+    }, asset.assetType);
 
     const extResult = await this.transferDelegate.outboundTransfer(
-      idempotencyKey, source, destination, sourceAsset, destinationAsset, quantity, exCtx,
+      idempotencyKey, source, destination, asset, quantity, exCtx,
     );
 
     if (!extResult.success) {
-      await this.storage.unlock(source.finId, quantity, sourceAsset.assetId, {
+      await this.storage.unlock(source.finId, quantity, asset.assetId, {
         ...details, idempotency_key: `${idempotencyKey}:unlock`,
-      }, sourceAsset.assetType);
+      }, asset.assetType);
       return failedReceiptOperation(1, extResult.error);
     }
 
-    const tx = await this.storage.unlockAndDebit(source.finId, quantity, sourceAsset.assetId, {
+    const tx = await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, {
       ...details, idempotency_key: `${idempotencyKey}:debit`,
-    }, sourceAsset.assetType);
+    }, asset.assetType);
     const receipt = buildReceipt(
-      tx, sourceAsset, source, destination, quantity, 'transfer', exCtx, undefined, extResult.transactionId,
+      tx, asset, source, destination, quantity, 'transfer', exCtx, undefined, extResult.transactionId,
     );
     return successfulReceiptOperation(receipt);
-  }
-
-  async doesSupportCrosschainTransfer(_sourceAsset: Asset, _destinationAsset: Asset): Promise<boolean> {
-    return false;
   }
 
   async redeem(
