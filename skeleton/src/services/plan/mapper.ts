@@ -12,19 +12,20 @@ import {
 import { OpComponents } from '@owneraio/finp2p-client';
 
 
-export const assetFromLedgerIdentifier = (ledgerAsset: OpComponents['schemas']['ledgerAssetIdentifier']): Asset => {
-  return { assetType: 'finp2p', assetId: ledgerAsset.resourceId ?? ledgerAsset.tokenId };
+
+export const assetFromFinp2pAsset = (asset: OpComponents['schemas']['finp2pAsset']): Asset => {
+  return { assetType: 'finp2p', assetId: asset.id };
 };
 
 export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => {
   return { assetType: 'finp2p', assetId: asset.resourceId };
 };
 
-export const accountFromAPI = (account: OpComponents['schemas']['components-schemas-finIdAccount']): Account => {
+export const accountFromAPI = (account: OpComponents['schemas']['schemas-finIdAccount']): Account => {
   return { type: 'finId', finId: account.finId };
 };
 
-export const accountOptFromAPI = (account?: OpComponents['schemas']['components-schemas-finIdAccount']): Account | undefined => {
+export const accountOptFromAPI = (account?: OpComponents['schemas']['schemas-finIdAccount']): Account | undefined => {
   if (!account) {
     return undefined;
   }
@@ -43,7 +44,7 @@ const legFromSourceDestinationExecuteAsset = (order: OpComponents['schemas']['so
   const { sourceAccount, destinationAccount } = instruction;
   const ledgerAsset = sourceAccount.finp2pAccount.asset || destinationAccount.finp2pAccount.asset;
   return {
-    asset: assetFromLedgerIdentifier(ledgerAsset),
+    asset: assetFromFinp2pAsset(ledgerAsset),
     amount,
     source: accountOptFromAPI(sourceAccount.finp2pAccount.account),
     destination: accountOptFromAPI(destinationAccount.finp2pAccount.account),
@@ -62,7 +63,7 @@ const legFromLoanExecuteAsset = (order: OpComponents['schemas']['loanExecuteAsse
   const { amount } = assetTerm;
   const { borrowerAccount, lenderAccount } = assetInstruction;
   return {
-    asset: assetFromLedgerIdentifier(borrowerAccount.finp2pAccount.asset),
+    asset: assetFromFinp2pAsset(borrowerAccount.finp2pAccount.asset),
     amount,
     source: accountOptFromAPI(borrowerAccount.finp2pAccount.account),
     destination: accountOptFromAPI(lenderAccount.finp2pAccount.account),
@@ -163,7 +164,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { destination, amount } = instruction;
       return {
         type: 'issue',
-        asset: assetFromLedgerIdentifier(destination.finp2pAccount.asset),
+        asset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
         destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
       };
@@ -172,7 +173,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'transfer',
-        asset: assetFromLedgerIdentifier(source.finp2pAccount.asset),
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
         source: accountFromAPI(source.finp2pAccount.account),
         destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
@@ -182,7 +183,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'redeem',
-        asset: assetFromLedgerIdentifier(source.finp2pAccount.asset),
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
         source: accountFromAPI(source.finp2pAccount.account),
         destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
@@ -192,7 +193,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'hold',
-        asset: assetFromLedgerIdentifier(source.finp2pAccount.asset),
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
         source: accountFromAPI(source.finp2pAccount.account),
         destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
@@ -202,7 +203,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'release',
-        asset: assetFromLedgerIdentifier(source.finp2pAccount.asset),
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
         source: accountFromAPI(source.finp2pAccount.account),
         destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
@@ -212,7 +213,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination } = instruction;
       return {
         type: 'revertHoldInstruction',
-        asset: assetFromLedgerIdentifier(destination.finp2pAccount.asset),
+        asset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
         source: source ? accountFromAPI(source.finp2pAccount.account) : undefined,
         destination: accountFromAPI(destination.finp2pAccount.account),
       };

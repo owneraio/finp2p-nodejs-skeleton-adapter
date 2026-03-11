@@ -54,7 +54,6 @@ export const createAssetOperationToFinAPI = (operationStatus: AssetCreationStatu
                 network: ledgerIdentifier.network,
                 tokenId: ledgerIdentifier.tokenId,
                 standard: ledgerIdentifier.standard,
-                resourceId: ledgerIdentifier.resourceId,
               },
               ledgerReference,
             },
