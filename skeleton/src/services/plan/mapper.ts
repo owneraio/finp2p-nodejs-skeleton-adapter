@@ -12,39 +12,27 @@ import {
 import { OpComponents } from '@owneraio/finp2p-client';
 
 
+
+export const assetFromFinp2pAsset = (asset: OpComponents['schemas']['finp2pAsset']): Asset => {
+  return { assetType: 'finp2p', assetId: asset.id };
+};
+
 export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => {
-  switch (asset.type) {
-    case 'finp2p':
-      return { assetType: 'finp2p', assetId: asset.resourceId };
-    case 'cryptocurrency':
-      return { assetType: 'cryptocurrency', assetId: asset.code };
-    case 'fiat':
-      return { assetType: 'fiat', assetId: asset.code };
-  }
+  return { assetType: 'finp2p', assetId: asset.resourceId };
 };
 
-export const accountFromAPI = (account: OpComponents['schemas']['finIdAccount'] | OpComponents['schemas']['cryptoWalletAccount'] | OpComponents['schemas']['fiatAccount']): Account => {
-  switch (account.type) {
-    case 'finId':
-      const { finId } = account;
-      return { type: 'finId', finId };
-    case 'cryptoWallet':
-      const { address } = account;
-      return { type: 'crypto', address };
-    case 'fiatAccount':
-      const { code } = account;
-      return { type: 'iban', code };
-  }
+export const accountFromAPI = (account: OpComponents['schemas']['schemas-finIdAccount']): Account => {
+  return { type: 'finId', finId: account.finId };
 };
 
-export const accountOptFromAPI = (account?: OpComponents['schemas']['finIdAccount'] | OpComponents['schemas']['cryptoWalletAccount'] | OpComponents['schemas']['fiatAccount'] | undefined): Account | undefined => {
+export const accountOptFromAPI = (account?: OpComponents['schemas']['schemas-finIdAccount']): Account | undefined => {
   if (!account) {
     return undefined;
   }
   return accountFromAPI(account);
 };
 
-const legFromAssetOrder = (order: OpComponents['schemas']['assetOrder']): Leg => {
+const legFromSourceDestinationExecuteAsset = (order: OpComponents['schemas']['sourceDestinationExecuteAsset']): Leg => {
   const { term, instruction } = order;
   if (!term) {
     throw new ValidationError('No term in order');
@@ -52,46 +40,41 @@ const legFromAssetOrder = (order: OpComponents['schemas']['assetOrder']): Leg =>
   if (!instruction) {
     throw new ValidationError('No instruction in order');
   }
-  const { asset, amount } = term;
+  const { amount } = term;
   const { sourceAccount, destinationAccount } = instruction;
+  const ledgerAsset = sourceAccount.finp2pAccount.asset || destinationAccount.finp2pAccount.asset;
   return {
-    asset: assetFromAPI(asset),
-    amount: amount,
-    source: accountOptFromAPI(sourceAccount?.account),
-    destination: accountOptFromAPI(destinationAccount?.account),
+    asset: assetFromFinp2pAsset(ledgerAsset),
+    amount,
+    source: accountOptFromAPI(sourceAccount.finp2pAccount.account),
+    destination: accountOptFromAPI(destinationAccount.finp2pAccount.account),
   };
 };
 
-const legFromAssetOrderOpt = (order?: OpComponents['schemas']['assetOrder']): Leg | undefined => {
+const legFromSourceDestinationExecuteAssetOpt = (order?: OpComponents['schemas']['sourceDestinationExecuteAsset']): Leg | undefined => {
   if (!order) {
     return undefined;
   }
-  return legFromAssetOrder(order);
+  return legFromSourceDestinationExecuteAsset(order);
 };
 
-const legFromLoanOrder = (order: OpComponents['schemas']['loanOrder']): Leg => {
-  const { term, instruction } = order;
-  if (!term) {
-    throw new ValidationError('No term in order');
-  }
-  if (!instruction) {
-    throw new ValidationError('No instruction in order');
-  }
-  const { asset, amount } = term;
-  const { borrowerAccount, lenderAccount } = instruction;
+const legFromLoanExecuteAsset = (order: OpComponents['schemas']['loanExecuteAsset']): Leg => {
+  const { assetTerm, assetInstruction } = order;
+  const { amount } = assetTerm;
+  const { borrowerAccount, lenderAccount } = assetInstruction;
   return {
-    asset: assetFromAPI(asset),
-    amount: amount,
-    source: accountOptFromAPI(borrowerAccount?.account),
-    destination: accountOptFromAPI(lenderAccount?.account),
+    asset: assetFromFinp2pAsset(borrowerAccount.finp2pAccount.asset),
+    amount,
+    source: accountOptFromAPI(borrowerAccount.finp2pAccount.account),
+    destination: accountOptFromAPI(lenderAccount.finp2pAccount.account),
   };
 };
 
-const legFromLoanOrderOpt = (order?: OpComponents['schemas']['loanOrder']): Leg | undefined => {
+const legFromLoanExecuteAssetOpt = (order?: OpComponents['schemas']['loanExecuteAsset']): Leg | undefined => {
   if (!order) {
     return undefined;
   }
-  return legFromLoanOrder(order);
+  return legFromLoanExecuteAsset(order);
 };
 
 const contractFromAPI = (contract: OpComponents['schemas']['contract']): PlanContract => {
@@ -108,48 +91,48 @@ const contractFromAPI = (contract: OpComponents['schemas']['contract']): PlanCon
     switch (contractDetails.type) {
       case 'transfer': {
         const { asset } = contractDetails;
-        assetLeg = legFromAssetOrderOpt(asset);
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
         break;
       }
       case 'issuance': {
         const { asset, settlement } = contractDetails;
-        assetLeg = legFromAssetOrderOpt(asset);
-        paymentLeg = legFromAssetOrderOpt(settlement);
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
+        paymentLeg = legFromSourceDestinationExecuteAssetOpt(settlement);
         break;
       }
       case 'buying': {
         const { asset, settlement } = contractDetails;
-        assetLeg = legFromAssetOrderOpt(asset);
-        paymentLeg = legFromAssetOrderOpt(settlement);
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
+        paymentLeg = legFromSourceDestinationExecuteAssetOpt(settlement);
         break;
       }
       case 'selling': {
         const { asset, settlement } = contractDetails;
-        assetLeg = legFromAssetOrderOpt(asset);
-        paymentLeg = legFromAssetOrderOpt(settlement);
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
+        paymentLeg = legFromSourceDestinationExecuteAssetOpt(settlement);
         break;
       }
       case 'loan': {
         const { asset, settlement } = contractDetails;
-        assetLeg = legFromLoanOrderOpt(asset);
-        paymentLeg = legFromLoanOrderOpt(settlement);
+        assetLeg = legFromLoanExecuteAssetOpt(asset);
+        paymentLeg = legFromLoanExecuteAssetOpt(settlement);
         break;
       }
       case 'redeem': {
         const { asset, settlement } = contractDetails;
-        assetLeg = legFromAssetOrderOpt(asset);
-        paymentLeg = legFromAssetOrderOpt(settlement);
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
+        paymentLeg = legFromSourceDestinationExecuteAssetOpt(settlement);
         break;
       }
       case 'privateOffer': {
         const { asset, settlement } = contractDetails;
-        assetLeg = legFromAssetOrderOpt(asset);
-        paymentLeg = legFromAssetOrderOpt(settlement);
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
+        paymentLeg = legFromSourceDestinationExecuteAssetOpt(settlement);
         break;
       }
       case 'requestForTransfer': {
         const { asset } = contractDetails;
-        assetLeg = legFromAssetOrderOpt(asset);
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
         break;
       }
     }
@@ -178,61 +161,61 @@ type OpPlanInstruction = {
 const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanOperation']): ExecutionPlanOperation => {
   switch (instruction.type) {
     case 'issue': {
-      const { asset, destination, amount, signature } = instruction;
+      const { destination, amount } = instruction;
       return {
         type: 'issue',
-        asset: assetFromAPI(asset),
-        destination: accountFromAPI(destination.account),
+        asset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
+        destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
       };
     }
     case 'transfer': {
-      const { asset, source, destination, amount } = instruction;
+      const { source, destination, amount } = instruction;
       return {
         type: 'transfer',
-        asset: assetFromAPI(asset),
-        source: accountFromAPI(source.account),
-        destination: accountFromAPI(destination.account),
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+        source: accountFromAPI(source.finp2pAccount.account),
+        destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
       };
     }
     case 'redeem': {
-      const { asset, source, destination, amount } = instruction;
+      const { source, destination, amount } = instruction;
       return {
         type: 'redeem',
-        asset: assetFromAPI(asset),
-        source: accountFromAPI(source.account),
-        destination: destination ? accountFromAPI(destination.account) : undefined,
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+        source: accountFromAPI(source.finp2pAccount.account),
+        destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
       };
     }
     case 'hold': {
-      const { asset, source, destination, amount } = instruction;
+      const { source, destination, amount } = instruction;
       return {
         type: 'hold',
-        asset: assetFromAPI(asset),
-        source: accountFromAPI(source.account),
-        destination: destination ? accountFromAPI(destination.account) : undefined,
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+        source: accountFromAPI(source.finp2pAccount.account),
+        destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
       };
     }
     case 'release': {
-      const { asset, source, destination, amount } = instruction;
+      const { source, destination, amount } = instruction;
       return {
         type: 'release',
-        asset: assetFromAPI(asset),
-        source: accountFromAPI(source.account),
-        destination: accountFromAPI(destination.account),
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+        source: accountFromAPI(source.finp2pAccount.account),
+        destination: accountFromAPI(destination.finp2pAccount.account),
         amount,
       };
     }
     case 'revertHoldInstruction': {
-      const { asset, source, destination } = instruction;
+      const { source, destination } = instruction;
       return {
         type: 'revertHoldInstruction',
-        asset: assetFromAPI(asset),
-        source: source ? accountFromAPI(source.account) : undefined,
-        destination: accountFromAPI(destination.account),
+        asset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
+        source: source ? accountFromAPI(source.finp2pAccount.account) : undefined,
+        destination: accountFromAPI(destination.finp2pAccount.account),
       };
     }
     case 'await': {

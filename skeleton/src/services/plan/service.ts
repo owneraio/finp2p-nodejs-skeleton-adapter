@@ -91,24 +91,30 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       }
 
       const { operation } = instruction;
-      if (operation.type === 'transfer' &&
-          instruction.organizations.includes(this.orgId)) {
+      if (operation.type === 'transfer') {
+        const rawInstruction = execution.plan.instructions
+          ?.find(i => i.sequence === instructionSequence);
+        const isDestination =
+          rawInstruction?.executionPlanOperation.type === 'transfer' &&
+          rawInstruction.executionPlanOperation.destination.finp2pAccount.account.orgId === this.orgId;
 
-        const event = execution.instructionsCompletionEvents
-          ?.find(e => e.instructionSequenceNumber === instructionSequence);
-        const result = mapInstructionResult(event);
-        if (result) {
-          await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
-            planId,
-            instructionSequence,
-            source: operation.source,
-            asset: operation.asset,
-            destination: operation.destination,
-            amount: operation.amount,
-            result,
-          });
-        } else {
-          logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
+        if (isDestination) {
+          const event = execution.instructionsCompletionEvents
+            ?.find(e => e.instructionSequenceNumber === instructionSequence);
+          const result = mapInstructionResult(event);
+          if (result) {
+            await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
+              planId,
+              instructionSequence,
+              source: operation.source,
+              asset: operation.asset,
+              destination: operation.destination,
+              amount: operation.amount,
+              result,
+            });
+          } else {
+            logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
+          }
         }
       }
     }
