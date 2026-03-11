@@ -51,10 +51,6 @@ export function registerDistributionRoutes(
         res.status(400).json({ error: 'finId, assetId, and amount are required' });
         return;
       }
-      if (Number(amount) <= 0) {
-        res.status(400).json({ error: 'amount must be positive' });
-        return;
-      }
       await distributionService.distribute(finId, assetId, assetType ?? 'finp2p', amount);
       res.json({ status: 'ok' });
     } catch (e: any) {
@@ -68,10 +64,6 @@ export function registerDistributionRoutes(
       const { finId, assetId, assetType, amount } = req.body;
       if (!finId || !assetId || !amount) {
         res.status(400).json({ error: 'finId, assetId, and amount are required' });
-        return;
-      }
-      if (Number(amount) <= 0) {
-        res.status(400).json({ error: 'amount must be positive' });
         return;
       }
       await distributionService.reclaim(finId, assetId, assetType ?? 'finp2p', amount);

@@ -366,9 +366,6 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    if (Number(amount) <= 0) {
-      throw new ValidationError('amount must be positive');
-    }
     await this.storage.ensureAccount(finId, assetId, assetType);
     await this.storage.move(OMNIBUS_FIN_ID, finId, amount, assetId, {
       idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
@@ -377,9 +374,6 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    if (Number(amount) <= 0) {
-      throw new ValidationError('amount must be positive');
-    }
     await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {
       idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'reclaim',
