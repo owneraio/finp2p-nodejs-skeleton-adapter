@@ -100,6 +100,69 @@ export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>)
   return result.rows.at(0);
 }
 
+export interface AccountMapping {
+  fin_id: string;
+  account: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export async function getAccountMappings(finIds?: string[]): Promise<AccountMapping[]> {
+  if (finIds && finIds.length > 0) {
+    const result = await getFirstConnectionOrDie().query(
+      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY created_at ASC, account ASC',
+      [finIds],
+    );
+    return result.rows;
+  }
+  const result = await getFirstConnectionOrDie().query(
+    'SELECT * FROM ledger_adapter.account_mappings ORDER BY created_at ASC, account ASC',
+  );
+  return result.rows;
+}
+
+export async function getAccountMappingsByAccount(account: string): Promise<AccountMapping[]> {
+  const result = await getFirstConnectionOrDie().query(
+    'SELECT * FROM ledger_adapter.account_mappings WHERE account = $1 ORDER BY created_at ASC, fin_id ASC',
+    [account.toLowerCase()],
+  );
+  return result.rows;
+}
+
+export async function saveAccountMapping(finId: string, account: string): Promise<AccountMapping> {
+  const normalizedAccount = account.toLowerCase();
+  const result = await getFirstConnectionOrDie().query(
+    `INSERT INTO ledger_adapter.account_mappings (fin_id, account)
+    VALUES ($1, $2)
+    ON CONFLICT (fin_id, account) DO NOTHING
+    RETURNING *;`,
+    [finId, normalizedAccount],
+  );
+  if (result.rows.length === 0) {
+    const existing = await getFirstConnectionOrDie().query(
+      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
+      [finId, normalizedAccount],
+    );
+    return existing.rows[0];
+  }
+  return result.rows[0];
+}
+
+export async function deleteAccountMapping(finId: string, account?: string): Promise<void> {
+  if (account) {
+    await getFirstConnectionOrDie().query(
+      'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
+      [finId, account.toLowerCase()],
+    );
+  } else {
+    await getFirstConnectionOrDie().query(
+      'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
+      [finId],
+    );
+  }
+}
+
+
 export class Storage {
   private c: Pool;
 
