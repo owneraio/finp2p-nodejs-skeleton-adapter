@@ -1,22 +1,24 @@
 import {
-  Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetIdentifier,
-  Balance, CommonService, Destination, EscrowService, ExecutionContext, FinIdAccount,
+  Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetIdentifier, AssetType,
+  Balance, BusinessError, CommonService, Destination, DistributionService, DistributionStatus,
+  EscrowService, ExecutionContext, FinIdAccount,
   HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, MappingService, OperationStatus, OperationType,
   OwnerMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
   failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
-import { AssetDelegate, EscrowDelegate, InboundTransferVerificationError, TransferDelegate } from './interfaces';
+import { AssetDelegate, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { getLogger } from './logger';
 import { buildReceipt, generateCid } from './utils';
 
-export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, InboundTransferHook {
+export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, DistributionService, InboundTransferHook {
   constructor(
     private storage: LedgerStorage,
     private transferDelegate?: TransferDelegate,
     private assetDelegate?: AssetDelegate,
     private escrowDelegate?: EscrowDelegate,
+    private omnibusDelegate?: OmnibusDelegate,
   ) {}
 
   // ─── TokenService ─────────────────────────────────────────────────────
@@ -331,6 +333,50 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
         [finId],
       );
     }
+  }
+
+  // ─── DistributionService ─────────────────────────────────────────────
+
+  async getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
+    if (!this.omnibusDelegate) {
+      throw new ValidationError('Distribution requires an omnibus delegate');
+    }
+    const [omnibusBalance, distributedBalance] = await Promise.all([
+      this.omnibusDelegate.getOmnibusBalance(assetId, assetType),
+      this.storage.getDistributedBalance(assetId, assetType),
+    ]);
+    const available = (BigInt(omnibusBalance) - BigInt(distributedBalance)).toString();
+    return { assetId, assetType, omnibusBalance, distributedBalance, availableBalance: available };
+  }
+
+  async distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
+    if (!this.omnibusDelegate) {
+      throw new ValidationError('Distribution requires an omnibus delegate');
+    }
+    if (BigInt(amount) <= 0n) {
+      throw new ValidationError('amount must be positive');
+    }
+    const omnibusBalance = await this.omnibusDelegate.getOmnibusBalance(assetId, assetType);
+    const distributedBalance = await this.storage.getDistributedBalance(assetId, assetType);
+    const available = BigInt(omnibusBalance) - BigInt(distributedBalance);
+    if (BigInt(amount) > available) {
+      throw new BusinessError(1, `Insufficient omnibus balance: available ${available.toString()}, requested ${amount}`);
+    }
+    await this.storage.ensureAccount(finId, assetId, assetType);
+    await this.storage.credit(finId, amount, assetId, {
+      idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
+      operation_type: 'distribute',
+    }, assetType);
+  }
+
+  async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
+    if (BigInt(amount) <= 0n) {
+      throw new ValidationError('amount must be positive');
+    }
+    await this.storage.debit(finId, amount, assetId, {
+      idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
+      operation_type: 'reclaim',
+    }, assetType);
   }
 
   // ─── InboundTransferHook ─────────────────────────────────────────────
