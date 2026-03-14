@@ -67,8 +67,8 @@ export function tokenLifecycleTests() {
       });
 
       // Verify final balances
-      await client.expectBalance(issuer.source, asset, scenario.EXPECTED_SELLER_BALANCE);
-      await client.expectBalance(secondaryBuyer.source, asset, scenario.EXPECTED_BUYER_BALANCE);
+      await client.expectBalance({ finId: issuer.finId, asset }, scenario.EXPECTED_SELLER_BALANCE);
+      await client.expectBalance({ finId: secondaryBuyer.finId, asset }, scenario.EXPECTED_BUYER_BALANCE);
     });
   });
 }
