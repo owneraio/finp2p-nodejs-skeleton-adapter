@@ -1,0 +1,210 @@
+query GetPlans($filter: [Filter!]) {
+    plans(filter: $filter) {
+        nodes {
+            ...planFields
+        }
+    }
+}
+
+fragment planFields on ExecutionPlan {
+    id
+    status
+    creationTimestamp
+    lastModified
+    version
+    organizations {
+        organizationId
+    }
+    intent {
+        id
+        type
+        status
+        remainingQuantity
+        start
+        end
+        intent { __typename }
+        metadata { acl }
+    }
+    contract {
+        investors {
+            investor
+            role
+        }
+        contractDetails {
+            ...contractDetailsFields
+        }
+    }
+    approvals {
+        planId
+        orgId
+        status
+        statusInfo { __typename }
+    }
+    instructions {
+        ...instructionFields
+    }
+}
+
+fragment contractDetailsFields on ExecutionPlanContractDetails {
+    __typename
+    ... on BuyingContractDetails {
+        asset { ...assetOrderFields }
+        settlement { ...assetOrderFields }
+    }
+    ... on SellingContractDetails {
+        asset { ...assetOrderFields }
+        settlement { ...assetOrderFields }
+    }
+    ... on IssuanceContractDetails {
+        asset { ...assetOrderFields }
+        settlement { ...assetOrderFields }
+    }
+    ... on RedemptionContractDetails {
+        asset { ...assetOrderFields }
+        settlement { ...assetOrderFields }
+    }
+    ... on TransferContractDetails {
+        asset { ...assetOrderFields }
+    }
+    ... on LoanContractDetails {
+        asset { ...assetOrderFields }
+        settlement { ...assetOrderFields }
+    }
+    ... on PrivateOfferContractDetails {
+        asset { ...assetOrderFields }
+        settlement { ...assetOrderFields }
+    }
+    ... on RequestForTransferContractDetails {
+        asset { ...assetOrderFields }
+    }
+}
+
+fragment assetOrderFields on AssetOrder {
+    term {
+        asset { ...assetDetailsFields }
+        amount
+    }
+}
+
+fragment assetDetailsFields on AssetDetails {
+    __typename
+    ... on FinP2PAsset { resourceId }
+    ... on FiatAsset { code }
+    ... on Cryptocurrency { symbol }
+}
+
+fragment accountIdFields on AccountIdentifier {
+    __typename
+    ... on FinP2PAssetAccount { finId orgId }
+    ... on CryptoWalletAccount { address }
+    ... on Iban { code }
+}
+
+fragment accountInstructionFields on AccountInstruction {
+    asset { ...assetDetailsFields }
+    identifier { ...accountIdFields }
+}
+
+fragment instructionFields on ExecutionPlanInstruction {
+    sequence
+    organizations {
+        organizationId
+    }
+    status
+    version
+    details {
+        __typename
+        ... on HoldInstruction {
+            source
+            destination
+            amount
+            holdSrc: sourceAccount { ...accountInstructionFields }
+            holdDest: destinationAccount { ...accountInstructionFields }
+        }
+        ... on TransferInstruction {
+            source
+            destination
+            amount
+            transferSrc: sourceAccount { ...accountInstructionFields }
+            transferDest: destinationAccount { ...accountInstructionFields }
+        }
+        ... on ReleaseInstruction {
+            amount
+            releaseSrc: sourceAccount { ...accountInstructionFields }
+            releaseDest: destinationAccount { ...accountInstructionFields }
+        }
+        ... on RevertHoldInstruction {
+            holdInstructionSequence
+            revertDest: destinationAccount { ...accountInstructionFields }
+        }
+        ... on IssueInstruction {
+            buyer
+            amount
+            issueDest: destinationAccount { ...accountInstructionFields }
+        }
+        ... on RedeemInstruction {
+            amount
+            redeemSrc: sourceAccount { ...accountInstructionFields }
+        }
+        ... on AwaitInstruction {
+            waitTime
+        }
+    }
+    state {
+        __typename
+        ... on SuccessState {
+            output {
+                ...receiptFields
+            }
+        }
+        ... on ErrorState {
+            code
+            message
+        }
+    }
+    approvals {
+        nodes {
+            planId
+            sequence
+            orgId
+            status
+            reason
+        }
+    }
+    transitions {
+        onSuccess { ...transitionFields }
+        onFailure { ...transitionFields }
+        onTimeout { ...transitionFields }
+    }
+}
+
+fragment receiptFields on SuccessStateOutput {
+    __typename
+    ... on Receipt {
+        id
+        operationId
+        transactionId
+        operationType
+        source {
+            id
+            organizationId
+            finIds
+        }
+        destination {
+            id
+            organizationId
+            finIds
+        }
+        sourceAccount { ...accountIdFields }
+        destinationAccount { ...accountIdFields }
+        quantity
+        timestamp
+        status
+    }
+}
+
+fragment transitionFields on Transition {
+    __typename
+    ... on SequenceTransition { sequence }
+    ... on StatusTransition { status }
+}
