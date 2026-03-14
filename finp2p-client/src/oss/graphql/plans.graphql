@@ -67,8 +67,8 @@ fragment contractDetailsFields on ExecutionPlanContractDetails {
         asset { ...assetOrderFields }
     }
     ... on LoanContractDetails {
-        asset { ...assetOrderFields }
-        settlement { ...assetOrderFields }
+        asset { ...loanOrderFields }
+        settlement { ...loanOrderFields }
     }
     ... on PrivateOfferContractDetails {
         asset { ...assetOrderFields }
@@ -80,6 +80,13 @@ fragment contractDetailsFields on ExecutionPlanContractDetails {
 }
 
 fragment assetOrderFields on AssetOrder {
+    term {
+        asset { ...assetDetailsFields }
+        amount
+    }
+}
+
+fragment loanOrderFields on LoanOrder {
     term {
         asset { ...assetDetailsFields }
         amount
