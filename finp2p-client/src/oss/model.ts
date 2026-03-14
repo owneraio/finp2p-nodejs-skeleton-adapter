@@ -178,6 +178,145 @@ export type OssApprovalConfigNodes = {
   approvalConfigs: { nodes: OssApprovalConfig[] }
 };
 
+// ── Execution Plans ──
+
+export type OssPlanStatus = 'Pending' | 'InProgress' | 'Completed' | 'Failed' | 'Halted' | 'Rejected' | 'Cancelled';
+
+export type OssAssetDetails =
+  | { __typename: 'FinP2PAsset'; resourceId: string }
+  | { __typename: 'FiatAsset'; code: string }
+  | { __typename: 'Cryptocurrency'; symbol: string };
+
+export type OssAccountIdentifier =
+  | { __typename: 'FinP2PAssetAccount'; finId: string; orgId: string }
+  | { __typename: 'CryptoWalletAccount'; address: string }
+  | { __typename: 'Iban'; code: string };
+
+export type OssAccountInstruction = {
+  asset: OssAssetDetails;
+  identifier: OssAccountIdentifier | null;
+};
+
+export type OssAssetOrder = {
+  term: { asset: OssAssetDetails; amount: string };
+};
+
+export type OssPlanContractDetails = {
+  __typename: string;
+  asset?: OssAssetOrder;
+  settlement?: OssAssetOrder;
+};
+
+export type OssPlanInvestor = {
+  investor: string;
+  role: string;
+};
+
+export type OssPlanContract = {
+  investors: OssPlanInvestor[];
+  contractDetails: OssPlanContractDetails | null;
+};
+
+export type OssPlanApproval = {
+  planId: string;
+  orgId: string;
+  status: string;
+  statusInfo: { __typename: string } | null;
+};
+
+export type OssInstructionApproval = {
+  planId: string;
+  sequence: number;
+  orgId: string;
+  status: string;
+  reason: string | null;
+};
+
+export type OssReceipt = {
+  __typename: 'Receipt';
+  id: string;
+  operationId: string | null;
+  transactionId: string | null;
+  operationType: string | null;
+  source: { id: string; organizationId: string; finIds: string[] };
+  destination: { id: string; organizationId: string; finIds: string[] };
+  sourceAccount: OssAccountIdentifier | null;
+  destinationAccount: OssAccountIdentifier | null;
+  quantity: string;
+  timestamp: string;
+  status: string;
+};
+
+export type OssInstructionState =
+  | { __typename: 'UnknownState' }
+  | { __typename: 'ErrorState'; code: string; message: string }
+  | { __typename: 'SuccessState'; output: OssReceipt | null };
+
+export type OssTransition =
+  | { __typename: 'SequenceTransition'; sequence: number }
+  | { __typename: 'StatusTransition'; status: string };
+
+export type OssInstructionDetails = {
+  __typename: string;
+  source?: string;
+  destination?: string;
+  buyer?: string;
+  amount?: string;
+  holdInstructionSequence?: number;
+  waitTime?: number;
+  // Aliased account fields (due to nullability conflicts across union members)
+  holdSrc?: OssAccountInstruction;
+  holdDest?: OssAccountInstruction | null;
+  transferSrc?: OssAccountInstruction;
+  transferDest?: OssAccountInstruction;
+  releaseSrc?: OssAccountInstruction;
+  releaseDest?: OssAccountInstruction;
+  revertDest?: OssAccountInstruction;
+  issueDest?: OssAccountInstruction;
+  redeemSrc?: OssAccountInstruction;
+};
+
+export type OssPlanInstruction = {
+  sequence: number;
+  organizations: { organizationId: string }[];
+  status: string;
+  version: number;
+  details: OssInstructionDetails;
+  state: OssInstructionState;
+  approvals: { nodes: OssInstructionApproval[] };
+  transitions: {
+    onSuccess: OssTransition[];
+    onFailure: OssTransition[];
+    onTimeout: OssTransition[];
+  };
+};
+
+export type OssExecutionPlan = {
+  id: string;
+  status: OssPlanStatus;
+  creationTimestamp: number;
+  lastModified: number;
+  version: number;
+  organizations: { organizationId: string }[];
+  intent: {
+    id: string;
+    type: string;
+    status: string;
+    remainingQuantity: string | null;
+    start: string;
+    end: string;
+    intent: { __typename: string };
+    metadata: { acl: string[] } | null;
+  } | null;
+  contract: OssPlanContract;
+  approvals: OssPlanApproval[];
+  instructions: OssPlanInstruction[];
+};
+
+export type OssExecutionPlanNodes = {
+  plans: { nodes: OssExecutionPlan[] }
+};
+
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {
   const rawObject: unknown = JSON.parse(jsonString);
 
