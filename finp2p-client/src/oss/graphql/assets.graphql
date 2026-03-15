@@ -51,7 +51,7 @@ query GetAssets($filter: [Filter!]) {
                             settlementTerm {
                                 details {
                                     ... on PartialSettlement { unitValue }
-                                    ... on FullSettlement { unitValue }
+                                    ... on FullSettlement { amount }
                                 }
                             }
                         }
@@ -59,7 +59,7 @@ query GetAssets($filter: [Filter!]) {
                             settlementTerm {
                                 details {
                                     ... on PartialSettlement { unitValue }
-                                    ... on FullSettlement { unitValue }
+                                    ... on FullSettlement { amount }
                                 }
                             }
                         }
@@ -67,7 +67,7 @@ query GetAssets($filter: [Filter!]) {
                             settlementTerm {
                                 details {
                                     ... on PartialSettlement { unitValue }
-                                    ... on FullSettlement { unitValue }
+                                    ... on FullSettlement { amount }
                                 }
                             }
                         }
