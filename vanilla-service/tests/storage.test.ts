@@ -364,6 +364,136 @@ describe('ledger storage', () => {
       .rejects.toThrow(/Insufficient balance/);
   });
 
+  test('setBalance sets exact balance', async () => {
+    await storage.setBalance('alice', assetId, '500');
+    const bal = await storage.getBalance('alice', assetId);
+    expect(bal.balance).toBe('500');
+  });
+
+  test('setBalance creates account if needed', async () => {
+    await storage.setBalance('newuser', assetId, '100');
+    const bal = await storage.getBalance('newuser', assetId);
+    expect(bal.balance).toBe('100');
+  });
+
+  test('setBalance overwrites previous balance', async () => {
+    await storage.setBalance('alice', assetId, '500');
+    await storage.setBalance('alice', assetId, '300');
+    const bal = await storage.getBalance('alice', assetId);
+    expect(bal.balance).toBe('300');
+  });
+
+  test('getSumBalanceExcluding sums all except excluded account', async () => {
+    await storage.ensureAccount('omnibus', assetId, assetType);
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.ensureAccount('bob', assetId, assetType);
+
+    await storage.credit('omnibus', '1000', assetId, nextDetails());
+    await storage.credit('alice', '200', assetId, nextDetails());
+    await storage.credit('bob', '300', assetId, nextDetails());
+
+    const sum = await storage.getSumBalanceExcluding('omnibus', assetId);
+    expect(sum).toBe('500');
+  });
+
+  test('getSumBalanceExcluding returns 0 when no other accounts', async () => {
+    await storage.ensureAccount('omnibus', assetId, assetType);
+    await storage.credit('omnibus', '1000', assetId, nextDetails());
+
+    const sum = await storage.getSumBalanceExcluding('omnibus', assetId);
+    expect(sum).toBe('0');
+  });
+
+  test('syncOmnibusBalance updates omnibus and returns distributed/available', async () => {
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '250', assetId, nextDetails());
+
+    const synced = await storage.syncOmnibusBalance('omnibus', assetId, '1000', assetType);
+    expect(synced.distributed).toBe('250');
+    expect(synced.available).toBe('750');
+
+    const omnibusBal = await storage.getBalance('omnibus', assetId, assetType);
+    expect(omnibusBal.balance).toBe('750');
+  });
+
+  test('syncOmnibusBalance fails when on-chain balance is below distributed balance', async () => {
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '1200', assetId, nextDetails());
+
+    await expect(storage.syncOmnibusBalance('omnibus', assetId, '1000', assetType))
+      .rejects.toThrow();
+  });
+
+  test('distribution via move: omnibus to investor', async () => {
+    // Simulate omnibus with 1000, distribute 400 to alice
+    await storage.setBalance('omnibus', assetId, '1000');
+    await storage.ensureAccount('alice', assetId, assetType);
+
+    await storage.move('omnibus', 'alice', '400', assetId, nextDetails());
+
+    const omnibusBal = await storage.getBalance('omnibus', assetId);
+    const aliceBal = await storage.getBalance('alice', assetId);
+    expect(omnibusBal.balance).toBe('600');
+    expect(aliceBal.balance).toBe('400');
+  });
+
+  test('distribution via move: over-distribute fails', async () => {
+    await storage.setBalance('omnibus', assetId, '1000');
+    await storage.ensureAccount('alice', assetId, assetType);
+
+    await storage.move('omnibus', 'alice', '600', assetId, nextDetails());
+    await expect(storage.move('omnibus', 'alice', '500', assetId, nextDetails()))
+      .rejects.toThrow(/Insufficient balance/);
+
+    const omnibusBal = await storage.getBalance('omnibus', assetId);
+    expect(omnibusBal.balance).toBe('400');
+  });
+
+  test('reclaim via move: investor to omnibus', async () => {
+    await storage.setBalance('omnibus', assetId, '1000');
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.move('omnibus', 'alice', '400', assetId, nextDetails());
+
+    await storage.move('alice', 'omnibus', '150', assetId, nextDetails());
+
+    const omnibusBal = await storage.getBalance('omnibus', assetId);
+    const aliceBal = await storage.getBalance('alice', assetId);
+    expect(omnibusBal.balance).toBe('750');
+    expect(aliceBal.balance).toBe('250');
+  });
+
+  test('fractional balances work with distribution', async () => {
+    await storage.setBalance('omnibus', assetId, '1000.50');
+    await storage.ensureAccount('alice', assetId, assetType);
+
+    await storage.move('omnibus', 'alice', '205.66000001', assetId, nextDetails());
+
+    const omnibusBal = await storage.getBalance('omnibus', assetId);
+    const aliceBal = await storage.getBalance('alice', assetId);
+    expect(omnibusBal.balance).toBe('794.83999999');
+    expect(aliceBal.balance).toBe('205.66000001');
+  });
+
+  test('syncOmnibusBalance works with fractional on-chain balance', async () => {
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '205.66000001', assetId, nextDetails());
+
+    const synced = await storage.syncOmnibusBalance('omnibus', assetId, '1000.50', assetType);
+    expect(synced.distributed).toBe('205.66000001');
+    expect(synced.available).toBe('794.83999999');
+  });
+
+  test('getDistributionStatus works with fractional balances', async () => {
+    await storage.setBalance('omnibus', assetId, '794.84');
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.credit('alice', '205.66', assetId, nextDetails());
+
+    const status = await storage.getDistributionStatus('omnibus', assetId, assetType);
+    expect(status.available).toBe('794.84');
+    expect(status.distributed).toBe('205.66');
+    expect(status.omnibusBalance).toBe('1000.50');
+  });
+
   test('high precision amounts are preserved', async () => {
     await storage.ensureAccount('alice', assetId, assetType);
     const bigAmount = '123456789012345678.123456789012345678';

@@ -7,7 +7,8 @@ import ASSETS from './graphql/assets.graphql';
 import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
 import LEDGERS from './graphql/ledgers.graphql';
 import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
-import { OssApprovalConfigNodes, OssAssetNodes, OssEscrowNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
+import PLANS from './graphql/plans.graphql';
+import { OssApprovalConfigNodes, OssAssetNodes, OssEscrowNodes, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
 export class OssClient {
@@ -139,6 +140,25 @@ export class OssClient {
     return resp.organizations.nodes[0];
   }
 
+
+  async getExecutionPlans(): Promise<OssExecutionPlan[]> {
+    const resp = await this.queryOss<OssExecutionPlanNodes>(PLANS, {});
+    return resp.plans.nodes;
+  }
+
+  async getExecutionPlan(planId: string): Promise<OssExecutionPlan> {
+    const resp = await this.queryOss<OssExecutionPlanNodes>(PLANS, {
+      filter: {
+        key: 'id',
+        operator: 'EQ',
+        value: planId,
+      },
+    });
+    if (resp.plans.nodes.length == 0) {
+      throw new ItemNotFoundError(planId, 'ExecutionPlan');
+    }
+    return resp.plans.nodes[0];
+  }
 
   async queryOss<T>(queryDoc: DocumentNode, variables: Record<string, any>): Promise<T> {
     let headers = {

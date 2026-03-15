@@ -1,9 +1,10 @@
 import process from 'process';
-import { OssClient, parseProofDomain, Proof, ProofDomain, ProofPolicy } from './oss';
+import { OssClient, OssExecutionPlan, parseProofDomain, Proof, ProofDomain, ProofPolicy } from './oss';
 import { FinAPIClient } from './finapi';
-import { components as FinAPIComponents, paths as FinAPIPaths } from './finapi/model-gen';
-import { components as OpComponents, paths as OpPaths } from './finapi/op-model-gen';
+import { components as FinAPIComponents } from './finapi/model-gen';
+import { components as OpComponents } from './finapi/op-model-gen';
 import { ItemNotFoundError } from './oss/errors';
+import { sleep } from './finapi/utils';
 
 
 export class FinP2PClient {
@@ -17,28 +18,59 @@ export class FinP2PClient {
     this.ossClient = new OssClient(ossUrl, authTokenResolver);
   }
 
-  async createAsset(name: string, type: FinAPIComponents['schemas']['assetType'], issuerId: string,
-    symbol: string | undefined,
-    denomination: FinAPIComponents['schemas']['assetDenomination'],
-    intentTypes: FinAPIComponents['schemas']['intentType'][],
-    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'],
-    assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
-    config: string | undefined,
-    metadata: any | undefined,
-    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier']) {
-    return this.finAPIClient.createAsset(
-      name, type, issuerId, symbol, denomination, intentTypes,
-      ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier,
-    );
+  // ── Owner / Profile ──
+
+  async createAsset(...args: Parameters<FinAPIClient['createAsset']>) {
+    return this.finAPIClient.createAsset(...args);
   }
 
-  async shareProfile(id: string, organizations: string[]) {
-    return this.finAPIClient.shareProfile(id, organizations);
+  async shareProfile(...args: Parameters<FinAPIClient['shareProfile']>) {
+    return this.finAPIClient.shareProfile(...args);
   }
 
-  async createCertificate(profileId: string, type: string, data: string, issuanceDate: number, expirationDate: number) {
-    return this.finAPIClient.createCertificate(profileId, type, data, issuanceDate, expirationDate);
+  async createCertificate(...args: Parameters<FinAPIClient['createCertificate']>) {
+    return this.finAPIClient.createCertificate(...args);
   }
+
+  async createOwnerAccount(...args: Parameters<FinAPIClient['createOwnerAccount']>) {
+    return this.finAPIClient.createOwnerAccount(...args);
+  }
+
+  // ── Intent creation / execution ──
+
+  async createIntent(...args: Parameters<FinAPIClient['createIntent']>) {
+    return this.finAPIClient.createIntent(...args);
+  }
+
+  async executeIntent(...args: Parameters<FinAPIClient['executeIntent']>) {
+    return this.finAPIClient.executeIntent(...args);
+  }
+
+  async executeTransferIntent(...args: Parameters<FinAPIClient['executeTransferIntent']>) {
+    return this.finAPIClient.executeTransferIntent(...args);
+  }
+
+  async cancelExecution(...args: Parameters<FinAPIClient['cancelExecution']>) {
+    return this.finAPIClient.cancelExecution(...args);
+  }
+
+  async resetExecution(...args: Parameters<FinAPIClient['resetExecution']>) {
+    return this.finAPIClient.resetExecution(...args);
+  }
+
+  // ── Deposit ──
+
+  async createDeposit(...args: Parameters<FinAPIClient['createDeposit']>) {
+    return this.finAPIClient.createDeposit(...args);
+  }
+
+  // ── Balance sync ──
+
+  async syncBalance(...args: Parameters<FinAPIClient['syncBalance']>) {
+    return this.finAPIClient.syncBalance(...args);
+  }
+
+  // ── Operations ──
 
   async getOperationStatus(id: string) {
     return this.finAPIClient.getOperationStatus(id);
@@ -60,7 +92,49 @@ export class FinP2PClient {
     return this.finAPIClient.waitForOperationCompletion(cid, timeoutMs);
   }
 
-  // ------ OSS Client methods ------
+  // ── Ledger management ──
+
+  async bindLedger(...args: Parameters<FinAPIClient['bindLedger']>) {
+    return this.finAPIClient.bindLedger(...args);
+  }
+
+  async updateLedger(...args: Parameters<FinAPIClient['updateLedger']>) {
+    return this.finAPIClient.updateLedger(...args);
+  }
+
+  // ── Approval routing ──
+
+  async setApprovalRouting(...args: Parameters<FinAPIClient['setApprovalRouting']>) {
+    return this.finAPIClient.setApprovalRouting(...args);
+  }
+
+  async updateApprovalRouting(...args: Parameters<FinAPIClient['updateApprovalRouting']>) {
+    return this.finAPIClient.updateApprovalRouting(...args);
+  }
+
+  // ── Policies ──
+
+  async getPolicy(...args: Parameters<FinAPIClient['getPolicy']>) {
+    return this.finAPIClient.getPolicy(...args);
+  }
+
+  async getAssetPolicies(...args: Parameters<FinAPIClient['getAssetPolicies']>) {
+    return this.finAPIClient.getAssetPolicies(...args);
+  }
+
+  async createPolicy(...args: Parameters<FinAPIClient['createPolicy']>) {
+    return this.finAPIClient.createPolicy(...args);
+  }
+
+  async updatePolicy(...args: Parameters<FinAPIClient['updatePolicy']>) {
+    return this.finAPIClient.updatePolicy(...args);
+  }
+
+  async deletePolicy(...args: Parameters<FinAPIClient['deletePolicy']>) {
+    return this.finAPIClient.deletePolicy(...args);
+  }
+
+  // ── OSS queries ──
 
   async getAssets() {
     return this.ossClient.getAssets();
@@ -139,6 +213,95 @@ export class FinP2PClient {
 
   async getApprovalConfigs() {
     return this.ossClient.getApprovalConfigs();
+  }
+
+  // ── Plan queries (OSS GraphQL) ──
+
+  async getExecutionPlanFromOss(planId: string): Promise<OssExecutionPlan> {
+    return this.ossClient.getExecutionPlan(planId);
+  }
+
+  async getExecutionPlans(): Promise<OssExecutionPlan[]> {
+    return this.ossClient.getExecutionPlans();
+  }
+
+  // ── Plan polling with status logging ──
+
+  async waitForExecutionPlanCompletion(
+    planId: string,
+    options: {
+      delay?: number;
+      maxTimes?: number;
+      onStatusChange?: (plan: OssExecutionPlan, transition: string) => void;
+    } = {},
+  ): Promise<OssExecutionPlan> {
+    const { delay = 500, maxTimes = 3000 } = options;
+    const terminalStatuses = ['Completed', 'Failed', 'Halted', 'Rejected', 'Cancelled'];
+
+    let prevStatus: string | null = null;
+    let prevInstructionStatuses: string[] = [];
+
+    for (let i = 0; i < maxTimes; i += 1) {
+      await sleep(delay);
+
+      let plan: OssExecutionPlan;
+      try {
+        plan = await this.ossClient.getExecutionPlan(planId);
+      } catch {
+        continue;
+      }
+
+      const instructionStatuses = plan.instructions.map(
+        (ins) => `${ins.sequence}:${ins.status}`,
+      );
+      let instructionsChanged = false;
+      for (let j = 0; j < instructionStatuses.length; j += 1) {
+        if (instructionStatuses[j] !== prevInstructionStatuses[j]) {
+          instructionsChanged = true;
+          break;
+        }
+      }
+
+      if (plan.status !== prevStatus || (instructionsChanged && prevInstructionStatuses.length > 0)) {
+        const transition = prevStatus ? `${prevStatus} → ${plan.status}` : plan.status;
+
+        if (options.onStatusChange) {
+          options.onStatusChange(plan, transition);
+        } else {
+          const instructions = plan.instructions.map((ins) => {
+            const d = ins.details;
+            const type = d.__typename?.replace('Instruction', '').toLowerCase() ?? 'unknown';
+            let desc = `#${ins.sequence} ${type} [${ins.status}]`;
+            if (d.amount) desc += ` amount=${d.amount}`;
+            if (ins.state.__typename === 'ErrorState') {
+              desc += ` error=(${ins.state.code}) ${ins.state.message}`;
+            }
+            return desc;
+          }).join('\n    ');
+          console.log(`  [plan ${plan.id}] ${transition}\n    ${instructions}`);
+        }
+      }
+
+      prevStatus = plan.status;
+      prevInstructionStatuses = instructionStatuses;
+
+      if (terminalStatuses.includes(plan.status)) {
+        return plan;
+      }
+    }
+
+    // Log pending approvals to help diagnose stuck plans
+    try {
+      const lastPlan = await this.ossClient.getExecutionPlan(planId);
+      const pending = lastPlan.approvals.filter((a) => a.status !== 'approved' && a.status !== 'Approved');
+      if (pending.length > 0) {
+        console.error(`Plan ${planId} stuck — pending approvals: ${pending.map((a) => `${a.orgId}(${a.status})`).join(', ')}`);
+      }
+    } catch {
+      // ignore
+    }
+
+    throw new Error(`Execution plan ${planId} did not complete within ${maxTimes * delay}ms`);
   }
 
 }
