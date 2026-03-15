@@ -48,6 +48,35 @@ export type AssetPolicies = {
   proof: Proof
 };
 
+export type OssSettlementTerm = {
+  details: {
+    unitValue?: string;
+  } | null;
+};
+
+export type OssIntent = {
+  id: string;
+  remainingQuantity: string | null;
+  status: string;
+  type: string;
+  start: string;
+  end: string;
+  intent: {
+    __typename: string;
+    settlementTerm?: OssSettlementTerm;
+  };
+};
+
+export type OssCertificate = {
+  id: string;
+  profileId: string;
+  type: string;
+  data: string;
+  issuedAt?: number;
+  expiry: number;
+  providerId?: string;
+};
+
 export type OssAsset = {
   id: string,
   name: string,
@@ -67,13 +96,10 @@ export type OssAsset = {
   }[]
   policies: AssetPolicies
   certificates: {
-    nodes: {
-      id: string,
-      profileId: string,
-      type: string,
-      data: string,
-      expiry: number
-    }[]
+    nodes: OssCertificate[]
+  }
+  intents?: {
+    nodes: OssIntent[]
   }
   ledgerAssetInfo: LedgerAssetInfo
 };
@@ -315,6 +341,10 @@ export type OssExecutionPlan = {
 
 export type OssExecutionPlanNodes = {
   plans: { nodes: OssExecutionPlan[] }
+};
+
+export type OssReceiptNodes = {
+  receipts: { nodes: OssReceipt[] }
 };
 
 export const parseProofDomain = (jsonString: string): ProofDomain | null => {
