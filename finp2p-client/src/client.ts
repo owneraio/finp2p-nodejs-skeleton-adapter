@@ -1,4 +1,3 @@
-import process from 'process';
 import { OssClient, OssExecutionPlan, parseProofDomain, Proof, ProofDomain, ProofPolicy } from './oss';
 import { FinAPIClient } from './finapi';
 import { components as FinAPIComponents } from './finapi/model-gen';
@@ -136,8 +135,16 @@ export class FinP2PClient {
 
   // ── OSS queries ──
 
-  async getAssets() {
-    return this.ossClient.getAssets();
+  async createTransferRequest(...args: Parameters<FinAPIClient['createTransferRequest']>) {
+    return this.finAPIClient.createTransferRequest(...args);
+  }
+
+  async updateCertificate(...args: Parameters<FinAPIClient['updateCertificate']>) {
+    return this.finAPIClient.updateCertificate(...args);
+  }
+
+  async getAssets(filter?: Parameters<OssClient['getAssets']>[0]) {
+    return this.ossClient.getAssets(filter);
   }
 
   async getAsset(assetId: string) {
@@ -201,6 +208,18 @@ export class FinP2PClient {
 
   async getOwnerBalances(assetId: string) {
     return this.ossClient.getOwnerBalances(assetId);
+  }
+
+  async getOwnerHoldings(ownerId: string) {
+    return this.ossClient.getOwnerHoldings(ownerId);
+  }
+
+  async getReceipts(...args: Parameters<OssClient['getReceipts']>) {
+    return this.ossClient.getReceipts(...args);
+  }
+
+  async getCertificates(profileId: string) {
+    return this.ossClient.getCertificates(profileId);
   }
 
   async getLedgers() {
