@@ -5,7 +5,10 @@ import OWNERS from './graphql/owners.graphql';
 import ORGANIZATIONS from './graphql/organization.graphql';
 import ASSETS from './graphql/assets.graphql';
 import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
-import { OssAssetNodes, OssEscrowNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
+import LEDGERS from './graphql/ledgers.graphql';
+import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
+import PLANS from './graphql/plans.graphql';
+import { OssApprovalConfigNodes, OssAssetNodes, OssEscrowNodes, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
 export class OssClient {
@@ -113,6 +116,48 @@ export class OssClient {
     return resp.organizations.nodes[0];
   }
 
+  async getLedgers() {
+    const resp = await this.queryOss<OssLedgerBindingNodes>(LEDGERS, {});
+    return resp.ledgers.nodes;
+  }
+
+  async getLedger(name: string) {
+    const resp = await this.queryOss<OssLedgerBindingNodes>(LEDGERS, {
+      filter: {
+        key: 'name',
+        operator: 'EQ',
+        value: name,
+      },
+    });
+    if (resp.ledgers.nodes.length == 0) {
+      throw new ItemNotFoundError(name, 'Ledger');
+    }
+    return resp.ledgers.nodes[0];
+  }
+
+  async getApprovalConfigs() {
+    const resp = await this.queryOss<OssApprovalConfigNodes>(APPROVAL_CONFIGS, {});
+    return resp.approvalConfigs.nodes;
+  }
+
+  async getExecutionPlans(): Promise<OssExecutionPlan[]> {
+    const resp = await this.queryOss<OssExecutionPlanNodes>(PLANS, {});
+    return resp.plans.nodes;
+  }
+
+  async getExecutionPlan(planId: string): Promise<OssExecutionPlan> {
+    const resp = await this.queryOss<OssExecutionPlanNodes>(PLANS, {
+      filter: {
+        key: 'id',
+        operator: 'EQ',
+        value: planId,
+      },
+    });
+    if (resp.plans.nodes.length == 0) {
+      throw new ItemNotFoundError(planId, 'ExecutionPlan');
+    }
+    return resp.plans.nodes[0];
+  }
 
   async queryOss<T>(queryDoc: DocumentNode, variables: Record<string, any>): Promise<T> {
     let headers = {
