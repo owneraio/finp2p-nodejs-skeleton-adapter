@@ -92,8 +92,8 @@ type Asset implements Profile  {
     "ledgerAssetInfo information"
     ledgerAssetInfo: LedgerAssetInfo
 
-    "classification standard used to identify the asset"
-    assetIdentifier: AssetIdentifier
+    "classification standard used to identify the financial asset"
+    financialIdentifier: FinancialIdentifier
 
     "asset resource version"
     version: String!
@@ -109,7 +109,7 @@ type Asset implements Profile  {
 }
 
 type LedgerAssetInfo {
-    tokenId: String!
+    ledgerIdentifier: LedgerIdentifier
     ledgerReference: LedgerReference
     ledgerBinding: LedgerBinding
 }
@@ -319,7 +319,7 @@ type Holdings {
 }
 
 type Holding {
-    account: FinP2PAssetAccount!
+    account: FinP2PAccount!
     assetType: AssetType!
     asset: AssetDetails!
     balance: String! ## calculated balance based on asset's receipt
@@ -331,9 +331,14 @@ type Holding {
     syncedHeldBalance: String! ## held balance synced from ledger
 }
 
+"FinP2P account - represents a user account in the FinP2P network"
 type FinP2PAccount {
+    "FinId -- a user's public key represented as a hexadecimal string"
     finId: String!
-    custodian: Custodian!
+    "Organization id of the account"
+    orgId: String!
+    "Custodian for the finId"
+    custodian: Custodian
 }
 
 type Custodian {
@@ -357,20 +362,11 @@ type TransactionDetails {
 type Receipt {
     id: String!
 
-    "Asset type related to holding updated"
-    asset : AssetDetails!
+    "Source of transaction"
+    source: LedgerAccountAsset!
 
-    "User  related to source of transaction"
-    source: User!
-
-    "Account related to source of transaction"
-    sourceAccount: AccountIdentifier
-
-    "Account related to destination of transaction"
-    destination: User!
-
-    "Account related to destination of transaction"
-    destinationAccount: AccountIdentifier
+    "Destination of transaction"
+    destination: LedgerAccountAsset!
 
     "Number of asset units with the transaction"
     quantity: String!
@@ -530,80 +526,97 @@ enum IntentStatus {
 }
 
 type AssetTerm {
-    asset: AssetDetails!
-
     "Total amount of asset allocated"
     amount: String!
 }
 
-type AssetInstruction {
-    account: AccountInstruction!
-    destinationAccount: AccountInstruction
+
+"Account identifier - supports FinP2P, crypto wallets, and IBAN"
+union AccountIdentifier = CryptoWalletAccount | Iban | FinP2PAccount
+
+"FinP2P asset account - combines asset info with account info (matches proto FinP2PAssetAccount)"
+type FinP2PAssetAccount {
+    "FinP2P asset information"
+    asset: FinP2PAsset
+
+    "FinP2P account information"
+    account: FinP2PAccount
 }
 
-type LoanAssetInstruction {
-    borrowerAccount: AccountInstruction!
-    lenderAccount: AccountInstruction!
-}
-
-type AccountInstruction {
-    "Asset type associated with the account"
-    asset : AssetDetails!
-    identifier: AccountIdentifier
-}
-
-union AccountIdentifier = CryptoWalletAccount | Iban | FinP2PAssetAccount
-
-
-type FinP2PAssetAccount { #type FinIdAccount {
-    "FinId -- a user's public key represented as a hexadecimal string, associated with a user on the FinP2P network"
-    finId : String!
-
-    "organization id of the Asset's source ledger, the Asset's organization"
-    orgId : String!
-
-    "custodian for the finId"
-    custodian: Custodian
-}
-
+"Crypto wallet account"
 type CryptoWalletAccount {
     "Wallet address represented as a hexadecimal string prefixed with 0x"
     address: String!
-
-    #    "Blockchain network information related to the specifed address"
-    #    chain: String!
 }
 
+"IBAN bank account"
 type Iban {
     "IBAN code"
     code: String!
 }
 
-union AssetDetails = FinP2PAsset | FiatAsset | Cryptocurrency
+"Ledger account asset - combines FinP2P account with optional network account"
+type LedgerAccountAsset {
+    "FinP2P asset account"
+    finp2pAccount: FinP2PAssetAccount!
 
+    "Network account (e.g., wallet)"
+    networkAccount: NetworkAccount
+}
+
+"Network account - represents external network accounts like wallets"
+type NetworkAccount {
+    "Wallet account if present"
+    wallet: WalletAccount
+}
+
+"Wallet account for blockchain wallets"
+type WalletAccount {
+    "Type of wallet (e.g., ethereum)"
+    type: String!
+
+    "Wallet address"
+    address: String!
+}
+
+"FinP2P asset with resource ID and ledger identifier"
 type FinP2PAsset {
     "Resource ID of the FinP2P asset"
     resourceId: String!
+
+    "Ledger identifier for the asset"
+    ledgerIdentifier: LedgerIdentifier
 }
 
+"CAIP-19 format ledger identifier"
+type Caip19Identifier {
+    "CAIP-2 network identifier (e.g., eip155:1, solana:mainnet)"
+    network: String!
+    "Token standard (e.g., erc20, erc721)"
+    standard: String!
+    "Token ID or contract address"
+    tokenId: String!
+}
+
+"Ledger identifier union - currently only CAIP-19 supported"
+union LedgerIdentifier = Caip19Identifier
+
+"Fiat currency asset for denomination purposes"
 type FiatAsset {
     "ISO-4217 code of the fiat currency"
     code: String!
 }
 
-type Cryptocurrency {
-    "Symbol of the Cryptocurrnecy"
-    symbol: String!
-}
+"Asset details - now always FinP2P"
+union AssetDetails = FinP2PAsset
+
 union SettlementTermOptionType = PartialSettlement | FullSettlement | NoSettlement
 
 type PartialSettlement {
-    asset: AssetDetails!
     unitValue: String!
 }
 
 type FullSettlement {
-    asset: AssetDetails!
     amount: String!
 }
 
@@ -622,15 +635,18 @@ type SettlementInstruction {
 union SettlementInstructionTypeDetails = SellingSettlementInstruction | BuyingSettlementInstruction
 
 type SellingSettlementInstruction {
-    accounts: [AccountInstruction!]
+    "Destination accounts where seller receives payment"
+    accounts: [FinP2PAssetAccount!]
 }
 
 type BuyingSettlementInstruction {
-    account: AccountInstruction!
+    "Source account where buyer pays from"
+    account: FinP2PAssetAccount
 }
 
 type RedemptionSettlementInstruction {
-    accounts: [AccountInstruction!]
+    "Source accounts where payment comes from"
+    accounts: [FinP2PAssetAccount!]
 }
 
 type RedemptionConditions {
@@ -758,23 +774,17 @@ type LoanOrder {
 }
 
 type AssetOrderTerm {
-    asset: AssetDetails!
     amount: String!
 }
 
-type Account {
-    asset: AssetDetails
-    identifier: AccountIdentifier
-}
-
 type AssetOrderInstruction {
-    sourceAccount: Account
-    destinationAccount: Account
+    sourceAccount: LedgerAccountAsset
+    destinationAccount: LedgerAccountAsset
 }
 
 type LoanOrderInstruction {
-    borrowerAccount: Account
-    lenderAccount: Account
+    borrowerAccount: LedgerAccountAsset
+    lenderAccount: LedgerAccountAsset
 }
 
 enum ApprovalStatus {
@@ -846,45 +856,30 @@ type SequenceTransition {
 }
 
 type IssueInstruction {
-    "resource id of the buyer"
-    buyer: String!
-
-    "buyer's account"
-    destinationAccount: AccountInstruction!
+    "destination account for issuance"
+    destination: LedgerAccountAsset!
 
     "asset's issuance amount"
     amount: String!
 }
 
 type TransferInstruction {
-    "resource id of the source"
-    source: String!
-
-    "resource id of the destination"
-    destination: String!
-
     "source account information"
-    sourceAccount: AccountInstruction!
+    source: LedgerAccountAsset!
 
     "destination account information"
-    destinationAccount: AccountInstruction!
+    destination: LedgerAccountAsset!
 
     "asset's transfer amount"
     amount: String!
 }
 
 type HoldInstruction {
-    "resource id of the source user"
-    source: String!
-
-    "resource id of the destination user"
-    destination: String!
-
     "source account information"
-    sourceAccount: AccountInstruction!
+    source: LedgerAccountAsset!
 
     "destination account information"
-    destinationAccount: AccountInstruction
+    destination: LedgerAccountAsset
 
     "asset's hold amount"
     amount: String!
@@ -892,10 +887,10 @@ type HoldInstruction {
 
 type ReleaseInstruction {
     "source account information"
-    sourceAccount: AccountInstruction!
+    source: LedgerAccountAsset!
 
     "destination account information"
-    destinationAccount: AccountInstruction!
+    destination: LedgerAccountAsset!
 
     "asset's release amount"
     amount: String!
@@ -903,7 +898,7 @@ type ReleaseInstruction {
 
 type RevertHoldInstruction {
     "destination account information"
-    destinationAccount: AccountInstruction!
+    destination: LedgerAccountAsset!
     "hold instruction sequence number to be reverted"
     holdInstructionSequence: Int!
 }
@@ -915,9 +910,9 @@ type AwaitInstruction {
 
 type RedeemInstruction {
     "source account information"
-    sourceAccount: AccountInstruction!
+    source: LedgerAccountAsset!
 
-    "asset's release amount"
+    "asset's redeem amount"
     amount: String!
 }
 
@@ -973,8 +968,8 @@ type PrimarySale  {
     "Asset term specifies the asset information and amount of the intent"
     assetTerm: AssetTerm!
 
-    "Asset instruction specifies the asset source of destination account of the intent"
-    assetInstruction: AssetInstruction!
+    "Source account - issuer's account from which asset is sold"
+    source: FinP2PAssetAccount!
 
     "Settlement term"
     settlementTerm: SettlementTerm
@@ -989,8 +984,8 @@ type RedemptionIntent  {
     redemptionSettlementInstruction: RedemptionSettlementInstruction
     "Asset term specifies the asset information and amount of the intent"
     assetTerm: AssetTerm!
-    "Asset instruction specifies the asset source of destination account of the intent"
-    redeemAssetInstruction: AssetInstruction
+    "Destination account - where redeemed asset goes (to issuer)"
+    destination: FinP2PAssetAccount
     "Settlement term"
     settlementTerm: SettlementTerm
     "Intent conditions"
@@ -1049,8 +1044,8 @@ type BuyingIntent{
     "Asset term specifies the asset information and amount of the intent"
     assetTerm: AssetTerm!
 
-    "Asset instruction specifies the asset source of destination account of the intent"
-    assetInstruction: AssetInstruction!
+    "Destination account - where buyer receives the asset"
+    destination: FinP2PAssetAccount!
 
     "Settlement term"
     settlementTerm: SettlementTerm
@@ -1068,8 +1063,8 @@ type SellingIntent{
     "Asset term specifies the asset information and amount of the intent"
     assetTerm: AssetTerm!
 
-    "Asset instruction specifies the asset source of destination account of the intent"
-    assetInstruction: AssetInstruction!
+    "Source account - seller's account from which asset is sold"
+    source: FinP2PAssetAccount!
 
     "Settlement term"
     settlementTerm: SettlementTerm
@@ -1090,8 +1085,8 @@ type PrivateOfferIntent{
     "Asset term specifies the asset information and amount of the intent"
     assetTerm: AssetTerm!
 
-    "Asset instruction specifies the asset source of destination account of the intent"
-    assetInstruction: AssetInstruction!
+    "Source account - seller's account from which asset is sold"
+    source: FinP2PAssetAccount!
 
     "Settlement term"
     settlementTerm: SettlementTerm
@@ -1112,8 +1107,11 @@ type RequestForTransferIntent{
     "Asset term specifies the asset information and amount of the intent"
     assetTerm: AssetTerm!
 
-    "Asset instruction specifies the asset source of destination account of the intent"
-    assetInstruction: AssetInstruction!
+    "Source account - used when actionType is SEND"
+    source: FinP2PAssetAccount
+
+    "Destination account - used when actionType is REQUEST"
+    destination: FinP2PAssetAccount
 
     "Signature policy type"
     signaturePolicyType: SignaturePolicyType!
@@ -1132,8 +1130,10 @@ type LoanIntent{
     "Asset term specifies the asset information and amount of the intent"
     assetTerm: AssetTerm!
 
-    "Asset instruction specifies the asset source of destination account of the intent"
-    assetInstruction: LoanAssetInstruction!
+    "Borrower's account for the loan asset"
+    borrowerAccount: FinP2PAssetAccount!
+    "Lender's account for the loan asset"
+    lenderAccount: FinP2PAssetAccount!
 
     "Settlement term"
     settlementTerm: SettlementTerm
@@ -1146,8 +1146,10 @@ type LoanIntent{
 }
 
 type LoanSettlementInstruction {
-    borrowerAccount: AccountIdentifier
-    lenderAccount: AccountIdentifier
+    "Borrower's account for settlement"
+    borrowerAccount: FinP2PAssetAccount
+    "Lender's account for settlement"
+    lenderAccount: FinP2PAssetAccount
 }
 
 type LoanInstruction {
@@ -1554,20 +1556,15 @@ type NoProofPolicy {
     _ignore: Boolean
 }
 
-enum AssetIdentifierType {
+enum FinancialIdentifierType {
     UNSPECIFIED
     ISIN
-    CUSIP
-    SEDOL
-    DTI
-    CMU
-    FIGI
     ISO4217
     CUSTOM
 }
 
-type AssetIdentifier {
-    type: AssetIdentifierType!
+type FinancialIdentifier {
+    type: FinancialIdentifierType!
     value: String!
 }
 

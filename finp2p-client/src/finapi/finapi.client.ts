@@ -57,12 +57,12 @@ export class FinAPIClient {
     assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
     config: string | undefined,
     metadata: any | undefined,
-    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier'],
+    financialIdentifier: FinAPIComponents['schemas']['financialAssetIdentifier'] | undefined,
   ) {
     return this.apiClient.POST('/profiles/asset', {
       body: {
         intentTypes, name, type, symbol, issuerId, denomination,
-        ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier,
+        ledgerAssetBinding, assetPolicies, config, metadata, financialIdentifier,
       },
     });
   }
@@ -105,13 +105,6 @@ export class FinAPIClient {
 
   async executeIntent(body: RequestBody<'/tokens/execute', 'post'>) {
     return this.apiClient.POST('/tokens/execute', { body });
-  }
-
-  async executeTransferIntent(intentId: string, body: RequestBody<'/profiles/asset/intent/transfer/execute/{intentId}', 'post'>) {
-    return this.apiClient.POST('/profiles/asset/intent/transfer/execute/{intentId}', {
-      params: { path: { intentId } },
-      body,
-    });
   }
 
   async cancelExecution(body: RequestBody<'/tokens/execute/cancel', 'post'>) {

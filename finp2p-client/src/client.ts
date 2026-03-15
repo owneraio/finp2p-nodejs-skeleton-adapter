@@ -46,10 +46,6 @@ export class FinP2PClient {
     return this.finAPIClient.executeIntent(...args);
   }
 
-  async executeTransferIntent(...args: Parameters<FinAPIClient['executeTransferIntent']>) {
-    return this.finAPIClient.executeTransferIntent(...args);
-  }
-
   async cancelExecution(...args: Parameters<FinAPIClient['cancelExecution']>) {
     return this.finAPIClient.cancelExecution(...args);
   }
