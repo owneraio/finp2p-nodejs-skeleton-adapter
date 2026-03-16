@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-adapter-models",
-  "version": "0.28.0-custody-native.11",
+  "version": "0.28.0-custody-native.12",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
