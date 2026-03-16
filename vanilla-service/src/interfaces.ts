@@ -121,3 +121,18 @@ export interface EscrowDelegate {
 export interface OmnibusDelegate {
   getOmnibusBalance(assetId: string, assetType: AssetType): Promise<string>;
 }
+
+export type DistributionStatus = {
+  assetId: string;
+  assetType: AssetType;
+  omnibusBalance: string;
+  distributedBalance: string;
+  availableBalance: string;
+};
+
+export interface DistributionService {
+  syncOmnibus(assetId: string, assetType: AssetType): Promise<DistributionStatus>;
+  getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus>;
+  distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void>;
+  reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void>;
+}

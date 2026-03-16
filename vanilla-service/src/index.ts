@@ -2,16 +2,17 @@ import path from 'node:path';
 import winston from 'winston';
 import { Pool } from 'pg';
 import {
-  CommonService, DistributionService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
+  CommonService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
 } from '@owneraio/finp2p-adapter-models';
-import { AssetDelegate, EscrowDelegate, OmnibusDelegate, TransferDelegate } from './interfaces';
+import { AssetDelegate, DistributionService, EscrowDelegate, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { VanillaServiceImpl } from './service';
 import { setLogger } from './logger';
 
-export { AssetDelegate, TransferDelegate, EscrowDelegate, OmnibusDelegate, DelegateResult, InboundTransferVerificationError } from './interfaces';
+export { AssetDelegate, TransferDelegate, EscrowDelegate, OmnibusDelegate, DelegateResult, InboundTransferVerificationError, DistributionService, DistributionStatus } from './interfaces';
 export { LedgerStorage, LedgerTransaction, LedgerBalance, LedgerDetails } from './storage';
 export { VanillaServiceImpl } from './service';
+export { registerDistributionRoutes } from './routes';
 export { setLogger } from './logger';
 
 /** Directory containing vanilla-service goose migration files */

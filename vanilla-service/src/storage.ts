@@ -110,14 +110,91 @@ export class LedgerStorage {
     return result.rows[0];
   }
 
-  async getDistributedBalance(assetId: string, assetType: string = 'finp2p'): Promise<string> {
+  /**
+   * Returns the sum of balances for all accounts matching the asset,
+   * excluding a specific finId (e.g. the omnibus account).
+   */
+  async getSumBalanceExcluding(excludeFinId: string, assetId: string, assetType: string = 'finp2p'): Promise<string> {
     const result = await this.pool.query(
       `SELECT COALESCE(SUM(balance), 0)::TEXT AS total
        FROM ledger_adapter.accounts
-       WHERE asset_id = $1 AND asset_type = $2`,
-      [assetId, assetType],
+       WHERE asset_id = $1 AND asset_type = $2 AND fin_id != $3`,
+      [assetId, assetType, excludeFinId],
     );
     return result.rows[0].total;
+  }
+
+  /**
+   * Returns omnibus + distributed breakdown, with all arithmetic done in SQL.
+   */
+  async getDistributionStatus(
+    omnibusFinId: string, assetId: string, assetType: string = 'finp2p',
+  ): Promise<{ omnibusBalance: string; distributed: string; available: string }> {
+    const result = await this.pool.query(
+      `SELECT
+         COALESCE(o.balance, 0)::TEXT AS available,
+         COALESCE(d.total, 0)::TEXT   AS distributed,
+         (COALESCE(o.balance, 0) + COALESCE(d.total, 0))::TEXT AS omnibus_balance
+       FROM
+         (SELECT balance FROM ledger_adapter.accounts
+          WHERE fin_id = $1 AND asset_id = $2 AND asset_type = $3) o
+       FULL JOIN
+         (SELECT SUM(balance) AS total FROM ledger_adapter.accounts
+          WHERE asset_id = $2 AND asset_type = $3 AND fin_id != $1) d ON TRUE`,
+      [omnibusFinId, assetId, assetType],
+    );
+    const row = result.rows[0] ?? { available: '0', distributed: '0', omnibus_balance: '0' };
+    return { omnibusBalance: row.omnibus_balance, distributed: row.distributed, available: row.available };
+  }
+
+  /**
+   * Sets an account's balance to an exact target value.
+   */
+  async setBalance(finId: string, assetId: string, targetBalance: string, assetType: string = 'finp2p'): Promise<void> {
+    await this.ensureAccount(finId, assetId, assetType);
+    await this.pool.query(
+      `WITH lock_asset AS (
+         SELECT pg_advisory_xact_lock(hashtext($3), hashtext($4))
+       )
+       UPDATE ledger_adapter.accounts
+       SET balance = $1::NUMERIC, updated_at = NOW()
+       FROM lock_asset
+       WHERE fin_id = $2 AND asset_id = $3 AND asset_type = $4`,
+      [targetBalance, finId, assetId, assetType],
+    );
+  }
+
+  /**
+   * Atomically reconcile the omnibus DB account with the on-chain balance.
+   *
+   * Single UPDATE takes a per-asset advisory lock and computes:
+   * target = onChainBalance − SUM(other investor balances).
+   * The same advisory lock is used by transfer(), so sync and balance
+   * mutations for the same asset are serialized.
+   *
+   * Returns { distributed, available } as strings.
+   */
+  async syncOmnibusBalance(
+    omnibusFinId: string, assetId: string, onChainBalance: string, assetType: string = 'finp2p',
+  ): Promise<{ distributed: string; available: string }> {
+    await this.ensureAccount(omnibusFinId, assetId, assetType);
+    const result = await this.pool.query(
+      `WITH lock_asset AS (
+         SELECT pg_advisory_xact_lock(hashtext($2), hashtext($3))
+       ),
+       distributed AS (
+         SELECT COALESCE(SUM(a.balance), 0) AS total
+         FROM ledger_adapter.accounts a, lock_asset
+         WHERE a.asset_id = $2 AND a.asset_type = $3 AND a.fin_id != $1
+       )
+       UPDATE ledger_adapter.accounts a
+       SET balance = $4::NUMERIC - d.total, updated_at = NOW()
+       FROM distributed d
+       WHERE a.fin_id = $1 AND a.asset_id = $2 AND a.asset_type = $3
+       RETURNING d.total::TEXT AS distributed, a.balance::TEXT AS available`,
+      [omnibusFinId, assetId, assetType, onChainBalance],
+    );
+    return { distributed: result.rows[0].distributed, available: result.rows[0].available };
   }
 
   async ping(): Promise<void> {
@@ -177,11 +254,15 @@ export class LedgerStorage {
                  $9::VARCHAR(64)  AS action,
                  $10::JSONB       AS details
         ),
+        lock_asset AS (
+          SELECT pg_advisory_xact_lock(hashtext(p.asset_id), hashtext(p.asset_type))
+          FROM params p
+        ),
         found_tx AS (
           SELECT t.id, t.asset_id, t.asset_type, t.source, t.destination,
                  t.amount::TEXT, t.source_held::TEXT, t.destination_held::TEXT,
                  t.action, t.details, t.created_at
-          FROM ledger_adapter.transactions t, params p
+          FROM ledger_adapter.transactions t, params p, lock_asset l
           WHERE t.details->>'idempotency_key' = p.details->>'idempotency_key'
         ),
         src_upd AS (

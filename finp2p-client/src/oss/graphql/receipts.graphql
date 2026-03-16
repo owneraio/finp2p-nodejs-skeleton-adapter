@@ -1,0 +1,59 @@
+query GetReceipts($filter: [Filter!]) {
+    receipts(filter: $filter) {
+        nodes {
+            id
+            operationId
+            operationType
+            quantity
+            status
+            timestamp
+            transactionId
+            source {
+                id
+                organizationId
+                finIds
+            }
+            destination {
+                id
+                organizationId
+                finIds
+            }
+            sourceAccount {
+                ... accountId
+            }
+            destinationAccount {
+                ... accountId
+            }
+            asset {
+                ... assetDetails
+            }
+        }
+    }
+}
+
+fragment accountId on AccountIdentifier {
+    type: __typename
+    ... on FinP2PAssetAccount {
+        finId
+        orgId
+    }
+    ... on CryptoWalletAccount {
+        address
+    }
+    ... on Iban {
+        code
+    }
+}
+
+fragment assetDetails on AssetDetails {
+    type: __typename
+    ... on FinP2PAsset {
+        resourceId
+    }
+    ... on FiatAsset {
+        code
+    }
+    ... on Cryptocurrency {
+        symbol
+    }
+}
