@@ -100,7 +100,7 @@ export class TestDataBuilder {
   async buildSignedIssueRequest(params: {
     buyer: TestActor;
     issuer: TestActor;
-    asset: LedgerAPI['schemas']['finp2pAsset'];
+    asset: LedgerAPI['schemas']['asset'];
     amount: number;
     settlementAmount: number;
     settlementAssetCode?: string;
@@ -163,7 +163,7 @@ export class TestDataBuilder {
   async buildSignedTransferRequest(params: {
     seller: TestActor;
     buyer: TestActor;
-    asset: LedgerAPI['schemas']['finp2pAsset'];
+    asset: LedgerAPI['schemas']['asset'];
     amount: number;
     settlementAmount: number;
     settlementAssetCode?: string;
@@ -249,7 +249,7 @@ export class TestDataBuilder {
   async buildRedeemRequests(params: {
     investor: TestActor;
     issuer: TestActor;
-    asset: LedgerAPI['schemas']['finp2pAsset'];
+    asset: LedgerAPI['schemas']['asset'];
     amount: number;
     settlementAmount: number;
     operationId: string;

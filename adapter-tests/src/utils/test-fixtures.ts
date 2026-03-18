@@ -61,13 +61,13 @@ export class TestFixtures {
   async setupIssuedTokens(params: {
     issuer: TestActor;
     buyer: TestActor;
-    asset: LedgerAPI['schemas']['finp2pAsset'];
+    asset: LedgerAPI['schemas']['asset'];
     amount: number;
     settlementAmount: number;
   }): Promise<{
       issuer: TestActor;
       buyer: TestActor;
-      asset: LedgerAPI['schemas']['finp2pAsset'];
+      asset: LedgerAPI['schemas']['asset'];
       receipt: LedgerAPI['schemas']['receipt'];
     }> {
     // Create asset
@@ -195,12 +195,12 @@ export class TestFixtures {
   async setupRedemptionScenario(params: {
     investor: TestActor;
     issuer: TestActor;
-    asset: LedgerAPI['schemas']['finp2pAsset'];
+    asset: LedgerAPI['schemas']['asset'];
     issueAmount: number;
   }): Promise<{
       investor: TestActor;
       issuer: TestActor;
-      asset: LedgerAPI['schemas']['finp2pAsset'];
+      asset: LedgerAPI['schemas']['asset'];
       issueAmount: number;
     }> {
     // Create asset
