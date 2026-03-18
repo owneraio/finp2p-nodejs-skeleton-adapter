@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/sample-adapter",
-  "version": "0.28.0-custody-native.2",
+  "version": "0.28.0-custody-native.3",
   "description": "",
   "main": "./dist/index.js",
   "files": [
@@ -19,9 +19,9 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@owneraio/finp2p-adapter-models": "^0.28.0-custody-native.1",
-    "@owneraio/finp2p-client": "^0.28.0-custody-native.2",
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.0-custody-native.4",
+    "@owneraio/finp2p-adapter-models": "^0.28.0-custody-native.12",
+    "@owneraio/finp2p-client": "^0.28.0-custody-native.5",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.0-custody-native.14",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
     "express": "5.0.0",
@@ -32,7 +32,7 @@
     "winston": "^3.3.3"
   },
   "devDependencies": {
-    "@owneraio/adapter-tests": "^0.28.0-custody-native.0",
+    "@owneraio/adapter-tests": "^0.28.0-custody-native.3",
     "@testcontainers/postgresql": "^11.8.0",
     "@types/express": "^4.17.13",
     "@types/jest": "^29.2.0",
