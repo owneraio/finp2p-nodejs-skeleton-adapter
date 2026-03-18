@@ -388,21 +388,21 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   // ─── InboundTransferHook ─────────────────────────────────────────────
 
   async onPlannedInboundTransfer(_idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void> {
-    const { asset, destination } = ctx;
-    if (destination.type !== 'finId') {
+    const { destinationAccount, destinationAsset } = ctx;
+    if (destinationAccount.type !== 'finId') {
       return;
     }
-    await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
+    await this.storage.ensureAccount(destinationAccount.finId, destinationAsset.assetId, destinationAsset.assetType);
   }
 
   async onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void> {
-    const { planId, instructionSequence, source, asset, destination, amount, result } = ctx;
+    const { planId, instructionSequence, sourceAccount, destinationAccount, destinationAsset, amount, result } = ctx;
 
     if (result.type === 'error') {
       return;
     }
 
-    if (destination.type !== 'finId') {
+    if (destinationAccount.type !== 'finId') {
       return;
     }
 
@@ -410,19 +410,19 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       const exCtx = { planId, sequence: instructionSequence };
       await this.transferDelegate.onInboundTransfer(
         result.transactionId,
-        { finId: (source as FinIdAccount).finId, account: source as FinIdAccount },
-        asset,
-        { finId: destination.finId, account: destination },
+        { finId: (sourceAccount as FinIdAccount).finId, account: sourceAccount as FinIdAccount },
+        destinationAsset,
+        { finId: destinationAccount.finId, account: destinationAccount },
         amount, exCtx,
       );
     }
 
-    await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
-    await this.storage.credit(destination.finId, amount, asset.assetId, {
+    await this.storage.ensureAccount(destinationAccount.finId, destinationAsset.assetId, destinationAsset.assetType);
+    await this.storage.credit(destinationAccount.finId, amount, destinationAsset.assetId, {
       idempotency_key: idempotencyKey,
       operation_type: 'transfer',
       execution_context: { planId, sequence: instructionSequence },
       transaction_id: result.transactionId,
-    }, asset.assetType);
+    }, destinationAsset.assetType);
   }
 }
