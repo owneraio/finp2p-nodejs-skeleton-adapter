@@ -55,13 +55,14 @@ function executeProcess(
   });
 }
 
-export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
-  const url = new URL(config.connectionString);
-  logger.debug(`running migration tool goose at: ${config.gooseExecutablePath} db at: ${url.protocol}://${url.hostname}:${url.port}`);
-  const migrationsDir = path.join(__dirname, '..', '..', 'migrations');
+async function runGooseMigrations(
+  config: MigrationConfig,
+  tableName: string,
+  migrationsDir: string,
+): Promise<void> {
   const result = await executeProcess(
     config.gooseExecutablePath,
-    ['-table', config.migrationListTableName, '-dir', migrationsDir, 'up'],
+    ['-table', tableName, '-dir', migrationsDir, 'up'],
     {
       env: {
         GOOSE_DBSTRING: config.connectionString,
@@ -72,7 +73,23 @@ export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
   );
   if (result.code === null || result.code !== 0) {
     logger.debug(JSON.stringify({ ...result, msg: 'migration failed' }));
-    throw new Error(`Migration didn't finish successfully: ${result.stderr}`);
+    throw new Error(`Migration didn't finish successfully (${tableName}): ${result.stderr}`);
   }
-  logger.info('migration ran successfully');
+  logger.info(`migration ran successfully: ${tableName}`);
+}
+
+export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
+  const url = new URL(config.connectionString);
+  logger.debug(`running migration tool goose at: ${config.gooseExecutablePath} db at: ${url.protocol}://${url.hostname}:${url.port}`);
+
+  // Run skeleton migrations
+  const skeletonDir = path.join(__dirname, '..', '..', 'migrations');
+  await runGooseMigrations(config, config.migrationListTableName, skeletonDir);
+
+  // Run additional migration sets (e.g. vanilla-service)
+  if (config.additionalMigrations) {
+    for (const additional of config.additionalMigrations) {
+      await runGooseMigrations(config, additional.tableName, additional.migrationsDir);
+    }
+  }
 }

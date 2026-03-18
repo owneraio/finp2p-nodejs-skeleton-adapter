@@ -80,6 +80,7 @@ class CustomTestEnvironment extends NodeEnvironment {
       console.error(await readiness.text())
     }
 
+    this.global.serverBaseAddress = `http://localhost:${port}`;
     return `http://localhost:${port}/api`;
   }
 

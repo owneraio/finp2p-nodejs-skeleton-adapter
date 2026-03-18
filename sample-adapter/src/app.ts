@@ -67,6 +67,15 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
     planApprovalService,
     pluginManager,
     migrationsConfig,
+    {
+      fields: [
+        {
+          field: 'ledgerAccountId',
+          description: 'In-memory account identifier (derived from finId)',
+          exampleValue: '0x1a2b3c4d5e6f...',
+        },
+      ],
+    },
   );
 
   return app;

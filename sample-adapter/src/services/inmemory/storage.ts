@@ -1,6 +1,12 @@
 import { Asset, BusinessError } from '@owneraio/finp2p-adapter-models';
+import { workflows } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { createHash } from 'node:crypto';
 import { HoldOperation, Transaction } from './model';
 import { Account } from './accounts';
+
+function generateAdapterAccount(finId: string): string {
+  return '0x' + createHash('sha256').update(finId).digest('hex').slice(0, 40);
+}
 
 export class Storage {
 
@@ -81,11 +87,12 @@ export class Storage {
     let account = this.accounts[finId];
     if (account !== undefined) {
       return account;
-    } else {
-      const newAccount = new Account();
-      this.accounts[finId] = newAccount;
-      return newAccount;
     }
+    const newAccount = new Account();
+    this.accounts[finId] = newAccount;
+    const adapterAccount = generateAdapterAccount(finId);
+    workflows.saveAccountMapping(finId, adapterAccount).catch(() => {});
+    return newAccount;
   }
 
 }

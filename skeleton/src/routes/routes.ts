@@ -1,8 +1,10 @@
 import {
   CommonService,
   Destination,
+
   EscrowService,
   HealthService,
+  MappingService,
   PaymentService,
   PlanApprovalService,
   Source,
@@ -34,6 +36,8 @@ import {
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
+import { MappingConfig, registerMappingRoutes } from './operational';
+import { MappingServiceImpl } from '../services/mapping';
 
 const basePath = 'api';
 
@@ -51,6 +55,8 @@ export const register = (app: Application,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
   workflowConfig: Config | undefined,
+  mappingConfig?: MappingConfig,
+  mappingService?: MappingService,
 ) => {
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
@@ -366,6 +372,10 @@ export const register = (app: Application,
       const status = await commonService.operationStatus(req.params.cid);
       res.json(operationStatusToAPI(status));
     });
+
+  if (mappingConfig) {
+    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl());
+  }
 
   app.use(errorHandler);
 
