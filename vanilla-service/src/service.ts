@@ -1,16 +1,19 @@
 import {
   Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetType,
-  Balance, BusinessError, CommonService, Destination, DistributionService, DistributionStatus,
+  Balance, BusinessError, CommonService, Destination,
   EscrowService, ExecutionContext, FinIdAccount,
   HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, MappingService, OperationStatus, OperationType,
   OwnerMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
   failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-adapter-models';
-import { AssetDelegate, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
+import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { getLogger } from './logger';
 import { buildReceipt, generateCid } from './utils';
+
+/** Well-known finId prefix for omnibus accounts in the local ledger. */
+const OMNIBUS_FIN_ID = '__omnibus__';
 
 export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, DistributionService, InboundTransferHook {
   constructor(
@@ -343,43 +346,41 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
   // ─── DistributionService ─────────────────────────────────────────────
 
-  async getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
+  async syncOmnibus(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
     if (!this.omnibusDelegate) {
       throw new ValidationError('Distribution requires an omnibus delegate');
     }
-    const [omnibusBalance, distributedBalance] = await Promise.all([
-      this.omnibusDelegate.getOmnibusBalance(assetId, assetType),
-      this.storage.getDistributedBalance(assetId, assetType),
-    ]);
-    const available = (BigInt(omnibusBalance) - BigInt(distributedBalance)).toString();
-    return { assetId, assetType, omnibusBalance, distributedBalance, availableBalance: available };
+    const omnibusBalance = await this.omnibusDelegate.getOmnibusBalance(assetId, assetType);
+    try {
+      const { distributed, available } = await this.storage.syncOmnibusBalance(
+        OMNIBUS_FIN_ID, assetId, omnibusBalance, assetType,
+      );
+      return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: available };
+    } catch (e: any) {
+      if (e.code === '23514') { // CHECK constraint violation — balance went negative
+        throw new BusinessError(1, `on-chain balance (${omnibusBalance}) is less than already distributed`);
+      }
+      throw e;
+    }
+  }
+
+  async getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
+    const { omnibusBalance, distributed, available } = await this.storage.getDistributionStatus(
+      OMNIBUS_FIN_ID, assetId, assetType,
+    );
+    return { assetId, assetType, omnibusBalance, distributedBalance: distributed, availableBalance: available };
   }
 
   async distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    if (!this.omnibusDelegate) {
-      throw new ValidationError('Distribution requires an omnibus delegate');
-    }
-    if (BigInt(amount) <= 0n) {
-      throw new ValidationError('amount must be positive');
-    }
-    const omnibusBalance = await this.omnibusDelegate.getOmnibusBalance(assetId, assetType);
-    const distributedBalance = await this.storage.getDistributedBalance(assetId, assetType);
-    const available = BigInt(omnibusBalance) - BigInt(distributedBalance);
-    if (BigInt(amount) > available) {
-      throw new BusinessError(1, `Insufficient omnibus balance: available ${available.toString()}, requested ${amount}`);
-    }
     await this.storage.ensureAccount(finId, assetId, assetType);
-    await this.storage.credit(finId, amount, assetId, {
+    await this.storage.move(OMNIBUS_FIN_ID, finId, amount, assetId, {
       idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'distribute',
     }, assetType);
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    if (BigInt(amount) <= 0n) {
-      throw new ValidationError('amount must be positive');
-    }
-    await this.storage.debit(finId, amount, assetId, {
+    await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {
       idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'reclaim',
     }, assetType);
