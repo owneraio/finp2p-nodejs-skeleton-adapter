@@ -4,1074 +4,1074 @@
  */
 
 export interface paths {
-    "/profiles/owner": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+  '/profiles/owner': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
          * Create owner profile
          * @description Creates a new global identity for an asset owner, the Global Identity cryptography is based on the secp256k1 curve
          */
-        post: operations["createOwnerProfile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['createOwnerProfile'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/owner/{ownerId}/account': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/owner/{ownerId}/account": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Add an account to an owner profile
          * @description Adds a custody managed account to an owner
          */
-        post: operations["addAccount"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['addAccount'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/asset': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Create asset profile
          * @description Creates a new profile for an asset identity
          */
-        post: operations["createAssetProfile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['createAssetProfile'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/asset/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
          * Update asset profile
          * @description Patch a profile for an asset identity
          */
-        patch: operations["patchAssetProfile"];
-        trace?: never;
+    patch: operations['patchAssetProfile'];
+    trace?: never;
+  };
+  '/profiles/asset/{id}/intent': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset/{id}/intent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Create intent for asset profile
          * @description Create a new intent on an asset profile for either primarySale, buyingIntent or SellingIntent
          */
-        post: operations["addAssetProfileIntent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['addAssetProfileIntent'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/asset/{id}/intent/{intentId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset/{id}/intent/{intentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
          * Update intent on an asset profile
          * @description Update an asset intent with new intent rules
          */
-        patch: operations["updateAssetProfileIntent"];
-        trace?: never;
+    patch: operations['updateAssetProfileIntent'];
+    trace?: never;
+  };
+  '/profiles/asset/{id}/intent/{intentId}/enable': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset/{id}/intent/{intentId}/enable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
+    get?: never;
+    /**
          * Enable the intent
          * @description Enable the intent (in case it was previously disabled)
          */
-        put: operations["enableAssetProfileIntent"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put: operations['enableAssetProfileIntent'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/asset/{id}/intent/{intentId}/disable': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset/{id}/intent/{intentId}/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
+    get?: never;
+    /**
          * Disable the intent
          * @description Disable the intent so that it can not participate in a token transfer, but is still visible to other participants with an inactive status
          */
-        put: operations["disableAssetProfileIntent"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put: operations['disableAssetProfileIntent'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/{id}/share': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/{id}/share": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Share profile with other organizations
          * @description Shares profile with other organizations
          */
-        post: operations["shareProfile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['shareProfile'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/asset/{id}/intents/enable': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset/{id}/intents/enable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
+    get?: never;
+    /**
          * Intent types allowed to be applied on asset
          * @description Enable intent types to be used on given asset id
          */
-        put: operations["enableAssetAllowedIntents"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put: operations['enableAssetAllowedIntents'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/asset/{id}/intents/disable': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/asset/{id}/intents/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
+    get?: never;
+    /**
          * Block intent types from being applied on asset
          * @description Block intent types to be used on given asset id
          */
-        put: operations["disableAssetAllowedIntents"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put: operations['disableAssetAllowedIntents'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/{profileId}/certificates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/{profileId}/certificates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Create Certificate
          * @description Creates a new Certificate for a specific profile identity
          */
-        post: operations["createCertificate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['createCertificate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/{profileId}/certificates/{certificateId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/{profileId}/certificates/{certificateId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
+    get?: never;
+    /**
          * Update Certificate
          * @deprecated
          * @description Updates a new Certificate for a specific profile identity
          */
-        put: operations["updateCertificate"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
+    put: operations['updateCertificate'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
          * Update Certificate
          * @description Patch a Certificate for a specific profile identity
          */
-        patch: operations["patchCertificate"];
-        trace?: never;
+    patch: operations['patchCertificate'];
+    trace?: never;
+  };
+  '/profiles/{profileId}/certificates/{certificateId}/docs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/{profileId}/certificates/{certificateId}/docs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Adds a new document on a Certificate
          * @description Adds a new document associated with a Certificate ID
          */
-        post: operations["addCertificateDoc"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['addCertificateDoc'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/docs/{uri}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/docs/{uri}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Get document
          * @description Get document content, associated with a Certificate ID
          */
-        get: operations["getDoc"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['getDoc'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/{profileId}/certificates/{certificateId}/docs/{docId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/{profileId}/certificates/{certificateId}/docs/{docId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
+    get?: never;
+    /**
          * Update document
          * @description Update an existing document on a Certificate
          */
-        put: operations["updateCertificateDoc"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put: operations['updateCertificateDoc'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tokens/execute': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tokens/execute": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Execute token intent operation
          * @description Execute a token intent
          */
-        post: operations["ExecuteToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['ExecuteToken'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tokens/execute/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tokens/execute/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Cancel execution
          * @description Best effort cancellation of ongoing plan
          */
-        post: operations["CancelExecuteToken"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['CancelExecuteToken'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tokens/transfer': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tokens/transfer": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
+    get?: never;
+    /**
          * Asset Token transfer
          * @description Transfer existing asset token to a new owner. Transfer of ownership is done by eliminating existing tokens owned by the sender and creating new tokens with the new owner.
          */
-        put: operations["transferToken"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put: operations['transferToken'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tokens/balance': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tokens/balance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Get asset balance
          * @deprecated
          * @description Get owner Asset's tokens balance
          */
-        post: operations["GetAssetBalance"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['GetAssetBalance'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/payments/deposit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/payments/deposit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Create deposit request
          * @description Create a new deposit request
          */
-        post: operations["createDepositRequest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['createDepositRequest'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tokens/execute/reset': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/tokens/execute/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Propose execution plan reset
          * @description Initiates a reset proposal for an execution plan to a specified instruction sequence. The proposal must be ledger-approved by all participants. Once all approvals are collected, the reset process begins, synchronizing all participants to the specified sequence.
          */
-        post: operations["resetExecutionPlan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['resetExecutionPlan'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/payments/withdraw': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/payments/withdraw": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Create withdraw request
          * @description Create a new withdraw request
          */
-        post: operations["createWithdrawRequest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['createWithdrawRequest'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/operations/status/{cid}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/operations/status/{cid}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Get operation
          * @description get the operation state by the operation correlation id
          */
-        get: operations["getOperation"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['getOperation'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/messages/attachments/{uuid}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/messages/attachments/{uuid}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Get attachment
          * @description Get document content, associated with a message ID
          */
-        get: operations["getAttachment"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations['getAttachment'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/messages/send': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/messages/send": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Send message
          * @description Send a message to a group of users
          */
-        post: operations["sendMessage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['sendMessage'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/owner/account/balance/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/profiles/owner/account/balance/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
+    get?: never;
+    put?: never;
+    /**
          * Request asset balance synchronization
          * @description Initiates a request to synchronize the asset account's balance with the ledger.
          *     The process is asynchronous and completes in the background.
          */
-        post: operations["balance"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    post: operations['balance'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
+    /**
          * Health check
          * @description Returns the health status of the service.
          */
-        get: operations["getHealth"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+    get: operations['getHealth'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /**
+  schemas: {
+    /**
          * @description finp2p resource id format
          * @example bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
          */
-        profileId: string;
-        /**
+    profileId: string;
+    /**
          * @description The Asset resource id
          * @example bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
          */
-        assetId: string;
-        /**
+    assetId: string;
+    /**
          * @description The intent resource id
          * @example bank-x:105:9929ccaf-8967-4ba3-9198-a4b8e3128388
          */
-        intentId: string;
-        /**
+    intentId: string;
+    /**
          * @description The execution resource id
          * @example bank-x:106:9929ccaf-8967-4ba3-9198-a4b8e3128388
          */
-        executionPlanId: string;
-        /** @description Allowed intent types to be applied on an asset */
-        intentTypes: components["schemas"]["intentType"][];
-        updateIntent: components["schemas"]["primarySaleIntentUpdatePayload"] | components["schemas"]["buyingIntentUpdatePayload"] | components["schemas"]["sellingIntentUpdatePayload"] | components["schemas"]["loanIntentUpdatePayload"] | components["schemas"]["redemptionIntentUpdatePayload"] | components["schemas"]["privateOfferIntentUpdatePayload"] | components["schemas"]["requestForTransferIntentUpdatePayload"];
-        /** @description allowed fields to be updated on given intent type */
-        primarySaleIntentUpdatePayload: {
-            /**
+    executionPlanId: string;
+    /** @description Allowed intent types to be applied on an asset */
+    intentTypes: components['schemas']['intentType'][];
+    updateIntent: components['schemas']['primarySaleIntentUpdatePayload'] | components['schemas']['buyingIntentUpdatePayload'] | components['schemas']['sellingIntentUpdatePayload'] | components['schemas']['loanIntentUpdatePayload'] | components['schemas']['redemptionIntentUpdatePayload'] | components['schemas']['privateOfferIntentUpdatePayload'] | components['schemas']['requestForTransferIntentUpdatePayload'];
+    /** @description allowed fields to be updated on given intent type */
+    primarySaleIntentUpdatePayload: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "primarySale";
-            settlementTerm?: components["schemas"]["settlementTermUpdate"];
-            assetTerm?: components["schemas"]["assetTerm"];
+      type: 'primarySale';
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
+      assetTerm?: components['schemas']['assetTerm'];
+    };
+    /** @description allowed fields to be updated on given intent type */
+    buyingIntentUpdatePayload: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'buyingIntent';
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
+      assetTerm?: components['schemas']['assetTerm'];
+    };
+    /** @description allowed fields to be updated on given intent type */
+    sellingIntentUpdatePayload: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'sellingIntent';
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
+      assetTerm?: components['schemas']['assetTerm'];
+    };
+    /** @description allowed fields to be updated on given intent type */
+    loanIntentUpdatePayload: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'loanIntent';
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
+      assetTerm?: components['schemas']['assetTerm'];
+    };
+    /** @description allowed fields to be updated on given intent type */
+    redemptionIntentUpdatePayload: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'redemptionIntent';
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
+      assetTerm?: components['schemas']['assetTerm'];
+    };
+    /** @description allowed fields to be updated on given intent type */
+    privateOfferIntentUpdatePayload: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'privateOfferIntent';
+      settlementTerm?: components['schemas']['settlementTermUpdate'];
+      assetTerm?: components['schemas']['assetTerm'];
+    };
+    /** @description allowed fields to be updated on given intent type */
+    requestForTransferIntentUpdatePayload: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'requestForTransferIntent';
+      assetTerm?: components['schemas']['assetTerm'];
+    };
+    noSettlementOptionUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'noSettlement';
+    };
+    partialSettlementOptionUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'partialSettlement';
+      unitValue: components['schemas']['unitValue'];
+    };
+    fullSettlementOptionUpdate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'fullSettlement';
+      amount: components['schemas']['amount'];
+    };
+    settlementTermUpdate: components['schemas']['noSettlementOptionUpdate'] | components['schemas']['partialSettlementOptionUpdate'] | components['schemas']['fullSettlementOptionUpdate'];
+    intentExecution: components['schemas']['primarySaleExecution'] | components['schemas']['buyingIntentExecution'] | components['schemas']['sellingIntentExecution'] | components['schemas']['loanIntentExecution'] | components['schemas']['redemptionIntentExecution'] | components['schemas']['privateOfferIntentExecution'] | components['schemas']['requestForTransferIntentExecution'];
+    primarySaleExecution: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'primarySaleExecution';
+      nonce: components['schemas']['nonce'];
+      issuer: components['schemas']['ownerId'];
+      buyer: components['schemas']['ownerId'];
+      asset: components['schemas']['buyingAsset'];
+      settlement?: components['schemas']['sourceDestinationIntentAsset'];
+    };
+    buyingIntentExecution: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'buyingIntentExecution';
+      nonce: components['schemas']['nonce'];
+      asset: components['schemas']['sourceDestinationIntentAsset'];
+      settlement?: components['schemas']['sourceDestinationIntentAsset'];
+      seller: components['schemas']['ownerId'];
+    };
+    sellingIntentExecution: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'sellingIntentExecution';
+      nonce: components['schemas']['nonce'];
+      asset: components['schemas']['sourceDestinationIntentAsset'];
+      settlement?: components['schemas']['sourceDestinationIntentAsset'];
+      buyer: components['schemas']['ownerId'];
+    };
+    loanIntentExecution: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'loanIntentExecution';
+      /** @enum {string} */
+      executorType: 'borrower' | 'lender';
+      nonce: components['schemas']['nonce'];
+      borrower: components['schemas']['ownerId'];
+      lender: components['schemas']['ownerId'];
+      asset: components['schemas']['loanIntentAsset'];
+      settlement?: components['schemas']['loanIntentAsset'];
+      loanInstruction?: components['schemas']['loanInstruction'];
+    };
+    redemptionIntentExecution: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'redemptionIntentExecution';
+      nonce: components['schemas']['nonce'];
+      issuer: components['schemas']['ownerId'];
+      seller: components['schemas']['ownerId'];
+      asset: {
+        term: components['schemas']['assetTerm'];
+        instruction: {
+          sourceAccount: components['schemas']['finp2pAssetAccount'];
+          destinationAccount: components['schemas']['finp2pAssetAccountOptional'];
         };
-        /** @description allowed fields to be updated on given intent type */
-        buyingIntentUpdatePayload: {
-            /**
+      };
+      settlement?: components['schemas']['sourceDestinationIntentAsset'];
+    };
+    privateOfferIntentExecution: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "buyingIntent";
-            settlementTerm?: components["schemas"]["settlementTermUpdate"];
-            assetTerm?: components["schemas"]["assetTerm"];
+      type: 'privateOfferIntentExecution';
+      nonce: components['schemas']['nonce'];
+      asset: {
+        term: components['schemas']['assetTerm'];
+        instruction: {
+          sourceAccount: components['schemas']['finp2pAssetAccountOptional'];
+          destinationAccount: components['schemas']['finp2pAssetAccount'];
         };
-        /** @description allowed fields to be updated on given intent type */
-        sellingIntentUpdatePayload: {
-            /**
+      };
+      settlement?: components['schemas']['sourceDestinationIntentAsset'];
+      buyer: components['schemas']['ownerId'];
+      seller: components['schemas']['ownerId'];
+    };
+    requestForTransferIntentExecution: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "sellingIntent";
-            settlementTerm?: components["schemas"]["settlementTermUpdate"];
-            assetTerm?: components["schemas"]["assetTerm"];
-        };
-        /** @description allowed fields to be updated on given intent type */
-        loanIntentUpdatePayload: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "loanIntent";
-            settlementTerm?: components["schemas"]["settlementTermUpdate"];
-            assetTerm?: components["schemas"]["assetTerm"];
-        };
-        /** @description allowed fields to be updated on given intent type */
-        redemptionIntentUpdatePayload: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "redemptionIntent";
-            settlementTerm?: components["schemas"]["settlementTermUpdate"];
-            assetTerm?: components["schemas"]["assetTerm"];
-        };
-        /** @description allowed fields to be updated on given intent type */
-        privateOfferIntentUpdatePayload: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "privateOfferIntent";
-            settlementTerm?: components["schemas"]["settlementTermUpdate"];
-            assetTerm?: components["schemas"]["assetTerm"];
-        };
-        /** @description allowed fields to be updated on given intent type */
-        requestForTransferIntentUpdatePayload: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "requestForTransferIntent";
-            assetTerm?: components["schemas"]["assetTerm"];
-        };
-        noSettlementOptionUpdate: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "noSettlement";
-        };
-        partialSettlementOptionUpdate: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "partialSettlement";
-            unitValue: components["schemas"]["unitValue"];
-        };
-        fullSettlementOptionUpdate: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "fullSettlement";
-            amount: components["schemas"]["amount"];
-        };
-        settlementTermUpdate: components["schemas"]["noSettlementOptionUpdate"] | components["schemas"]["partialSettlementOptionUpdate"] | components["schemas"]["fullSettlementOptionUpdate"];
-        intentExecution: components["schemas"]["primarySaleExecution"] | components["schemas"]["buyingIntentExecution"] | components["schemas"]["sellingIntentExecution"] | components["schemas"]["loanIntentExecution"] | components["schemas"]["redemptionIntentExecution"] | components["schemas"]["privateOfferIntentExecution"] | components["schemas"]["requestForTransferIntentExecution"];
-        primarySaleExecution: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "primarySaleExecution";
-            nonce: components["schemas"]["nonce"];
-            issuer: components["schemas"]["ownerId"];
-            buyer: components["schemas"]["ownerId"];
-            asset: components["schemas"]["buyingAsset"];
-            settlement?: components["schemas"]["sourceDestinationIntentAsset"];
-        };
-        buyingIntentExecution: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "buyingIntentExecution";
-            nonce: components["schemas"]["nonce"];
-            asset: components["schemas"]["sourceDestinationIntentAsset"];
-            settlement?: components["schemas"]["sourceDestinationIntentAsset"];
-            seller: components["schemas"]["ownerId"];
-        };
-        sellingIntentExecution: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "sellingIntentExecution";
-            nonce: components["schemas"]["nonce"];
-            asset: components["schemas"]["sourceDestinationIntentAsset"];
-            settlement?: components["schemas"]["sourceDestinationIntentAsset"];
-            buyer: components["schemas"]["ownerId"];
-        };
-        loanIntentExecution: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "loanIntentExecution";
-            /** @enum {string} */
-            executorType: "borrower" | "lender";
-            nonce: components["schemas"]["nonce"];
-            borrower: components["schemas"]["ownerId"];
-            lender: components["schemas"]["ownerId"];
-            asset: components["schemas"]["loanIntentAsset"];
-            settlement?: components["schemas"]["loanIntentAsset"];
-            loanInstruction?: components["schemas"]["loanInstruction"];
-        };
-        redemptionIntentExecution: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "redemptionIntentExecution";
-            nonce: components["schemas"]["nonce"];
-            issuer: components["schemas"]["ownerId"];
-            seller: components["schemas"]["ownerId"];
-            asset: {
-                term: components["schemas"]["assetTerm"];
-                instruction: {
-                    sourceAccount: components["schemas"]["finp2pAssetAccount"];
-                    destinationAccount: components["schemas"]["finp2pAssetAccountOptional"];
-                };
-            };
-            settlement?: components["schemas"]["sourceDestinationIntentAsset"];
-        };
-        privateOfferIntentExecution: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "privateOfferIntentExecution";
-            nonce: components["schemas"]["nonce"];
-            asset: {
-                term: components["schemas"]["assetTerm"];
-                instruction: {
-                    sourceAccount: components["schemas"]["finp2pAssetAccountOptional"];
-                    destinationAccount: components["schemas"]["finp2pAssetAccount"];
-                };
-            };
-            settlement?: components["schemas"]["sourceDestinationIntentAsset"];
-            buyer: components["schemas"]["ownerId"];
-            seller: components["schemas"]["ownerId"];
-        };
-        requestForTransferIntentExecution: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "requestForTransferIntentExecution";
-            nonce: components["schemas"]["nonce"];
-            sender: components["schemas"]["ownerId"];
-            receiver: components["schemas"]["ownerId"];
-            /**
+      type: 'requestForTransferIntentExecution';
+      nonce: components['schemas']['nonce'];
+      sender: components['schemas']['ownerId'];
+      receiver: components['schemas']['ownerId'];
+      /**
              * @description Indicates whether the operation is to send or request money/asset.
              * @enum {string}
              */
-            action: "send" | "request";
-            asset: components["schemas"]["sourceDestinationIntentAsset"];
-        };
-        /**
+      action: 'send' | 'request';
+      asset: components['schemas']['sourceDestinationIntentAsset'];
+    };
+    /**
          * @description Type of response, immediate / synchronous response or asynchronous
          * @enum {string}
          */
-        signatureResponseType: "signature" | "acknowledgement";
-        idResponse: {
-            id: components["schemas"]["ownerId"];
-        };
-        certificateIdResponse: {
-            /** @description Certificate's ID */
-            id: string;
-        };
-        resourceIdResponse: {
-            id: components["schemas"]["resourceId"];
-        };
-        operationBase: {
-            /** @description unique correlation id which identify the operation */
-            cid?: string;
-            /**
+    signatureResponseType: 'signature' | 'acknowledgement';
+    idResponse: {
+      id: components['schemas']['ownerId'];
+    };
+    certificateIdResponse: {
+      /** @description Certificate's ID */
+      id: string;
+    };
+    resourceIdResponse: {
+      id: components['schemas']['resourceId'];
+    };
+    operationBase: {
+      /** @description unique correlation id which identify the operation */
+      cid?: string;
+      /**
              * @description flag indicating if the operation completed, if true then error or response must be present (but not both)
              * @default false
              */
-            isCompleted: boolean;
-        };
-        operationResponse: components["schemas"]["tokenOperation"] | components["schemas"]["profileOperation"] | components["schemas"]["depositOperation"] | components["schemas"]["withdrawOperation"] | components["schemas"]["executionOperation"] | components["schemas"]["cancelExecutionOperation"] | components["schemas"]["resetExecutionOperation"] | components["schemas"]["accountOperation"] | components["schemas"]["workflowOperation"];
-        tokenOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "token";
-            metadata?: unknown;
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["tokenOperationResultResponse"];
-        } & {
-            /**
+      isCompleted: boolean;
+    };
+    operationResponse: components['schemas']['tokenOperation'] | components['schemas']['profileOperation'] | components['schemas']['depositOperation'] | components['schemas']['withdrawOperation'] | components['schemas']['executionOperation'] | components['schemas']['cancelExecutionOperation'] | components['schemas']['resetExecutionOperation'] | components['schemas']['accountOperation'] | components['schemas']['workflowOperation'];
+    tokenOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'token';
+      metadata?: unknown;
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['tokenOperationResultResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "token";
-        };
-        tokenOperationResultResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & components["schemas"]["tokenOperationResult"] & {
-            /**
+      type: 'token';
+    };
+    tokenOperationResultResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['tokenOperationResult'] & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        executionOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "execution";
-            metadata?: unknown;
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["executionOperationResultResponse"];
-        } & {
-            /**
+      type: 'success';
+    };
+    executionOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'execution';
+      metadata?: unknown;
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['executionOperationResultResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "execution";
-        };
-        cancelExecutionOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "cancel-execution";
-            metadata?: unknown;
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["cancelExecutionOperationResultResponse"];
-        } & {
-            /**
+      type: 'execution';
+    };
+    cancelExecutionOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'cancel-execution';
+      metadata?: unknown;
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['cancelExecutionOperationResultResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "cancel-execution";
-        };
-        resetExecutionOperation: components["schemas"]["operationBase"] & Omit<{
-            /** @enum {string} */
-            type: "reset-execution";
-            metadata?: unknown;
-        }, "type"> & (components["schemas"]["APIErrors"] | components["schemas"]["resetExecutionOperationResultResponse"]) & {
-            /**
+      type: 'cancel-execution';
+    };
+    resetExecutionOperation: components['schemas']['operationBase'] & Omit<{
+      /** @enum {string} */
+      type: 'reset-execution';
+      metadata?: unknown;
+    }, 'type'> & (components['schemas']['APIErrors'] | components['schemas']['resetExecutionOperationResultResponse']) & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "reset-execution";
-        };
-        workflowOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "workflow";
-            metadata?: unknown;
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["workflowOperationResultResponse"];
-        } & {
-            /**
+      type: 'reset-execution';
+    };
+    workflowOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'workflow';
+      metadata?: unknown;
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['workflowOperationResultResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "workflow";
-        };
-        workflowOperationResultResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & components["schemas"]["workflowOperationResult"] & {
-            /**
+      type: 'workflow';
+    };
+    workflowOperationResultResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['workflowOperationResult'] & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        workflowOperationResult: Record<string, never>;
-        executionOperationResultResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & components["schemas"]["executionOperationResult"] & {
-            /**
+      type: 'success';
+    };
+    workflowOperationResult: Record<string, never>;
+    executionOperationResultResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['executionOperationResult'] & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        cancelExecutionOperationResultResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & components["schemas"]["executionCancellationOperationResult"] & {
-            /**
+      type: 'success';
+    };
+    cancelExecutionOperationResultResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['executionCancellationOperationResult'] & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        resetExecutionOperationResultResponse: {
-            /** @enum {string} */
-            type: "response";
-            response?: components["schemas"]["executionResetOperationResult"];
-        };
-        accountOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "account";
-            metadata?: unknown;
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["accountOperationResultResponse"];
-        } & {
-            /**
+      type: 'success';
+    };
+    resetExecutionOperationResultResponse: {
+      /** @enum {string} */
+      type: 'response';
+      response?: components['schemas']['executionResetOperationResult'];
+    };
+    accountOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'account';
+      metadata?: unknown;
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['accountOperationResultResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "account";
-        };
-        accountOperationResultResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & components["schemas"]["accountOperationResult"] & {
-            /**
+      type: 'account';
+    };
+    accountOperationResultResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['accountOperationResult'] & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        accountOperationResult: {
-            custodyOrgId?: components["schemas"]["orgId"];
-            finId?: components["schemas"]["finId"];
-        };
-        executionOperationResult: {
-            executionPlanId: components["schemas"]["executionPlanId"];
-        };
-        executionCancellationOperationResult: components["schemas"]["executionPlanCancellationStatus"];
-        executionResetOperationResult: components["schemas"]["executionPlanResetStatus"];
-        executionPlanCancellationStatus: {
-            /** @enum {string} */
-            status: "approved" | "rejected";
-            /** @description status per organization participating in the execution plan */
-            organizationsStatuses: {
-                organization: string;
-                /** @enum {string} */
-                status: "approved" | "rejected";
-            }[];
-        };
-        executionPlanResetStatus: {
-            /** @enum {string} */
-            status: "approved" | "rejected";
-            /** @description status per organization participating in the execution plan */
-            organizationsStatuses: {
-                organization: string;
-                /** @enum {string} */
-                status: "approved" | "rejected";
-            }[];
-        };
-        tokenOperationResult: {
-            receipt: components["schemas"]["receipt"];
-        };
-        profileOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "profile";
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["profileOperationResponse"];
-        } & {
-            /**
+      type: 'success';
+    };
+    accountOperationResult: {
+      custodyOrgId?: components['schemas']['orgId'];
+      finId?: components['schemas']['finId'];
+    };
+    executionOperationResult: {
+      executionPlanId: components['schemas']['executionPlanId'];
+    };
+    executionCancellationOperationResult: components['schemas']['executionPlanCancellationStatus'];
+    executionResetOperationResult: components['schemas']['executionPlanResetStatus'];
+    executionPlanCancellationStatus: {
+      /** @enum {string} */
+      status: 'approved' | 'rejected';
+      /** @description status per organization participating in the execution plan */
+      organizationsStatuses: {
+        organization: string;
+        /** @enum {string} */
+        status: 'approved' | 'rejected';
+      }[];
+    };
+    executionPlanResetStatus: {
+      /** @enum {string} */
+      status: 'approved' | 'rejected';
+      /** @description status per organization participating in the execution plan */
+      organizationsStatuses: {
+        organization: string;
+        /** @enum {string} */
+        status: 'approved' | 'rejected';
+      }[];
+    };
+    tokenOperationResult: {
+      receipt: components['schemas']['receipt'];
+    };
+    profileOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'profile';
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['profileOperationResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "profile";
-        };
-        profileOperationResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & components["schemas"]["resourceIdResponse"] & {
-            /**
+      type: 'profile';
+    };
+    profileOperationResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['resourceIdResponse'] & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        depositOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "deposit";
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["depositInstructionResponse"];
-        } & {
-            /**
+      type: 'success';
+    };
+    depositOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'deposit';
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['depositInstructionResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "deposit";
-        };
-        depositInstructionResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & components["schemas"]["depositInstruction"] & {
-            /**
+      type: 'deposit';
+    };
+    depositInstructionResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & components['schemas']['depositInstruction'] & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        withdrawOperation: components["schemas"]["operationBase"] & {
-            /** @enum {string} */
-            type: "withdraw";
-            response?: components["schemas"]["APIErrorsTyped"] | components["schemas"]["receiptResponse"];
-        } & {
-            /**
+      type: 'success';
+    };
+    withdrawOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'withdraw';
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['receiptResponse'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "withdraw";
-        };
-        receiptResponse: {
-            /** @enum {string} */
-            type: "success";
-        } & {
-            receipt: components["schemas"]["receipt"];
-        } & {
-            /**
+      type: 'withdraw';
+    };
+    receiptResponse: {
+      /** @enum {string} */
+      type: 'success';
+    } & {
+      receipt: components['schemas']['receipt'];
+    } & {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "success";
-        };
-        depositInstruction: {
-            /** @description operation id */
-            operationId: string;
-            /** @description Deposit instruction, including account details */
-            depositInstruction: {
-                account: components["schemas"]["depositAccount"];
-                /** @description Instruction details */
-                description: string;
-                /** @description Additional details */
-                details?: Record<string, never>;
-                paymentOptions?: components["schemas"]["paymentMethods"];
-            };
-        };
-        messageResponse: {
-            id: string;
-        };
-        receipt: {
-            /** @description receipt id */
-            id: string;
-            source?: components["schemas"]["finp2pAssetAccount"];
-            destination?: components["schemas"]["finp2pAssetAccount"];
-            quantity: string;
-            tradeDetails?: components["schemas"]["receiptTradeDetails"];
-            assetDetails?: components["schemas"]["receiptAssetDetails"];
-            operationRef?: string;
-            /** @enum {string} */
-            operationType: "hold" | "issue" | "redeem" | "release" | "transfer" | "unknown";
-            timestamp: number;
-        };
-        /**
+      type: 'success';
+    };
+    depositInstruction: {
+      /** @description operation id */
+      operationId: string;
+      /** @description Deposit instruction, including account details */
+      depositInstruction: {
+        account: components['schemas']['depositAccount'];
+        /** @description Instruction details */
+        description: string;
+        /** @description Additional details */
+        details?: Record<string, never>;
+        paymentOptions?: components['schemas']['paymentMethods'];
+      };
+    };
+    messageResponse: {
+      id: string;
+    };
+    receipt: {
+      /** @description receipt id */
+      id: string;
+      source?: components['schemas']['finp2pAssetAccount'];
+      destination?: components['schemas']['finp2pAssetAccount'];
+      quantity: string;
+      tradeDetails?: components['schemas']['receiptTradeDetails'];
+      assetDetails?: components['schemas']['receiptAssetDetails'];
+      operationRef?: string;
+      /** @enum {string} */
+      operationType: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'unknown';
+      timestamp: number;
+    };
+    /**
          * @description Signature = sign(sender private secp256k1 key, message)
          *
          *     | order | value | type | comment |
@@ -1085,8 +1085,8 @@ export interface components {
          *     | 7 | settlementQuantity  | string | string representation of the quantity |
          *     | 8 | settlementExpiry    | string | string representation of the expiry value |
          */
-        wildcardTransferSignature: string;
-        /**
+    wildcardTransferSignature: string;
+    /**
          * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
@@ -1107,8 +1107,8 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        transferSignature: string;
-        /**
+    transferSignature: string;
+    /**
          * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
@@ -1143,8 +1143,8 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        transferWithSettlementSignature: string;
-        /**
+    transferWithSettlementSignature: string;
+    /**
          * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
@@ -1179,8 +1179,8 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        sellerTransferSignature: string;
-        /**
+    sellerTransferSignature: string;
+    /**
          * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
@@ -1216,8 +1216,8 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        buyerTransferSignature: string;
-        /**
+    buyerTransferSignature: string;
+    /**
          * @description Asset Hash Group (AHG) structure:
          *
          *     AHG = hash('SHA3-256', [fields by order]);
@@ -1251,8 +1251,8 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        issueSignature: string;
-        /**
+    issueSignature: string;
+    /**
          * @description HG = hash('SHA3-256', [fields by order]);
          *     | order | value | type | comment |
          *     |--|--|--|--|
@@ -1268,8 +1268,8 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        depositSignature: string;
-        /**
+    depositSignature: string;
+    /**
          * @description HG = hash('SHA3-256', [fields by order]);
          *
          *     | order | value | type | comment |
@@ -1288,8 +1288,8 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        withdrawSignature: string;
-        /**
+    withdrawSignature: string;
+    /**
          * @description Loan signature:
          *
          *     Single Hash Group (AHG) structure:
@@ -1316,152 +1316,152 @@ export interface components {
          *
          *     Signature = sign(sender private secp256k1 key, hashGroups)
          */
-        loanSignature: string;
-        withdrawSignaturePolicy: components["schemas"]["manualSignaturePolicy"];
-        depositSignaturePolicy: components["schemas"]["manualSignaturePolicy"];
-        /** @description represent a signature template information */
-        signatureTemplate: {
-            /** @description hex representation of the signature */
-            signature?: string;
-            /** @description ordered list of hash groups */
-            template?: {
-                hashGroups?: components["schemas"]["hashGroup"][];
-                /** @description hex representation of the combined hash groups hash value */
-                hash?: string;
-            };
-        };
-        hashGroup: {
-            /** @description hex representation of the hash group hash value */
-            hash?: string;
-            /** @description list of fields by order they appear in the hash group */
-            fields?: components["schemas"]["field"][];
-        };
-        /** @description describing a field in the hash group */
-        field: {
-            /** @description name of field */
-            name?: string;
-            /**
+    loanSignature: string;
+    withdrawSignaturePolicy: components['schemas']['manualSignaturePolicy'];
+    depositSignaturePolicy: components['schemas']['manualSignaturePolicy'];
+    /** @description represent a signature template information */
+    signatureTemplate: {
+      /** @description hex representation of the signature */
+      signature?: string;
+      /** @description ordered list of hash groups */
+      template?: {
+        hashGroups?: components['schemas']['hashGroup'][];
+        /** @description hex representation of the combined hash groups hash value */
+        hash?: string;
+      };
+    };
+    hashGroup: {
+      /** @description hex representation of the hash group hash value */
+      hash?: string;
+      /** @description list of fields by order they appear in the hash group */
+      fields?: components['schemas']['field'][];
+    };
+    /** @description describing a field in the hash group */
+    field: {
+      /** @description name of field */
+      name?: string;
+      /**
              * @description type of field
              * @enum {string}
              */
-            type?: "string" | "int";
-            /** @description hex representation of the field value */
-            value?: string;
-        };
-        /** @description The name of the asset */
-        name: string;
-        /** @description The symbol of the asset */
-        symbol: string;
-        /** @description The symbol of the asset */
-        symbolOpt: string;
-        /** @description The name of the asset */
-        nameOpt: string;
-        assetVerifier: {
-            /** @description verifier id */
-            id: string;
-            name: components["schemas"]["name"];
-            /**
+      type?: 'string' | 'int';
+      /** @description hex representation of the field value */
+      value?: string;
+    };
+    /** @description The name of the asset */
+    name: string;
+    /** @description The symbol of the asset */
+    symbol: string;
+    /** @description The symbol of the asset */
+    symbolOpt: string;
+    /** @description The name of the asset */
+    nameOpt: string;
+    assetVerifier: {
+      /** @description verifier id */
+      id: string;
+      name: components['schemas']['name'];
+      /**
              * @description one from the list [REG_APP_STORE, OTHER]
              * @enum {string}
              */
-            provider: "REG_APP_STORE" | "OTHER";
-        };
-        assetIssuer: {
-            /**
+      provider: 'REG_APP_STORE' | 'OTHER';
+    };
+    assetIssuer: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "assetIssuer";
-            issuerId: components["schemas"]["ownerId"];
-            assetId: components["schemas"]["assetId"];
-        };
-        ledgerAssetBinding: {
-            /** @description The name of the ledger to which the asset will be bound. Must match the ledgerName defined in /ledger/bind call */
-            ledger: string;
-            bind?: components["schemas"]["ledgerAssetIdentifier"];
-        };
-        ledgerTokenId: {
-            /**
+      type: 'assetIssuer';
+      issuerId: components['schemas']['ownerId'];
+      assetId: components['schemas']['assetId'];
+    };
+    ledgerAssetBinding: {
+      /** @description The name of the ledger to which the asset will be bound. Must match the ledgerName defined in /ledger/bind call */
+      ledger: string;
+      bind?: components['schemas']['ledgerAssetIdentifier'];
+    };
+    ledgerTokenId: {
+      /**
              * @description the type of the identifier
              * @enum {string}
              */
-            type: "tokenId";
-            /** @description the token id binding */
-            tokenId: string;
-        };
-        correspondent: components["schemas"]["assetIssuer"];
-        balanceInformation: {
-            /** @description the asset token balance quantity */
-            quantity: string;
-        };
-        AccountBalanceSyncRequest: {
-            account: components["schemas"]["finIdAccount"];
-            asset: components["schemas"]["finp2pAssetBase"];
-        };
-        assetPolicies: {
-            proof?: components["schemas"]["proofPolicy"];
-        };
-        assetPoliciesOpt: components["schemas"]["assetPoliciesOptInner"];
-        assetPoliciesOptInner: {
-            proof?: components["schemas"]["proofPolicyOpt"];
-        };
-        proofPolicyOpt: components["schemas"]["signatureProofPolicyOpt"] | components["schemas"]["noProofPolicy"];
-        proofPolicy: components["schemas"]["signatureProofPolicy"] | components["schemas"]["noProofPolicy"];
-        /** @description no proof validation required for this policy */
-        noProofPolicy: {
-            /**
+      type: 'tokenId';
+      /** @description the token id binding */
+      tokenId: string;
+    };
+    correspondent: components['schemas']['assetIssuer'];
+    balanceInformation: {
+      /** @description the asset token balance quantity */
+      quantity: string;
+    };
+    AccountBalanceSyncRequest: {
+      account: components['schemas']['finIdAccount'];
+      asset: components['schemas']['finp2pAssetBase'];
+    };
+    assetPolicies: {
+      proof?: components['schemas']['proofPolicy'];
+    };
+    assetPoliciesOpt: components['schemas']['assetPoliciesOptInner'];
+    assetPoliciesOptInner: {
+      proof?: components['schemas']['proofPolicyOpt'];
+    };
+    proofPolicyOpt: components['schemas']['signatureProofPolicyOpt'] | components['schemas']['noProofPolicy'];
+    proofPolicy: components['schemas']['signatureProofPolicy'] | components['schemas']['noProofPolicy'];
+    /** @description no proof validation required for this policy */
+    noProofPolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "noProofPolicy";
-        };
-        signatureProofPolicy: {
-            /**
+      type: 'noProofPolicy';
+    };
+    signatureProofPolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "signatureProofPolicy";
-            policy: {
-                /**
-                 * @description The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
-                 * @example 0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12
-                 */
-                publicKey?: string;
-                /** @enum {string} */
-                signatureTemplate?: "hashlist" | "EIP712";
-            };
-        };
-        signatureProofPolicyOpt: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "signatureProofPolicy";
-            policy: {
-                /**
-                 * @description The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
-                 * @example 0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12
-                 */
-                publicKey?: string;
-                /** @enum {string} */
-                signatureTemplate?: "hashlist" | "EIP712";
-            };
-        };
-        documentsList: {
-            /** @description A list document references */
-            refs: components["schemas"]["documentRef"][];
-        };
-        documentRef: {
-            /** @description the ID of the document */
-            id: string;
-            /** @description the URI to retrieve the document */
-            uri: string;
-            /** @description The file name */
-            fileName: string;
-            /** @description The file mimeType */
-            mimeType: string;
-        };
+      type: 'signatureProofPolicy';
+      policy: {
         /**
+                 * @description The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
+                 * @example 0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12
+                 */
+        publicKey?: string;
+        /** @enum {string} */
+        signatureTemplate?: 'hashlist' | 'EIP712';
+      };
+    };
+    signatureProofPolicyOpt: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'signatureProofPolicy';
+      policy: {
+        /**
+                 * @description The public key used for receipt proof in hex representation of a secp256k1 public key 33 bytes compressed
+                 * @example 0234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12
+                 */
+        publicKey?: string;
+        /** @enum {string} */
+        signatureTemplate?: 'hashlist' | 'EIP712';
+      };
+    };
+    documentsList: {
+      /** @description A list document references */
+      refs: components['schemas']['documentRef'][];
+    };
+    documentRef: {
+      /** @description the ID of the document */
+      id: string;
+      /** @description the URI to retrieve the document */
+      uri: string;
+      /** @description The file name */
+      fileName: string;
+      /** @description The file mimeType */
+      mimeType: string;
+    };
+    /**
          * @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
          *
          *       const nonce = Buffer.alloc(32);
@@ -1471,29 +1471,29 @@ export interface components {
          *       const t = BigInt(nowEpochSeconds);
          *       nonce.writeBigInt64BE(t, 24);
          */
-        nonce: string;
-        /**
+    nonce: string;
+    /**
          * @description finp2p resource id format
          * @example bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
          */
-        resourceId: string;
-        /**
+    resourceId: string;
+    /**
          * @description The Owner resource id
          * @example bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
          */
-        ownerId: string;
-        /** @description Organization Id */
-        orgId: string;
-        /**
+    ownerId: string;
+    /** @description Organization Id */
+    orgId: string;
+    /**
          * Format: finid
          * @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed
          */
-        finId: string;
-        /** @enum {string} */
-        intentType: "primarySale" | "buyingIntent" | "sellingIntent" | "loanIntent" | "redemptionIntent" | "privateOfferIntent" | "requestForTransferIntent";
-        /** @description Allowed intent types to be applied on an asset */
-        intentTypesAllowEmpty: components["schemas"]["intentType"][];
-        /**
+    finId: string;
+    /** @enum {string} */
+    intentType: 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent';
+    /** @description Allowed intent types to be applied on an asset */
+    intentTypesAllowEmpty: components['schemas']['intentType'][];
+    /**
          * @description The type of the asset
          *     Payment asset classification:
          *     - Fiat: Government-issued currencies identified by ISO 4217 codes (e.g., USD, EUR, GBP)
@@ -1501,1622 +1501,1622 @@ export interface components {
          *     - TokenizedCash: Blockchain-based digital cash maintaining 1:1 fiat peg (stablecoins, deposit tokens, CBDCs)
          * @enum {string}
          */
-        assetType: "Equity" | "Debt" | "Loans" | "Fund" | "RealEstate" | "Commodity" | "Fiat" | "Cryptocurrency" | "TokenizedCash" | "DigitalNatives" | "Basket" | "Other";
-        /**
+    assetType: 'Equity' | 'Debt' | 'Loans' | 'Fund' | 'RealEstate' | 'Commodity' | 'Fiat' | 'Cryptocurrency' | 'TokenizedCash' | 'DigitalNatives' | 'Basket' | 'Other';
+    /**
          * @description Indicates how the asset is denominated
          * @enum {string}
          */
-        assetDenominationType: "finp2p" | "fiat" | "cryptocurrency";
-        assetDenomination: {
-            type: components["schemas"]["assetDenominationType"];
-            /** @description Unique code identifying the denomination asset type */
-            code: string;
-        };
-        "ledgerAssetIdentifierTypeCAIP-19": {
-            /**
+    assetDenominationType: 'finp2p' | 'fiat' | 'cryptocurrency';
+    assetDenomination: {
+      type: components['schemas']['assetDenominationType'];
+      /** @description Unique code identifying the denomination asset type */
+      code: string;
+    };
+    'ledgerAssetIdentifierTypeCAIP-19': {
+      /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            assetIdentifierType: "CAIP-19";
-            network: string;
-            tokenId: string;
-            standard: string;
-        };
-        ledgerAssetIdentifier: components["schemas"]["ledgerAssetIdentifierTypeCAIP-19"];
-        financialAssetIdentifierTypeISIN: {
-            /**
+      assetIdentifierType: 'CAIP-19';
+      network: string;
+      tokenId: string;
+      standard: string;
+    };
+    ledgerAssetIdentifier: components['schemas']['ledgerAssetIdentifierTypeCAIP-19'];
+    financialAssetIdentifierTypeISIN: {
+      /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            assetIdentifierType: "ISIN";
-            /** @description The classification standard used to identify the asset */
-            assetIdentifierValue: string;
-        };
-        financialAssetIdentifierTypeISO4217: {
-            /**
+      assetIdentifierType: 'ISIN';
+      /** @description The classification standard used to identify the asset */
+      assetIdentifierValue: string;
+    };
+    financialAssetIdentifierTypeISO4217: {
+      /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            assetIdentifierType: "ISO4217";
-            /** @description The classification standard used to identify the asset */
-            assetIdentifierValue: string;
-        };
-        financialAssetIdentifierTypeNONE: {
-            /**
+      assetIdentifierType: 'ISO4217';
+      /** @description The classification standard used to identify the asset */
+      assetIdentifierValue: string;
+    };
+    financialAssetIdentifierTypeNONE: {
+      /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            assetIdentifierType: "NONE";
-        };
-        financialAssetIdentifier: components["schemas"]["financialAssetIdentifierTypeISIN"] | components["schemas"]["financialAssetIdentifierTypeISO4217"] | components["schemas"]["financialAssetIdentifierTypeNONE"];
-        walletAccount: {
-            type: string;
-            /** @description address of the wallet */
-            address: string;
-        };
-        /** @description the total number of units */
-        amount: string;
-        assetTerm: {
-            amount: components["schemas"]["amount"];
-        };
-        custodian: {
-            orgId: components["schemas"]["orgId"];
-        };
-        finIdAccount: {
-            /**
+      assetIdentifierType: 'NONE';
+    };
+    financialAssetIdentifier: components['schemas']['financialAssetIdentifierTypeISIN'] | components['schemas']['financialAssetIdentifierTypeISO4217'] | components['schemas']['financialAssetIdentifierTypeNONE'];
+    walletAccount: {
+      type: string;
+      /** @description address of the wallet */
+      address: string;
+    };
+    /** @description the total number of units */
+    amount: string;
+    assetTerm: {
+      amount: components['schemas']['amount'];
+    };
+    custodian: {
+      orgId: components['schemas']['orgId'];
+    };
+    finIdAccount: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "finId";
-            finId: components["schemas"]["finId"];
-            orgId: components["schemas"]["orgId"];
-            custodian: components["schemas"]["custodian"];
-        };
-        /** @description describes asset information */
-        finp2pAsset: {
-            id: components["schemas"]["resourceId"];
-            ledgerIdentifier: components["schemas"]["ledgerAssetIdentifier"];
-        };
-        /** @description describes account and asset information */
-        finp2pAssetAccount: {
-            account: components["schemas"]["finIdAccount"];
-            asset: components["schemas"]["finp2pAsset"];
-        };
-        sourceAccountAssetInstruction: {
-            sourceAccount: components["schemas"]["finp2pAssetAccount"];
-        };
-        sellingAsset: {
-            assetTerm: components["schemas"]["assetTerm"];
-            assetInstruction: components["schemas"]["sourceAccountAssetInstruction"];
-        };
-        noSettlementOption: {
-            /**
+      type: 'finId';
+      finId: components['schemas']['finId'];
+      orgId: components['schemas']['orgId'];
+      custodian: components['schemas']['custodian'];
+    };
+    /** @description describes asset information */
+    finp2pAsset: {
+      id: components['schemas']['resourceId'];
+      ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
+    };
+    /** @description describes account and asset information */
+    finp2pAssetAccount: {
+      account: components['schemas']['finIdAccount'];
+      asset: components['schemas']['finp2pAsset'];
+    };
+    sourceAccountAssetInstruction: {
+      sourceAccount: components['schemas']['finp2pAssetAccount'];
+    };
+    sellingAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['sourceAccountAssetInstruction'];
+    };
+    noSettlementOption: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "noSettlement";
-        };
-        /** @description A unit value represented as a string, the value is a decimal number */
-        unitValue: string;
-        partialSettlementOption: {
-            /**
+      type: 'noSettlement';
+    };
+    /** @description A unit value represented as a string, the value is a decimal number */
+    unitValue: string;
+    partialSettlementOption: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "partialSettlement";
-            unitValue: components["schemas"]["unitValue"];
-        };
-        fullSettlementOption: {
-            /**
+      type: 'partialSettlement';
+      unitValue: components['schemas']['unitValue'];
+    };
+    fullSettlementOption: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "fullSettlement";
-            amount: components["schemas"]["amount"];
-        };
-        settlementTerm: components["schemas"]["noSettlementOption"] | components["schemas"]["partialSettlementOption"] | components["schemas"]["fullSettlementOption"];
-        destinationAccountAssetInstruction: {
-            destinationAccount: components["schemas"]["finp2pAssetAccount"];
-        };
-        sellingSettlementBase: {
-            settlementTerm: components["schemas"]["settlementTerm"];
-            settlementInstruction: components["schemas"]["destinationAccountAssetInstruction"];
-        };
-        sellingSettlements: components["schemas"]["sellingSettlementBase"][];
-        primarySale: {
-            /**
+      type: 'fullSettlement';
+      amount: components['schemas']['amount'];
+    };
+    settlementTerm: components['schemas']['noSettlementOption'] | components['schemas']['partialSettlementOption'] | components['schemas']['fullSettlementOption'];
+    destinationAccountAssetInstruction: {
+      destinationAccount: components['schemas']['finp2pAssetAccount'];
+    };
+    sellingSettlementBase: {
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction: components['schemas']['destinationAccountAssetInstruction'];
+    };
+    sellingSettlements: components['schemas']['sellingSettlementBase'][];
+    primarySale: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "primarySale";
-            issuer: components["schemas"]["ownerId"];
-            asset: components["schemas"]["sellingAsset"];
-            settlement: components["schemas"]["sellingSettlements"];
-        };
-        buyingAsset: {
-            assetTerm: components["schemas"]["assetTerm"];
-            assetInstruction: components["schemas"]["destinationAccountAssetInstruction"];
-        };
-        buyingSettlementBase: {
-            settlementTerm: components["schemas"]["settlementTerm"];
-            settlementInstruction: components["schemas"]["sourceAccountAssetInstruction"];
-        };
-        presignedSignaturePolicy: {
-            /**
+      type: 'primarySale';
+      issuer: components['schemas']['ownerId'];
+      asset: components['schemas']['sellingAsset'];
+      settlement: components['schemas']['sellingSettlements'];
+    };
+    buyingAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['destinationAccountAssetInstruction'];
+    };
+    buyingSettlementBase: {
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction: components['schemas']['sourceAccountAssetInstruction'];
+    };
+    presignedSignaturePolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "presignedPolicy";
-        };
-        manualSignaturePolicy: {
-            /**
+      type: 'presignedPolicy';
+    };
+    manualSignaturePolicy: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "manualPolicy";
-            nonce?: components["schemas"]["nonce"];
-        };
-        buyingIntent: {
-            /**
+      type: 'manualPolicy';
+      nonce?: components['schemas']['nonce'];
+    };
+    buyingIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "buyingIntent";
-            /** @description resource id of the buyer */
-            buyer: string;
-            asset: components["schemas"]["buyingAsset"];
-            settlement?: components["schemas"]["buyingSettlementBase"];
-            signaturePolicy?: components["schemas"]["presignedSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-        };
-        sellingIntent: {
-            /**
+      type: 'buyingIntent';
+      /** @description resource id of the buyer */
+      buyer: string;
+      asset: components['schemas']['buyingAsset'];
+      settlement?: components['schemas']['buyingSettlementBase'];
+      signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+    };
+    sellingIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "sellingIntent";
-            seller: components["schemas"]["ownerId"];
-            asset: components["schemas"]["sellingAsset"];
-            settlement: components["schemas"]["sellingSettlements"];
-            signaturePolicy?: components["schemas"]["presignedSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-        };
-        borrowerLenderAccountAssetInstruction: {
-            borrowerAccount: components["schemas"]["finp2pAssetAccount"];
-            lenderAccount: components["schemas"]["finp2pAssetAccount"];
-        };
-        loanIntentAsset: {
-            assetTerm: components["schemas"]["assetTerm"];
-            assetInstruction: components["schemas"]["borrowerLenderAccountAssetInstruction"];
-        };
-        loanIntentSettlementBase: {
-            settlementTerm: components["schemas"]["settlementTerm"];
-            settlementInstruction: components["schemas"]["borrowerLenderAccountAssetInstruction"];
-        };
-        loanIntentSettlements: components["schemas"]["loanIntentSettlementBase"][];
-        repaymentTerm: {
-            /**
+      type: 'sellingIntent';
+      seller: components['schemas']['ownerId'];
+      asset: components['schemas']['sellingAsset'];
+      settlement: components['schemas']['sellingSettlements'];
+      signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+    };
+    borrowerLenderAccountAssetInstruction: {
+      borrowerAccount: components['schemas']['finp2pAssetAccount'];
+      lenderAccount: components['schemas']['finp2pAssetAccount'];
+    };
+    loanIntentAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['borrowerLenderAccountAssetInstruction'];
+    };
+    loanIntentSettlementBase: {
+      settlementTerm: components['schemas']['settlementTerm'];
+      settlementInstruction: components['schemas']['borrowerLenderAccountAssetInstruction'];
+    };
+    loanIntentSettlements: components['schemas']['loanIntentSettlementBase'][];
+    repaymentTerm: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "repaymentTerm";
-            closeAmount: components["schemas"]["amount"];
-            /** @description indicative annual interest rate of the operation */
-            interestRate?: string;
-        };
-        interestTerm: {
-            /**
+      type: 'repaymentTerm';
+      closeAmount: components['schemas']['amount'];
+      /** @description indicative annual interest rate of the operation */
+      interestRate?: string;
+    };
+    interestTerm: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "interestTerm";
-            /** @description indicative annual interest rate of the operation */
-            interestRate: string;
-        };
-        closeAmountTerm: {
-            /**
+      type: 'interestTerm';
+      /** @description indicative annual interest rate of the operation */
+      interestRate: string;
+    };
+    closeAmountTerm: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "closeAmountTerm";
-            closeAmount: components["schemas"]["amount"];
-        };
-        loanConditions: components["schemas"]["repaymentTerm"] | components["schemas"]["interestTerm"] | components["schemas"]["closeAmountTerm"];
-        loanInstruction: {
-            /**
+      type: 'closeAmountTerm';
+      closeAmount: components['schemas']['amount'];
+    };
+    loanConditions: components['schemas']['repaymentTerm'] | components['schemas']['interestTerm'] | components['schemas']['closeAmountTerm'];
+    loanInstruction: {
+      /**
              * Format: int64
              * @description date and time operation starts, in epoch (seconds)
              */
-            openDate: number;
-            /**
+      openDate: number;
+      /**
              * Format: int64
              * @description date and time operation ends, in epoch (seconds)
              */
-            closeDate: number;
-            conditions: components["schemas"]["loanConditions"];
-        };
-        loanIntent: {
-            /**
+      closeDate: number;
+      conditions: components['schemas']['loanConditions'];
+    };
+    loanIntent: {
+      /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "loanIntent";
-            /** @enum {string} */
-            creatorType: "borrower" | "lender";
-            borrower: components["schemas"]["ownerId"];
-            lender: components["schemas"]["ownerId"];
-            asset: components["schemas"]["loanIntentAsset"];
-            settlement?: components["schemas"]["loanIntentSettlements"];
-            loanInstruction?: components["schemas"]["loanInstruction"];
-            signaturePolicy?: components["schemas"]["presignedSignaturePolicy"];
-        };
-        /** @description describes account information */
-        finp2pAssetAccountOptional: {
-            account?: components["schemas"]["finIdAccount"];
-            asset: components["schemas"]["finp2pAsset"];
-        };
-        optionalDestinationAccountAssetInstruction: {
-            destinationAccount: components["schemas"]["finp2pAssetAccountOptional"];
-        };
-        redemptionAsset: {
-            assetTerm: components["schemas"]["assetTerm"];
-            assetInstruction: components["schemas"]["optionalDestinationAccountAssetInstruction"];
-        };
-        buyingSettlements: components["schemas"]["buyingSettlementBase"][];
-        redemptionIntentConditions: {
-            /**
+      type: 'loanIntent';
+      /** @enum {string} */
+      creatorType: 'borrower' | 'lender';
+      borrower: components['schemas']['ownerId'];
+      lender: components['schemas']['ownerId'];
+      asset: components['schemas']['loanIntentAsset'];
+      settlement?: components['schemas']['loanIntentSettlements'];
+      loanInstruction?: components['schemas']['loanInstruction'];
+      signaturePolicy?: components['schemas']['presignedSignaturePolicy'];
+    };
+    /** @description describes account information */
+    finp2pAssetAccountOptional: {
+      account?: components['schemas']['finIdAccount'];
+      asset: components['schemas']['finp2pAsset'];
+    };
+    optionalDestinationAccountAssetInstruction: {
+      destinationAccount: components['schemas']['finp2pAssetAccountOptional'];
+    };
+    redemptionAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['optionalDestinationAccountAssetInstruction'];
+    };
+    buyingSettlements: components['schemas']['buyingSettlementBase'][];
+    redemptionIntentConditions: {
+      /**
              * Format: duration
              * @description duration in ISO 8601 format (e.g., "PT1H30M" for 1 hour 30 minutes)
              */
-            redemptionDuration?: string;
-        };
-        redemptionIntent: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "redemptionIntent";
-            issuer: components["schemas"]["ownerId"];
-            asset: components["schemas"]["redemptionAsset"];
-            settlement?: components["schemas"]["buyingSettlements"];
-            conditions?: components["schemas"]["redemptionIntentConditions"];
-            signaturePolicy?: components["schemas"]["presignedSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-        };
-        optionalSourceAccountAssetInstruction: {
-            sourceAccount: components["schemas"]["finp2pAssetAccountOptional"];
-        };
-        privateOfferIntentAsset: {
-            assetTerm: components["schemas"]["assetTerm"];
-            assetInstruction: components["schemas"]["optionalSourceAccountAssetInstruction"];
-        };
-        privateOfferIntent: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "privateOfferIntent";
-            buyer: components["schemas"]["ownerId"];
-            seller: components["schemas"]["ownerId"];
-            asset: components["schemas"]["privateOfferIntentAsset"];
-            settlement?: components["schemas"]["sellingSettlements"];
-            signaturePolicy?: components["schemas"]["presignedSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-        };
-        requestForTransferSendAssetInstruction: {
-            /**
-             * @description Indicates whether the operation is to send or request money/asset. (enum property replaced by openapi-typescript)
-             * @enum {string}
-             */
-            action: "send";
-            senderAccount?: components["schemas"]["finp2pAssetAccount"];
-        };
-        requestForTransferRequestAssetInstruction: {
-            /**
-             * @description Indicates whether the operation is to send or request money/asset. (enum property replaced by openapi-typescript)
-             * @enum {string}
-             */
-            action: "request";
-            receiverAccount?: components["schemas"]["finp2pAssetAccount"];
-        };
-        requestForTransferIntentAssetInstruction: components["schemas"]["requestForTransferSendAssetInstruction"] | components["schemas"]["requestForTransferRequestAssetInstruction"];
-        requestForTransferIntentAsset: {
-            assetTerm: components["schemas"]["assetTerm"];
-            assetInstruction: components["schemas"]["requestForTransferIntentAssetInstruction"];
-        };
-        requestForTransferIntent: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "requestForTransferIntent";
-            sender: components["schemas"]["ownerId"];
-            receiver: components["schemas"]["ownerId"];
-            asset: components["schemas"]["requestForTransferIntentAsset"];
-            signaturePolicy?: components["schemas"]["presignedSignaturePolicy"] | components["schemas"]["manualSignaturePolicy"];
-        };
-        intent: components["schemas"]["primarySale"] | components["schemas"]["buyingIntent"] | components["schemas"]["sellingIntent"] | components["schemas"]["loanIntent"] | components["schemas"]["redemptionIntent"] | components["schemas"]["privateOfferIntent"] | components["schemas"]["requestForTransferIntent"];
-        APIError: {
-            /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference). */
-            code: number;
-            /** @description A descriptive message providing context about the error. */
-            message: string;
-        };
-        APIErrors: {
-            errors: components["schemas"]["APIError"][];
-        };
-        sourceDestinationAccountAssetInstruction: {
-            sourceAccount: components["schemas"]["finp2pAssetAccount"];
-            destinationAccount: components["schemas"]["finp2pAssetAccount"];
-        };
-        sourceDestinationIntentAsset: {
-            term?: components["schemas"]["assetTerm"];
-            instruction?: components["schemas"]["sourceDestinationAccountAssetInstruction"];
-        };
-        finp2pAssetWithType: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "finp2p";
-            /** @description unique resource ID of the FinP2P asset */
-            resourceId: string;
-        };
-        customAsset: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "custom";
-        };
-        depositAsset: components["schemas"]["finp2pAssetWithType"] | components["schemas"]["customAsset"];
-        /** @description describes account information */
-        depositAccount: {
-            account: components["schemas"]["finIdAccount"];
-            asset: components["schemas"]["depositAsset"];
-        };
-        ibanAccountDetails: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "iban";
-            iban: string;
-        };
-        swiftAccountDetails: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "swift";
-            swiftCode: string;
-            accountNumber: string;
-        };
-        sortCodeDetails: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "sortCode";
-            /** @description sort code has XX-XX-XX format */
-            code: string;
-            accountNumber: string;
-        };
-        wireDetails: components["schemas"]["ibanAccountDetails"] | components["schemas"]["swiftAccountDetails"] | components["schemas"]["sortCodeDetails"];
-        wireTransfer: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "wireTransfer";
-            accountHolderName: string;
-            bankName: string;
-            wireDetails: components["schemas"]["wireDetails"];
-            line1?: string;
-            city?: string;
-            postalCode?: string;
-            country?: string;
-        };
-        wireTransferUSA: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "wireTransferUSA";
-            accountNumber: string;
-            routingNumber: string;
-            line1?: string;
-            city?: string;
-            postalCode?: string;
-            country?: string;
-            state?: string;
-        };
-        cryptoTransfer: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "cryptoTransfer";
-            network: string;
-            contractAddress: string;
-            walletAddress: string;
-        };
-        paymentInstructions: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "paymentInstructions";
-            instruction: string;
-        };
-        paymentMethod: {
-            description: string;
-            /** @description accepted currency for payment */
-            currency: string;
-            methodInstruction: components["schemas"]["wireTransfer"] | components["schemas"]["wireTransferUSA"] | components["schemas"]["cryptoTransfer"] | components["schemas"]["paymentInstructions"];
-        };
-        paymentMethods: components["schemas"]["paymentMethod"][];
-        finp2pAssetBase: {
-            /** @description unique resource ID of the FinP2P asset */
-            resourceId: string;
-        };
-        /** @description describes account information */
-        withdrawAccount: {
-            account: components["schemas"]["finIdAccount"];
-            asset: components["schemas"]["finp2pAssetBase"];
-        };
-        /** @description describes account information */
-        accountAsset: {
-            account: components["schemas"]["finIdAccount"];
-            asset: components["schemas"]["finp2pAssetBase"];
-        };
-        /** @description Withdrawal instruction */
-        withdrawInstruction: {
-            account: components["schemas"]["accountAsset"];
-            /** @description Instruction details */
-            description: string;
-        };
-        receiptExecutionContext: {
-            executionPlanId: string;
-            instructionSequenceNumber: number;
-        };
-        receiptTradeDetails: {
-            intentId?: string;
-            intentVersion?: string;
-            executionContext?: components["schemas"]["receiptExecutionContext"];
-        };
-        /** @description Additional input and output details for UTXO supporting DLTs */
-        receiptTransactionDetails: {
-            /** @description Transaction id */
-            transactionId: string;
-            /** @description Operation id */
-            operationId?: string;
-        };
-        receiptAssetDetails: {
-            transactionDetails: components["schemas"]["receiptTransactionDetails"];
-        };
-        APIErrorsTyped: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "error";
-            errors: components["schemas"]["APIError"][];
-        };
+      redemptionDuration?: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    redemptionIntent: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'redemptionIntent';
+      issuer: components['schemas']['ownerId'];
+      asset: components['schemas']['redemptionAsset'];
+      settlement?: components['schemas']['buyingSettlements'];
+      conditions?: components['schemas']['redemptionIntentConditions'];
+      signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+    };
+    optionalSourceAccountAssetInstruction: {
+      sourceAccount: components['schemas']['finp2pAssetAccountOptional'];
+    };
+    privateOfferIntentAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['optionalSourceAccountAssetInstruction'];
+    };
+    privateOfferIntent: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'privateOfferIntent';
+      buyer: components['schemas']['ownerId'];
+      seller: components['schemas']['ownerId'];
+      asset: components['schemas']['privateOfferIntentAsset'];
+      settlement?: components['schemas']['sellingSettlements'];
+      signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+    };
+    requestForTransferSendAssetInstruction: {
+      /**
+             * @description Indicates whether the operation is to send or request money/asset. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+      action: 'send';
+      senderAccount?: components['schemas']['finp2pAssetAccount'];
+    };
+    requestForTransferRequestAssetInstruction: {
+      /**
+             * @description Indicates whether the operation is to send or request money/asset. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+      action: 'request';
+      receiverAccount?: components['schemas']['finp2pAssetAccount'];
+    };
+    requestForTransferIntentAssetInstruction: components['schemas']['requestForTransferSendAssetInstruction'] | components['schemas']['requestForTransferRequestAssetInstruction'];
+    requestForTransferIntentAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['requestForTransferIntentAssetInstruction'];
+    };
+    requestForTransferIntent: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'requestForTransferIntent';
+      sender: components['schemas']['ownerId'];
+      receiver: components['schemas']['ownerId'];
+      asset: components['schemas']['requestForTransferIntentAsset'];
+      signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+    };
+    intent: components['schemas']['primarySale'] | components['schemas']['buyingIntent'] | components['schemas']['sellingIntent'] | components['schemas']['loanIntent'] | components['schemas']['redemptionIntent'] | components['schemas']['privateOfferIntent'] | components['schemas']['requestForTransferIntent'];
+    APIError: {
+      /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference). */
+      code: number;
+      /** @description A descriptive message providing context about the error. */
+      message: string;
+    };
+    APIErrors: {
+      errors: components['schemas']['APIError'][];
+    };
+    sourceDestinationAccountAssetInstruction: {
+      sourceAccount: components['schemas']['finp2pAssetAccount'];
+      destinationAccount: components['schemas']['finp2pAssetAccount'];
+    };
+    sourceDestinationIntentAsset: {
+      term?: components['schemas']['assetTerm'];
+      instruction?: components['schemas']['sourceDestinationAccountAssetInstruction'];
+    };
+    finp2pAssetWithType: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'finp2p';
+      /** @description unique resource ID of the FinP2P asset */
+      resourceId: string;
+    };
+    customAsset: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'custom';
+    };
+    depositAsset: components['schemas']['finp2pAssetWithType'] | components['schemas']['customAsset'];
+    /** @description describes account information */
+    depositAccount: {
+      account: components['schemas']['finIdAccount'];
+      asset: components['schemas']['depositAsset'];
+    };
+    ibanAccountDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'iban';
+      iban: string;
+    };
+    swiftAccountDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swift';
+      swiftCode: string;
+      accountNumber: string;
+    };
+    sortCodeDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'sortCode';
+      /** @description sort code has XX-XX-XX format */
+      code: string;
+      accountNumber: string;
+    };
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireTransfer: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'wireTransfer';
+      accountHolderName: string;
+      bankName: string;
+      wireDetails: components['schemas']['wireDetails'];
+      line1?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    wireTransferUSA: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'wireTransferUSA';
+      accountNumber: string;
+      routingNumber: string;
+      line1?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+      state?: string;
+    };
+    cryptoTransfer: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'cryptoTransfer';
+      network: string;
+      contractAddress: string;
+      walletAddress: string;
+    };
+    paymentInstructions: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'paymentInstructions';
+      instruction: string;
+    };
+    paymentMethod: {
+      description: string;
+      /** @description accepted currency for payment */
+      currency: string;
+      methodInstruction: components['schemas']['wireTransfer'] | components['schemas']['wireTransferUSA'] | components['schemas']['cryptoTransfer'] | components['schemas']['paymentInstructions'];
+    };
+    paymentMethods: components['schemas']['paymentMethod'][];
+    finp2pAssetBase: {
+      /** @description unique resource ID of the FinP2P asset */
+      resourceId: string;
+    };
+    /** @description describes account information */
+    withdrawAccount: {
+      account: components['schemas']['finIdAccount'];
+      asset: components['schemas']['finp2pAssetBase'];
+    };
+    /** @description describes account information */
+    accountAsset: {
+      account: components['schemas']['finIdAccount'];
+      asset: components['schemas']['finp2pAssetBase'];
+    };
+    /** @description Withdrawal instruction */
+    withdrawInstruction: {
+      account: components['schemas']['accountAsset'];
+      /** @description Instruction details */
+      description: string;
+    };
+    receiptExecutionContext: {
+      executionPlanId: string;
+      instructionSequenceNumber: number;
+    };
+    receiptTradeDetails: {
+      intentId?: string;
+      intentVersion?: string;
+      executionContext?: components['schemas']['receiptExecutionContext'];
+    };
+    /** @description Additional input and output details for UTXO supporting DLTs */
+    receiptTransactionDetails: {
+      /** @description Transaction id */
+      transactionId: string;
+      /** @description Operation id */
+      operationId?: string;
+    };
+    receiptAssetDetails: {
+      transactionDetails: components['schemas']['receiptTransactionDetails'];
+    };
+    APIErrorsTyped: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'error';
+      errors: components['schemas']['APIError'][];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    createOwnerProfile: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["resourceIdResponse"];
-                };
-            };
-        };
+  createOwnerProfile: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
     };
-    addAccount: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of the owner profile */
-                ownerId: components["schemas"]["ownerId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    orgId: components["schemas"]["orgId"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['resourceIdResponse'];
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["accountOperationResult"];
-                };
-            };
-            /** @description accepted operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationBase"];
-                };
-            };
-        };
+      };
     };
-    createAssetProfile: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
+  };
+  addAccount: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of the owner profile */
+        ownerId: components['schemas']['ownerId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          orgId: components['schemas']['orgId'];
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The asset metadata */
-                    metadata?: {
-                        [key: string]: unknown;
-                    };
-                    /**
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['accountOperationResult'];
+        };
+      };
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
+    };
+  };
+  createAssetProfile: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description The asset metadata */
+          metadata?: {
+            [key: string]: unknown;
+          };
+          /**
                      * @deprecated
                      * @description The asset configuration, in serialized JSON representation (deprecated, use metadata instead)
                      */
-                    config?: string;
-                    /** @description A list of regulation verifiers to execute to validate a transaction */
-                    verifiers?: components["schemas"]["assetVerifier"][];
-                    intentTypes?: components["schemas"]["intentTypesAllowEmpty"];
-                    name: components["schemas"]["name"];
-                    symbol?: components["schemas"]["symbol"];
-                    type: components["schemas"]["assetType"];
-                    issuerId?: components["schemas"]["ownerId"];
-                    denomination: components["schemas"]["assetDenomination"];
-                    ledgerAssetBinding: components["schemas"]["ledgerAssetBinding"];
-                    assetPolicies?: components["schemas"]["assetPolicies"];
-                    financialIdentifier?: components["schemas"]["financialAssetIdentifier"];
-                    orgSettlementAccount?: components["schemas"]["walletAccount"];
-                    /**
+          config?: string;
+          /** @description A list of regulation verifiers to execute to validate a transaction */
+          verifiers?: components['schemas']['assetVerifier'][];
+          intentTypes?: components['schemas']['intentTypesAllowEmpty'];
+          name: components['schemas']['name'];
+          symbol?: components['schemas']['symbol'];
+          type: components['schemas']['assetType'];
+          issuerId?: components['schemas']['ownerId'];
+          denomination: components['schemas']['assetDenomination'];
+          ledgerAssetBinding: components['schemas']['ledgerAssetBinding'];
+          assetPolicies?: components['schemas']['assetPolicies'];
+          financialIdentifier?: components['schemas']['financialAssetIdentifier'];
+          orgSettlementAccount?: components['schemas']['walletAccount'];
+          /**
                      * @description Flag to indicate if default policy fallback is allowed when no matching policy is found
                      * @default true
                      */
-                    allowPolicyDefaultFallback?: boolean;
-                    /**
+          allowPolicyDefaultFallback?: boolean;
+          /**
                      * Format: int32
                      * @description Defines how many decimal places the asset supports. Used to determine the smallest divisible unit (e.g., cents for USD with 2 decimals, satoshis for BTC with 8 decimals).
                      */
-                    decimalPlaces?: number;
-                    /**
+          decimalPlaces?: number;
+          /**
                      * @description Flag to indicate if the asset should be automatically shared with known organizations.
                      * @default false
                      */
-                    autoShare?: boolean;
-                };
-            };
+          autoShare?: boolean;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["resourceIdResponse"];
-                };
-            };
-            /** @description accepted operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationBase"];
-                };
-            };
-        };
+      };
     };
-    patchAssetProfile: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of the asset profile */
-                id: components["schemas"]["assetId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The asset metadata */
-                    metadata?: {
-                        [key: string]: unknown;
-                    } | null;
-                    /**
+        content: {
+          'application/json': components['schemas']['resourceIdResponse'];
+        };
+      };
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
+    };
+  };
+  patchAssetProfile: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of the asset profile */
+        id: components['schemas']['assetId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description The asset metadata */
+          metadata?: {
+            [key: string]: unknown;
+          } | null;
+          /**
                      * @deprecated
                      * @description The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
                      */
-                    config?: string | null;
-                    /** @description A list of regulation verifiers to execute to validate a transaction */
-                    verifiers?: components["schemas"]["assetVerifier"][] | null;
-                    name?: components["schemas"]["nameOpt"];
-                    symbol?: components["schemas"]["symbolOpt"];
-                    assetPolicies?: components["schemas"]["assetPoliciesOpt"];
-                    /** @description Flag to indicate if default policy fallback is allowed when no matching policy is found */
-                    allowPolicyDefaultFallback?: boolean | null;
-                    /** @description Flag to indicate if the asset should be automatically shared with known organizations. */
-                    autoShare?: boolean | null;
-                };
-            };
+          config?: string | null;
+          /** @description A list of regulation verifiers to execute to validate a transaction */
+          verifiers?: components['schemas']['assetVerifier'][] | null;
+          name?: components['schemas']['nameOpt'];
+          symbol?: components['schemas']['symbolOpt'];
+          assetPolicies?: components['schemas']['assetPoliciesOpt'];
+          /** @description Flag to indicate if default policy fallback is allowed when no matching policy is found */
+          allowPolicyDefaultFallback?: boolean | null;
+          /** @description Flag to indicate if the asset should be automatically shared with known organizations. */
+          autoShare?: boolean | null;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["resourceIdResponse"];
-                };
-            };
-            /** @description accepted operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationBase"];
-                };
-            };
-        };
+      };
     };
-    addAssetProfileIntent: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of the asset profile */
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
+        content: {
+          'application/json': components['schemas']['resourceIdResponse'];
+        };
+      };
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
+    };
+  };
+  addAssetProfileIntent: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of the asset profile */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /**
                      * Format: int64
                      * @description start time for intent, in epoch (seconds)
                      */
-                    start: number;
-                    /**
+          start: number;
+          /**
                      * Format: int64
                      * @description end time for intent, in epoch (seconds)
                      */
-                    end: number;
-                    intent: components["schemas"]["intent"];
-                    /** @description unique identifier for the intent, will default to generated UUID if not provided */
-                    intentId?: string;
-                };
-            };
+          end: number;
+          intent: components['schemas']['intent'];
+          /** @description unique identifier for the intent, will default to generated UUID if not provided */
+          intentId?: string;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["idResponse"];
-                };
-            };
-        };
+      };
     };
-    updateAssetProfileIntent: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of the asset profile */
-                id: components["schemas"]["assetId"];
-                /** @description ID of the intent */
-                intentId: components["schemas"]["intentId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
+        content: {
+          'application/json': components['schemas']['idResponse'];
+        };
+      };
+    };
+  };
+  updateAssetProfileIntent: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of the asset profile */
+        id: components['schemas']['assetId'];
+        /** @description ID of the intent */
+        intentId: components['schemas']['intentId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /**
                      * Format: int64
                      * @description start time for intent, in epoch (seconds)
                      */
-                    start?: number;
-                    /**
+          start?: number;
+          /**
                      * Format: int64
                      * @description end time for intent, in epoch (seconds)
                      */
-                    end?: number;
-                    intent?: components["schemas"]["updateIntent"];
-                    /**
+          end?: number;
+          intent?: components['schemas']['updateIntent'];
+          /**
                      * @description To change the status of the intent
                      * @enum {string}
                      */
-                    status?: "Rejected";
-                };
-            };
+          status?: 'Rejected';
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+      };
     };
-    enableAssetProfileIntent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the asset profile */
-                id: components["schemas"]["assetId"];
-                /** @description ID of the intent */
-                intentId: components["schemas"]["intentId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+        content?: never;
+      };
     };
-    disableAssetProfileIntent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the asset profile */
-                id: components["schemas"]["assetId"];
-                /** @description ID of the intent */
-                intentId: components["schemas"]["intentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  enableAssetProfileIntent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset profile */
+        id: components['schemas']['assetId'];
+        /** @description ID of the intent */
+        intentId: components['schemas']['intentId'];
+      };
+      cookie?: never;
     };
-    shareProfile: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of the asset profile */
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Collections of organizations ids to share the profile with */
-                    organizations: components["schemas"]["orgId"][];
-                };
-            };
-        };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+        content?: never;
+      };
     };
-    enableAssetAllowedIntents: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the asset profile */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    intentTypes: components["schemas"]["intentTypes"];
-                };
-            };
-        };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  disableAssetProfileIntent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset profile */
+        id: components['schemas']['assetId'];
+        /** @description ID of the intent */
+        intentId: components['schemas']['intentId'];
+      };
+      cookie?: never;
     };
-    disableAssetAllowedIntents: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID of the asset profile */
-                id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    intentTypes: components["schemas"]["intentTypes"];
-                };
-            };
-        };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+        content?: never;
+      };
     };
-    createCertificate: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of The profile that holds the certificate */
-                profileId: components["schemas"]["profileId"];
-            };
-            cookie?: never;
+  };
+  shareProfile: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of the asset profile */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description Collections of organizations ids to share the profile with */
+          organizations: components['schemas']['orgId'][];
         };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    /** @description The type of the Certificate */
-                    type: string;
-                    /**
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  enableAssetAllowedIntents: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset profile */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          intentTypes: components['schemas']['intentTypes'];
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  disableAssetAllowedIntents: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset profile */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          intentTypes: components['schemas']['intentTypes'];
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createCertificate: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of The profile that holds the certificate */
+        profileId: components['schemas']['profileId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description The type of the Certificate */
+          type: string;
+          /**
                      * Format: int64
                      * @description The issuance date of the Certificate in epoch time seconds
                      */
-                    issuanceDate: number;
-                    /**
+          issuanceDate: number;
+          /**
                      * Format: int64
                      * @description The expiration date of the Certificate in epoch time seconds
                      */
-                    expirationDate: number;
-                    /** @description Serialized data objects that contain one or more properties that are each related to the subject of the Certificate */
-                    data: string;
-                };
-            };
+          expirationDate: number;
+          /** @description Serialized data objects that contain one or more properties that are each related to the subject of the Certificate */
+          data: string;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["certificateIdResponse"];
-                };
-            };
-        };
+      };
     };
-    updateCertificate: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of The profile that holds the certificate */
-                profileId: components["schemas"]["profileId"];
-                /** @description ID of a Certificate to update */
-                certificateId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
+        content: {
+          'application/json': components['schemas']['certificateIdResponse'];
+        };
+      };
+    };
+  };
+  updateCertificate: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of The profile that holds the certificate */
+        profileId: components['schemas']['profileId'];
+        /** @description ID of a Certificate to update */
+        certificateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /**
                      * Format: int64
                      * @description The issuance date of the Certificate in epoch time seconds
                      */
-                    issuanceDate: number;
-                    /**
+          issuanceDate: number;
+          /**
                      * Format: int64
                      * @description The expiration date of the Certificate in epoch time seconds
                      */
-                    expirationDate: number;
-                    /** @description Serilized data objects that contain one or more properties that are each related to the subject of the Certificate */
-                    data: string;
-                };
-            };
+          expirationDate: number;
+          /** @description Serilized data objects that contain one or more properties that are each related to the subject of the Certificate */
+          data: string;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Invalid Input */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-            /** @description Gateway Timeout */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["APIErrors"];
-                };
-            };
-        };
+      };
     };
-    patchCertificate: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of The profile that holds the certificate */
-                profileId: components["schemas"]["profileId"];
-                /** @description ID of a Certificate to update */
-                certificateId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The issuance date of the Certificate in epoch time seconds */
-                    issuanceDate?: number;
-                    /** @description The expiration date of the Certificate in epoch time seconds */
-                    expirationDate?: number;
-                    /** @description Serilized data objects that contain one or more properties that are each related to the subject of the Certificate */
-                    data?: string;
-                };
-            };
+        content?: never;
+      };
+      /** @description Invalid Input */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
         };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Bad Gateway */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Gateway Timeout */
+      504: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
     };
-    addCertificateDoc: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description ID of The profile that holds the certificate */
-                profileId: components["schemas"]["ownerId"];
-                /** @description ID of The certificate that will hold the doc */
-                certificateId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "multipart/form-data": {
-                    /** @description the documents in binary format */
-                    files: string[];
-                };
-            };
-        };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["documentsList"];
-                };
-            };
-        };
+  };
+  patchCertificate: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of The profile that holds the certificate */
+        profileId: components['schemas']['profileId'];
+        /** @description ID of a Certificate to update */
+        certificateId: string;
+      };
+      cookie?: never;
     };
-    getDoc: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Document URI */
-                uri: string;
-            };
-            cookie?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description The issuance date of the Certificate in epoch time seconds */
+          issuanceDate?: number;
+          /** @description The expiration date of the Certificate in epoch time seconds */
+          expirationDate?: number;
+          /** @description Serilized data objects that contain one or more properties that are each related to the subject of the Certificate */
+          data?: string;
         };
-        requestBody?: never;
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": string;
-                };
-            };
-        };
+      };
     };
-    updateCertificateDoc: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path: {
-                /** @description Document ID */
-                docId: string;
-                /** @description ID of The profile that holds the certificate */
-                profileId: string;
-                /** @description ID of The certificate that holds the doc */
-                certificateId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: {
-            content: {
-                "multipart/form-data": {
-                    /**
+        content?: never;
+      };
+    };
+  };
+  addCertificateDoc: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of The profile that holds the certificate */
+        profileId: components['schemas']['ownerId'];
+        /** @description ID of The certificate that will hold the doc */
+        certificateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'multipart/form-data': {
+          /** @description the documents in binary format */
+          files: string[];
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['documentsList'];
+        };
+      };
+    };
+  };
+  getDoc: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Document URI */
+        uri: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': string;
+        };
+      };
+    };
+  };
+  updateCertificateDoc: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description Document ID */
+        docId: string;
+        /** @description ID of The profile that holds the certificate */
+        profileId: string;
+        /** @description ID of The certificate that holds the doc */
+        certificateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'multipart/form-data': {
+          /**
                      * Format: binary
                      * @description the document in binary format
                      */
-                    file: string;
-                };
-            };
+          file: string;
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+      };
     };
-    ExecuteToken: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    user: components["schemas"]["ownerId"];
-                    intentId: components["schemas"]["intentId"];
-                    intent: components["schemas"]["intentExecution"];
-                    /** @description unique identifier for the execution, will default to generated UUID if not provided */
-                    executionId?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description operation information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["executionOperationResult"];
-                };
-            };
-        };
+        content?: never;
+      };
     };
-    CancelExecuteToken: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    executionPlanId: components["schemas"]["executionPlanId"];
-                };
-            };
-        };
-        responses: {
-            /** @description operation information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["executionCancellationOperationResult"];
-                };
-            };
-            /** @description accepted operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationBase"];
-                };
-            };
-        };
+  };
+  ExecuteToken: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
     };
-    transferToken: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          user: components['schemas']['ownerId'];
+          intentId: components['schemas']['intentId'];
+          intent: components['schemas']['intentExecution'];
+          /** @description unique identifier for the execution, will default to generated UUID if not provided */
+          executionId?: string;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    nonce: components["schemas"]["nonce"];
-                    source: components["schemas"]["ownerId"];
-                    destination: components["schemas"]["ownerId"];
-                    asset: {
-                        term: components["schemas"]["assetTerm"];
-                        instruction: components["schemas"]["sourceDestinationAccountAssetInstruction"];
-                    };
-                };
-            };
-        };
-        responses: {
-            /** @description operation information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["executionOperationResult"];
-                };
-            };
-        };
+      };
     };
-    GetAssetBalance: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description operation information */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    asset: components["schemas"]["assetId"];
-                    /** @description owner hex representation of a secp256k1 public key 33 bytes compressed */
-                    sourcePublicKey: string;
-                };
-            };
+        content: {
+          'application/json': components['schemas']['executionOperationResult'];
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["balanceInformation"];
-                };
-            };
-        };
+      };
     };
-    createDepositRequest: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    profileId: components["schemas"]["ownerId"];
-                    account: components["schemas"]["depositAccount"];
-                    amount: components["schemas"]["amount"];
-                    /** @description Any addition deposit specific information */
-                    details?: Record<string, never>;
-                    nonce?: components["schemas"]["nonce"];
-                    signaturePolicy?: components["schemas"]["depositSignaturePolicy"];
-                };
-            };
-        };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["depositInstruction"];
-                };
-            };
-            /** @description accepted operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationBase"];
-                };
-            };
-        };
+  };
+  CancelExecuteToken: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
     };
-    resetExecutionPlan: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
+    requestBody?: {
+      content: {
+        'application/json': {
+          executionPlanId: components['schemas']['executionPlanId'];
         };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    executionPlanId: components["schemas"]["executionPlanId"];
-                    /**
+      };
+    };
+    responses: {
+      /** @description operation information */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['executionCancellationOperationResult'];
+        };
+      };
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
+    };
+  };
+  transferToken: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          nonce: components['schemas']['nonce'];
+          source: components['schemas']['ownerId'];
+          destination: components['schemas']['ownerId'];
+          asset: {
+            term: components['schemas']['assetTerm'];
+            instruction: components['schemas']['sourceDestinationAccountAssetInstruction'];
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description operation information */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['executionOperationResult'];
+        };
+      };
+    };
+  };
+  GetAssetBalance: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          asset: components['schemas']['assetId'];
+          /** @description owner hex representation of a secp256k1 public key 33 bytes compressed */
+          sourcePublicKey: string;
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['balanceInformation'];
+        };
+      };
+    };
+  };
+  createDepositRequest: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          profileId: components['schemas']['ownerId'];
+          account: components['schemas']['depositAccount'];
+          amount: components['schemas']['amount'];
+          /** @description Any addition deposit specific information */
+          details?: Record<string, never>;
+          nonce?: components['schemas']['nonce'];
+          signaturePolicy?: components['schemas']['depositSignaturePolicy'];
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['depositInstruction'];
+        };
+      };
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
+    };
+  };
+  resetExecutionPlan: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          executionPlanId: components['schemas']['executionPlanId'];
+          /**
                      * Format: uint32
                      * @description sequence number of the instruction to reset to and retry the execution plan from
                      */
-                    targetSequence: number;
-                    /**
+          targetSequence: number;
+          /**
                      * Format: uint32
                      * @description sequence number of the instruction from which the reset of execution plan should be launched
                      */
-                    fromSequence: number;
-                };
-            };
+          fromSequence: number;
         };
-        responses: {
-            /** @description operation information */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["executionCancellationOperationResult"];
-                };
-            };
-            /** @description accepted operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationBase"];
-                };
-            };
-        };
+      };
     };
-    createWithdrawRequest: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description operation information */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    profileId: components["schemas"]["ownerId"];
-                    account: components["schemas"]["withdrawAccount"];
-                    amount: components["schemas"]["amount"];
-                    withdrawInstruction?: components["schemas"]["withdrawInstruction"];
-                    nonce?: components["schemas"]["nonce"];
-                    signaturePolicy?: components["schemas"]["withdrawSignaturePolicy"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['executionCancellationOperationResult'];
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["receipt"];
-                };
-            };
-            /** @description accepted operation */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationBase"];
-                };
-            };
+      };
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
     };
-    getOperation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description correlation id of an operation */
-                cid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description operation response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["operationResponse"];
-                };
-            };
-        };
+  };
+  createWithdrawRequest: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
     };
-    getAttachment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Attachment UUID */
-                uuid: string;
-            };
-            cookie?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          profileId: components['schemas']['ownerId'];
+          account: components['schemas']['withdrawAccount'];
+          amount: components['schemas']['amount'];
+          withdrawInstruction?: components['schemas']['withdrawInstruction'];
+          nonce?: components['schemas']['nonce'];
+          signaturePolicy?: components['schemas']['withdrawSignaturePolicy'];
         };
-        requestBody?: never;
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": string;
-                };
-            };
-        };
+      };
     };
-    sendMessage: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: components["schemas"]["nonce"];
-            };
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /** @description message subject or title */
-                    subject: string;
-                    /** @description message body */
-                    body: string;
-                    correspondent: components["schemas"]["correspondent"];
-                    /** @description Collections of owners ids to send the message to */
-                    recipients: components["schemas"]["ownerId"][];
-                    /** @description Collection optional attachments */
-                    attachments?: {
-                        filename?: string[];
-                    };
-                };
-            };
+        content: {
+          'application/json': components['schemas']['receipt'];
         };
-        responses: {
-            /** @description successful operation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["messageResponse"];
-                };
-            };
+      };
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
     };
-    balance: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AccountBalanceSyncRequest"];
-            };
-        };
-        responses: {
-            /** @description sync request received, sync in progress */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  getOperation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description correlation id of an operation */
+        cid: string;
+      };
+      cookie?: never;
     };
-    getHealth: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description operation response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Service is healthy */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example ok */
-                        status?: string;
-                    };
-                };
-            };
-            /** @description Service is unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example unavailable */
-                        status?: string;
-                    };
-                };
-            };
+        content: {
+          'application/json': components['schemas']['operationResponse'];
         };
+      };
     };
+  };
+  getAttachment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Attachment UUID */
+        uuid: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          '*/*': string;
+        };
+      };
+    };
+  };
+  sendMessage: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** @description message subject or title */
+          subject: string;
+          /** @description message body */
+          body: string;
+          correspondent: components['schemas']['correspondent'];
+          /** @description Collections of owners ids to send the message to */
+          recipients: components['schemas']['ownerId'][];
+          /** @description Collection optional attachments */
+          attachments?: {
+            filename?: string[];
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['messageResponse'];
+        };
+      };
+    };
+  };
+  balance: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AccountBalanceSyncRequest'];
+      };
+    };
+    responses: {
+      /** @description sync request received, sync in progress */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getHealth: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Service is healthy */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @example ok */
+            status?: string;
+          };
+        };
+      };
+      /** @description Service is unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @example unavailable */
+            status?: string;
+          };
+        };
+      };
+    };
+  };
 }
