@@ -34,6 +34,13 @@ export const assetToAPI = (asset: Asset): components['schemas']['asset'] => {
   return { resourceId: asset.assetId };
 };
 
+export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['depositAsset'] => {
+  if (asset.assetType === 'custom') {
+    return { type: 'custom' };
+  }
+  return { type: 'finp2p', resourceId: asset.assetId };
+};
+
 type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
 
 export const sourceFromAPI = (source: AccountLike): Source => {
@@ -542,8 +549,9 @@ export const paymentMethodToAPI = (method: PaymentMethod): components['schemas']
 };
 
 export const depositInstructionToAPI = (instruction: DepositInstruction): components['schemas']['depositInstruction'] => {
-  const { account, description, operationId, details, paymentOptions } = instruction;
+  const { asset, account, description, operationId, details, paymentOptions } = instruction;
   return {
+    asset: depositAssetToAPI(asset),
     account: depositPayoutAccountToAPI(account),
     description,
     paymentOptions: paymentOptions ? paymentOptions.map(paymentMethodToAPI) : [],
