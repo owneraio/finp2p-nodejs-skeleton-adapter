@@ -457,6 +457,7 @@ export type PaymentMethod = {
 };
 
 export type DepositInstruction = {
+  asset: DepositAsset
   account: Destination
   description: string
   paymentOptions: PaymentMethod[]
