@@ -55,10 +55,10 @@ const legFromSourceDestinationExecuteAsset = (order: OpComponents['schemas']['so
   }
   const { amount } = term;
   const { sourceAccount, destinationAccount } = instruction;
-  const srcAccount = sourceAccount.finp2pAccount.account;
-  const dstAccount = destinationAccount.finp2pAccount.account;
-  const srcAsset = assetFromFinp2pAsset(sourceAccount.finp2pAccount.asset);
-  const dstAsset = assetFromFinp2pAsset(destinationAccount.finp2pAccount.asset);
+  const srcAccount = sourceAccount.account;
+  const dstAccount = destinationAccount.account;
+  const srcAsset = assetFromFinp2pAsset(sourceAccount.asset);
+  const dstAsset = assetFromFinp2pAsset(destinationAccount.asset);
   return {
     asset: srcAsset,
     amount,
@@ -78,13 +78,13 @@ const legFromLoanExecuteAsset = (order: OpComponents['schemas']['loanExecuteAsse
   const { assetTerm, assetInstruction } = order;
   const { amount } = assetTerm;
   const { borrowerAccount, lenderAccount } = assetInstruction;
-  const srcAsset = assetFromFinp2pAsset(borrowerAccount.finp2pAccount.asset);
-  const dstAsset = assetFromFinp2pAsset(lenderAccount.finp2pAccount.asset);
+  const srcAsset = assetFromFinp2pAsset(borrowerAccount.asset);
+  const dstAsset = assetFromFinp2pAsset(lenderAccount.asset);
   return {
     asset: srcAsset,
     amount,
-    source: { account: accountFromAPI(borrowerAccount.finp2pAccount.account), asset: srcAsset },
-    destination: { account: accountFromAPI(lenderAccount.finp2pAccount.account), asset: dstAsset },
+    source: { account: accountFromAPI(borrowerAccount.account), asset: srcAsset },
+    destination: { account: accountFromAPI(lenderAccount.account), asset: dstAsset },
   };
 };
 
