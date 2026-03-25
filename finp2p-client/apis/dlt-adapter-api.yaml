@@ -851,7 +851,7 @@ components:
                $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
         - $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
     payoutAsset:
-      $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
+      $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
     payoutInstruction:
       type: object
       required:

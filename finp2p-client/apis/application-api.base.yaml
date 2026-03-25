@@ -477,6 +477,12 @@ paths:
                   items:
                     $ref: 'common-external-components.yaml#/components/schemas/orgId'
                   description: 'Collections of organizations ids to share the profile with'
+                dataAccess:
+                  type: 'array'
+                  items:
+                    $ref: '#/components/schemas/dataAccess'
+                  description: 'data information the profile owner allows to be shared with the organizations'
+                  x-go-type-skip-optional-pointer: true
         required: true
       responses:
         '200':
@@ -1577,7 +1583,7 @@ components:
         buyer:
           $ref: 'common-external-components.yaml#/components/schemas/ownerId'
         asset:
-          $ref: 'common-external-components.yaml#/components/schemas/buyingAsset'
+          $ref: 'common-external-components.yaml#/components/schemas/issuingAsset'
         settlement:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
 
@@ -2736,3 +2742,18 @@ components:
         mimeType:
           type: string
           description: The file mimeType
+
+    dataAccess:
+      type: object
+      required: [ accessType, status ]
+      properties:
+        accessType:
+          type: 'string'
+          enum: [ balance ]
+          description: |
+            Type of data access granted to shared organizations.
+            balance - grants receipt forwarding for balance synchronization.
+        status:
+          type: 'string'
+          enum: [ active, inactive ]
+          description: Status of the data access permission.

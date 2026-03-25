@@ -2141,16 +2141,16 @@ export interface components {
       networkAccount?: components['schemas']['networkAccount'];
     };
     sourceDestinationAccountLedgerAssetInstruction: {
-      sourceAccount: components['schemas']['ledgerAccountAsset'];
-      destinationAccount: components['schemas']['ledgerAccountAsset'];
+      sourceAccount: components['schemas']['finp2pAssetAccount'];
+      destinationAccount: components['schemas']['finp2pAssetAccount'];
     };
     sourceDestinationExecuteAsset: {
       term?: components['schemas']['assetTerm'];
       instruction?: components['schemas']['sourceDestinationAccountLedgerAssetInstruction'];
     };
     BorrowerLenderAccountLedgerAssetInstruction: {
-      borrowerAccount: components['schemas']['ledgerAccountAsset'];
-      lenderAccount: components['schemas']['ledgerAccountAsset'];
+      borrowerAccount: components['schemas']['finp2pAssetAccount'];
+      lenderAccount: components['schemas']['finp2pAssetAccount'];
     };
     loanExecuteAsset: {
       assetTerm: components['schemas']['assetTerm'];

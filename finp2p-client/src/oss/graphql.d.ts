@@ -107,6 +107,8 @@ export type Asset = Profile & {
   /** Profile metadata, contains ACL information of the profile. */
   metadata: ProfileMetadata;
   name: Scalars['String']['output'];
+  /** omnibus account for the asset, if applicable */
+  orgSettlementAccount?: Maybe<NetworkAccount>;
   /** Organization id to whom this profile is associated with. */
   organizationId: Scalars['String']['output'];
   /** Describe the policies active on the asset */
@@ -333,6 +335,40 @@ export type Custodian = {
   __typename?: 'Custodian';
   orgId: Scalars['String']['output'];
 };
+
+export type CustodyProvider = {
+  __typename?: 'CustodyProvider';
+  backoff: Scalars['String']['output'];
+  displayName?: Maybe<Scalars['String']['output']>;
+  endpoint: Scalars['String']['output'];
+  idempotency?: Maybe<LedgerIdempotencyOptions>;
+  name: Scalars['String']['output'];
+  requestTimeout: Scalars['String']['output'];
+  singleRequestTimeout: Scalars['String']['output'];
+};
+
+export type CustodyProviders = {
+  __typename?: 'CustodyProviders';
+  /** Collection of Custody Provider Objects, conforms to the Filter input if provided. */
+  nodes?: Maybe<Array<CustodyProvider>>;
+  /** Keeps pagination info in-case limit input was provided */
+  pageInfo?: Maybe<PageInfo>;
+};
+
+export type DataAccess = {
+  __typename?: 'DataAccess';
+  /** data access type */
+  accessType: DataAccessType;
+  /** status of the shared resource data access */
+  status: Scalars['String']['output'];
+  /** organization id the resource shared with */
+  targetOrgId: Scalars['String']['output'];
+};
+
+export enum DataAccessType {
+  Balance = 'Balance',
+  Unknown = 'Unknown',
+}
 
 export type Delivered = {
   __typename?: 'Delivered';
@@ -746,6 +782,8 @@ export type IssueInstruction = {
   amount: Scalars['String']['output'];
   /** destination account for issuance */
   destination: LedgerAccountAsset;
+  /** source for issuance */
+  source?: Maybe<LedgerAccountAsset>;
 };
 
 /** Represents an Issuer in the network. */
@@ -1274,6 +1312,8 @@ export type ProfileCertificatesArgs = {
 export type ProfileMetadata = {
   __typename?: 'ProfileMetadata';
   acl?: Maybe<Array<Scalars['String']['output']>>;
+  /** Shared resources data access given to which org */
+  dataAccess?: Maybe<Array<DataAccess>>;
 };
 
 export type Proof = NoProof | SignatureProof;
@@ -1288,6 +1328,7 @@ export type Query = {
   assets: Assets;
   /** Look up Certificates, Optional provide Filter or Aggregate. */
   certificates: Certificates;
+  custodyProviders: CustodyProviders;
   /** Look up Issuers, Optional provide Filter. */
   issuers: Issuers;
   ledgers: LedgerBindings;
@@ -1323,6 +1364,13 @@ export type QueryAssetsArgs = {
 /** The query root of Ownera's GraphQL interface. */
 export type QueryCertificatesArgs = {
   aggregate?: InputMaybe<Array<Aggregate>>;
+  filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryCustodyProvidersArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
 };
@@ -1382,8 +1430,10 @@ export type QueryWorkflowsArgs = {
 
 export type Receipt = {
   __typename?: 'Receipt';
-  /** Destination of transaction */
-  destination: LedgerAccountAsset;
+  /** Destination owner resource ID */
+  destination?: Maybe<Scalars['String']['output']>;
+  /** Destination account of transaction */
+  destinationAccount?: Maybe<LedgerAccountAsset>;
   id: Scalars['String']['output'];
   /** Operation id */
   operationId?: Maybe<Scalars['String']['output']>;
@@ -1393,8 +1443,10 @@ export type Receipt = {
   proof?: Maybe<Proof>;
   /** Number of asset units with the transaction */
   quantity: Scalars['String']['output'];
-  /** Source of transaction */
-  source: LedgerAccountAsset;
+  /** Source owner resource ID */
+  source?: Maybe<Scalars['String']['output']>;
+  /** Source account of transaction */
+  sourceAccount?: Maybe<LedgerAccountAsset>;
   /** Receipt status */
   status: ReceiptStatus;
   /** Receipt timestamp */
@@ -1718,6 +1770,8 @@ export type User = Profile & {
   accounts?: Maybe<Array<FinP2PAccount>>;
   /** Collection of certificates associated with the Profile. */
   certificates: Certificates;
+  /** Data access permissions this resource has received from other organizations */
+  dataAccessReceived?: Maybe<Array<Maybe<Scalars['String']['output']>>>;
   /** finIds keys associated with this investor */
   finIds?: Maybe<Array<Scalars['String']['output']>>;
   holdings: Holdings;
