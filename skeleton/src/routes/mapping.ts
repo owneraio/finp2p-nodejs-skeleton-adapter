@@ -31,7 +31,7 @@ export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']
 };
 
 export const assetToAPI = (asset: Asset): components['schemas']['asset'] => {
-  return { resourceId: asset.assetId };
+  return { resourceId: asset.assetId, ledgerIdentifier: asset.ledgerIdentifier };
 };
 
 export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['depositAsset'] => {
