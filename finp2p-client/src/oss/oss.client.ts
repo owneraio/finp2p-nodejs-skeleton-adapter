@@ -12,6 +12,22 @@ import RECEIPTS from './graphql/receipts.graphql';
 import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssEscrowNodes, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssReceipt, OssReceiptNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
+/**
+ * Extract investor display name from owner profile.
+ * Checks user.name first, then falls back to individual_info certificate data.
+ */
+export const getOwnerDisplayName = (owner: { name?: string, certificates?: { nodes: { type: string, data: string }[] } }): string => {
+  if (owner.name) return owner.name;
+  const cert = owner.certificates?.nodes?.find(c => c.type === 'individual_info');
+  if (cert) {
+    try {
+      const data = JSON.parse(cert.data);
+      if (data.name) return data.name;
+    } catch { /* ignore */ }
+  }
+  return '';
+};
+
 export class OssClient {
 
   ossUrl: string;
@@ -21,6 +37,14 @@ export class OssClient {
   constructor(ossUrl: string, authTokenResolver: (() => string) | undefined = undefined) {
     this.ossUrl = ossUrl;
     this.authTokenResolver = authTokenResolver;
+  }
+
+  async getOwners(includeCerts: boolean = true, includeHoldings: boolean = false) {
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
+      includeCerts,
+      includeHoldings,
+    });
+    return resp.users.nodes;
   }
 
   async getOwnerBalances(assetId: string) {

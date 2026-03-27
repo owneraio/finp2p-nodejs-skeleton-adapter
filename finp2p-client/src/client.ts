@@ -206,6 +206,10 @@ export class FinP2PClient {
     return this.ossClient.getOrganization(orgId);
   }
 
+  async getOwners(includeCerts: boolean = true, includeHoldings: boolean = false) {
+    return this.ossClient.getOwners(includeCerts, includeHoldings);
+  }
+
   async getOwnerBalances(assetId: string) {
     return this.ossClient.getOwnerBalances(assetId);
   }
