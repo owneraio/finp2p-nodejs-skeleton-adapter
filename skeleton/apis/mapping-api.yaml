@@ -105,14 +105,11 @@ components:
 
     accountMappings:
       type: object
-      required:
-        - ledgerAccountId
-      properties:
-        ledgerAccountId:
-          type: string
-          description: >-
-            Ledger-specific account identifier for the holder
-            (e.g. Canton party ID "auth0_00abc123::1220def456...")
+      additionalProperties:
+        type: string
+      description: >-
+        Key-value pairs of adapter-specific account identifiers
+        (e.g. ledgerAccountId, custodyAccountId)
 
     ownerMapping:
       type: object
