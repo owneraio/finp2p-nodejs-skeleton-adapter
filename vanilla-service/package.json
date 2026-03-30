@@ -20,7 +20,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.27.8",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.27.9",
     "bs58": "^6.0.0",
     "pg": "^8.15.6",
     "winston": "^3.18.3"
