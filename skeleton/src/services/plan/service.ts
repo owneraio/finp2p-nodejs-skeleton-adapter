@@ -4,7 +4,7 @@ import {
   FinIdAccount, generateCid, InstructionResult, pendingPlan,
   PlanApprovalService, PlanProposal, InboundTransferHook,
   PlanApprovalStatus, rejectedPlan,
-} from '@owneraio/finp2p-adapter-models';
+} from '../../models';
 import { FinP2PClient, OpComponents } from '@owneraio/finp2p-client';
 import { executionFromAPI } from './mapper';
 import { PluginManager } from '../../plugins';

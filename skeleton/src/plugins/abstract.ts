@@ -1,5 +1,5 @@
 import { FinP2PClient } from '@owneraio/finp2p-client';
-import { LedgerCallbackService, OperationStatus, PluginError, Logger } from '@owneraio/finp2p-adapter-models';
+import { LedgerCallbackService, OperationStatus, PluginError, Logger } from '../models';
 import { operationToFinAPI } from './mappers';
 
 

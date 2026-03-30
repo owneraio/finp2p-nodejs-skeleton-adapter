@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { BusinessError } from '@owneraio/finp2p-adapter-models';
+import { BusinessError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { randomBytes } from 'node:crypto';
 import bs58 from 'bs58';
 

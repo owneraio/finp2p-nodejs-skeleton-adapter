@@ -58,7 +58,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
   const planApprovalService = new PlanApprovalServiceImpl(orgId, pluginManager, finP2PClient);
 
   routes.register(
-    app,
+    app as any,
     tokenService,
     escrowService,
     tokenService,
