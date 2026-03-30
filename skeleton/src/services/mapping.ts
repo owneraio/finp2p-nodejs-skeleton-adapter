@@ -1,4 +1,4 @@
-import { MappingService, OwnerMapping } from '@owneraio/finp2p-adapter-models';
+import { MappingService, OwnerMapping } from '../models';
 import {
   getAccountMappings,
   saveAccountMapping,

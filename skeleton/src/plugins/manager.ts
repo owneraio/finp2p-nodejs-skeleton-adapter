@@ -7,7 +7,7 @@ import {
   PlanApprovalPlugin,
   TransactionHook,
   Plugin,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 
 
 export class PluginManager {

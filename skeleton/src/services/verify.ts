@@ -1,4 +1,4 @@
-import { Signature } from '@owneraio/finp2p-adapter-models';
+import { Signature } from '../models';
 import { logger, hashEIP712, verifyEIP712, verifySecp } from '../helpers';
 
 

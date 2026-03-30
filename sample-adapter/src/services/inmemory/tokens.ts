@@ -8,7 +8,7 @@ import {
   TokenService,
   Asset, ExecutionContext,
   Signature,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';

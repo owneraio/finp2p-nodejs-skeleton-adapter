@@ -15,7 +15,7 @@ import {
   failedDepositOperation,
   OperationResponseStrategy,
   OperationMetadata,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 import { Operation as StorageOperation, Storage, generateCid } from './storage';
 import { operationStatusToAPI } from '../routes/mapping';
 import { ProxyConfig } from './config';

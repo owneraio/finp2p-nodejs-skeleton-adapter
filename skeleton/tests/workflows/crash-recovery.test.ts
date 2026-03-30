@@ -1,7 +1,7 @@
 import {
   OperationStatus,
   successfulReceiptOperation,
-} from "@owneraio/finp2p-adapter-models";
+} from "../../src/models";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 import {
   createServiceProxy,

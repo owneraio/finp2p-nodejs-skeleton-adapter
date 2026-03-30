@@ -5,7 +5,7 @@ import {
   EIP712ReceiptMessage,
   eip712TradeDetails,
   eip712TransactionDetails,
-} from '@owneraio/finp2p-adapter-models';
+} from '../../models';
 
 
 export const receiptToEIP712Message = (receipt: Receipt): EIP712ReceiptMessage => {

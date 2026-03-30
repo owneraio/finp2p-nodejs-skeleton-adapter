@@ -3,7 +3,7 @@ import winston from 'winston';
 import { Pool } from 'pg';
 import {
   CommonService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { AssetDelegate, DistributionService, EscrowDelegate, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { VanillaServiceImpl } from './service';
