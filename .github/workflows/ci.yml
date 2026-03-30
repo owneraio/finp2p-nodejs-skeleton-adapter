@@ -33,18 +33,6 @@ jobs:
 
         # ----------------------------------
 
-      - name: adapter-tests install dependencies
-        working-directory: ./adapter-tests
-        run: npm clean-install
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: adapter-tests build
-        working-directory: ./adapter-tests
-        run: npm run build
-
-        # ----------------------------------
-
       - name: skeleton install dependencies
         working-directory: ./skeleton
         run: npm ci
@@ -67,11 +55,31 @@ jobs:
 
         # ----------------------------------
 
-      - name: vanilla-service install dependencies
-        working-directory: ./vanilla-service
-        run: npm ci
+      - name: adapter-tests install dependencies
+        working-directory: ./adapter-tests
+        run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: adapter-tests link local skeleton
+        working-directory: ./adapter-tests
+        run: npm install ../skeleton
+
+      - name: adapter-tests build
+        working-directory: ./adapter-tests
+        run: npm run build
+
+        # ----------------------------------
+
+      - name: vanilla-service install dependencies
+        working-directory: ./vanilla-service
+        run: npm install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: vanilla-service link local skeleton
+        working-directory: ./vanilla-service
+        run: npm install ../skeleton
 
       - name: vanilla-service build
         working-directory: ./vanilla-service
@@ -85,9 +93,13 @@ jobs:
 
       - name: sample-adapter install dependencies
         working-directory: ./sample-adapter
-        run: npm ci
+        run: npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: sample-adapter link local skeleton and adapter-tests
+        working-directory: ./sample-adapter
+        run: npm install ../skeleton ../adapter-tests
 
       - name: sample-adapter build
         working-directory: ./sample-adapter
