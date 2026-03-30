@@ -140,7 +140,7 @@ export class TestFixtures {
         settlementRef: generateId(),
       });
 
-      const setBalanceStatus = await TestHelpers.executeAndWaitForCompletion(this.client, () => this.client.tokens.issue(issueRequest));
+      await TestHelpers.executeAndWaitForReceipt(this.client, () => this.client.tokens.issue(issueRequest));
     }
 
     // Verify balance
