@@ -537,6 +537,6 @@ export type Receipt = {
 
 export type OwnerMapping = {
   finId: string;
-  account: string;
+  fields: Record<string, string>;
 };
 

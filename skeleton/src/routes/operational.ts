@@ -1,5 +1,5 @@
 import { Application } from 'express';
-import { MappingService, OwnerMapping } from '../models';
+import { MappingService, MappingValidator, OwnerMapping, ValidationError } from '../models';
 import { logger } from '../helpers';
 import { components as MappingAPI } from './mapping-api-gen';
 
@@ -8,25 +8,28 @@ type CreateOwnerMappingRequest = MappingAPI['schemas']['createOwnerMappingReques
 type CreateOwnerMappingResponse = MappingAPI['schemas']['createOwnerMappingResponse'];
 type AccountMappingField = MappingAPI['schemas']['accountMappingField'];
 
+const FIN_ID_HEX_PATTERN = /^[0-9a-fA-F]+$/;
+
 /**
  * Hook called after an owner mapping is saved to the database.
  * Adapters can use this for ledger-specific provisioning (e.g., on-ledger credentials).
  * Return value is merged into the response (e.g. credentialCid, credentialStatus).
  */
 export interface MappingProvisionHook {
-  afterSave(finId: string, ledgerAccountId: string, status: string): Promise<Partial<CreateOwnerMappingResponse>>;
+  afterSave(finId: string, accountMappings: Record<string, string>, status: string): Promise<Partial<CreateOwnerMappingResponse>>;
 }
 
 export interface MappingConfig {
   fields: AccountMappingField[];
   provisionHook?: MappingProvisionHook;
+  validator?: MappingValidator;
 }
 
 function toAPIMappingResponse(m: OwnerMapping): APIMappingResponse {
   return {
     finId: m.finId,
     status: 'active',
-    accountMappings: { ledgerAccountId: m.account },
+    accountMappings: m.fields,
   };
 }
 
@@ -47,12 +50,16 @@ export function registerMappingRoutes(
       const body: CreateOwnerMappingRequest = req.body;
       const { finId, accountMappings, status } = body;
 
-      if (!finId || !accountMappings?.ledgerAccountId) {
-        res.status(400).json({ error: 'finId and accountMappings.ledgerAccountId are required' });
+      if (!finId || !accountMappings || Object.keys(accountMappings).length === 0) {
+        res.status(400).json({ error: 'finId and accountMappings are required' });
         return;
       }
 
-      const ledgerAccountId = accountMappings.ledgerAccountId;
+      if (!FIN_ID_HEX_PATTERN.test(finId)) {
+        res.status(400).json({ error: 'finId must be a hexadecimal string' });
+        return;
+      }
+
       const ownerStatus = status ?? 'active';
 
       if (ownerStatus !== 'active' && ownerStatus !== 'inactive') {
@@ -62,38 +69,47 @@ export function registerMappingRoutes(
 
       logger.info('Owner mapping requested', {
         finId: finId.slice(0, 20),
-        ledgerAccountId: ledgerAccountId.slice(0, 20),
+        fields: Object.keys(accountMappings),
         status: ownerStatus,
       });
 
       if (ownerStatus === 'inactive') {
-        await mappingService.deleteOwnerMapping(finId, ledgerAccountId);
+        await mappingService.deleteOwnerMapping(finId);
         logger.info('Owner mapping disabled', { finId });
-        const result: CreateOwnerMappingResponse = { finId, status: 'inactive', accountMappings: { ledgerAccountId } };
+        const result: CreateOwnerMappingResponse = { finId, status: 'inactive', accountMappings };
         res.json(result);
         return;
       }
 
-      await mappingService.saveOwnerMapping(finId, ledgerAccountId);
+      let validatedFields = accountMappings;
+      if (config.validator) {
+        validatedFields = await config.validator.validate(finId, accountMappings);
+      }
+
+      await mappingService.saveOwnerMapping(finId, validatedFields);
 
       const result: CreateOwnerMappingResponse = {
         finId,
         status: 'active',
-        accountMappings: { ledgerAccountId },
+        accountMappings: validatedFields,
       };
 
       if (config.provisionHook) {
         try {
-          const extra = await config.provisionHook.afterSave(finId, ledgerAccountId, ownerStatus);
+          const extra = await config.provisionHook.afterSave(finId, validatedFields, ownerStatus);
           Object.assign(result, extra);
         } catch (e: any) {
           logger.warning('Provision hook failed', { finId, error: e.message });
         }
       }
 
-      logger.info('Owner mapping created', { finId, ledgerAccountId });
+      logger.info('Owner mapping created', { finId, fields: Object.keys(validatedFields) });
       res.json(result);
     } catch (e: any) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
       logger.error('Owner mapping failed', { error: e.message });
       res.status(500).json({ error: e.message });
     }
