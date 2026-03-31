@@ -16,6 +16,7 @@ import {
 } from '../models';
 import { Application } from 'express';
 import { PluginManager } from '../plugins';
+import { logger } from '../helpers';
 import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
@@ -62,6 +63,9 @@ export const register = (app: Application,
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage && workflowConfig) {
     const { finP2PClient } = workflowConfig;
+    if (!finP2PClient) {
+      logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
+    }
     planService = createServiceProxy(() => migrationJob, storage, finP2PClient, planService,
       'approvePlan',
       'proposeCancelPlan',
