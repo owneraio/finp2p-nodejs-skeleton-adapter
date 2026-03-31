@@ -214,7 +214,7 @@ export class Storage {
     const c = await this.c.query(
       `INSERT INTO ledger_adapter.operations (cid, method, status, inputs, outputs)
       VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT(inputs) DO UPDATE
+      ON CONFLICT(method, inputs) DO UPDATE
       -- no-op
       SET inputs = ledger_adapter.operations.inputs
       RETURNING
