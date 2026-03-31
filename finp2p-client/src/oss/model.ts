@@ -156,6 +156,7 @@ export type OssOwner = {
       asset: { resourceId: string },
       // asset: { symbol: string } | { code: string } | { resourceId: string },
       balance: string,
+      syncedBalance: string,
     }[]
   }
   metadata: {

@@ -210,6 +210,14 @@ export class FinP2PClient {
     return this.ossClient.getOwnerBalances(assetId);
   }
 
+  async getSyncedBalances(assetId: string) {
+    return this.ossClient.getSyncedBalances(assetId);
+  }
+
+  async getOwnerSyncedBalance(ownerId: string, assetId: string) {
+    return this.ossClient.getOwnerSyncedBalance(ownerId, assetId);
+  }
+
   async getOwnerHoldings(ownerId: string) {
     return this.ossClient.getOwnerHoldings(ownerId);
   }
@@ -321,6 +329,26 @@ export class FinP2PClient {
     }
 
     throw new Error(`Execution plan ${planId} did not complete within ${maxTimes * delay}ms`);
+  }
+
+  async waitForSyncedBalance(
+    ownerId: string,
+    assetId: string,
+    expectedBalance: string,
+    options: { delay?: number; maxTimes?: number } = {},
+  ): Promise<string> {
+    const { delay = 500, maxTimes = 60 } = options;
+    for (let i = 0; i < maxTimes; i++) {
+      try {
+        const balance = await this.getOwnerSyncedBalance(ownerId, assetId);
+        if (balance === expectedBalance) return balance;
+      } catch {
+        // holding may not exist yet
+      }
+      await sleep(delay);
+    }
+    const lastBalance = await this.getOwnerSyncedBalance(ownerId, assetId).catch(() => 'N/A');
+    throw new Error(`Synced balance for ${ownerId}/${assetId} did not reach ${expectedBalance} within ${maxTimes * delay}ms (last: ${lastBalance})`);
   }
 
 }
