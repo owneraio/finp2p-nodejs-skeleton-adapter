@@ -83,8 +83,8 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
 
 /**
  * Persist result to DB, then send callback to router.
- * Logs errors instead of throwing — the operation already ran, losing the
- * result silently is worse than a noisy log.
+ * Only sends the callback if the DB write succeeds — otherwise the row
+ * stays in_progress and will be replayed on restart, which is correct.
  */
 async function finalize(
   storage: Storage,
@@ -96,7 +96,8 @@ async function finalize(
   try {
     await storage.update(cid, status, outputs);
   } catch (err) {
-    logger.error('Failed to persist operation result', { cid, error: err });
+    logger.error('Failed to persist operation result — skipping callback so restart can retry', { cid, error: err });
+    return;
   }
   if (finP2PClient) {
     try {
