@@ -9,6 +9,9 @@ const config: Config = {
   transform: {
     "^.+\\.(ts|tsx)$": "ts-jest",
   },
+  moduleNameMapper: {
+    "\\.graphql$": "<rootDir>/tests/support/graphql-stub.js",
+  },
 };
 
 export default config;

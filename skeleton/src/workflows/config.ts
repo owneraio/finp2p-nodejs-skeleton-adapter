@@ -24,12 +24,9 @@ export interface StorageConfig {
   connectionString: string
 }
 
-export interface ProxyConfig {
-  sendCallback?: FinP2PClient['sendCallback']
-}
-
 export interface Config {
   migration: MigrationConfig
   storage: StorageConfig
-  service: ProxyConfig
+  /** FinP2P client for sending operation callbacks to the router (default). Omit for polling mode. */
+  finP2PClient?: FinP2PClient
 }
