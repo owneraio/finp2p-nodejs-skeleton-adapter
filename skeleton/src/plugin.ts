@@ -19,6 +19,7 @@ export {
   PlannedInboundTransferContext,
   InboundTransferContext,
   InboundTransferHook,
+  PlanAnalyzer,
   Plugin,
   PluginError,
 } from './models/plugins';
@@ -38,4 +39,6 @@ export {
   ReceiptOperation,
   Signature,
   Source,
+  PlanMetadata,
+  ExecutionPlan,
 } from './models/model';

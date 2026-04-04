@@ -45,9 +45,17 @@ export const finIdDestination = (finId: string): Destination => {
   return { finId, account: { type: 'finId', finId } };
 };
 
+export type PlanMetadata = {
+  intentType?: string;
+  contractType?: string;
+  instructions?: Record<number, Record<string, any>>;
+  [key: string]: any;
+};
+
 export type ExecutionContext = {
   planId: string
   sequence: number
+  planMetadata?: PlanMetadata
 };
 
 export type ErrorDetails = {

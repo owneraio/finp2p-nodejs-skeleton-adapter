@@ -1,6 +1,7 @@
 import {
   CommonService,
   Destination,
+  ExecutionContext,
 
   EscrowService,
   HealthService,
@@ -93,6 +94,23 @@ export const register = (app: Application,
 
     commonService = createServiceProxy(() => migrationJob, storage, finP2PClient, commonService);
   }
+
+  const enrichExecutionContext = async (exCtx: ExecutionContext | undefined): Promise<ExecutionContext | undefined> => {
+    if (!exCtx || !storage) return exCtx;
+    try {
+      const metadata = await storage.getPlanMetadata(exCtx.planId);
+      if (!metadata) return exCtx;
+      return {
+        ...exCtx,
+        planMetadata: {
+          ...metadata,
+          instructionMetadata: metadata.instructions?.[exCtx.sequence],
+        },
+      };
+    } catch {
+      return exCtx;
+    }
+  };
 
   app.get('/health/liveness', async (req, res) => {
     if (req.headers['skip-vendor'] !== 'true') {
@@ -212,7 +230,7 @@ export const register = (app: Application,
       const finIdAcc = finIdAccountFromAPI(destination);
       const dst: Destination = { finId: finIdAcc.finId, account: finIdAcc };
       // const sgn = signatureFromAPI(signature); // it's not provided by the router currently
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = await enrichExecutionContext(executionContextOptFromAPI(executionContext));
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'issue', undefined, dst, ast, quantity, undefined, exCtx);
       const rsp = await tokenService.issue(ik, ast, finIdAcc, quantity, exCtx);
@@ -232,7 +250,7 @@ export const register = (app: Application,
       const dst = destinationFromAPI(destination);
       const ast = assetFromAPI(asset);
       const sgn = signatureFromAPI(signature);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = await enrichExecutionContext(executionContextOptFromAPI(executionContext));
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'transfer', src, dst, ast, quantity, sgn, exCtx);
       const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
@@ -252,7 +270,7 @@ export const register = (app: Application,
       const src: Source = { finId: finIdAcc.finId, account: finIdAcc };
       const ast = assetFromAPI(asset);
       const sgn = signatureFromAPI(signature);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = await enrichExecutionContext(executionContextOptFromAPI(executionContext));
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'redeem', src, undefined, ast, quantity, sgn, exCtx);
       const rsp = await tokenService.redeem(ik, nonce, finIdAcc, ast, quantity, operationId, sgn, exCtx);
@@ -281,7 +299,7 @@ export const register = (app: Application,
       const dst = destinationOptFromAPI(destination);
       const ast = assetFromAPI(asset);
       const sgn = signatureFromAPI(signature);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = await enrichExecutionContext(executionContextOptFromAPI(executionContext));
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'hold', src, dst, ast, quantity, sgn, exCtx);
       const rsp = await escrowService.hold(ik, nonce, src, dst, ast, quantity, sgn, operationId, exCtx);
@@ -299,7 +317,7 @@ export const register = (app: Application,
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
       const ast = assetFromAPI(asset);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = await enrichExecutionContext(executionContextOptFromAPI(executionContext));
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'release', src, dst, ast, quantity, undefined, exCtx);
       const rsp = await escrowService.release(ik, src, dst, ast, quantity, operationId, exCtx);
@@ -317,7 +335,7 @@ export const register = (app: Application,
       const { source, asset, quantity, operationId, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const ast = assetFromAPI(asset);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = await enrichExecutionContext(executionContextOptFromAPI(executionContext));
 
       pluginManager?.getTransactionHook()?.preTransaction(ik, 'rollback', src, undefined, ast, quantity, undefined, exCtx);
       const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx);

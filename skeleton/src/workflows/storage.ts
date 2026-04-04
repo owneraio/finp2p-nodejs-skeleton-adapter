@@ -279,4 +279,21 @@ export class Storage {
 
     return result.rows[0];
   }
+
+  async savePlanMetadata(planId: string, metadata: Record<string, any>): Promise<void> {
+    await this.c.query(
+      `INSERT INTO ledger_adapter.plan_metadata (plan_id, metadata)
+       VALUES ($1, $2)
+       ON CONFLICT (plan_id) DO UPDATE SET metadata = $2, updated_at = NOW()`,
+      [planId, JSON.stringify(metadata)],
+    );
+  }
+
+  async getPlanMetadata(planId: string): Promise<Record<string, any> | undefined> {
+    const result = await this.c.query(
+      'SELECT metadata FROM ledger_adapter.plan_metadata WHERE plan_id = $1',
+      [planId],
+    );
+    return result.rows[0]?.metadata;
+  }
 }
