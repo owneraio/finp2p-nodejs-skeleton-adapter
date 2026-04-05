@@ -1,50 +1,47 @@
 import {
   AssetCreationPlugin,
-  AsyncAssetCreationPlugin,
-  AsyncPaymentsPlugin,
-  AsyncPlanApprovalPlugin,
   PaymentsPlugin,
+  PlanAnalyzer,
   PlanApprovalPlugin,
   TransactionHook,
-  Plugin,
 } from '../models';
 
 
 export class PluginManager {
 
-  private assetCreationPlugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin> | null = null;
+  private assetCreationPlugin: AssetCreationPlugin | null = null;
 
-  private planApprovalPlugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null = null;
+  private planApprovalPlugin: PlanApprovalPlugin | null = null;
 
-  private paymentsPlugin: Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null = null;
+  private paymentsPlugin: PaymentsPlugin | null = null;
 
   private transactionHook: TransactionHook | null = null;
 
-  registerAssetCreationPlugin(plugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin>): void {
+  private planAnalyzer: PlanAnalyzer | null = null;
+
+  registerAssetCreationPlugin(plugin: AssetCreationPlugin): void {
     this.assetCreationPlugin = plugin;
   }
 
-  getAssetCreationPlugin(): Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin> | null {
+  getAssetCreationPlugin(): AssetCreationPlugin | null {
     return this.assetCreationPlugin;
   }
 
-  registerPlanApprovalPlugin(plugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin>): void {
+  registerPlanApprovalPlugin(plugin: PlanApprovalPlugin): void {
     this.planApprovalPlugin = plugin;
   }
 
-  getPlanApprovalPlugin(): Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null {
+  getPlanApprovalPlugin(): PlanApprovalPlugin | null {
     return this.planApprovalPlugin;
   }
 
-
-  registerPaymentsPlugin(plugin: Plugin<PaymentsPlugin, AsyncPaymentsPlugin>): void {
+  registerPaymentsPlugin(plugin: PaymentsPlugin): void {
     this.paymentsPlugin = plugin;
   }
 
-  getPaymentsPlugin(): Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null {
+  getPaymentsPlugin(): PaymentsPlugin | null {
     return this.paymentsPlugin;
   }
-
 
   registerTransactionHook(plugin: TransactionHook): void {
     this.transactionHook = plugin;
@@ -52,6 +49,14 @@ export class PluginManager {
 
   getTransactionHook(): TransactionHook | null {
     return this.transactionHook;
+  }
+
+  registerPlanAnalyzer(analyzer: PlanAnalyzer): void {
+    this.planAnalyzer = analyzer;
+  }
+
+  getPlanAnalyzer(): PlanAnalyzer | null {
+    return this.planAnalyzer;
   }
 
 }
