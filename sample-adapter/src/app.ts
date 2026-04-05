@@ -48,7 +48,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
 
   const pluginManager = new PluginManager();
   if (finP2PClient) {
-    pluginManager.registerPlanApprovalPlugin({ isAsync: true, asyncIface: new DelayedApprovals(orgId, finP2PClient, logger) });
+    pluginManager.registerPlanApprovalPlugin(new DelayedApprovals(logger));
   }
 
   const storage = new Storage();
