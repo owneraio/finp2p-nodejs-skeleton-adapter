@@ -1,4 +1,4 @@
-import { Asset, BusinessError } from '@owneraio/finp2p-adapter-models';
+import { Asset, BusinessError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { workflows } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { createHash } from 'node:crypto';
 import { HoldOperation, Transaction } from './model';

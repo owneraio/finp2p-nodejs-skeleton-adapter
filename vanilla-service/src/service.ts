@@ -6,7 +6,7 @@ import {
   OwnerMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
   failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { getLogger } from './logger';

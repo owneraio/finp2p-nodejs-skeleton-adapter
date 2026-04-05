@@ -10,7 +10,7 @@ import {
   Signature,
   Source,
   PluginError,
-} from '@owneraio/finp2p-adapter-models';
+} from '../../models';
 import { logger } from '../../helpers';
 import { PluginManager } from '../../plugins';
 

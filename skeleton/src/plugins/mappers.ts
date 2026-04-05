@@ -8,7 +8,7 @@ import {
   Receipt,
   ReceiptOperation,
   Source,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 import { OpComponents } from '@owneraio/finp2p-client';
 import { contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
 

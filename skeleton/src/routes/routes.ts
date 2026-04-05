@@ -14,7 +14,7 @@ import {
   pendingDepositOperation,
   pendingPlan,
   pendingReceiptOperation,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 import { Application } from 'express';
 import { PluginManager } from '../plugins';
 import { errorHandler } from './errors';

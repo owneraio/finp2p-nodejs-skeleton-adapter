@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import bs58 from 'bs58';
 import {
   Asset, Destination, ExecutionContext, OperationType, Receipt, Source,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { LedgerTransaction } from './storage';
 
 export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes(64)));

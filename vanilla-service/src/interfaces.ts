@@ -1,7 +1,7 @@
 import {
   Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetType,
   Destination, ExecutionContext, Source,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
 /**
  * Result of a delegate operation. Must be either success or failure —

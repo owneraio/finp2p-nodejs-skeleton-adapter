@@ -23,7 +23,6 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-adapter-models": "^0.28.0-custody-native.13",
     "@owneraio/finp2p-client": "^0.28.0-custody-native.6",
     "axios": "1.11.0",
     "bs58": "^6.0.0",

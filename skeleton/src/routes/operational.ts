@@ -1,5 +1,5 @@
 import { Application } from 'express';
-import { MappingService, OwnerMapping } from '@owneraio/finp2p-adapter-models';
+import { MappingService, OwnerMapping } from '../models';
 import { logger } from '../helpers';
 import { components as MappingAPI } from './mapping-api-gen';
 
