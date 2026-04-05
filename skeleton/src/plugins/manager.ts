@@ -4,6 +4,7 @@ import {
   AsyncPaymentsPlugin,
   AsyncPlanApprovalPlugin,
   PaymentsPlugin,
+  PlanAnalyzer,
   PlanApprovalPlugin,
   TransactionHook,
   Plugin,
@@ -19,6 +20,16 @@ export class PluginManager {
   private paymentsPlugin: Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null = null;
 
   private transactionHook: TransactionHook | null = null;
+
+  private planAnalyzer: PlanAnalyzer | null = null;
+
+  registerPlanAnalyzer(analyzer: PlanAnalyzer): void {
+    this.planAnalyzer = analyzer;
+  }
+
+  getPlanAnalyzer(): PlanAnalyzer | null {
+    return this.planAnalyzer;
+  }
 
   registerAssetCreationPlugin(plugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin>): void {
     this.assetCreationPlugin = plugin;

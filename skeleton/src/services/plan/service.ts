@@ -8,6 +8,7 @@ import {
 import { FinP2PClient, OpComponents } from '@owneraio/finp2p-client';
 import { executionFromAPI } from './mapper';
 import { PluginManager } from '../../plugins';
+import { Storage } from '../../workflows/storage';
 import { logger } from '../../helpers';
 
 const mapInstructionResult = (event?: OpComponents['schemas']['instructionCompletionEvent']): InstructionResult | undefined => {
@@ -33,11 +34,20 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
   inboundTransferHook: InboundTransferHook | undefined;
 
-  constructor(orgId: string, pluginManager: PluginManager | undefined, finP2P?: FinP2PClient | undefined, inboundTransferHook?: InboundTransferHook) {
+  storage: Storage | undefined;
+
+  constructor(
+    orgId: string,
+    pluginManager: PluginManager | undefined,
+    finP2P?: FinP2PClient | undefined,
+    inboundTransferHook?: InboundTransferHook,
+    storage?: Storage,
+  ) {
     this.orgId = orgId;
     this.finP2P = finP2P;
     this.pluginManager = pluginManager;
     this.inboundTransferHook = inboundTransferHook;
+    this.storage = storage;
   }
 
   private async fetchExecution(planId: string): Promise<OpComponents['schemas']['execution'] | undefined> {
@@ -54,6 +64,13 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
     if (execution) {
       const plan = executionFromAPI(execution.plan);
       logger.info(`Fetched plan data: ${JSON.stringify(plan)}`);
+
+      if (this.storage) {
+        const metadata = await this.buildPlanMetadata(execution, plan);
+        await this.storage.savePlanMetadata(planId, metadata);
+        logger.info(`Stored plan metadata for ${planId}`);
+      }
+
       return this.validatePlan(idempotencyKey, planId, plan);
     }
     if (this.finP2P) {
@@ -63,6 +80,34 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
     logger.debug('No FinP2P client, auto-approving plan');
     return approvedPlan();
+  }
+
+  private async buildPlanMetadata(
+    execution: OpComponents['schemas']['execution'],
+    plan: ExecutionPlan,
+  ): Promise<Record<string, any>> {
+    const base: Record<string, any> = {};
+
+    if (plan.intentType) base.intentType = plan.intentType;
+
+    const contractType = (execution.plan as any).contract?.contractDetails?.type;
+    if (contractType) base.contractType = contractType;
+
+    const instructions: Record<number, Record<string, any>> = {};
+    for (const inst of plan.instructions) {
+      instructions[inst.sequence] = {
+        operationType: inst.operation.type,
+        organizations: inst.organizations,
+      };
+    }
+    base.instructions = instructions;
+
+    const analyzer = this.pluginManager?.getPlanAnalyzer();
+    if (analyzer) {
+      const custom = await analyzer.analyzePlan(plan);
+      return { ...base, ...custom };
+    }
+    return base;
   }
 
   public async proposeCancelPlan(idempotencyKey: string, planId: string): Promise<PlanApprovalStatus> {

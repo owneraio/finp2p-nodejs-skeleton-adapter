@@ -2,7 +2,7 @@
 import {
   Account, Asset, DepositAsset,
   DepositOperation, Destination,
-  DestinationAccount, ExecutionContext,
+  DestinationAccount, ExecutionContext, ExecutionPlan,
   FinIdAccount,
   OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature, Source,
 } from '../model';
@@ -99,5 +99,14 @@ export interface InboundTransferContext extends PlannedInboundTransferContext {
 export interface InboundTransferHook {
   onPlannedInboundTransfer(idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void>;
   onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void>;
+}
+
+/**
+ * Adapter-provided hook to analyze an ExecutionPlan during approval.
+ * The returned metadata is stored in DB and injected into ExecutionContext
+ * when individual operations execute.
+ */
+export interface PlanAnalyzer {
+  analyzePlan(plan: ExecutionPlan): Promise<Record<string, any>>;
 }
 
