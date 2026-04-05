@@ -37,6 +37,43 @@ query GetAssets($filter: [Filter!]) {
             ledgerAssetInfo {
                 ...assetInfo
             }
+            intents {
+                nodes {
+                    id
+                    remainingQuantity
+                    status
+                    type
+                    start
+                    end
+                    intent {
+                        __typename
+                        ... on PrimarySale {
+                            settlementTerm {
+                                details {
+                                    ... on PartialSettlement { unitValue }
+                                    ... on FullSettlement { amount }
+                                }
+                            }
+                        }
+                        ... on SellingIntent {
+                            settlementTerm {
+                                details {
+                                    ... on PartialSettlement { unitValue }
+                                    ... on FullSettlement { amount }
+                                }
+                            }
+                        }
+                        ... on BuyingIntent {
+                            settlementTerm {
+                                details {
+                                    ... on PartialSettlement { unitValue }
+                                    ... on FullSettlement { amount }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

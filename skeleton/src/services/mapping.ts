@@ -1,6 +1,7 @@
 import { MappingService, OwnerMapping } from '../models';
 import {
   getAccountMappings,
+  getAccountMappingsByFieldValue,
   saveAccountMapping,
   deleteAccountMapping,
 } from '../workflows/storage';
@@ -11,16 +12,18 @@ import {
  */
 export class MappingServiceImpl implements MappingService {
   async getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]> {
-    const rows = await getAccountMappings(finIds);
-    return rows.map(r => ({ finId: r.fin_id, account: r.account }));
+    return getAccountMappings(finIds);
   }
 
-  async saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping> {
-    const row = await saveAccountMapping(finId, account);
-    return { finId: row.fin_id, account: row.account };
+  async getByFieldValue(fieldName: string, value: string): Promise<OwnerMapping[]> {
+    return getAccountMappingsByFieldValue(fieldName, value);
   }
 
-  async deleteOwnerMapping(finId: string, account?: string): Promise<void> {
-    await deleteAccountMapping(finId, account);
+  async saveOwnerMapping(finId: string, fields: Record<string, string>): Promise<OwnerMapping> {
+    return saveAccountMapping(finId, fields);
+  }
+
+  async deleteOwnerMapping(finId: string, fieldName?: string): Promise<void> {
+    await deleteAccountMapping(finId, fieldName);
   }
 }

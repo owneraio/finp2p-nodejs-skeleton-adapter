@@ -91,7 +91,7 @@ export class Storage {
     const newAccount = new Account();
     this.accounts[finId] = newAccount;
     const adapterAccount = generateAdapterAccount(finId);
-    workflows.saveAccountMapping(finId, adapterAccount).catch(() => {});
+    workflows.saveAccountMapping(finId, { ledgerAccountId: adapterAccount }).catch(() => {});
     return newAccount;
   }
 

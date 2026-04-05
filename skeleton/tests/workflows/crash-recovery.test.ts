@@ -1,13 +1,28 @@
 import {
   OperationStatus,
   successfulReceiptOperation,
-} from "@owneraio/finp2p-adapter-models";
+} from "../../src/models";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 import {
   createServiceProxy,
   migrateIfNeeded,
   Storage,
 } from "../../src/workflows";
+import { FinP2PClient } from "@owneraio/finp2p-client";
+import { MockFinP2PServer } from "../support/mock-finp2p-server";
+
+let mockServer: MockFinP2PServer;
+let finP2PClient: FinP2PClient;
+
+beforeAll(async () => {
+  mockServer = new MockFinP2PServer();
+  const url = await mockServer.start();
+  finP2PClient = new FinP2PClient(url, url);
+});
+
+afterAll(async () => {
+  await mockServer.stop();
+});
 
 const fakeReceipt = (id: string) => ({
   id,
@@ -65,7 +80,6 @@ describe("Crash recovery tests", () => {
   });
 
   test("operation started before crash is resumed on restart", async () => {
-    // Phase 1: Start operation with a service that never completes (simulates crash)
     const hangingService = {
       async issue(..._args: any[]): Promise<OperationStatus> {
         return new Promise(() => {}); // never resolves
@@ -76,25 +90,22 @@ describe("Crash recovery tests", () => {
     const proxy1 = createServiceProxy(
       () => Promise.resolve(),
       storage,
-      undefined,
+      finP2PClient,
       hangingService,
       "issue",
     );
 
-    // Start the operation — proxy stores it as in_progress and returns pending
     const pendingResult = await proxy1.issue("idem-key-1", "asset-1", "user-1", "100");
     expect(pendingResult).toHaveProperty("correlationId");
     const cid = (pendingResult as any).correlationId;
 
-    // Verify operation is in_progress in DB
     const op = await storage.operation(cid);
     expect(op!.status).toBe("in_progress");
     expect(op!.method).toBe("issue");
     expect(op!.inputs).toEqual(["idem-key-1", "asset-1", "user-1", "100"]);
 
-    // --- "CRASH" — proxy1 is abandoned, hanging promise never resolves ---
+    // --- "CRASH" — proxy1 is abandoned ---
 
-    // Phase 2: Restart with a working service
     const recoveryCallCount = { issue: 0 };
 
     const recoveringService = {
@@ -105,11 +116,10 @@ describe("Crash recovery tests", () => {
       async operationStatus(_cid: string): Promise<any> {},
     };
 
-    // New proxy triggers recovery — reads pending operations and replays them
     const proxy2 = createServiceProxy(
       () => Promise.resolve(),
       storage,
-      undefined,
+      finP2PClient,
       recoveringService,
       "issue",
     );
@@ -120,11 +130,9 @@ describe("Crash recovery tests", () => {
     expect(recovered.outputs.receipt.id).toBe("receipt-recovered-1");
     expect(recoveryCallCount.issue).toBe(1);
 
-    // Verify operationStatus via proxy returns the completed result
     const statusResult = await proxy2.operationStatus(cid);
     expect(statusResult.type).toBe("success");
 
-    // DB record assertions
     const allOps = await storage.operationsAll();
     expect(allOps.length).toBe(1);
     const dbOp = allOps[0];
@@ -135,7 +143,6 @@ describe("Crash recovery tests", () => {
   });
 
   test("operation that fails on recovery is marked as failed", async () => {
-    // Insert an in_progress operation (simulating pre-crash state)
     const [inserted] = await storage.insert({
       cid: "crash-cid-1",
       method: "issue",
@@ -154,7 +161,7 @@ describe("Crash recovery tests", () => {
     createServiceProxy(
       () => Promise.resolve(),
       storage,
-      undefined,
+      finP2PClient,
       failingService,
       "issue",
     );
@@ -163,7 +170,6 @@ describe("Crash recovery tests", () => {
     expect(failed.status).toBe("failed");
     expect(JSON.stringify(failed.outputs)).toContain("Ledger RPC connection refused");
 
-    // DB record assertions
     const allOps = await storage.operationsAll();
     expect(allOps.length).toBe(1);
     const dbOp = allOps[0];
@@ -173,9 +179,7 @@ describe("Crash recovery tests", () => {
     expect(dbOp.updated_at.getTime()).toBeGreaterThanOrEqual(inserted.created_at.getTime());
   });
 
-  test("callback is sent on successful recovery", async () => {
-    const callbacks: { cid: string; status: any }[] = [];
-
+  test("callback is sent to router on successful recovery", async () => {
     await storage.insert({
       cid: "callback-cid-1",
       method: "issue",
@@ -191,29 +195,20 @@ describe("Crash recovery tests", () => {
       async operationStatus(_cid: string): Promise<any> {},
     };
 
-    const proxyConfig = {
-      sendCallback: async (cid: string, status: any) => {
-        callbacks.push({ cid, status });
-        return { data: undefined, error: undefined, response: {} as any };
-      },
-    };
-
     createServiceProxy(
       () => Promise.resolve(),
       storage,
-      proxyConfig,
+      finP2PClient,
       service,
       "issue",
     );
 
     await waitForStatus(storage, "callback-cid-1", "succeeded");
-    await setTimeoutPromise(500); // let callback fire
+    await setTimeoutPromise(500); // let callback reach mock server
 
-    expect(callbacks.length).toBe(1);
-    expect(callbacks[0].cid).toBe("callback-cid-1");
-    expect(callbacks[0].status).toBeDefined();
+    const callback = mockServer.getCallback("callback-cid-1");
+    expect(callback).toBeDefined();
 
-    // DB record assertions
     const allOps = await storage.operationsAll();
     expect(allOps.length).toBe(1);
     const dbOp = allOps[0];
@@ -249,7 +244,7 @@ describe("Crash recovery tests", () => {
     createServiceProxy(
       () => Promise.resolve(),
       storage,
-      undefined,
+      finP2PClient,
       service,
       "transfer",
     );
@@ -260,7 +255,6 @@ describe("Crash recovery tests", () => {
 
     expect(recoveredInputs.length).toBe(3);
 
-    // DB record assertions
     const allOps = await storage.operationsAll();
     expect(allOps.length).toBe(3);
 
@@ -299,12 +293,11 @@ describe("Crash recovery tests", () => {
     createServiceProxy(
       () => Promise.resolve(),
       storage,
-      undefined,
+      finP2PClient,
       service,
       "issue",
     );
 
-    // No recovery should happen for completed ops
     await setTimeoutPromise(2000);
 
     expect(callCount).toBe(0);
@@ -312,7 +305,6 @@ describe("Crash recovery tests", () => {
     expect(op!.status).toBe("succeeded");
     expect(op!.outputs.receipt.id).toBe("already-done");
 
-    // DB record assertions — nothing should have changed
     const allOps = await storage.operationsAll();
     expect(allOps.length).toBe(1);
     expect(allOps[0].updated_at.getTime()).toBe(inserted.updated_at.getTime());

@@ -18,7 +18,8 @@ import {
 } from '../models';
 import { Operation as StorageOperation, Storage, generateCid } from './storage';
 import { operationStatusToAPI } from '../routes/mapping';
-import { ProxyConfig } from './config';
+import { FinP2PClient } from '@owneraio/finp2p-client';
+import { logger } from '../helpers';
 
 const dbStatus = <
   T extends
@@ -76,57 +77,87 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
     case compiletimeMethodName<PaymentService>('getDepositInstruction'):
       return pendingOrError(cid => pendingDepositOperation(cid, opMetadata), (cid, code, message) => failedDepositOperation(code, message));
     default:
-      return {
-        // @ts-ignore
-        // highly unlikely
-        wrappedArgs: args,
-      };
+      throw new Error(`Unknown proxied method '${methodName}' — add it to wrappedResponse()`);
   }
 };
 
-const sendCallbackIfNeeded = (proxyConfig: ProxyConfig | undefined, methodName: string, cid: string, status: OperationStatus):  Promise<OperationStatus> => {
-  if (proxyConfig?.sendCallback === undefined) { return Promise.resolve(status); }
+/**
+ * Persist result to DB, then send callback to router.
+ * Only sends the callback if the DB write succeeds — otherwise the row
+ * stays in_progress and will be replayed on restart, which is correct.
+ */
+async function finalize(
+  storage: Storage,
+  finP2PClient: FinP2PClient | undefined,
+  cid: string,
+  status: StorageOperation['status'],
+  outputs: OperationStatus,
+): Promise<void> {
+  try {
+    await storage.update(cid, status, outputs);
+  } catch (err) {
+    logger.error('Failed to persist operation result — skipping callback so restart can retry', { cid, error: err });
+    return;
+  }
+  if (finP2PClient) {
+    try {
+      // @ts-ignore — operationStatus type mismatch with sendCallback signature
+      await finP2PClient.sendCallback(cid, operationStatusToAPI(outputs));
+    } catch (err) {
+      logger.error('Failed to send callback to router', { cid, error: err });
+    }
+  }
+}
 
-  console.info(`Sending callback for method '${methodName}' with cid '${cid}'`);
-
-  // @ts-ignore
-  // complains, because operation status can in theory provide `strategy.type = polling` and send callback doesnt like it
-  return proxyConfig.sendCallback(cid, operationStatusToAPI(status)).then(() => Promise.resolve(status));
-};
+/**
+ * Execute a service method and finalize the result (persist + callback).
+ * Catches both sync throws and async rejections from the method.
+ * Used by both crash recovery and the live proxy path.
+ */
+async function executeAndFinalize(
+  method: Function,
+  args: any[],
+  methodName: string,
+  cid: string,
+  opMetadata: OperationMetadata | undefined,
+  storage: Storage,
+  finP2PClient: FinP2PClient | undefined,
+): Promise<void> {
+  try {
+    const outputs: OperationStatus = await method(...args);
+    await finalize(storage, finP2PClient, cid, dbStatus(outputs), outputs);
+  } catch (error: any) {
+    const wrp = wrappedResponse(methodName, opMetadata, [cid, 1, String(error)]);
+    await finalize(storage, finP2PClient, cid, 'failed', wrp);
+  }
+}
 
 export function createServiceProxy<T extends object>(
   migrationJob: () => Promise<void>,
   storage: Storage,
-  proxyConfig: ProxyConfig | undefined,
+  finP2PClient: FinP2PClient | undefined,
   service: T,
   ...methodsToProxy: (keyof T)[]
 ): T {
-  const opMetadata: OperationMetadata | undefined = proxyConfig?.sendCallback === undefined ? undefined : { responseStrategy: 'callback' };
+  const opMetadata: OperationMetadata | undefined = finP2PClient ? { responseStrategy: 'callback' } : undefined;
 
-  migrationJob().then(() =>
+  // Wait for migrations, then replay pending operations (crash recovery).
+  const ready = migrationJob().then(() => {
     methodsToProxy.forEach((m) => {
-      const method = service[m];
-      if (typeof method !== 'function') return;
+      const raw = service[m];
+      if (typeof raw !== 'function') return;
+      const method = raw.bind(service);
 
       storage.getPendingOperations(String(m)).then(
         (operations) => {
-          operations.forEach((op) => {
-            method(...op.inputs).then(
-              (outputs: OperationStatus) => {
-                storage.update(op.cid, dbStatus(outputs), outputs);
-                return sendCallbackIfNeeded(proxyConfig, op.method, op.cid, outputs);
-              },
-              (error: any) => {
-                storage.update(op.cid, 'failed', wrappedResponse(op.method, opMetadata, [op.cid, 1, String(error)]));
-                return sendCallbackIfNeeded(proxyConfig, op.method, op.cid, error as OperationStatus);
-              },
-            );
-          });
+          for (const op of operations) {
+            executeAndFinalize(method, op.inputs, op.method, op.cid, opMetadata, storage, finP2PClient);
+          }
         },
-        (error) => console.error(`Couldn'nt fetch pending operations: ${error}`),
+        (error) => logger.error('Failed to fetch pending operations', { error }),
       );
-    }),
-  );
+    });
+  });
 
   const getOperationStatusMethod: keyof CommonService = 'operationStatus';
 
@@ -140,6 +171,7 @@ export function createServiceProxy<T extends object>(
 
       if (String(prop) === getOperationStatusMethod) {
         return async function (this: any, ...args: any[]) {
+          await ready;
           if (args.length !== 1) throw new Error('Expected only 1 argument. Did the interface got changed?');
           const cid = args[0];
           if (typeof cid !== 'string') throw new Error('Expected string argument. Did the interface got changed?');
@@ -156,6 +188,8 @@ export function createServiceProxy<T extends object>(
         return originalMethod;
       }
       return async function (this: any, ...args: any[]) {
+        await ready;
+
         const correlationId = generateCid();
         const pendingPlaceholder = wrappedResponse(String(prop), opMetadata, [correlationId]);
 
@@ -168,24 +202,13 @@ export function createServiceProxy<T extends object>(
         });
 
         if (!inserted) {
-          // inputs already exist in DB
           return storageOperation.outputs;
         }
 
-        new Promise((resolve: (o: OperationStatus) => void, reject) => {
-          const status = originalMethod.apply(
-            this === receiver ? target : this,
-            args,
-          ) as OperationStatus;
-
-          resolve(status);
-        }).then(
-          (op) => storage.update(correlationId, dbStatus(op), op).then(() => sendCallbackIfNeeded(proxyConfig, String(prop), correlationId, op)),
-          (error) => {
-            const wrp = wrappedResponse(String(prop), opMetadata, [correlationId, 1, String(error)]);
-
-            return storage.update(correlationId, 'failed', wrp).then(() => sendCallbackIfNeeded(proxyConfig, String(prop), correlationId, wrp));
-          },
+        // Fire-and-forget: execute in background, finalize handles errors
+        executeAndFinalize(
+          originalMethod.bind(this === receiver ? target : this),
+          args, String(prop), correlationId, opMetadata, storage, finP2PClient,
         );
 
         return pendingPlaceholder;

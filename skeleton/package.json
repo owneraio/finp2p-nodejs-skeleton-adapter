@@ -5,6 +5,21 @@
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "plugin": ["dist/plugin.d.ts"]
+    }
+  },
   "files": [
     "dist/**/*",
     "migrations/*.sql"

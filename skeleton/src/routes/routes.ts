@@ -17,6 +17,7 @@ import {
 } from '../models';
 import { Application } from 'express';
 import { PluginManager } from '../plugins';
+import { logger } from '../helpers';
 import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
@@ -58,33 +59,37 @@ export const register = (app: Application,
 ) => {
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
-  if (storage) {
-    planService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, planService,
+  if (storage && workflowConfig) {
+    const { finP2PClient } = workflowConfig;
+    if (!finP2PClient) {
+      logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
+    }
+    planService = createServiceProxy(() => migrationJob, storage, finP2PClient, planService,
       'approvePlan',
       'proposeCancelPlan',
       'proposeResetPlan',
       'proposeInstructionApproval',
     );
 
-    tokenService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, tokenService,
+    tokenService = createServiceProxy(() => migrationJob, storage, finP2PClient, tokenService,
       'createAsset',
       'issue',
       'transfer',
       'redeem',
     );
 
-    escrowService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, escrowService,
+    escrowService = createServiceProxy(() => migrationJob, storage, finP2PClient, escrowService,
       'hold',
       'release',
       'rollback',
     );
 
-    paymentService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, paymentService,
+    paymentService = createServiceProxy(() => migrationJob, storage, finP2PClient, paymentService,
       'getDepositInstruction',
       'payout',
     );
 
-    commonService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, commonService);
+    commonService = createServiceProxy(() => migrationJob, storage, finP2PClient, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {

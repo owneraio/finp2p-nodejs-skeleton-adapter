@@ -87,9 +87,18 @@ export interface PlanApprovalService {
 export interface MappingService {
   getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]>
 
-  saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping>
+  getByFieldValue(fieldName: string, value: string): Promise<OwnerMapping[]>
 
-  deleteOwnerMapping(finId: string, account?: string): Promise<void>
+  saveOwnerMapping(finId: string, fields: Record<string, string>): Promise<OwnerMapping>
+
+  deleteOwnerMapping(finId: string, fieldName?: string): Promise<void>
 }
 
-
+/**
+ * Optional pre-save validator for account mappings.
+ * Adapters can implement this to validate and optionally transform fields before persistence.
+ * Throw ValidationError to reject the mapping.
+ */
+export interface MappingValidator {
+  validate(finId: string, fields: Record<string, string>): Promise<Record<string, string>>
+}

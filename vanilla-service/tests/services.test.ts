@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import {
   Asset, Destination, ReceiptOperation, Signature, Source,
   finIdDestination,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { DelegateResult, EscrowDelegate, TransferDelegate } from '../src/interfaces';
 import { LedgerStorage } from '../src/storage';
 import { VanillaServiceImpl } from '../src/service';

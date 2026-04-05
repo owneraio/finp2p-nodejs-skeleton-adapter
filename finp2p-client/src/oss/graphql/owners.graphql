@@ -38,6 +38,7 @@ query GetOwners(
                         ... asset
                     }
                     balance
+                    syncedBalance
                 }
             }
         }

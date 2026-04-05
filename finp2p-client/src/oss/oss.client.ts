@@ -8,7 +8,8 @@ import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
 import LEDGERS from './graphql/ledgers.graphql';
 import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
 import PLANS from './graphql/plans.graphql';
-import { OssApprovalConfigNodes, OssAssetNodes, OssEscrowNodes, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes } from './model';
+import RECEIPTS from './graphql/receipts.graphql';
+import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssEscrowNodes, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssReceipt, OssReceiptNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
 export class OssClient {
@@ -29,6 +30,24 @@ export class OssClient {
     });
     return resp.users.nodes.filter((o) => o.holdings.nodes.some(n => n.asset.resourceId === assetId))
       .map(o => ({ finId: o.finIds[0], balance: o.holdings.nodes.find(n => n.asset.resourceId === assetId)!.balance }));
+  }
+
+  async getSyncedBalances(assetId: string) {
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
+      includeCerts: false,
+      includeHoldings: true,
+    });
+    return resp.users.nodes.filter((o) => o.holdings.nodes.some(n => n.asset.resourceId === assetId))
+      .map(o => ({ finId: o.finIds[0], balance: o.holdings.nodes.find(n => n.asset.resourceId === assetId)!.syncedBalance }));
+  }
+
+  async getOwnerSyncedBalance(ownerId: string, assetId: string): Promise<string> {
+    const holdings = await this.getOwnerHoldings(ownerId);
+    const holding = holdings.find(h => h.asset.resourceId === assetId);
+    if (!holding) {
+      throw new ItemNotFoundError(`${ownerId}/${assetId}`, 'Holding');
+    }
+    return holding.syncedBalance;
   }
 
   async getOwnerById(ownerId: string) {
@@ -59,8 +78,8 @@ export class OssClient {
     return resp.users.nodes[0];
   }
 
-  async getAssets() {
-    const resp = await this.queryOss<OssAssetNodes>(ASSETS, {});
+  async getAssets(filter?: { key: string; operator: string; value: string } | { key: string; operator: string; value: string }[]) {
+    const resp = await this.queryOss<OssAssetNodes>(ASSETS, filter ? { filter } : {});
     return resp.assets.nodes;
   }
 
@@ -138,6 +157,45 @@ export class OssClient {
   async getApprovalConfigs() {
     const resp = await this.queryOss<OssApprovalConfigNodes>(APPROVAL_CONFIGS, {});
     return resp.approvalConfigs.nodes;
+  }
+
+  async getOwnerHoldings(ownerId: string) {
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
+      filter: { key: 'id', operator: 'EQ', value: ownerId },
+      includeCerts: false,
+      includeHoldings: true,
+    });
+    if (resp.users.nodes.length == 0) {
+      throw new ItemNotFoundError(ownerId, 'Owner');
+    }
+    return resp.users.nodes[0].holdings.nodes;
+  }
+
+  async getReceipts(filter?: { key: string; operator: string; value: string } | { key: string; operator: string; value: string }[]): Promise<OssReceipt[]> {
+    const resp = await this.queryOss<OssReceiptNodes>(RECEIPTS, filter ? { filter } : {});
+    return resp.receipts.nodes;
+  }
+
+  async getCertificates(profileId: string): Promise<OssCertificate[]> {
+    // Try asset profile first
+    try {
+      const asset = await this.getAsset(profileId);
+      if (asset.certificates?.nodes?.length) {
+        return asset.certificates.nodes;
+      }
+    } catch {
+      // not an asset — try owner
+    }
+
+    // Try owner profile
+    try {
+      const owner = await this.getOwnerById(profileId);
+      return owner.certificates?.nodes ?? [];
+    } catch {
+      // not found
+    }
+
+    return [];
   }
 
   async getExecutionPlans(): Promise<OssExecutionPlan[]> {

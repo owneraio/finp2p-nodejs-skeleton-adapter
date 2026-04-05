@@ -83,6 +83,13 @@ export class FinAPIClient {
     });
   }
 
+  async updateCertificate(profileId: string, certificateId: string, body: { data?: string; expirationDate?: number }) {
+    return this.apiClient.PATCH('/profiles/{profileId}/certificates/{certificateId}', {
+      params: { path: { profileId, certificateId } },
+      body,
+    } as any);
+  }
+
   // ── Account management ──
 
   async createOwnerAccount(ownerId: string, body: RequestBody<'/profiles/owner/{ownerId}/account', 'post'>) {
@@ -105,6 +112,17 @@ export class FinAPIClient {
 
   async executeIntent(body: RequestBody<'/tokens/execute', 'post'>) {
     return this.apiClient.POST('/tokens/execute', { body });
+  }
+
+  async executeTransferIntent(intentId: string, body: RequestBody<'/profiles/asset/intent/transfer/execute/{intentId}', 'post'>) {
+    return this.apiClient.POST('/profiles/asset/intent/transfer/execute/{intentId}', {
+      params: { path: { intentId } },
+      body,
+    });
+  }
+
+  async createTransferRequest(body: RequestBody<'/profiles/asset/intent/transfer', 'post'>) {
+    return this.apiClient.POST('/profiles/asset/intent/transfer', { body });
   }
 
   async cancelExecution(body: RequestBody<'/tokens/execute/cancel', 'post'>) {

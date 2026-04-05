@@ -5,7 +5,7 @@ import {
   HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, MappingService, OperationStatus, OperationType,
   OwnerMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
-  failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
+  failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
@@ -297,44 +297,66 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
   // ─── MappingService ──────────────────────────────────────────────────
 
-  private toOwnerMapping(row: any): OwnerMapping {
-    return { finId: row.fin_id, account: row.account };
+  private aggregateRows(rows: any[]): OwnerMapping[] {
+    const map = new Map<string, Record<string, string>>();
+    for (const row of rows) {
+      let fields = map.get(row.fin_id);
+      if (!fields) {
+        fields = {};
+        map.set(row.fin_id, fields);
+      }
+      fields[row.field_name] = row.value;
+    }
+    return Array.from(map.entries()).map(([finId, fields]) => ({ finId, fields }));
   }
 
   async getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]> {
     if (finIds && finIds.length > 0) {
       const result = await this.storage.query(
-        'SELECT fin_id, account FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY created_at ASC, account ASC',
+        'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY fin_id ASC, field_name ASC',
         [finIds],
       );
-      return result.rows.map((r: any) => this.toOwnerMapping(r));
+      return this.aggregateRows(result.rows);
     }
     const result = await this.storage.query(
-      'SELECT fin_id, account FROM ledger_adapter.account_mappings ORDER BY created_at ASC, account ASC',
+      'SELECT * FROM ledger_adapter.account_mappings ORDER BY fin_id ASC, field_name ASC',
     );
-    return result.rows.map((r: any) => this.toOwnerMapping(r));
+    return this.aggregateRows(result.rows);
   }
 
-  async saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping> {
-    const normalizedAccount = account.toLowerCase();
+  async getByFieldValue(fieldName: string, value: string): Promise<OwnerMapping[]> {
     const result = await this.storage.query(
-      `INSERT INTO ledger_adapter.account_mappings (fin_id, account)
-       VALUES ($1, $2)
-       ON CONFLICT (fin_id, account) DO NOTHING
-       RETURNING fin_id, account`,
-      [finId, normalizedAccount],
+      `SELECT DISTINCT am.* FROM ledger_adapter.account_mappings am
+       WHERE am.fin_id IN (
+         SELECT fin_id FROM ledger_adapter.account_mappings
+         WHERE field_name = $1 AND value = $2
+       )
+       ORDER BY am.fin_id ASC, am.field_name ASC`,
+      [fieldName, value.toLowerCase()],
     );
-    if (result.rows.length === 0) {
-      return { finId, account: normalizedAccount };
-    }
-    return this.toOwnerMapping(result.rows[0]);
+    return this.aggregateRows(result.rows);
   }
 
-  async deleteOwnerMapping(finId: string, account?: string): Promise<void> {
-    if (account) {
+  async saveOwnerMapping(finId: string, fields: Record<string, string>): Promise<OwnerMapping> {
+    const savedFields: Record<string, string> = {};
+    for (const [fieldName, rawValue] of Object.entries(fields)) {
+      const value = rawValue.toLowerCase();
       await this.storage.query(
-        'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
-        [finId, account.toLowerCase()],
+        `INSERT INTO ledger_adapter.account_mappings (fin_id, field_name, value)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (fin_id, field_name) DO UPDATE SET value = $3, updated_at = NOW()`,
+        [finId, fieldName, value],
+      );
+      savedFields[fieldName] = value;
+    }
+    return { finId, fields: savedFields };
+  }
+
+  async deleteOwnerMapping(finId: string, fieldName?: string): Promise<void> {
+    if (fieldName) {
+      await this.storage.query(
+        'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND field_name = $2',
+        [finId, fieldName],
       );
     } else {
       await this.storage.query(
