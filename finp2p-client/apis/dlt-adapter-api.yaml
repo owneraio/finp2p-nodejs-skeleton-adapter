@@ -846,6 +846,7 @@ components:
     asset:
       allOf:
         - type: object
+          required: [ledgerIdentifier]
           properties:
             ledgerIdentifier:
                $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
