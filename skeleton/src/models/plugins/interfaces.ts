@@ -1,19 +1,15 @@
 
 import {
   Account, Asset, DepositAsset,
-  DepositOperation, Destination,
-  DestinationAccount, ExecutionContext,
+  DepositOperation,
+  DestinationAccount, ExecutionPlan,
   FinIdAccount,
-  OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature, Source,
+  OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature,
 } from '../model';
 
 
 export interface AssetCreationPlugin {
   validateAssetCreation(assetId: string, tokenId: string): Promise<void>
-}
-
-export interface AsyncAssetCreationPlugin {
-  validateAssetCreation(idempotencyKey: string, cid: string, assetId: string, tokenId: string): Promise<void>
 }
 
 //------------------------------------------------------------
@@ -27,48 +23,16 @@ export interface PlanApprovalPlugin {
   validateRedemption(source: FinIdAccount, destination: DestinationAccount | undefined, sourceAsset: Asset, destinationAsset: Asset | undefined, amount: string): Promise<PlanApprovalStatus>;
 }
 
-export interface AsyncPlanApprovalPlugin {
-
-  validateIssuance(idempotencyKey: string, cid: string, destination: FinIdAccount, asset: Asset, amount: string): Promise<void>;
-
-  validateTransfer(idempotencyKey: string, cid: string, source: FinIdAccount, destination: DestinationAccount, sourceAsset: Asset, destinationAsset: Asset, amount: string): Promise<void>;
-
-  validateRedemption(idempotencyKey: string, cid: string, source: FinIdAccount, destination: DestinationAccount | undefined, sourceAsset: Asset, destinationAsset: Asset | undefined, amount: string): Promise<void>;
-}
-
 //------------------------------------------------------------
 
 
 export interface PaymentsPlugin {
 
-  deposit(owner: FinIdAccount, asset: DepositAsset, amount: string | undefined): Promise<DepositOperation>;
+  deposit(idempotencyKey: string, owner: FinIdAccount, asset: DepositAsset, amount: string | undefined, signature: Signature | undefined): Promise<DepositOperation>;
 
-  depositCustom(owner: FinIdAccount, amount: string | undefined, details: any): Promise<DepositOperation>;
+  depositCustom(idempotencyKey: string, owner: FinIdAccount, amount: string | undefined, details: any, signature: Signature | undefined): Promise<DepositOperation>;
 
-  payout(source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<ReceiptOperation>;
-}
-
-
-export interface AsyncPaymentsPlugin {
-
-  deposit(idempotencyKey: string, cid: string, owner: FinIdAccount, asset: DepositAsset, amount: string | undefined): Promise<void>;
-
-  depositCustom(idempotencyKey: string, cid: string, owner: FinIdAccount, amount: string | undefined, details: any): Promise<void>;
-
-  payout(idempotencyKey: string, cid: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<void>;
-}
-
-//------------------------------------------------------------
-
-
-export type TransactionType = 'issue' | 'transfer' | 'redeem' | 'hold' | 'release' | 'rollback';
-
-export interface TransactionHook {
-
-  preTransaction(idempotencyKey: string, type: TransactionType, source: Source | undefined, destination: Destination | undefined, asset: Asset, amount: string, sgn: Signature | undefined, exCtx: ExecutionContext | undefined): Promise<void>;
-
-  postTransaction(idempotencyKey: string, type: TransactionType, source: Source | undefined, destination: Destination | undefined, asset: Asset, amount: string, sgn: Signature | undefined, exCtx: ExecutionContext | undefined, status: OperationStatus): Promise<void>;
-
+  payout(idempotencyKey: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string, signature: Signature | undefined): Promise<ReceiptOperation>;
 }
 
 //------------------------------------------------------------
@@ -102,3 +66,11 @@ export interface InboundTransferHook {
   onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void>;
 }
 
+/**
+ * Adapter-provided hook to analyze an ExecutionPlan during approval.
+ * The returned metadata is stored in DB and injected into ExecutionContext
+ * when individual operations execute.
+ */
+export interface PlanAnalyzer {
+  analyzePlan(plan: ExecutionPlan): Promise<Record<string, any>>;
+}

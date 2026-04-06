@@ -213,9 +213,7 @@ export const register = (app: Application,
       // const sgn = signatureFromAPI(signature); // it's not provided by the router currently
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'issue', undefined, dst, ast, quantity, undefined, exCtx);
       const rsp = await tokenService.issue(ik, ast, dst, quantity, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'issue', undefined, dst, ast, quantity, undefined, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -246,9 +244,7 @@ export const register = (app: Application,
         }
       }
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'transfer', src, dst, srcAsset, quantity, sgn, exCtx);
       const rsp = await tokenService.transfer(ik, nonce, src, dst, srcAsset, dstAsset, quantity, sgn, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'transfer', src, dst, srcAsset, quantity, sgn, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -266,9 +262,7 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'redeem', src, undefined, ast, quantity, sgn, exCtx);
       const rsp = await tokenService.redeem(ik, nonce, finIdAcc, ast, quantity, operationId, sgn, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'redeem', src, undefined, ast, quantity, sgn, exCtx, rsp);
       res.json(receiptOperationToAPI(rsp));
     });
 
@@ -295,9 +289,7 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'hold', src, dst, ast, quantity, sgn, exCtx);
       const rsp = await escrowService.hold(ik, nonce, src, dst, ast, quantity, sgn, operationId, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'hold', src, dst, ast, quantity, sgn, exCtx, rsp);
       res.json(receiptOperationToAPI(rsp));
     });
 
@@ -313,9 +305,7 @@ export const register = (app: Application,
       const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'release', src, dst, ast, quantity, undefined, exCtx);
       const rsp = await escrowService.release(ik, src, dst, ast, quantity, operationId, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'release', src, dst, ast, quantity, undefined, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -331,9 +321,7 @@ export const register = (app: Application,
       const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'rollback', src, undefined, ast, quantity, undefined, exCtx);
       const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'rollback', src, undefined, ast, quantity, undefined, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });

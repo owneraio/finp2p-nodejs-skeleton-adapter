@@ -1,15 +1,13 @@
 import {
   failedDepositOperation,
-  FinIdAccount, generateCid,
+  FinIdAccount,
   PaymentService,
-  pendingDepositOperation, pendingReceiptOperation,
   Asset,
   DepositAsset,
   DepositOperation,
   Destination, failedReceiptOperation, ReceiptOperation,
   Signature,
   Source,
-  PluginError,
 } from '../../models';
 import { logger } from '../../helpers';
 import { PluginManager } from '../../plugins';
@@ -24,134 +22,58 @@ export class PaymentsServiceImpl implements PaymentService {
   }
 
   public async getDepositInstruction(idempotencyKey: string, owner: Source, destination: Destination, asset: DepositAsset, amount: string | undefined, details: any | undefined,
-    nonce: string | unknown, signature: Signature): Promise<DepositOperation> {
+    nonce: string | unknown, signature: Signature | undefined): Promise<DepositOperation> {
 
-    // const signer = owner.finId;
-    // if (!await verifySignature(signature, signer)) {
-    //   return failedDepositOperation(1, 'Signature verification failed');
-    // }
     switch (asset.assetType) {
       case 'custom':
-        return this.depositCustom(idempotencyKey, owner.account, amount, details);
+        return this.depositCustom(idempotencyKey, owner.account, amount, details, signature);
       default:
-        return this.deposit(idempotencyKey, owner.account, destination, asset, amount);
+        return this.deposit(idempotencyKey, owner.account, destination, asset, amount, signature);
     }
-
   }
 
   public async payout(idempotencyKey: string, source: Source, destination: Destination | undefined, asset: Asset, amount: string,
     description: string | undefined, nonce: string | undefined,
     signature: Signature | undefined): Promise<ReceiptOperation> {
-    if (!this.pluginManager) {
-      return Promise.resolve(failedReceiptOperation(1, 'Custom deposits are not supported'));
-    }
-    const plugin = this.pluginManager.getPaymentsPlugin();
+    const plugin = this.pluginManager?.getPaymentsPlugin();
     if (!plugin) {
-      logger.debug('No plugin found');
-      return Promise.resolve(failedReceiptOperation(1, 'Custom deposits are not supported'));
+      return failedReceiptOperation(1, 'Payments are not supported');
     }
-
     if (!destination) {
-      return Promise.resolve(failedReceiptOperation(1, 'No destination specified'));
+      return failedReceiptOperation(1, 'No destination specified');
     }
-    // const signer = owner.finId;
-    // if (!await verifySignature(signature, signer)) {
-    //   return failedDepositOperation(1, 'Signature verification failed');
-    // }
-
-    if (plugin.isAsync) {
-      if (!plugin.asyncIface) {
-        return Promise.resolve(failedReceiptOperation(1, 'No async interface in plan approval plugin'));
-      }
-      const cid = generateCid();
-      plugin.asyncIface.payout(idempotencyKey, cid, source.account, destination.account, asset, amount)
-        .then(() => {
-        }).catch(e => {
-          if (e instanceof PluginError) {
-            logger.warning(`Plugin error: ${e.code}, message=${e.message}`);
-          } else if (e instanceof Error) {
-            logger.warning(`Error in async deposit: ${e.message}`);
-          } else {
-            logger.warning(`Error in async deposit: ${JSON.stringify(e)}`);
-          }
-        });
-      return Promise.resolve(pendingReceiptOperation(cid, { responseStrategy: 'callback' }));
-    } else {
-      if (!plugin.syncIface) {
-        return Promise.resolve(failedReceiptOperation(1, 'No sync interface in plan approval plugin'));
-      }
-      return plugin.syncIface.payout(source.account, destination.account, asset, amount);
+    try {
+      return await plugin.payout(idempotencyKey, source.account, destination.account, asset, amount, signature);
+    } catch (e: any) {
+      logger.error('Payout plugin failed', { error: e.message ?? e });
+      return failedReceiptOperation(e.code ?? 1, e.message ?? String(e));
     }
   }
 
-  private async deposit(idempotencyKey: string, owner: FinIdAccount, destination: Destination, asset: DepositAsset, amount: string | undefined): Promise<DepositOperation> {
-    if (!this.pluginManager) {
-      return Promise.resolve(failedDepositOperation(1, 'Deposits are not supported'));
-    }
-    const plugin = this.pluginManager.getPaymentsPlugin();
+  private async deposit(idempotencyKey: string, owner: FinIdAccount, destination: Destination, asset: DepositAsset, amount: string | undefined, signature: Signature | undefined): Promise<DepositOperation> {
+    const plugin = this.pluginManager?.getPaymentsPlugin();
     if (!plugin) {
-      logger.debug('No plugin found');
-      return Promise.resolve(failedDepositOperation(1, 'Custom deposits are not supported'));
+      return failedDepositOperation(1, 'Deposits are not supported');
     }
-    if (plugin.isAsync) {
-      if (!plugin.asyncIface) {
-        return Promise.resolve(failedDepositOperation(1, 'No async interface in plan approval plugin'));
-      }
-      const cid = generateCid();
-      plugin.asyncIface.deposit(idempotencyKey, cid, owner, asset, amount)
-        .then(() => {
-        }).catch(e => {
-          if (e instanceof PluginError) {
-            logger.warning(`Plugin error: ${e.code}, message=${e.message}`);
-
-          } else if (e instanceof Error) {
-            logger.warning(`Error in async deposit: ${e.message}`);
-          } else {
-            logger.warning(`Error in async deposit: ${JSON.stringify(e)}`);
-          }
-        });
-      return Promise.resolve(pendingDepositOperation(cid, { responseStrategy: 'callback' }));
-    } else {
-      if (!plugin.syncIface) {
-        return Promise.resolve(failedDepositOperation(1, 'No sync interface in plan approval plugin'));
-      }
-      return plugin.syncIface.deposit(owner, asset, amount);
+    try {
+      return await plugin.deposit(idempotencyKey, owner, asset, amount, signature);
+    } catch (e: any) {
+      logger.error('Deposit plugin failed', { error: e.message ?? e });
+      return failedDepositOperation(e.code ?? 1, e.message ?? String(e));
     }
   }
 
-  private async depositCustom(idempotencyKey: string, owner: FinIdAccount, amount: string | undefined, details: any): Promise<DepositOperation> {
-    if (!this.pluginManager) {
-      return Promise.resolve(failedDepositOperation(1, 'Custom deposits are not supported'));
-    }
-    const plugin = this.pluginManager.getPaymentsPlugin();
+  private async depositCustom(idempotencyKey: string, owner: FinIdAccount, amount: string | undefined, details: any, signature: Signature | undefined): Promise<DepositOperation> {
+    const plugin = this.pluginManager?.getPaymentsPlugin();
     if (!plugin) {
-      logger.debug('No plugin found');
-      return Promise.resolve(failedDepositOperation(1, 'Custom deposits are not supported'));
+      return failedDepositOperation(1, 'Custom deposits are not supported');
     }
-    if (plugin.isAsync) {
-      if (!plugin.asyncIface) {
-        return Promise.resolve(failedDepositOperation(1, 'No async interface in plan approval plugin'));
-      }
-      const cid = generateCid();
-      plugin.asyncIface.depositCustom(idempotencyKey, cid, owner, amount, details)
-        .then(() => {
-        }).catch(e => {
-          if (e instanceof PluginError) {
-            logger.warning(`Plugin error: ${e.code}, message=${e.message}`);
-          } else if (e instanceof Error) {
-            logger.warning(`Error in async deposit: ${e.message}`);
-          } else {
-            logger.warning(`Error in async deposit: ${JSON.stringify(e)}`);
-          }
-        });
-      return Promise.resolve(pendingDepositOperation(cid, { responseStrategy: 'callback' }));
-    } else {
-      if (!plugin.syncIface) {
-        return Promise.resolve(failedDepositOperation(1, 'No sync interface in plan approval plugin'));
-      }
-      return plugin.syncIface.depositCustom(owner, amount, details);
+    try {
+      return await plugin.depositCustom(idempotencyKey, owner, amount, details, signature);
+    } catch (e: any) {
+      logger.error('Custom deposit plugin failed', { error: e.message ?? e });
+      return failedDepositOperation(e.code ?? 1, e.message ?? String(e));
     }
   }
-
 
 }
