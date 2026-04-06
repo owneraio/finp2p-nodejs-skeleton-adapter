@@ -45,10 +45,6 @@ export class FinP2PClient {
     return this.finAPIClient.executeIntent(...args);
   }
 
-  async executeTransferIntent(...args: Parameters<FinAPIClient['executeTransferIntent']>) {
-    return this.finAPIClient.executeTransferIntent(...args);
-  }
-
   async cancelExecution(...args: Parameters<FinAPIClient['cancelExecution']>) {
     return this.finAPIClient.cancelExecution(...args);
   }
@@ -134,10 +130,6 @@ export class FinP2PClient {
   }
 
   // ── OSS queries ──
-
-  async createTransferRequest(...args: Parameters<FinAPIClient['createTransferRequest']>) {
-    return this.finAPIClient.createTransferRequest(...args);
-  }
 
   async updateCertificate(...args: Parameters<FinAPIClient['updateCertificate']>) {
     return this.finAPIClient.updateCertificate(...args);

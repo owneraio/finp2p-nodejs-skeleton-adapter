@@ -114,17 +114,6 @@ export class FinAPIClient {
     return this.apiClient.POST('/tokens/execute', { body });
   }
 
-  async executeTransferIntent(intentId: string, body: RequestBody<'/profiles/asset/intent/transfer/execute/{intentId}', 'post'>) {
-    return this.apiClient.POST('/profiles/asset/intent/transfer/execute/{intentId}', {
-      params: { path: { intentId } },
-      body,
-    });
-  }
-
-  async createTransferRequest(body: RequestBody<'/profiles/asset/intent/transfer', 'post'>) {
-    return this.apiClient.POST('/profiles/asset/intent/transfer', { body });
-  }
-
   async cancelExecution(body: RequestBody<'/tokens/execute/cancel', 'post'>) {
     return this.apiClient.POST('/tokens/execute/cancel', { body });
   }

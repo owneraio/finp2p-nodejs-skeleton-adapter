@@ -83,6 +83,15 @@ export type OssCertificate = {
   providerId?: string;
 };
 
+export type OssWalletAccount = {
+  type: string;
+  address: string;
+};
+
+export type OssNetworkAccount = {
+  wallet: OssWalletAccount | null;
+};
+
 export type OssAsset = {
   id: string,
   name: string,
@@ -108,6 +117,7 @@ export type OssAsset = {
     nodes: OssIntent[]
   }
   ledgerAssetInfo: LedgerAssetInfo
+  orgSettlementAccount: OssNetworkAccount | null
 };
 
 export type OssAssetNodes = {
