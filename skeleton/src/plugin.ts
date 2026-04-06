@@ -11,8 +11,6 @@ export {
   AssetCreationPlugin,
   PlanApprovalPlugin,
   PaymentsPlugin,
-  TransactionHook,
-  TransactionType,
   LedgerCallbackService,
   InstructionResult,
   PlannedInboundTransferContext,

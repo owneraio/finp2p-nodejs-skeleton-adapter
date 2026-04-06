@@ -1,10 +1,10 @@
 
 import {
   Account, Asset, DepositAsset,
-  DepositOperation, Destination,
-  DestinationAccount, ExecutionContext, ExecutionPlan,
+  DepositOperation,
+  DestinationAccount, ExecutionPlan,
   FinIdAccount,
-  OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature, Source,
+  OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature,
 } from '../model';
 
 
@@ -28,24 +28,11 @@ export interface PlanApprovalPlugin {
 
 export interface PaymentsPlugin {
 
-  deposit(owner: FinIdAccount, asset: DepositAsset, amount: string | undefined): Promise<DepositOperation>;
+  deposit(idempotencyKey: string, owner: FinIdAccount, asset: DepositAsset, amount: string | undefined, signature: Signature | undefined): Promise<DepositOperation>;
 
-  depositCustom(owner: FinIdAccount, amount: string | undefined, details: any): Promise<DepositOperation>;
+  depositCustom(idempotencyKey: string, owner: FinIdAccount, amount: string | undefined, details: any, signature: Signature | undefined): Promise<DepositOperation>;
 
-  payout(source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<ReceiptOperation>;
-}
-
-//------------------------------------------------------------
-
-
-export type TransactionType = 'issue' | 'transfer' | 'redeem' | 'hold' | 'release' | 'rollback';
-
-export interface TransactionHook {
-
-  preTransaction(idempotencyKey: string, type: TransactionType, source: Source | undefined, destination: Destination | undefined, asset: Asset, amount: string, sgn: Signature | undefined, exCtx: ExecutionContext | undefined): Promise<void>;
-
-  postTransaction(idempotencyKey: string, type: TransactionType, source: Source | undefined, destination: Destination | undefined, asset: Asset, amount: string, sgn: Signature | undefined, exCtx: ExecutionContext | undefined, status: OperationStatus): Promise<void>;
-
+  payout(idempotencyKey: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string, signature: Signature | undefined): Promise<ReceiptOperation>;
 }
 
 //------------------------------------------------------------

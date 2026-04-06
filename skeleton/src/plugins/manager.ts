@@ -3,7 +3,6 @@ import {
   PaymentsPlugin,
   PlanAnalyzer,
   PlanApprovalPlugin,
-  TransactionHook,
 } from '../models';
 
 
@@ -14,8 +13,6 @@ export class PluginManager {
   private planApprovalPlugin: PlanApprovalPlugin | null = null;
 
   private paymentsPlugin: PaymentsPlugin | null = null;
-
-  private transactionHook: TransactionHook | null = null;
 
   private planAnalyzer: PlanAnalyzer | null = null;
 
@@ -41,14 +38,6 @@ export class PluginManager {
 
   getPaymentsPlugin(): PaymentsPlugin | null {
     return this.paymentsPlugin;
-  }
-
-  registerTransactionHook(plugin: TransactionHook): void {
-    this.transactionHook = plugin;
-  }
-
-  getTransactionHook(): TransactionHook | null {
-    return this.transactionHook;
   }
 
   registerPlanAnalyzer(analyzer: PlanAnalyzer): void {
