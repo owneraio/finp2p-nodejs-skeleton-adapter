@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.28.0-custody-native.20",
+  "version": "0.28.0-custody-native.21",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
@@ -40,7 +40,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-client": "^0.28.0-custody-native.6",
+    "@owneraio/finp2p-client": "^0.28.0-custody-native.7",
     "axios": "1.11.0",
     "bs58": "^6.0.0",
     "ethers": "^6.11.1",
