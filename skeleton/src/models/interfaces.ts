@@ -1,5 +1,5 @@
 import {
-  Asset,
+  Asset, AssetBase,
   AssetCreationStatus,
   Destination,
   ExecutionContext,
@@ -25,7 +25,7 @@ export interface CommonService {
 
 export interface TokenService {
 
-  createAsset(idempotencyKey: string, asset: Asset,
+  createAsset(idempotencyKey: string, asset: AssetBase,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus>;
 

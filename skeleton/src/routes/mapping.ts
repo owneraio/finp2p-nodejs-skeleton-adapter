@@ -1,5 +1,5 @@
 import {
-  Asset,
+  Asset, AssetBase,
   Source,
   Destination,
   Signature,
@@ -15,12 +15,13 @@ import {
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
 
-export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAssetBase']): Asset => {
-  const result: Asset = { assetId: asset.resourceId, assetType: 'finp2p' };
-  if ('ledgerIdentifier' in asset && asset.ledgerIdentifier) {
-    result.ledgerIdentifier = asset.ledgerIdentifier;
-  }
-  return result;
+export const assetBaseFromAPI = (asset: components['schemas']['finp2pAssetBase']): AssetBase => {
+  return { assetId: asset.resourceId, assetType: 'finp2p' };
+};
+
+export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
+  const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
+  return { assetId, assetType: 'finp2p', ledgerIdentifier: asset.ledgerIdentifier };
 };
 
 export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']): DepositAsset => {

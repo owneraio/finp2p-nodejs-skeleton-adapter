@@ -9,13 +9,20 @@ export type Caip19LedgerAssetIdentifier = {
   standard: string;
 };
 
-export type Asset = {
+export type AssetBase = {
   assetId: string
   assetType: AssetType
-  ledgerIdentifier?: Caip19LedgerAssetIdentifier
 };
 
-export type DepositAsset = Asset | {
+export type Asset = AssetBase & {
+  ledgerIdentifier: Caip19LedgerAssetIdentifier
+};
+
+// Per API spec, deposit assets are limited to 'finp2p' or 'custom' variants (no ledgerIdentifier)
+export type DepositAsset = {
+  assetId: string
+  assetType: 'finp2p'
+} | {
   assetType: 'custom'
 };
 

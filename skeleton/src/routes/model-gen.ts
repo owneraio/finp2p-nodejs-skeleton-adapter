@@ -372,7 +372,7 @@ export interface components {
       /** @description How many units of the asset */
       quantity: string;
       payoutInstruction?: components['schemas']['payoutInstruction'];
-      asset: components['schemas']['finp2pAssetBase'];
+      asset: components['schemas']['finp2pAsset'];
       nonce?: components['schemas']['nonce'];
       signature?: components['schemas']['signature'];
     };
@@ -488,9 +488,9 @@ export interface components {
       operationId?: string;
     };
     asset: {
-      ledgerIdentifier?: components['schemas']['ledgerAssetIdentifier'];
+      ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
     } & components['schemas']['finp2pAssetBase'];
-    payoutAsset: components['schemas']['finp2pAssetBase'];
+    payoutAsset: components['schemas']['finp2pAsset'];
     payoutInstruction: {
       /** @description withdrawal description */
       description: string;
@@ -1076,10 +1076,11 @@ export interface components {
       methodInstruction: components['schemas']['wireTransfer'] | components['schemas']['wireTransferUSA'] | components['schemas']['cryptoTransfer'] | components['schemas']['paymentInstructions'];
     };
     paymentMethods: components['schemas']['paymentMethod'][];
-    finp2pAssetBase: {
-      /** @description unique resource ID of the FinP2P asset */
-      resourceId: string;
-    };
+    /**
+         * @description finp2p resource id format
+         * @example bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388
+         */
+    resourceId: string;
     'ledgerAssetIdentifierTypeCAIP-19': {
       /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
@@ -1091,6 +1092,15 @@ export interface components {
       standard: string;
     };
     ledgerAssetIdentifier: components['schemas']['ledgerAssetIdentifierTypeCAIP-19'];
+    /** @description describes asset information */
+    finp2pAsset: {
+      id: components['schemas']['resourceId'];
+      ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
+    };
+    finp2pAssetBase: {
+      /** @description unique resource ID of the FinP2P asset */
+      resourceId: string;
+    };
     walletAccount: {
       type: string;
       /** @description address of the wallet */

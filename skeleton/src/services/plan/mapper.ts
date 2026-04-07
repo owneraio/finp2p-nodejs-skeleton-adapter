@@ -15,11 +15,11 @@ import { OpComponents } from '@owneraio/finp2p-client';
 
 
 export const assetFromFinp2pAsset = (asset: OpComponents['schemas']['finp2pAsset']): Asset => {
-  return { assetType: 'finp2p', assetId: asset.id };
+  return { assetType: 'finp2p', assetId: asset.id, ledgerIdentifier: asset.ledgerIdentifier };
 };
 
 export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => {
-  return { assetType: 'finp2p', assetId: asset.resourceId };
+  return { assetType: 'finp2p', assetId: asset.resourceId, ledgerIdentifier: asset.ledgerIdentifier };
 };
 
 export const accountFromAPI = (account: OpComponents['schemas']['schemas-finIdAccount']): Account => {

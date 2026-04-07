@@ -21,7 +21,7 @@ import { logger } from '../helpers';
 import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
-  assetFromAPI,
+  assetFromAPI, assetBaseFromAPI,
   balanceToAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
@@ -172,7 +172,7 @@ export const register = (app: Application,
 
       const result = await tokenService.createAsset(
         idempotencyKey,
-        assetFromAPI(asset),
+        assetBaseFromAPI(asset),
         assetBindingOptFromAPI(ledgerAssetBinding),
         metadata,
         name,

@@ -14,7 +14,7 @@ import { contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, tr
 
 const receiptToFinAPI = (receipt: Receipt): OpComponents['schemas']['receipt'] => {
   const { id, asset, source, destination, quantity, operationType, tradeDetails, transactionDetails, proof, timestamp } = receipt;
-  const apiAsset: OpComponents['schemas']['asset'] = { resourceId: asset.assetId };
+  const apiAsset: OpComponents['schemas']['asset'] = { resourceId: asset.assetId, ledgerIdentifier: asset.ledgerIdentifier };
   return {
     id,
     quantity,
