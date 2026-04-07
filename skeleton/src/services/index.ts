@@ -3,3 +3,4 @@ export * from './plan';
 export * from './payments';
 export * from './verify';
 export * from './mapping';
+export * from './network-mapping';

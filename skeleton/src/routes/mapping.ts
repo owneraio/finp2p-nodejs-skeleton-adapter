@@ -167,10 +167,11 @@ export const assetDenominationOptFromAPI = (denom: components['schemas']['assetD
 };
 
 export const assetIdentifierFromAPI = (identifier: components['schemas']['assetIdentifier']): AssetIdentifier => {
-  const { assetIdentifierType, assetIdentifierValue } = identifier;
+  const { assetIdentifierType, assetIdentifierValue, networkInfo } = identifier;
   return {
     type: assetIdentifierType as AssetIdentifier['type'],
     value: assetIdentifierValue,
+    networkId: networkInfo?.networkId,
   };
 };
 
