@@ -5,6 +5,7 @@ import {
   EscrowService,
   HealthService,
   MappingService,
+  NetworkMappingService,
   PaymentService,
   PlanApprovalService,
   Source,
@@ -37,8 +38,9 @@ import {
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
-import { MappingConfig, registerMappingRoutes } from './operational';
+import { MappingConfig, NetworkMappingConfig, registerMappingRoutes, registerNetworkMappingRoutes } from './operational';
 import { MappingServiceImpl } from '../services/mapping';
+import { NetworkMappingServiceImpl } from '../services/network-mapping';
 
 const basePath = 'api';
 
@@ -58,6 +60,8 @@ export const register = (app: Application,
   workflowConfig: Config | undefined,
   mappingConfig?: MappingConfig,
   mappingService?: MappingService,
+  networkMappingConfig?: NetworkMappingConfig,
+  networkMappingService?: NetworkMappingService,
 ) => {
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
@@ -368,6 +372,10 @@ export const register = (app: Application,
 
   if (mappingConfig) {
     registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl());
+  }
+
+  if (networkMappingConfig) {
+    registerNetworkMappingRoutes(app, networkMappingConfig, networkMappingService ?? new NetworkMappingServiceImpl());
   }
 
   app.use(errorHandler);

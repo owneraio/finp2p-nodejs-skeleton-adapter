@@ -2,26 +2,28 @@ openapi: 3.0.1
 info:
   title: Adapter Mapping API
   description: >-
-    Operational mapping API for FinP2P adapter identity provisioning.
+    Operational mapping API for FinP2P adapter identity and network provisioning.
     Associates FinP2P investor identities (finId) with ledger-specific
-    account identifiers.
+    account identifiers, and registers network execution environments.
   termsOfService: 'https://ownera.io/terms/'
   contact:
     email: support@ownera.io
-  version: 0.1.0
+  version: 0.2.0
 tags:
   - name: mapping
     description: Owner identity mapping operations
+  - name: network
+    description: Network registry mapping operations
 
 paths:
   /mapping/owners:
     post:
       tags:
         - mapping
-      summary: Create or update owner mapping
+      summary: Create, update, or delete owner mapping
       description: >-
-        Associate a FinP2P finId with a ledger-specific account identifier.
-        Also provisions an on-ledger credential when possible.
+        Associate a FinP2P finId with ledger-specific account identifiers.
+        Setting status to "inactive" deletes the mapping.
       operationId: createOwnerMapping
       requestBody:
         required: true
@@ -31,7 +33,7 @@ paths:
               $ref: '#/components/schemas/createOwnerMappingRequest'
       responses:
         '200':
-          description: Mapping created or updated successfully
+          description: Mapping created, updated, or deleted
           content:
             application/json:
               schema:
@@ -93,16 +95,91 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/accountMappingField'
+                  $ref: '#/components/schemas/mappingField'
+
+  /mapping/networks:
+    post:
+      tags:
+        - network
+      summary: Create, update, or delete network mapping
+      description: >-
+        Register or update a network execution environment.
+        Setting status to "inactive" deletes the mapping.
+      operationId: createNetworkMapping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createNetworkMappingRequest'
+      responses:
+        '200':
+          description: Network mapping created, updated, or deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/networkMapping'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+
+    get:
+      tags:
+        - network
+      summary: Query network mappings
+      description: Retrieve registered network mappings, optionally filtered by networkId list.
+      operationId: getNetworkMappings
+      parameters:
+        - name: networkIds
+          in: query
+          required: false
+          description: Comma-separated list of networkIds to filter by
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of network mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/networkMapping'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+
+  /mapping/network-fields:
+    get:
+      tags:
+        - network
+      summary: Get supported network mapping fields
+      description: Returns metadata describing the network mapping fields supported by this adapter.
+      operationId: getNetworkMappingFields
+      responses:
+        '200':
+          description: List of network mapping field descriptors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/mappingField'
 
 components:
   schemas:
-    ownerStatus:
-      type: string
-      enum:
-        - active
-        - inactive
-
     accountMappings:
       type: object
       additionalProperties:
@@ -111,20 +188,37 @@ components:
         Key-value pairs of adapter-specific account identifiers
         (e.g. ledgerAccountId, custodyAccountId)
 
+    networkMappings:
+      type: object
+      additionalProperties:
+        type: string
+      description: >-
+        Key-value pairs of adapter-specific network configuration
+        (e.g. chainId, rpcUrl, submitMode)
+
     ownerMapping:
       type: object
       required:
         - finId
-        - status
         - accountMappings
       properties:
         finId:
           type: string
           description: FinP2P identity (hex secp256k1 compressed public key)
-        status:
-          $ref: '#/components/schemas/ownerStatus'
         accountMappings:
           $ref: '#/components/schemas/accountMappings'
+
+    networkMapping:
+      type: object
+      required:
+        - networkId
+        - networkMappings
+      properties:
+        networkId:
+          type: string
+          description: Stable network identifier (e.g. eip155:1, besu:corp-settlement)
+        networkMappings:
+          $ref: '#/components/schemas/networkMappings'
 
     createOwnerMappingRequest:
       type: object
@@ -136,7 +230,10 @@ components:
           type: string
           description: FinP2P identity (hex secp256k1 compressed public key)
         status:
-          $ref: '#/components/schemas/ownerStatus'
+          type: string
+          enum: [active, inactive]
+          default: active
+          description: Set to "inactive" to delete the mapping
         accountMappings:
           $ref: '#/components/schemas/accountMappings'
 
@@ -154,7 +251,24 @@ components:
                 Status of on-ledger credential provisioning
                 (e.g. "created", "existing", "skipped")
 
-    accountMappingField:
+    createNetworkMappingRequest:
+      type: object
+      required:
+        - networkId
+        - networkMappings
+      properties:
+        networkId:
+          type: string
+          description: Stable network identifier (e.g. eip155:1, besu:corp-settlement)
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+          description: Set to "inactive" to delete the mapping
+        networkMappings:
+          $ref: '#/components/schemas/networkMappings'
+
+    mappingField:
       type: object
       required:
         - field
@@ -163,7 +277,7 @@ components:
       properties:
         field:
           type: string
-          description: The field name within accountMappings
+          description: The field name within the mapping
         description:
           type: string
           description: Human-readable description of the field
