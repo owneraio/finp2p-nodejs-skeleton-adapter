@@ -15,12 +15,22 @@ export interface AssetCreationPlugin {
 //------------------------------------------------------------
 
 
+export type PlanFailureReason = {
+  instructionSequence: number;
+  code: number;
+  message: string;
+};
+
 export interface PlanApprovalPlugin {
   validateIssuance(destination: FinIdAccount, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
 
   validateTransfer(source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
 
   validateRedemption(source: FinIdAccount, destination: DestinationAccount | undefined, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
+
+  onPlanCompleted(planId: string): Promise<void>;
+
+  onPlanFailed(planId: string, status: string, reason: PlanFailureReason | undefined): Promise<void>;
 }
 
 //------------------------------------------------------------
