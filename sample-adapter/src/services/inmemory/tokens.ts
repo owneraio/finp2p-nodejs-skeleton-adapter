@@ -39,11 +39,11 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     let ledgerIdentifier: LedgerAssetIdentifier;
     if (!assetBind || !assetBind.tokenIdentifier) {
       ledgerIdentifier = { network: 'inmemory', tokenId: generateId(), standard: 'mock' };
-      this.storage.createAsset(asset.assetId, asset);
     } else {
       const { network, tokenId, standard } = assetBind.tokenIdentifier;
       ledgerIdentifier = { network, tokenId, standard };
     }
+    this.storage.createAsset(asset.assetId, asset);
     return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
   }
 
