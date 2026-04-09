@@ -19,6 +19,8 @@ tags:
     description: Operations information
   - name: messages
     description: Messaging
+  - name: data
+    description: Asset data management and refresh operations
 
 paths:
   /profiles/owner:
@@ -477,6 +479,12 @@ paths:
                   items:
                     $ref: 'common-external-components.yaml#/components/schemas/orgId'
                   description: 'Collections of organizations ids to share the profile with'
+                dataAccess:
+                  type: 'array'
+                  items:
+                    $ref: '#/components/schemas/dataAccess'
+                  description: 'data information the profile owner allows to be shared with the organizations'
+                  x-go-type-skip-optional-pointer: true
         required: true
       responses:
         '200':
@@ -1273,7 +1281,172 @@ paths:
       responses:
         '202':
           description: sync request received, sync in progress
-          content: { }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cid:
+                    type: string
+                    description: correlation id for tracking the operation status
+                  message:
+                    type: string
+
+
+  '/data/refresh':
+    post:
+      tags:
+        - data
+      summary: Trigger immediate data refresh
+      description: |
+        Manually trigger a data refresh for the specified identifiers.
+        This fetches the latest data from configured data providers immediately,
+        regardless of the scheduled refresh interval.
+      operationId: refreshDataNow
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identifiers
+              properties:
+                identifiers:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AssetDataIdentifier'
+                  description: Asset identifiers to fetch data for (e.g. ISIN, CAIP19)
+                providerName:
+                  type: string
+                  description: Specific provider to fetch from (empty = all configured providers)
+      responses:
+        '200':
+          description: Refresh triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/operationBase'
+
+  '/data/assets/ingest':
+    post:
+      tags:
+        - data
+      summary: Ingest asset data
+      description: |
+        Unified endpoint for ingesting asset data from any source:
+        - Manual push from API consumers
+        - Adapter subscription callbacks (push mode)
+        - Adapter async pull responses
+
+        Supports single or batch. Asset identifiers are in the request body.
+      operationId: ingestAssetData
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestAssetDataRequest'
+      responses:
+        '200':
+          description: Data ingested successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestAssetDataResponse'
+
+  # Data Rules Endpoints
+  '/data/rules':
+    post:
+      tags:
+        - data
+      summary: Create a data rule
+      description: |
+        Create a new data rule that maps an asset identifier (e.g. ISIN) to a data provider
+        and the data types that provider supplies for matching assets.
+      operationId: createDataRule
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDataRuleRequest'
+      responses:
+        '200':
+          description: Data rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRuleResponse'
+
+  '/data/rules/{ruleId}':
+    patch:
+      tags:
+        - data
+      summary: Update a data rule
+      description: Update the data types or enabled status of an existing data rule.
+      operationId: updateDataRule
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: ruleId
+          in: path
+          description: Data rule ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDataRuleRequest'
+      responses:
+        '200':
+          description: Data rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRuleResponse'
+    delete:
+      tags:
+        - data
+      summary: Delete a data rule
+      description: Remove a data rule. Existing refresh configs created from this rule are not affected.
+      operationId: deleteDataRule
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: ruleId
+          in: path
+          description: Data rule ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Data rule deleted
 
   /health:
     get:
@@ -1577,7 +1750,7 @@ components:
         buyer:
           $ref: 'common-external-components.yaml#/components/schemas/ownerId'
         asset:
-          $ref: 'common-external-components.yaml#/components/schemas/buyingAsset'
+          $ref: 'common-external-components.yaml#/components/schemas/issuingAsset'
         settlement:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
 
@@ -1769,6 +1942,7 @@ components:
         - $ref: '#/components/schemas/resetExecutionOperation'
         - $ref: '#/components/schemas/accountOperation'
         - $ref: '#/components/schemas/workflowOperation'
+        - $ref: '#/components/schemas/balanceSyncOperation'
       discriminator:
         propertyName: type
         mapping:
@@ -1781,6 +1955,7 @@ components:
           reset-execution: '#/components/schemas/resetExecutionOperation'
           account: '#/components/schemas/accountOperation'
           workflow: '#/components/schemas/workflowOperation'
+          balance-sync: '#/components/schemas/balanceSyncOperation'
 
     tokenOperation:
       allOf:
@@ -2070,6 +2245,34 @@ components:
               type: string
               enum: [ 'success' ]
         - $ref: '#/components/schemas/resourceIdResponse'
+
+    balanceSyncOperation:
+      allOf:
+        - $ref: '#/components/schemas/operationBase'
+        - type: object
+          required: [ type ]
+          properties:
+            type:
+              type: string
+              enum: [ 'balance-sync' ]
+            response:
+              type: object
+              discriminator:
+                propertyName: type
+                mapping:
+                  error: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
+                  success: '#/components/schemas/balanceSyncOperationResponse'
+              oneOf:
+                - $ref: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
+                - $ref: '#/components/schemas/balanceSyncOperationResponse'
+
+    balanceSyncOperationResponse:
+      type: object
+      required: [ type ]
+      properties:
+        type:
+          type: string
+          enum: [ 'success' ]
 
     depositOperation:
       allOf:
@@ -2736,3 +2939,206 @@ components:
         mimeType:
           type: string
           description: The file mimeType
+
+    dataAccess:
+      type: object
+      required: [ accessType, status ]
+      properties:
+        accessType:
+          type: 'string'
+          enum: [ balance ]
+          description: |
+            Type of data access granted to shared organizations.
+            balance - grants receipt forwarding for balance synchronization.
+        status:
+          type: 'string'
+          enum: [ active, inactive ]
+          description: Status of the data access permission.
+
+    # Data Provider Asset Data Schemas
+    IngestAssetDataRequest:
+      type: object
+      required:
+        - assets
+      properties:
+        requestId:
+          type: string
+          description: Correlation ID from async fetch (202 response)
+        subscriptionId:
+          type: string
+          description: Correlation ID from subscription
+        source:
+          type: string
+          description: |
+            Source identifier. Examples: provider name, "manual".
+          default: 'manual'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestAssetDataItem'
+          minItems: 1
+          description: Array of asset data items (single item or batch)
+
+    IngestAssetDataItem:
+      type: object
+      required:
+        - identifier
+        - data
+      properties:
+        identifier:
+          $ref: '#/components/schemas/AssetDataIdentifier'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetDataItem'
+          minItems: 1
+
+    AssetDataItem:
+      type: object
+      required:
+        - dataType
+        - data
+      properties:
+        dataType:
+          $ref: '#/components/schemas/DataType'
+        schemaRef:
+          type: string
+          format: uri
+          description: URI to JSON schema for validation of the data object
+        data:
+          type: object
+          additionalProperties: true
+          description: The actual data payload conforming to the referenced schema
+        source:
+          type: string
+          description: Data source identifier
+        timestamp:
+          type: integer
+          format: int64
+          description: Provider timestamp (epoch milliseconds)
+
+    IngestAssetDataResponse:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestEntryResult'
+
+    IngestEntryResult:
+      type: object
+      required:
+        - identifier
+        - dataType
+        - status
+      properties:
+        identifier:
+          $ref: '#/components/schemas/AssetDataIdentifier'
+        dataType:
+          type: string
+          description: The data type of this entry
+        status:
+          type: string
+          enum: [accepted, rejected]
+        error:
+          type: object
+          description: Present only when status is "rejected"
+          properties:
+            code:
+              type: integer
+              description: Error code from the errorcodes catalog
+            message:
+              type: string
+
+    AssetDataIdentifier:
+      type: object
+      required:
+        - identifierType
+        - identifierValue
+      properties:
+        identifierType:
+          type: string
+          description: Identifier type (e.g. ISIN, CAIP19)
+        identifierValue:
+          type: string
+          description: Identifier value (e.g. US0378331005)
+
+    DataType:
+      type: string
+      enum:
+        - assetHeader
+        - pricing
+        - fundamentals
+        - ratings
+        - corporateActions
+        - marketData
+        - referenceData
+
+    # Data Rules Schemas
+    CreateDataRuleRequest:
+      type: object
+      required:
+        - identifierType
+        - identifierValue
+        - providerName
+        - dataType
+      properties:
+        identifierType:
+          type: string
+          description: Identifier type (e.g. ISIN, CAIP19)
+        identifierValue:
+          type: string
+          description: Identifier value (e.g. US0378331005) or "*" for all
+        providerName:
+          type: string
+          description: Name of the data provider
+        dataType:
+          $ref: '#/components/schemas/DataType'
+          description: Data type this provider supplies for matching assets
+        refreshInterval:
+          type: string
+          description: Refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based). Null means system default (24h).
+        enabled:
+          type: boolean
+          description: Whether this rule is active
+          default: true
+
+    UpdateDataRuleRequest:
+      type: object
+      properties:
+        refreshInterval:
+          type: string
+          description: Updated refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based)
+        enabled:
+          type: boolean
+          description: Whether this rule is active
+
+    DataRuleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        identifierType:
+          type: string
+        identifierValue:
+          type: string
+        providerId:
+          type: string
+          format: uuid
+        dataType:
+          $ref: '#/components/schemas/DataType'
+        refreshInterval:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+

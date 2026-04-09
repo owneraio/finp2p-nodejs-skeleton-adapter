@@ -396,10 +396,72 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/dataprovider/bind': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Bind Data Provider
+         * @description Define a new data provider integration
+         */
+    post: operations['bind data provider'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/dataprovider/{name}/update': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+         * Update Data Provider binding
+         * @description Update an existing data provider integration
+         */
+    patch: operations['update data provider binding'];
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    dataProviderResponse: {
+      /**
+             * Format: uuid
+             * @description Unique identifier for the data provider
+             */
+      readonly id?: string;
+      /** @description Data provider name */
+      name?: string;
+      /**
+             * @description Type of data provider
+             * @enum {string}
+             */
+      readonly providerType?: 'adapter' | 'finp2p';
+      /** @description Data provider adapter endpoint URL */
+      endpoint?: string;
+      /** @description Human-readable name for the data provider */
+      displayName?: string;
+      /** @description Maximum time allowed for each request to the data provider */
+      requestTimeout?: string;
+      /** @description Waiting period between retry attempts */
+      backoff?: string;
+    };
     pinningAddress: {
       /** Format: address */
       address?: string;
@@ -1578,7 +1640,7 @@ export interface components {
       resourceId: string;
     };
     asset: {
-      ledgerIdentifier?: components['schemas']['ledgerAssetIdentifier'];
+      ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
     } & components['schemas']['finp2pAssetBase'];
     walletAccount: {
       type: string;
@@ -2141,16 +2203,16 @@ export interface components {
       networkAccount?: components['schemas']['networkAccount'];
     };
     sourceDestinationAccountLedgerAssetInstruction: {
-      sourceAccount: components['schemas']['ledgerAccountAsset'];
-      destinationAccount: components['schemas']['ledgerAccountAsset'];
+      sourceAccount: components['schemas']['finp2pAssetAccount'];
+      destinationAccount: components['schemas']['finp2pAssetAccount'];
     };
     sourceDestinationExecuteAsset: {
       term?: components['schemas']['assetTerm'];
       instruction?: components['schemas']['sourceDestinationAccountLedgerAssetInstruction'];
     };
     BorrowerLenderAccountLedgerAssetInstruction: {
-      borrowerAccount: components['schemas']['ledgerAccountAsset'];
-      lenderAccount: components['schemas']['ledgerAccountAsset'];
+      borrowerAccount: components['schemas']['finp2pAssetAccount'];
+      lenderAccount: components['schemas']['finp2pAssetAccount'];
     };
     loanExecuteAsset: {
       assetTerm: components['schemas']['assetTerm'];
@@ -2845,6 +2907,87 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  'bind data provider': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Unique identifier for the data provider name. This value must be unique across all data provider bindings */
+          name: string;
+          /** @description Data provider adapter address in URL format */
+          endpoint: string;
+          auth?: components['schemas']['adapterAuthOptions'];
+          idempotency?: components['schemas']['adapterIdempotencyOptions'];
+          /** @description A human-readable name for the data provider that appears in user interfaces */
+          displayName?: string;
+          /**
+                     * @description The maximum time allowed for each request to the data provider adapter
+                     * @default 30s
+                     */
+          requestTimeout?: string;
+          /**
+                     * @description The waiting period between consecutive retry attempts when a request fails
+                     * @default 5m
+                     */
+          backoff?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['dataProviderResponse'];
+        };
+      };
+    };
+  };
+  'update data provider binding': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Unique identifier for the data provider name */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Data provider adapter address in URL format */
+          endpoint?: string | null;
+          auth?: components['schemas']['adapterAuthOptionsOpt'] | null;
+          idempotency?: components['schemas']['adapterIdempotencyOptionsOpt'] | null;
+          /** @description A human-readable name for the data provider that appears in user interfaces */
+          displayName?: string | null;
+          /** @description The maximum time allowed for each request to the data provider adapter */
+          requestTimeout?: string | null;
+          /** @description The waiting period between consecutive retry attempts when a request fails */
+          backoff?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['dataProviderResponse'];
+        };
       };
     };
   };

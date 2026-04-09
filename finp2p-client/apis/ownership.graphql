@@ -106,6 +106,9 @@ type Asset implements Profile  {
 
     "whether the asset is auto-shared"
     autoShare: Boolean!
+
+    "omnibus account for the asset, if applicable"
+    orgSettlementAccount: NetworkAccount
 }
 
 type LedgerAssetInfo {
@@ -162,6 +165,24 @@ type LedgerMtlsOptions {
 
 type LedgerApiKeyOptions {
     apiKey: String!
+}
+
+type CustodyProviders {
+    "Collection of Custody Provider Objects, conforms to the Filter input if provided."
+    nodes: [CustodyProvider!]
+
+    "Keeps pagination info in-case limit input was provided"
+    pageInfo: PageInfo
+}
+
+type CustodyProvider {
+    name: String!
+    endpoint: String!
+    displayName: String
+    idempotency: LedgerIdempotencyOptions
+    requestTimeout: String!
+    backoff: String!
+    singleRequestTimeout: String!
 }
 
 
@@ -234,6 +255,8 @@ type User implements Profile  {
     "user resource version"
     version: String!
 
+    "Data access permissions this resource has received from other organizations"
+    dataAccessReceived: [String]
 }
 
 type OutgoingMessages {
@@ -362,11 +385,17 @@ type TransactionDetails {
 type Receipt {
     id: String!
 
-    "Source of transaction"
-    source: LedgerAccountAsset!
+    "Source owner resource ID"
+    source: String
 
-    "Destination of transaction"
-    destination: LedgerAccountAsset!
+    "Source account of transaction"
+    sourceAccount: LedgerAccountAsset
+
+    "Destination owner resource ID"
+    destination: String
+
+    "Destination account of transaction"
+    destinationAccount: LedgerAccountAsset
 
     "Number of asset units with the transaction"
     quantity: String!
@@ -856,6 +885,9 @@ type SequenceTransition {
 }
 
 type IssueInstruction {
+    "source for issuance"
+    source: LedgerAccountAsset
+
     "destination account for issuance"
     destination: LedgerAccountAsset!
 
@@ -1187,6 +1219,9 @@ type Document {
 "Profile Metadata (ACL)."
 type ProfileMetadata {
     acl: [String!]
+
+    "Shared resources data access given to which org"
+    dataAccess: [DataAccess!]
 }
 
 type OrganizationAsset {
@@ -1396,6 +1431,8 @@ type Query {
     workflows(filter: [Filter!], paginate: PaginateInput = {}, orderBy: WorkflowOrder): Workflows!
 
     ledgers(filter: [Filter!], paginate: PaginateInput = {}): LedgerBindings!
+
+    custodyProviders(filter: [Filter!], paginate: PaginateInput = {}): CustodyProviders!
 
     approvalConfigs(paginate: PaginateInput = {}): ApprovalConfigs!
 
@@ -1759,3 +1796,18 @@ type NodeAddress {
     schemas: [HttpSchemas!]!
 }
 
+enum DataAccessType {
+    Unknown
+    Balance
+}
+
+type DataAccess {
+    "organization id the resource shared with"
+    targetOrgId: String!
+
+    "data access type"
+    accessType: DataAccessType!
+
+    "status of the shared resource data access"
+    status: String!
+}

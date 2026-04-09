@@ -19,6 +19,8 @@ tags:
     description: Workflow administration and control operations
   - name: discovery
     description: Discovery service operations
+  - name: dataprovider
+    description: Data provider adapter configuration and management
 
 paths:
   /workflow/cancel:
@@ -754,9 +756,143 @@ paths:
         '200':
           description: successful operation
 
+  # Data Provider Management Endpoints
+  /dataprovider/bind:
+    post:
+      tags:
+        - dataprovider
+      summary: Bind Data Provider
+      description: Define a new data provider integration
+      operationId: bind data provider
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, endpoint]
+              properties:
+                name:
+                  type: string
+                  description: Unique identifier for the data provider name. This value must be unique across all data provider bindings
+                endpoint:
+                  type: string
+                  description: Data provider adapter address in URL format
+                auth:
+                  $ref: '#/components/schemas/adapterAuthOptions'
+                idempotency:
+                  $ref: '#/components/schemas/adapterIdempotencyOptions'
+                displayName:
+                  type: string
+                  description: A human-readable name for the data provider that appears in user interfaces
+                requestTimeout:
+                  type: string
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  description: The maximum time allowed for each request to the data provider adapter
+                  default: "30s"
+                backoff:
+                  type: string
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  description: The waiting period between consecutive retry attempts when a request fails
+                  default: "5m"
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dataProviderResponse'
+
+  /dataprovider/{name}/update:
+    patch:
+      tags:
+        - dataprovider
+      summary: Update Data Provider binding
+      description: Update an existing data provider integration
+      operationId: update data provider binding
+      parameters:
+        - name: name
+          in: path
+          description: Unique identifier for the data provider name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                endpoint:
+                  x-custom-format: "nullable"
+                  type: string
+                  description: Data provider adapter address in URL format
+                  nullable: true
+                auth:
+                  oneOf:
+                    - $ref: '#/components/schemas/adapterAuthOptionsOpt'
+                  nullable: true
+                  x-custom-format: "nullable+authOptions"
+                idempotency:
+                  oneOf:
+                    - $ref: '#/components/schemas/adapterIdempotencyOptionsOpt'
+                  nullable: true
+                  x-custom-format: "nullable+idempotencyOptions"
+                displayName:
+                  type: string
+                  description: A human-readable name for the data provider that appears in user interfaces
+                  x-custom-format: "nullable"
+                  nullable: true
+                requestTimeout:
+                  type: string
+                  description: The maximum time allowed for each request to the data provider adapter
+                  x-custom-format: "nullable"
+                  nullable: true
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                backoff:
+                  type: string
+                  description: The waiting period between consecutive retry attempts when a request fails
+                  x-custom-format: "nullable"
+                  nullable: true
+                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dataProviderResponse'
+
 
 components:
   schemas:
+    dataProviderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the data provider
+          readOnly: true
+        name:
+          type: string
+          description: Data provider name
+        providerType:
+          type: string
+          enum: [adapter, finp2p]
+          description: Type of data provider
+          readOnly: true
+        endpoint:
+          type: string
+          description: Data provider adapter endpoint URL
+        displayName:
+          type: string
+          description: Human-readable name for the data provider
+        requestTimeout:
+          type: string
+          description: Maximum time allowed for each request to the data provider
+        backoff:
+          type: string
+          description: Waiting period between retry attempts
     pinningAddress:
       type: object
       properties:
@@ -2447,3 +2583,4 @@ components:
       oneOf:
         - $ref: 'dlt-adapter-api.yaml#/components/schemas/operationStatus'
         - $ref: 'custody-adapter-api.yaml#/components/schemas/operationStatus'
+

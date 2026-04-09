@@ -551,6 +551,98 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/data/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Trigger immediate data refresh
+         * @description Manually trigger a data refresh for the specified identifiers.
+         *     This fetches the latest data from configured data providers immediately,
+         *     regardless of the scheduled refresh interval.
+         */
+    post: operations['refreshDataNow'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/data/assets/ingest': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Ingest asset data
+         * @description Unified endpoint for ingesting asset data from any source:
+         *     - Manual push from API consumers
+         *     - Adapter subscription callbacks (push mode)
+         *     - Adapter async pull responses
+         *
+         *     Supports single or batch. Asset identifiers are in the request body.
+         */
+    post: operations['ingestAssetData'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/data/rules': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Create a data rule
+         * @description Create a new data rule that maps an asset identifier (e.g. ISIN) to a data provider
+         *     and the data types that provider supplies for matching assets.
+         */
+    post: operations['createDataRule'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/data/rules/{ruleId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+         * Delete a data rule
+         * @description Remove a data rule. Existing refresh configs created from this rule are not affected.
+         */
+    delete: operations['deleteDataRule'];
+    options?: never;
+    head?: never;
+    /**
+         * Update a data rule
+         * @description Update the data types or enabled status of an existing data rule.
+         */
+    patch: operations['updateDataRule'];
+    trace?: never;
+  };
   '/health': {
     parameters: {
       query?: never;
@@ -701,7 +793,7 @@ export interface components {
       nonce: components['schemas']['nonce'];
       issuer: components['schemas']['ownerId'];
       buyer: components['schemas']['ownerId'];
-      asset: components['schemas']['buyingAsset'];
+      asset: components['schemas']['issuingAsset'];
       settlement?: components['schemas']['sourceDestinationIntentAsset'];
     };
     buyingIntentExecution: {
@@ -817,7 +909,7 @@ export interface components {
              */
       isCompleted: boolean;
     };
-    operationResponse: components['schemas']['tokenOperation'] | components['schemas']['profileOperation'] | components['schemas']['depositOperation'] | components['schemas']['withdrawOperation'] | components['schemas']['executionOperation'] | components['schemas']['cancelExecutionOperation'] | components['schemas']['resetExecutionOperation'] | components['schemas']['accountOperation'] | components['schemas']['workflowOperation'];
+    operationResponse: components['schemas']['tokenOperation'] | components['schemas']['profileOperation'] | components['schemas']['depositOperation'] | components['schemas']['withdrawOperation'] | components['schemas']['executionOperation'] | components['schemas']['cancelExecutionOperation'] | components['schemas']['resetExecutionOperation'] | components['schemas']['accountOperation'] | components['schemas']['workflowOperation'] | components['schemas']['balanceSyncOperation'];
     tokenOperation: components['schemas']['operationBase'] & {
       /** @enum {string} */
       type: 'token';
@@ -992,6 +1084,24 @@ export interface components {
       /** @enum {string} */
       type: 'success';
     } & components['schemas']['resourceIdResponse'] & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'success';
+    };
+    balanceSyncOperation: components['schemas']['operationBase'] & {
+      /** @enum {string} */
+      type: 'balance-sync';
+      response?: components['schemas']['APIErrorsTyped'] | components['schemas']['balanceSyncOperationResponse'];
+    } & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'balance-sync';
+    };
+    balanceSyncOperationResponse: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1461,6 +1571,117 @@ export interface components {
       /** @description The file mimeType */
       mimeType: string;
     };
+    dataAccess: {
+      /**
+             * @description Type of data access granted to shared organizations.
+             *     balance - grants receipt forwarding for balance synchronization.
+             * @enum {string}
+             */
+      accessType: 'balance';
+      /**
+             * @description Status of the data access permission.
+             * @enum {string}
+             */
+      status: 'active' | 'inactive';
+    };
+    IngestAssetDataRequest: {
+      /** @description Correlation ID from async fetch (202 response) */
+      requestId?: string;
+      /** @description Correlation ID from subscription */
+      subscriptionId?: string;
+      /**
+             * @description Source identifier. Examples: provider name, "manual".
+             * @default manual
+             */
+      source: string;
+      /** @description Array of asset data items (single item or batch) */
+      assets: components['schemas']['IngestAssetDataItem'][];
+    };
+    IngestAssetDataItem: {
+      identifier: components['schemas']['AssetDataIdentifier'];
+      data: components['schemas']['AssetDataItem'][];
+    };
+    AssetDataItem: {
+      dataType: components['schemas']['DataType'];
+      /**
+             * Format: uri
+             * @description URI to JSON schema for validation of the data object
+             */
+      schemaRef?: string;
+      /** @description The actual data payload conforming to the referenced schema */
+      data: {
+        [key: string]: unknown;
+      };
+      /** @description Data source identifier */
+      source?: string;
+      /**
+             * Format: int64
+             * @description Provider timestamp (epoch milliseconds)
+             */
+      timestamp?: number;
+    };
+    IngestAssetDataResponse: {
+      results: components['schemas']['IngestEntryResult'][];
+    };
+    IngestEntryResult: {
+      identifier: components['schemas']['AssetDataIdentifier'];
+      /** @description The data type of this entry */
+      dataType: string;
+      /** @enum {string} */
+      status: 'accepted' | 'rejected';
+      /** @description Present only when status is "rejected" */
+      error?: {
+        /** @description Error code from the errorcodes catalog */
+        code?: number;
+        message?: string;
+      };
+    };
+    AssetDataIdentifier: {
+      /** @description Identifier type (e.g. ISIN, CAIP19) */
+      identifierType: string;
+      /** @description Identifier value (e.g. US0378331005) */
+      identifierValue: string;
+    };
+    /** @enum {string} */
+    DataType: 'assetHeader' | 'pricing' | 'fundamentals' | 'ratings' | 'corporateActions' | 'marketData' | 'referenceData';
+    CreateDataRuleRequest: {
+      /** @description Identifier type (e.g. ISIN, CAIP19) */
+      identifierType: string;
+      /** @description Identifier value (e.g. US0378331005) or "*" for all */
+      identifierValue: string;
+      /** @description Name of the data provider */
+      providerName: string;
+      /** @description Data type this provider supplies for matching assets */
+      dataType: components['schemas']['DataType'];
+      /** @description Refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based). Null means system default (24h). */
+      refreshInterval?: string;
+      /**
+             * @description Whether this rule is active
+             * @default true
+             */
+      enabled: boolean;
+    };
+    UpdateDataRuleRequest: {
+      /** @description Updated refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based) */
+      refreshInterval?: string;
+      /** @description Whether this rule is active */
+      enabled?: boolean;
+    };
+    DataRuleResponse: {
+      /** Format: uuid */
+      id?: string;
+      identifierType?: string;
+      identifierValue?: string;
+      /** Format: uuid */
+      providerId?: string;
+      dataType?: components['schemas']['DataType'];
+      refreshInterval?: string;
+      enabled?: boolean;
+      /** Format: date-time */
+      createdAt?: string;
+      /** Format: date-time */
+      updatedAt?: string;
+    };
     /**
          * @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
          *
@@ -1840,6 +2061,18 @@ export interface components {
     };
     APIErrors: {
       errors: components['schemas']['APIError'][];
+    };
+    /** @description describes asset information */
+    finp2pAssetWithNoAccount: {
+      asset: components['schemas']['finp2pAsset'];
+    };
+    sourceOnlyAssetDestinationAccountLedgerAssetInstruction: {
+      sourceAccount: components['schemas']['finp2pAssetWithNoAccount'];
+      destinationAccount: components['schemas']['finp2pAssetAccount'];
+    };
+    issuingAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['sourceOnlyAssetDestinationAccountLedgerAssetInstruction'];
     };
     sourceDestinationAccountAssetInstruction: {
       sourceAccount: components['schemas']['finp2pAssetAccount'];
@@ -2351,6 +2584,8 @@ export interface operations {
         'application/json': {
           /** @description Collections of organizations ids to share the profile with */
           organizations: components['schemas']['orgId'][];
+          /** @description data information the profile owner allows to be shared with the organizations */
+          dataAccess?: components['schemas']['dataAccess'][];
         };
       };
     };
@@ -3080,7 +3315,148 @@ export interface operations {
         headers: {
           [name: string]: unknown;
         };
+        content: {
+          'application/json': {
+            /** @description correlation id for tracking the operation status */
+            cid?: string;
+            message?: string;
+          };
+        };
+      };
+    };
+  };
+  refreshDataNow: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description Asset identifiers to fetch data for (e.g. ISIN, CAIP19) */
+          identifiers: components['schemas']['AssetDataIdentifier'][];
+          /** @description Specific provider to fetch from (empty = all configured providers) */
+          providerName?: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Refresh triggered successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
+    };
+  };
+  ingestAssetData: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['IngestAssetDataRequest'];
+      };
+    };
+    responses: {
+      /** @description Data ingested successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['IngestAssetDataResponse'];
+        };
+      };
+    };
+  };
+  createDataRule: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateDataRuleRequest'];
+      };
+    };
+    responses: {
+      /** @description Data rule created */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DataRuleResponse'];
+        };
+      };
+    };
+  };
+  deleteDataRule: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description Data rule ID */
+        ruleId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Data rule deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
         content?: never;
+      };
+    };
+  };
+  updateDataRule: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path: {
+        /** @description Data rule ID */
+        ruleId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateDataRuleRequest'];
+      };
+    };
+    responses: {
+      /** @description Data rule updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DataRuleResponse'];
+        };
       };
     };
   };
