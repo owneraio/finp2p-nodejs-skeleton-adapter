@@ -22,10 +22,6 @@ jobs:
           registry-url: "https://npm.pkg.github.com"
           scope: "@owneraio"
 
-      - name: Build adapter-models dependency
-        working-directory: ./finp2p-adapter-models
-        run: npm ci && npm run build
-
       - run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

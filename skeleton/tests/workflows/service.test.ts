@@ -6,13 +6,28 @@ import {
   pendingPlan,
   rejectedPlan,
   successfulAssetCreation,
-} from "@owneraio/finp2p-adapter-models";
+} from "../../src/models";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 import {
   createServiceProxy,
   migrateIfNeeded,
   Storage,
 } from "../../src/workflows";
+import { FinP2PClient } from "@owneraio/finp2p-client";
+import { MockFinP2PServer } from "../support/mock-finp2p-server";
+
+let mockServer: MockFinP2PServer;
+let finP2PClient: FinP2PClient;
+
+beforeAll(async () => {
+  mockServer = new MockFinP2PServer();
+  const url = await mockServer.start();
+  finP2PClient = new FinP2PClient(url, url);
+});
+
+afterAll(async () => {
+  await mockServer.stop();
+});
 
 async function waitForOperationCompletion<
   T extends { operationStatus(cid: string): Promise<any> },
@@ -97,7 +112,7 @@ describe("Service operation tests", () => {
         );
       }
 
-      async deposit(
+      async getDepositInstruction(
         idempotencyKey: string,
         value: string,
       ): Promise<OperationStatus> {
@@ -113,10 +128,10 @@ describe("Service operation tests", () => {
     const proxied = createServiceProxy(
       () => Promise.resolve(),
       storage(),
-      undefined,
+      finP2PClient,
       impl,
       "approvePlan",
-      "deposit",
+      "getDepositInstruction",
     );
 
     await expect(storage().operationsAll()).resolves.toEqual([]);
@@ -124,7 +139,7 @@ describe("Service operation tests", () => {
     await expect(storage().operationsAll()).resolves.not.toEqual([]);
     let operation = (await storage().operationsAll())[0];
     expect(operation.inputs).toEqual(["idempotency-key-1", "plan1"]);
-    expect(result).toEqual(pendingPlan(operation.cid, undefined));
+    expect(result).toEqual(pendingPlan(operation.cid, { responseStrategy: 'callback' }));
     await expect(
       waitForOperationCompletion(proxied, operation.cid),
     ).resolves.toEqual(approvedPlan());
@@ -132,7 +147,7 @@ describe("Service operation tests", () => {
     const result2 = await proxied.createAsset("idempotency-key-2", "asset-id");
     expect((await storage().operationsAll()).length).toBe(1);
 
-    const crash = await proxied.deposit("idempotency-key-3", "155.322");
+    const crash = await proxied.getDepositInstruction("idempotency-key-3", "155.322");
     await setTimeoutPromise(5000);
     expect((await storage().operationsAll()).length).toBe(2);
     operation = (await storage().operationsAll())[1];
@@ -149,7 +164,7 @@ describe("Service operation tests", () => {
     class Service {
       callCount = new Map<string, number>();
 
-      async approve(
+      async approvePlan(
         idempotencyKey: string,
         planId: string,
       ): Promise<OperationStatus> {
@@ -164,9 +179,9 @@ describe("Service operation tests", () => {
     const proxied = createServiceProxy(
       () => Promise.resolve(),
       storage(),
-      undefined,
+      finP2PClient,
       service,
-      "approve",
+      "approvePlan",
     );
 
     const idempotencyKey = Math.random().toString(36);
@@ -175,15 +190,16 @@ describe("Service operation tests", () => {
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
     ).toBeUndefined();
     await expect(
-      proxied.approve(idempotencyKey, planId),
+      proxied.approvePlan(idempotencyKey, planId),
     ).resolves.toBeDefined();
+    await setTimeoutPromise(500); // let background execution complete
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
     ).toBe(1);
 
-    // Duplicating the request
+    // Duplicating the request — should return cached result without calling the method
     await expect(
-      proxied.approve(idempotencyKey, planId),
+      proxied.approvePlan(idempotencyKey, planId),
     ).resolves.toBeDefined();
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
@@ -194,7 +210,7 @@ describe("Service operation tests", () => {
       service.callCount.get(JSON.stringify([otherIdempotencyKey, planId])),
     ).toBeUndefined();
     await expect(
-      proxied.approve(otherIdempotencyKey, planId),
+      proxied.approvePlan(otherIdempotencyKey, planId),
     ).resolves.toBeDefined();
     expect(
       service.callCount.get(JSON.stringify([otherIdempotencyKey, planId])),
@@ -202,7 +218,7 @@ describe("Service operation tests", () => {
 
     // Duplicating the earlier request
     await expect(
-      proxied.approve(idempotencyKey, planId),
+      proxied.approvePlan(idempotencyKey, planId),
     ).resolves.toBeDefined();
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
@@ -233,7 +249,7 @@ describe("Service operation tests", () => {
         });
       }
 
-      async rejectPlan(
+      async proposeCancelPlan(
         idempotencyKey: string,
         planId: string,
       ): Promise<OperationStatus> {
@@ -256,7 +272,7 @@ describe("Service operation tests", () => {
     const [row2, inserted2] = await storage().insert({
       cid: "new-cid",
       inputs: ["should-fail-idempotency", "plan-id-0"],
-      method: "rejectPlan",
+      method: "proposeCancelPlan",
       outputs: {},
       status: "in_progress",
     });
@@ -265,7 +281,7 @@ describe("Service operation tests", () => {
     const [row3, inserted3] = await storage().insert({
       cid: "newer-cid",
       inputs: ["crash-idempotency-key-2", "plan-id-0"],
-      method: "rejectPlan",
+      method: "proposeCancelPlan",
       outputs: {},
       status: "in_progress",
     });
@@ -275,10 +291,10 @@ describe("Service operation tests", () => {
     const proxied = createServiceProxy(
       () => Promise.resolve(),
       storage(),
-      undefined,
+      finP2PClient,
       service,
       "createAsset",
-      "rejectPlan",
+      "proposeCancelPlan",
     );
     await setTimeoutPromise(5000);
 

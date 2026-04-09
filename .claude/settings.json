@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -p \"require\\(''./finp2p-adapter-models/package.json''\\).version\")",
+      "Bash(node -p \"require\\(''./skeleton/package.json''\\).version\")",
+      "Bash(node -p \"require\\(''./skeleton/package.json''\\).dependencies[''@owneraio/finp2p-adapter-models'']\")",
+      "Bash(grep '\"\"version\"\"')",
+      "Bash(sed -i 's/InstructionProposalContext/InboundTransferContext/g; s/PlanProposalHook/InboundTransferHook/g; s/onInstructionProposal/onInboundTransfer/g' interfaces.ts)",
+      "Bash(sed -i 's/  plan: ExecutionPlan;\\\\n//g' interfaces.ts)",
+      "Bash(git branch:*)",
+      "Bash(cat skeleton/migrations/*.sql)",
+      "Bash(grep '\"\"version\"\"' vanilla-service/package.json)"
+    ]
+  }
+}

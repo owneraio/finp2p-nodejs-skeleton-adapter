@@ -1,10 +1,25 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.27.7",
+  "version": "0.27.16",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "plugin": ["dist/plugin.d.ts"]
+    }
+  },
   "files": [
     "dist/**/*",
     "migrations/*.sql"
@@ -23,7 +38,6 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
-    "@owneraio/finp2p-adapter-models": "^0.27.4",
     "@owneraio/finp2p-client": "^0.27.0",
     "axios": "1.11.0",
     "bs58": "^6.0.0",

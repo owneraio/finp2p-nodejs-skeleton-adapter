@@ -8,7 +8,7 @@ import {
   PlanContract,
   PlanInvestor,
   ValidationError,
-} from '@owneraio/finp2p-adapter-models';
+} from '../../models';
 import { OpComponents } from '@owneraio/finp2p-client';
 
 

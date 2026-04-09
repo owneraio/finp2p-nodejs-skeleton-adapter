@@ -57,12 +57,12 @@ export class FinAPIClient {
     assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
     config: string | undefined,
     metadata: any | undefined,
-    financialIdentifier: FinAPIComponents['schemas']['financialAssetIdentifier'] | undefined,
+    assetIdentifier: FinAPIComponents['schemas']['assetIdentifier'],
   ) {
     return this.apiClient.POST('/profiles/asset', {
       body: {
         intentTypes, name, type, symbol, issuerId, denomination,
-        ledgerAssetBinding, assetPolicies, config, metadata, financialIdentifier,
+        ledgerAssetBinding, assetPolicies, config, metadata, assetIdentifier,
       },
     });
   }
@@ -81,6 +81,13 @@ export class FinAPIClient {
         type, data, issuanceDate, expirationDate,
       },
     });
+  }
+
+  async updateCertificate(profileId: string, certificateId: string, body: { data?: string; expirationDate?: number }) {
+    return this.apiClient.PATCH('/profiles/{profileId}/certificates/{certificateId}', {
+      params: { path: { profileId, certificateId } },
+      body,
+    } as any);
   }
 
   // ── Account management ──
@@ -105,6 +112,17 @@ export class FinAPIClient {
 
   async executeIntent(body: RequestBody<'/tokens/execute', 'post'>) {
     return this.apiClient.POST('/tokens/execute', { body });
+  }
+
+  async executeTransferIntent(intentId: string, body: RequestBody<'/profiles/asset/intent/transfer/execute/{intentId}', 'post'>) {
+    return this.apiClient.POST('/profiles/asset/intent/transfer/execute/{intentId}', {
+      params: { path: { intentId } },
+      body,
+    });
+  }
+
+  async createTransferRequest(body: RequestBody<'/profiles/asset/intent/transfer', 'post'>) {
+    return this.apiClient.POST('/profiles/asset/intent/transfer', { body });
   }
 
   async cancelExecution(body: RequestBody<'/tokens/execute/cancel', 'post'>) {

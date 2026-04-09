@@ -4,11 +4,11 @@
  */
 
 /** Extracted recursive types to break circular references in generated schemas */
-type RecursiveEIP712TypedValue = (string) | (number) | (boolean) | (string) | RecursiveEIP712TypeObject | RecursiveEIP712TypeArray;
-type RecursiveEIP712TypeObject = {
+export type RecursiveEIP712TypedValue = (string) | (number) | (boolean) | (string) | RecursiveEIP712TypeObject | RecursiveEIP712TypeArray;
+export type RecursiveEIP712TypeObject = {
   [key: string]: RecursiveEIP712TypedValue;
 };
-type RecursiveEIP712TypeArray = RecursiveEIP712TypedValue[];
+export type RecursiveEIP712TypeArray = RecursiveEIP712TypedValue[];
 export interface paths {
   '/plan/approve': {
     parameters: {

@@ -4,7 +4,7 @@ import {
   OperationStatus,
   PlanApprovalStatus,
   ReceiptOperation,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 import { OpComponents } from '@owneraio/finp2p-client';
 import { depositInstructionToAPI, receiptToAPI } from '../routes';
 
