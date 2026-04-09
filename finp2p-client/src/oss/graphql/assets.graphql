@@ -91,6 +91,9 @@ fragment proofInfo on ProofPolicy {
 
 fragment assetInfo on LedgerAssetInfo {
     tokenId
+    ledgerBinding {
+        name
+    }
     ledgerReference {
         ... on ContractDetails {
             network
