@@ -33,28 +33,6 @@ jobs:
 
         # ----------------------------------
 
-      - name: finp2p-adapter-models install dependencies
-        working-directory: ./finp2p-adapter-models
-        run: npm clean-install
-
-      - name: finp2p-adapter-models build
-        working-directory: ./finp2p-adapter-models
-        run: npm run build
-
-        # ----------------------------------
-
-      - name: adapter-tests install dependencies
-        working-directory: ./adapter-tests
-        run: npm clean-install
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: adapter-tests build
-        working-directory: ./adapter-tests
-        run: npm run build
-
-        # ----------------------------------
-
       - name: skeleton install dependencies
         working-directory: ./skeleton
         run: npm ci
@@ -77,9 +55,21 @@ jobs:
 
         # ----------------------------------
 
+      - name: adapter-tests install dependencies
+        working-directory: ./adapter-tests
+        run: npm install ../skeleton && npm install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: adapter-tests build
+        working-directory: ./adapter-tests
+        run: npm run build
+
+        # ----------------------------------
+
       - name: vanilla-service install dependencies
         working-directory: ./vanilla-service
-        run: npm ci
+        run: npm install ../skeleton && npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -95,7 +85,7 @@ jobs:
 
       - name: sample-adapter install dependencies
         working-directory: ./sample-adapter
-        run: npm ci
+        run: npm install ../skeleton ../adapter-tests && npm install
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

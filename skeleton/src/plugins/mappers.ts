@@ -8,13 +8,13 @@ import {
   Receipt,
   ReceiptOperation,
   Source,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 import { OpComponents } from '@owneraio/finp2p-client';
 import { contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
 
 const receiptToFinAPI = (receipt: Receipt): OpComponents['schemas']['receipt'] => {
   const { id, asset, source, destination, quantity, operationType, tradeDetails, transactionDetails, proof, timestamp } = receipt;
-  const apiAsset: OpComponents['schemas']['asset'] = { resourceId: asset.assetId };
+  const apiAsset: OpComponents['schemas']['asset'] = { resourceId: asset.assetId, ledgerIdentifier: asset.ledgerIdentifier };
   return {
     id,
     quantity,

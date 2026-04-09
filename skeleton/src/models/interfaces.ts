@@ -1,12 +1,12 @@
 import {
-  Asset,
+  Asset, AssetBase,
   AssetCreationStatus,
   Destination,
   ExecutionContext,
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, OwnerMapping,
+  FinIdAccount, AssetBind, AssetDenomination, OwnerMapping,
 } from './model';
 
 
@@ -25,17 +25,20 @@ export interface CommonService {
 
 export interface TokenService {
 
-  createAsset(idempotencyKey: string, asset: Asset,
+  createAsset(idempotencyKey: string, asset: AssetBase,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
+    assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus>;
 
   getBalance(asset: Asset, finId: string): Promise<string>;
 
   balance(asset: Asset, finId: string): Promise<Balance>;
 
-  issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
+  issue(idempotencyKey: string, asset: Asset, to: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
-  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
+  doesSupportCrosschainTransfer(sourceAsset: Asset, destinationAsset: Asset): Promise<boolean>;
+
+  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
+    sourceAsset: Asset, destinationAsset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
   redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
@@ -84,9 +87,18 @@ export interface PlanApprovalService {
 export interface MappingService {
   getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]>
 
-  saveOwnerMapping(finId: string, account: string): Promise<OwnerMapping>
+  getByFieldValue(fieldName: string, value: string): Promise<OwnerMapping[]>
 
-  deleteOwnerMapping(finId: string, account?: string): Promise<void>
+  saveOwnerMapping(finId: string, fields: Record<string, string>): Promise<OwnerMapping>
+
+  deleteOwnerMapping(finId: string, fieldName?: string): Promise<void>
 }
 
-
+/**
+ * Optional pre-save validator for account mappings.
+ * Adapters can implement this to validate and optionally transform fields before persistence.
+ * Throw ValidationError to reject the mapping.
+ */
+export interface MappingValidator {
+  validate(finId: string, fields: Record<string, string>): Promise<Record<string, string>>
+}

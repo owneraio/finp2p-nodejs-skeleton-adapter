@@ -787,6 +787,13 @@ components:
           $ref: '#/components/schemas/finIdAccount'
         asset:
           $ref: '#/components/schemas/finp2pAsset'
+    finp2pAssetWithNoAccount:
+      type: object
+      description: 'describes asset information'
+      required: [ asset ]
+      properties:
+        asset:
+          $ref: '#/components/schemas/finp2pAsset'
     finp2pAsset:
         type: object
         description: 'describes asset information'
@@ -1120,6 +1127,14 @@ components:
           $ref: '#/components/schemas/assetTerm'
         assetInstruction:
           $ref: '#/components/schemas/destinationAccountAssetInstruction'
+    issuingAsset:
+      type: object
+      required: [ assetInstruction, assetTerm ]
+      properties:
+        assetTerm:
+          $ref: '#/components/schemas/assetTerm'
+        assetInstruction:
+          $ref: '#/components/schemas/sourceOnlyAssetDestinationAccountLedgerAssetInstruction'
     redemptionAsset:
       type: object
       required: [ assetInstruction, assetTerm ]
@@ -1273,9 +1288,17 @@ components:
       required: [ sourceAccount, destinationAccount ]
       properties:
         sourceAccount:
-          $ref: '#/components/schemas/ledgerAccountAsset'
+          $ref: '#/components/schemas/finp2pAssetAccount'
         destinationAccount:
-          $ref: '#/components/schemas/ledgerAccountAsset'
+          $ref: '#/components/schemas/finp2pAssetAccount'
+    sourceOnlyAssetDestinationAccountLedgerAssetInstruction:
+      type: object
+      required: [ sourceAccount, destinationAccount ]
+      properties:
+        sourceAccount:
+          $ref: '#/components/schemas/finp2pAssetWithNoAccount'
+        destinationAccount:
+          $ref: '#/components/schemas/finp2pAssetAccount'
     optionalSourceAccountAssetInstruction:
       type: object
       required: [sourceAccount]
@@ -1301,9 +1324,9 @@ components:
       required: [borrowerAccount, lenderAccount]
       properties:
         borrowerAccount:
-          $ref: '#/components/schemas/ledgerAccountAsset'
+          $ref: '#/components/schemas/finp2pAssetAccount'
         lenderAccount:
-          $ref: '#/components/schemas/ledgerAccountAsset'
+          $ref: '#/components/schemas/finp2pAssetAccount'
     requestForTransferIntentAssetInstruction:
       oneOf:
         - $ref: '#/components/schemas/requestForTransferSendAssetInstruction'

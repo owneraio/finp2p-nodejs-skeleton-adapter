@@ -1,5 +1,5 @@
 import { Application } from 'express';
-import { AssetType, BusinessError } from '@owneraio/finp2p-adapter-models';
+import { AssetType, BusinessError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { DistributionService } from './interfaces';
 
 /**

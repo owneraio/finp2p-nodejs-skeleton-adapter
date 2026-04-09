@@ -54,9 +54,9 @@ export interface components {
   schemas: {
     /** @enum {string} */
     ownerStatus: 'active' | 'inactive';
+    /** @description Key-value pairs of adapter-specific account identifiers (e.g. ledgerAccountId, custodyAccountId) */
     accountMappings: {
-      /** @description Ledger-specific account identifier for the holder (e.g. Canton party ID "auth0_00abc123::1220def456...") */
-      ledgerAccountId: string;
+      [key: string]: string;
     };
     ownerMapping: {
       /** @description FinP2P identity (hex secp256k1 compressed public key) */

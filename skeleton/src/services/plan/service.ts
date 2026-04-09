@@ -1,11 +1,12 @@
 import {
-  approvedPlan, Asset, DestinationAccount,
+  approvedPlan,
   ExecutionPlan,
-  FinIdAccount, generateCid, InstructionResult, pendingPlan,
+  InstructionResult,
   PlanApprovalService, PlanProposal, InboundTransferHook,
   PlanApprovalStatus, rejectedPlan,
-} from '@owneraio/finp2p-adapter-models';
+} from '../../models';
 import { FinP2PClient, OpComponents } from '@owneraio/finp2p-client';
+
 import { executionFromAPI } from './mapper';
 import { PluginManager } from '../../plugins';
 import { logger } from '../../helpers';
@@ -33,7 +34,12 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
   inboundTransferHook: InboundTransferHook | undefined;
 
-  constructor(orgId: string, pluginManager: PluginManager | undefined, finP2P?: FinP2PClient | undefined, inboundTransferHook?: InboundTransferHook) {
+  constructor(
+    orgId: string,
+    pluginManager: PluginManager | undefined,
+    finP2P?: FinP2PClient | undefined,
+    inboundTransferHook?: InboundTransferHook,
+  ) {
     this.orgId = orgId;
     this.finP2P = finP2P;
     this.pluginManager = pluginManager;
@@ -128,129 +134,77 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
   }
 
   private async validatePlan(idempotencyKey: string, planId: string, plan: ExecutionPlan): Promise<PlanApprovalStatus> {
+    const plugin = this.pluginManager?.getPlanApprovalPlugin();
 
     const instructions = plan.instructions.filter(i => i.organizations.includes(this.orgId));
     for (const instruction of instructions) {
       const { operation } = instruction;
-      switch (operation.type) {
-        case 'issue': {
-          const { destination, amount } = operation;
-          if (destination.account.type !== 'finId') {
-            return rejectedPlan(1, 'Only finId destination is supported in primary sale');
+      try {
+        switch (operation.type) {
+          case 'issue': {
+            const { destination, amount } = operation;
+            if (destination.account.type !== 'finId') {
+              return rejectedPlan(1, 'Only finId destination is supported in primary sale');
+            }
+            if (plugin) {
+              return await plugin.validateIssuance(destination.account, destination.asset, amount);
+            }
+            break;
           }
-          return this.validateIssuance(idempotencyKey, destination.account, destination.asset, amount);
-        }
 
-        case 'transfer': {
-          const { source, destination, amount } = operation;
-          if (source.account.type !== 'finId') {
-            return rejectedPlan(1, 'Only finId source is supported in transfer operation');
+          case 'transfer': {
+            const { source, destination, amount } = operation;
+            if (source.account.type !== 'finId') {
+              return rejectedPlan(1, 'Only finId source is supported in transfer operation');
+            }
+            if (this.inboundTransferHook) {
+              await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
+                planId,
+                sourceAccount: source.account,
+                sourceAsset: source.asset,
+                destinationAccount: destination.account,
+                destinationAsset: destination.asset,
+                amount,
+              });
+            }
+            if (plugin) {
+              return await plugin.validateTransfer(source.account, destination.account, source.asset, destination.asset, amount);
+            }
+            break;
           }
-          if (this.inboundTransferHook) {
-            await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
-              planId,
-              sourceAccount: source.account,
-              sourceAsset: source.asset,
-              destinationAccount: destination.account,
-              destinationAsset: destination.asset,
-              amount,
-            });
-          }
-          return this.validateTransfer(idempotencyKey, source.account, destination.account, source.asset, destination.asset, amount);
-        }
 
-        case 'hold': {
-          const { source, destination, amount } = operation;
-          if (source.account.type !== 'finId') {
-            return rejectedPlan(1, 'Only finId source is supported in hold operation');
+          case 'hold': {
+            const { source, destination, amount } = operation;
+            if (source.account.type !== 'finId') {
+              return rejectedPlan(1, 'Only finId source is supported in hold operation');
+            }
+            if (!destination) {
+              return rejectedPlan(1, 'No destination in hold operation');
+            }
+            if (plugin) {
+              return await plugin.validateTransfer(source.account, destination.account, source.asset, destination.asset, amount);
+            }
+            break;
           }
-          if (!destination) {
-            return rejectedPlan(1, 'No destination in hold operation');
-          }
-          return this.validateTransfer(idempotencyKey, source.account, destination.account, source.asset, destination.asset, amount);
-        }
 
-        case 'redeem': {
-          const { source, destination, amount } = operation;
-          if (source.account.type !== 'finId') {
-            return rejectedPlan(1, 'Only finId source is supported in redemption');
+          case 'redeem': {
+            const { source, destination, amount } = operation;
+            if (source.account.type !== 'finId') {
+              return rejectedPlan(1, 'Only finId source is supported in redemption');
+            }
+            if (plugin) {
+              return await plugin.validateRedemption(source.account, destination?.account, source.asset, destination?.asset, amount);
+            }
+            break;
           }
-          return this.validateRedemption(idempotencyKey, source.account, destination?.account, source.asset, destination?.asset, amount);
         }
+      } catch (e: any) {
+        logger.error('Plan validation failed', { planId, sequence: instruction.sequence, operation: operation.type, error: e.message ?? e });
+        return rejectedPlan(e.code ?? 1, e.message ?? String(e));
       }
     }
 
     return approvedPlan();
-  }
-
-  validateIssuance(idempotencyKey: string, destination: FinIdAccount, asset: Asset, amount: string): Promise<PlanApprovalStatus> {
-    if (this.pluginManager) {
-      const plugin = this.pluginManager.getPlanApprovalPlugin();
-      if (plugin) {
-        if (plugin.isAsync) {
-          if (!plugin.asyncIface) {
-            return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
-          }
-          const cid = generateCid();
-          plugin.asyncIface.validateIssuance(idempotencyKey, cid, destination, asset, amount)
-            .then(() => {
-            });
-          return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
-        } else {
-          if (!plugin.syncIface) {
-            return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
-          }
-          return plugin.syncIface.validateIssuance(destination, asset, amount);
-        }
-      }
-    }
-    return Promise.resolve(approvedPlan());
-  }
-
-  validateTransfer(idempotencyKey: string, source: FinIdAccount, destination: DestinationAccount, sourceAsset: Asset, destinationAsset: Asset, amount: string): Promise<PlanApprovalStatus> {
-    if (this.pluginManager) {
-      const plugin = this.pluginManager.getPlanApprovalPlugin();
-      if (plugin) {
-        if (plugin.isAsync) {
-          if (!plugin.asyncIface) {
-            return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
-          }
-          const cid = generateCid();
-          plugin.asyncIface.validateTransfer(idempotencyKey, cid, source, destination, sourceAsset, destinationAsset, amount).then(() => {
-          });
-          return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
-        } else {
-          if (!plugin.syncIface) {
-            return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
-          }
-          return plugin.syncIface.validateTransfer(source, destination, sourceAsset, destinationAsset, amount);
-        }
-      }
-    }
-    return Promise.resolve(approvedPlan());
-  }
-
-  validateRedemption(idempotencyKey: string, source: FinIdAccount, destination: DestinationAccount | undefined, sourceAsset: Asset, destinationAsset: Asset | undefined, amount: string): Promise<PlanApprovalStatus> {
-    if (this.pluginManager) {
-      const plugin = this.pluginManager.getPlanApprovalPlugin();
-      if (plugin) {
-        if (!plugin.isAsync) {
-          if (!plugin.asyncIface) {
-            return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
-          }
-          const cid = generateCid();
-          plugin.asyncIface.validateRedemption(idempotencyKey, cid, source, destination, sourceAsset, destinationAsset, amount).then(() => {
-          });
-          return Promise.resolve(pendingPlan(cid, { responseStrategy: 'callback' }));
-        } else {
-          if (!plugin.syncIface) {
-            return Promise.resolve(rejectedPlan(1, 'No async interface in plan approval plugin'));
-          }
-          return plugin.syncIface.validateRedemption(source, destination, sourceAsset, destinationAsset, amount);
-        }
-      }
-    }
-    return Promise.resolve(approvedPlan());
   }
 
 }

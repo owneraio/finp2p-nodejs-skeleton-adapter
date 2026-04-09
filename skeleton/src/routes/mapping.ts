@@ -1,5 +1,5 @@
 import {
-  Asset,
+  Asset, AssetBase,
   Source,
   Destination,
   Signature,
@@ -11,16 +11,17 @@ import {
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
   FinIdAccount, AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
 
-export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAssetBase']): Asset => {
-  const result: Asset = { assetId: asset.resourceId, assetType: 'finp2p' };
-  if ('ledgerIdentifier' in asset && asset.ledgerIdentifier) {
-    result.ledgerIdentifier = asset.ledgerIdentifier;
-  }
-  return result;
+export const assetBaseFromAPI = (asset: components['schemas']['finp2pAssetBase']): AssetBase => {
+  return { assetId: asset.resourceId, assetType: 'finp2p' };
+};
+
+export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
+  const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
+  return { assetId, assetType: 'finp2p', ledgerIdentifier: asset.ledgerIdentifier };
 };
 
 export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']): DepositAsset => {
@@ -31,7 +32,14 @@ export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']
 };
 
 export const assetToAPI = (asset: Asset): components['schemas']['asset'] => {
-  return { resourceId: asset.assetId };
+  return { resourceId: asset.assetId, ledgerIdentifier: asset.ledgerIdentifier };
+};
+
+export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['depositAsset'] => {
+  if (asset.assetType === 'custom') {
+    return { type: 'custom' };
+  }
+  return { type: 'finp2p', resourceId: asset.assetId };
 };
 
 type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
@@ -542,8 +550,9 @@ export const paymentMethodToAPI = (method: PaymentMethod): components['schemas']
 };
 
 export const depositInstructionToAPI = (instruction: DepositInstruction): components['schemas']['depositInstruction'] => {
-  const { account, description, operationId, details, paymentOptions } = instruction;
+  const { asset, account, description, operationId, details, paymentOptions } = instruction;
   return {
+    asset: depositAssetToAPI(asset),
     account: depositPayoutAccountToAPI(account),
     description,
     paymentOptions: paymentOptions ? paymentOptions.map(paymentMethodToAPI) : [],

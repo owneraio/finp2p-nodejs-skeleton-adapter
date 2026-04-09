@@ -1,5 +1,5 @@
 import { FinP2PClient } from '@owneraio/finp2p-client';
-import { DOMAIN_TYPE, RECEIPT_PROOF_TYPES, Receipt, ValidationError } from '@owneraio/finp2p-adapter-models';
+import { DOMAIN_TYPE, RECEIPT_PROOF_TYPES, Receipt, ValidationError } from '../../models';
 import { EIP712_DOMAIN, hashEIP712, logger, signEIP712WithPrivateKey } from '../../helpers';
 import { receiptToEIP712Message } from './mappers';
 

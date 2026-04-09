@@ -5,7 +5,7 @@ import {
   FinIdAccount,
   OperationType,
   Receipt,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import {
   generateId,
 } from './utils';

@@ -32,6 +32,24 @@ export class OssClient {
       .map(o => ({ finId: o.finIds[0], balance: o.holdings.nodes.find(n => n.asset.resourceId === assetId)!.balance }));
   }
 
+  async getSyncedBalances(assetId: string) {
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
+      includeCerts: false,
+      includeHoldings: true,
+    });
+    return resp.users.nodes.filter((o) => o.holdings.nodes.some(n => n.asset.resourceId === assetId))
+      .map(o => ({ finId: o.finIds[0], balance: o.holdings.nodes.find(n => n.asset.resourceId === assetId)!.syncedBalance }));
+  }
+
+  async getOwnerSyncedBalance(ownerId: string, assetId: string): Promise<string> {
+    const holdings = await this.getOwnerHoldings(ownerId);
+    const holding = holdings.find(h => h.asset.resourceId === assetId);
+    if (!holding) {
+      throw new ItemNotFoundError(`${ownerId}/${assetId}`, 'Holding');
+    }
+    return holding.syncedBalance;
+  }
+
   async getOwnerById(ownerId: string) {
     const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
       filter: {

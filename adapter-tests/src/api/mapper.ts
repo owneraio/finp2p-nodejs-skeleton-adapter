@@ -1,4 +1,4 @@
-import { AssetGroup, EIP712Message, EIP712Types, SettlementGroup } from '@owneraio/finp2p-adapter-models';
+import { AssetGroup, EIP712Message, EIP712Types, SettlementGroup } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import {
   eip712MessageToAPI,
   eip712TypesToAPI, hashBufferValues,

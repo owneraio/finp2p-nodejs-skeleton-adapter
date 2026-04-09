@@ -66,7 +66,7 @@ class CustomTestEnvironment extends NodeEnvironment {
       storage: {
         connectionString
       },
-      service: {}
+      finP2PClient: undefined
     })
     console.log("App created successfully.");
 
