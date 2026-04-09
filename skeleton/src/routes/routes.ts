@@ -13,9 +13,10 @@ import {
   pendingDepositOperation,
   pendingPlan,
   pendingReceiptOperation,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 import { Application } from 'express';
 import { PluginManager } from '../plugins';
+import { logger } from '../helpers';
 import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
@@ -60,33 +61,37 @@ export const register = (app: Application,
 ) => {
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
-  if (storage) {
-    planService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, planService,
+  if (storage && workflowConfig) {
+    const { finP2PClient } = workflowConfig;
+    if (!finP2PClient) {
+      logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
+    }
+    planService = createServiceProxy(() => migrationJob, storage, finP2PClient, planService,
       'approvePlan',
       'proposeCancelPlan',
       'proposeResetPlan',
       'proposeInstructionApproval',
     );
 
-    tokenService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, tokenService,
+    tokenService = createServiceProxy(() => migrationJob, storage, finP2PClient, tokenService,
       'createAsset',
       'issue',
       'transfer',
       'redeem',
     );
 
-    escrowService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, escrowService,
+    escrowService = createServiceProxy(() => migrationJob, storage, finP2PClient, escrowService,
       'hold',
       'release',
       'rollback',
     );
 
-    paymentService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, paymentService,
+    paymentService = createServiceProxy(() => migrationJob, storage, finP2PClient, paymentService,
       'getDepositInstruction',
       'payout',
     );
 
-    commonService = createServiceProxy(() => migrationJob, storage, workflowConfig?.service, commonService);
+    commonService = createServiceProxy(() => migrationJob, storage, finP2PClient, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {
@@ -209,9 +214,7 @@ export const register = (app: Application,
       // const sgn = signatureFromAPI(signature); // it's not provided by the router currently
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'issue', undefined, dst, ast, quantity, undefined, exCtx);
       const rsp = await tokenService.issue(ik, ast, finIdAcc, quantity, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'issue', undefined, dst, ast, quantity, undefined, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -229,9 +232,7 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'transfer', src, dst, ast, quantity, sgn, exCtx);
       const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'transfer', src, dst, ast, quantity, sgn, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -249,9 +250,7 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'redeem', src, undefined, ast, quantity, sgn, exCtx);
       const rsp = await tokenService.redeem(ik, nonce, finIdAcc, ast, quantity, operationId, sgn, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'redeem', src, undefined, ast, quantity, sgn, exCtx, rsp);
       res.json(receiptOperationToAPI(rsp));
     });
 
@@ -278,9 +277,7 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'hold', src, dst, ast, quantity, sgn, exCtx);
       const rsp = await escrowService.hold(ik, nonce, src, dst, ast, quantity, sgn, operationId, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'hold', src, dst, ast, quantity, sgn, exCtx, rsp);
       res.json(receiptOperationToAPI(rsp));
     });
 
@@ -296,9 +293,7 @@ export const register = (app: Application,
       const ast = assetFromAPI(asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'release', src, dst, ast, quantity, undefined, exCtx);
       const rsp = await escrowService.release(ik, src, dst, ast, quantity, operationId, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'release', src, dst, ast, quantity, undefined, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -314,9 +309,7 @@ export const register = (app: Application,
       const ast = assetFromAPI(asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      pluginManager?.getTransactionHook()?.preTransaction(ik, 'rollback', src, undefined, ast, quantity, undefined, exCtx);
       const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx);
-      pluginManager?.getTransactionHook()?.postTransaction(ik, 'rollback', src, undefined, ast, quantity, undefined, exCtx, rsp);
 
       res.json(receiptOperationToAPI(rsp));
     });

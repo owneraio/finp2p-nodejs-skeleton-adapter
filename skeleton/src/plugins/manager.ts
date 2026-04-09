@@ -1,57 +1,51 @@
 import {
   AssetCreationPlugin,
-  AsyncAssetCreationPlugin,
-  AsyncPaymentsPlugin,
-  AsyncPlanApprovalPlugin,
   PaymentsPlugin,
+  PlanAnalyzer,
   PlanApprovalPlugin,
-  TransactionHook,
-  Plugin,
-} from '@owneraio/finp2p-adapter-models';
+} from '../models';
 
 
 export class PluginManager {
 
-  private assetCreationPlugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin> | null = null;
+  private assetCreationPlugin: AssetCreationPlugin | null = null;
 
-  private planApprovalPlugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null = null;
+  private planApprovalPlugin: PlanApprovalPlugin | null = null;
 
-  private paymentsPlugin: Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null = null;
+  private paymentsPlugin: PaymentsPlugin | null = null;
 
-  private transactionHook: TransactionHook | null = null;
+  private planAnalyzer: PlanAnalyzer | null = null;
 
-  registerAssetCreationPlugin(plugin: Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin>): void {
+  registerAssetCreationPlugin(plugin: AssetCreationPlugin): void {
     this.assetCreationPlugin = plugin;
   }
 
-  getAssetCreationPlugin(): Plugin<AssetCreationPlugin, AsyncAssetCreationPlugin> | null {
+  getAssetCreationPlugin(): AssetCreationPlugin | null {
     return this.assetCreationPlugin;
   }
 
-  registerPlanApprovalPlugin(plugin: Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin>): void {
+  registerPlanApprovalPlugin(plugin: PlanApprovalPlugin): void {
     this.planApprovalPlugin = plugin;
   }
 
-  getPlanApprovalPlugin(): Plugin<PlanApprovalPlugin, AsyncPlanApprovalPlugin> | null {
+  getPlanApprovalPlugin(): PlanApprovalPlugin | null {
     return this.planApprovalPlugin;
   }
 
-
-  registerPaymentsPlugin(plugin: Plugin<PaymentsPlugin, AsyncPaymentsPlugin>): void {
+  registerPaymentsPlugin(plugin: PaymentsPlugin): void {
     this.paymentsPlugin = plugin;
   }
 
-  getPaymentsPlugin(): Plugin<PaymentsPlugin, AsyncPaymentsPlugin> | null {
+  getPaymentsPlugin(): PaymentsPlugin | null {
     return this.paymentsPlugin;
   }
 
-
-  registerTransactionHook(plugin: TransactionHook): void {
-    this.transactionHook = plugin;
+  registerPlanAnalyzer(analyzer: PlanAnalyzer): void {
+    this.planAnalyzer = analyzer;
   }
 
-  getTransactionHook(): TransactionHook | null {
-    return this.transactionHook;
+  getPlanAnalyzer(): PlanAnalyzer | null {
+    return this.planAnalyzer;
   }
 
 }

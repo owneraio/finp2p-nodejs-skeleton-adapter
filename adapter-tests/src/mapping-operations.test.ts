@@ -1,5 +1,13 @@
 import { MappingLedgerAPI } from './api/mapping';
 
+// Valid hex finIds for testing (finId hex validation)
+const FIN_ID_1 = 'aabb01';
+const FIN_ID_2 = 'aabb02';
+const FIN_ID_IDEM = 'ccdd01';
+const FIN_ID_MULTI = 'eeff01';
+const FIN_ID_DEACT = 'ff0011';
+const FIN_ID_MULTI_FIELD = 'ff0022';
+
 export function mappingOperationsTests() {
   describe('Mapping Operations', () => {
     let mapping: MappingLedgerAPI;
@@ -25,36 +33,36 @@ export function mappingOperationsTests() {
     describe('Create and Query', () => {
       test('should create an owner mapping', async () => {
         const result = await mapping.createOwnerMapping({
-          finId: 'test-fin-id-001',
+          finId: FIN_ID_1,
           accountMappings: { ledgerAccountId: '0xabc123' },
         });
-        expect(result.finId).toBe('test-fin-id-001');
+        expect(result.finId).toBe(FIN_ID_1);
         expect(result.status).toBe('active');
         expect(result.accountMappings.ledgerAccountId).toBe('0xabc123');
       });
 
       test('should query all mappings', async () => {
         await mapping.createOwnerMapping({
-          finId: 'test-fin-id-002',
+          finId: FIN_ID_2,
           accountMappings: { ledgerAccountId: '0xdef456' },
         });
 
         const all = await mapping.getOwnerMappings();
         expect(all.length).toBeGreaterThanOrEqual(2);
         const finIds = all.map(m => m.finId);
-        expect(finIds).toContain('test-fin-id-001');
-        expect(finIds).toContain('test-fin-id-002');
+        expect(finIds).toContain(FIN_ID_1);
+        expect(finIds).toContain(FIN_ID_2);
       });
 
       test('should query mappings filtered by finIds', async () => {
-        const filtered = await mapping.getOwnerMappings(['test-fin-id-001']);
+        const filtered = await mapping.getOwnerMappings([FIN_ID_1]);
         expect(filtered.length).toBe(1);
-        expect(filtered[0].finId).toBe('test-fin-id-001');
+        expect(filtered[0].finId).toBe(FIN_ID_1);
         expect(filtered[0].accountMappings.ledgerAccountId).toBe('0xabc123');
       });
 
       test('should return empty for unknown finId', async () => {
-        const filtered = await mapping.getOwnerMappings(['does-not-exist']);
+        const filtered = await mapping.getOwnerMappings(['abcdef99']);
         expect(filtered.length).toBe(0);
       });
     });
@@ -62,52 +70,89 @@ export function mappingOperationsTests() {
     describe('Idempotency', () => {
       test('should be idempotent on duplicate create', async () => {
         await mapping.createOwnerMapping({
-          finId: 'test-fin-id-idem',
+          finId: FIN_ID_IDEM,
           accountMappings: { ledgerAccountId: '0xsame' },
         });
         const second = await mapping.createOwnerMapping({
-          finId: 'test-fin-id-idem',
+          finId: FIN_ID_IDEM,
           accountMappings: { ledgerAccountId: '0xsame' },
         });
-        expect(second.finId).toBe('test-fin-id-idem');
+        expect(second.finId).toBe(FIN_ID_IDEM);
         expect(second.accountMappings.ledgerAccountId).toBe('0xsame');
       });
     });
 
-    describe('Multiple accounts per finId', () => {
-      test('should support multiple ledger accounts for same finId', async () => {
-        await mapping.createOwnerMapping({
-          finId: 'test-fin-id-multi',
-          accountMappings: { ledgerAccountId: '0xaccount1' },
+    describe('Multiple fields per finId', () => {
+      test('should support multiple account fields for same finId', async () => {
+        const result = await mapping.createOwnerMapping({
+          finId: FIN_ID_MULTI_FIELD,
+          accountMappings: { ledgerAccountId: '0xaccount1', custodyAccountId: 'vault-123' },
         });
-        await mapping.createOwnerMapping({
-          finId: 'test-fin-id-multi',
-          accountMappings: { ledgerAccountId: '0xaccount2' },
-        });
+        expect(result.accountMappings.ledgerAccountId).toBe('0xaccount1');
+        expect(result.accountMappings.custodyAccountId).toBe('vault-123');
 
-        const filtered = await mapping.getOwnerMappings(['test-fin-id-multi']);
-        expect(filtered.length).toBe(2);
-        const accounts = filtered.map(m => m.accountMappings.ledgerAccountId).sort();
-        expect(accounts).toEqual(['0xaccount1', '0xaccount2']);
+        const filtered = await mapping.getOwnerMappings([FIN_ID_MULTI_FIELD]);
+        expect(filtered.length).toBe(1);
+        expect(filtered[0].accountMappings.ledgerAccountId).toBe('0xaccount1');
+        expect(filtered[0].accountMappings.custodyAccountId).toBe('vault-123');
+      });
+
+      test('should update existing field value on re-post', async () => {
+        await mapping.createOwnerMapping({
+          finId: FIN_ID_MULTI,
+          accountMappings: { ledgerAccountId: '0xoriginal' },
+        });
+        const updated = await mapping.createOwnerMapping({
+          finId: FIN_ID_MULTI,
+          accountMappings: { ledgerAccountId: '0xupdated' },
+        });
+        expect(updated.accountMappings.ledgerAccountId).toBe('0xupdated');
       });
     });
 
     describe('Deactivation', () => {
       test('should deactivate mapping with status inactive', async () => {
         await mapping.createOwnerMapping({
-          finId: 'test-fin-id-deact',
+          finId: FIN_ID_DEACT,
           accountMappings: { ledgerAccountId: '0xremoveme' },
         });
 
         const deactivated = await mapping.createOwnerMapping({
-          finId: 'test-fin-id-deact',
+          finId: FIN_ID_DEACT,
           status: 'inactive',
           accountMappings: { ledgerAccountId: '0xremoveme' },
         });
         expect(deactivated.status).toBe('inactive');
 
-        const remaining = await mapping.getOwnerMappings(['test-fin-id-deact']);
+        const remaining = await mapping.getOwnerMappings([FIN_ID_DEACT]);
         expect(remaining.length).toBe(0);
+      });
+    });
+
+    describe('Validation', () => {
+      test('should reject non-hex finId', async () => {
+        try {
+          await mapping.createOwnerMapping({
+            finId: 'not-hex!',
+            accountMappings: { ledgerAccountId: '0x123' },
+          });
+          fail('Expected 400 error');
+        } catch (e: any) {
+          expect(e.response.status).toBe(400);
+          expect(e.response.data.error).toContain('hexadecimal');
+        }
+      });
+
+      test('should reject empty accountMappings', async () => {
+        try {
+          await mapping.createOwnerMapping({
+            finId: 'aabb01',
+            accountMappings: {},
+          });
+          fail('Expected 400 error');
+        } catch (e: any) {
+          expect(e.response.status).toBe(400);
+        }
       });
     });
   });

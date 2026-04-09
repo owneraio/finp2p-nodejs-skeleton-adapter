@@ -11,7 +11,7 @@ import {
   PRIMARY_SALE_TYPES,
   REDEMPTION_TYPES,
   SELLING_TYPES,
-} from '@owneraio/finp2p-adapter-models';
+} from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
 /**
  * Represents a test actor (user/participant) with cryptographic keys and account info
@@ -68,7 +68,15 @@ export class TestDataBuilder {
    */
   buildFinP2PAsset(): LedgerAPI['schemas']['asset'] {
     const assetId = randomResourceId(this.orgId, ASSET);
-    return { resourceId: assetId };
+    return {
+      resourceId: assetId,
+      ledgerIdentifier: {
+        assetIdentifierType: 'CAIP-19',
+        network: `eip155:${this.chainId}`,
+        tokenId: assetId,
+        standard: 'ERC20',
+      },
+    };
   }
 
   /**
@@ -76,7 +84,15 @@ export class TestDataBuilder {
    * @example const usd = builder.buildFiatAsset('USD');
    */
   buildFiatAsset(code: string = 'USD'): LedgerAPI['schemas']['asset'] {
-    return { resourceId: code };
+    return {
+      resourceId: code,
+      ledgerIdentifier: {
+        assetIdentifierType: 'CAIP-19',
+        network: `eip155:${this.chainId}`,
+        tokenId: code,
+        standard: 'ERC20',
+      },
+    };
   }
 
   // ========== Request Builders (creates request body objects) ==========
@@ -89,7 +105,8 @@ export class TestDataBuilder {
     asset: LedgerAPI['schemas']['asset'];
   }): LedgerAPI['schemas']['CreateAssetRequest'] {
     return {
-      asset: params.asset,
+      asset: { resourceId: params.asset.resourceId },
+      ledgerAssetBinding: params.asset.ledgerIdentifier,
     };
   }
 

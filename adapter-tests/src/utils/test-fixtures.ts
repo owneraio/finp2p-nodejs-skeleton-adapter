@@ -122,7 +122,7 @@ export class TestFixtures {
     const depositRequest = this.builder.buildDepositInstructionRequest({
       owner: params.owner,
       destination: params.owner,
-      asset: asset as LedgerAPI['schemas']['depositAsset'],
+      asset: { type: 'finp2p', resourceId: asset.resourceId },
     });
 
     const depositStatus = await TestHelpers.executeAndWaitForCompletion(this.client, () => this.client.payments.getDepositInstruction(depositRequest));
@@ -135,7 +135,7 @@ export class TestFixtures {
         settlementRef: generateId(),
       });
 
-      await TestHelpers.executeAndWaitForCompletion(this.client, () => this.client.tokens.issue(issueRequest));
+      await TestHelpers.executeAndWaitForReceipt(this.client, () => this.client.tokens.issue(issueRequest));
     }
 
     // Verify balance

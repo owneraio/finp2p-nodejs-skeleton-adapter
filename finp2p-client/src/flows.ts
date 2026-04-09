@@ -434,7 +434,6 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
         term: { asset: { type: 'finp2p', resourceId: params.assetId }, amount: String(params.assetAmount) },
         instruction: {
           sourceAccount: { asset: { type: 'finp2p', resourceId: params.assetId }, account: finIdAccount(params.seller.finId, assetOrgId, params.seller.custodianOrgId) },
-          destinationAccount: { asset: { type: 'finp2p', resourceId: params.assetId }, account: finIdAccount(params.issuer.finId, assetOrgId, params.issuer.custodianOrgId) },
         },
       },
       settlement: {

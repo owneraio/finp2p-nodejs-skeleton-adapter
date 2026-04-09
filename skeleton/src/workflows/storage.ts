@@ -100,62 +100,84 @@ export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>)
   return result.rows.at(0);
 }
 
-export interface AccountMapping {
+export interface AccountMappingRow {
   fin_id: string;
-  account: string;
+  field_name: string;
+  value: string;
   created_at: Date;
   updated_at: Date;
 }
 
-export async function getAccountMappings(finIds?: string[]): Promise<AccountMapping[]> {
+/**
+ * Aggregate rows by fin_id into { finId, fields: { fieldName: value } }.
+ */
+function aggregateRows(rows: AccountMappingRow[]): { finId: string; fields: Record<string, string> }[] {
+  const map = new Map<string, Record<string, string>>();
+  for (const row of rows) {
+    let fields = map.get(row.fin_id);
+    if (!fields) {
+      fields = {};
+      map.set(row.fin_id, fields);
+    }
+    fields[row.field_name] = row.value;
+  }
+  return Array.from(map.entries()).map(([finId, fields]) => ({ finId, fields }));
+}
+
+export async function getAccountMappings(finIds?: string[]): Promise<{ finId: string; fields: Record<string, string> }[]> {
+  const pool = getFirstConnectionOrDie();
   if (finIds && finIds.length > 0) {
-    const result = await getFirstConnectionOrDie().query(
-      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY created_at ASC, account ASC',
+    const result = await pool.query(
+      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY fin_id ASC, field_name ASC',
       [finIds],
     );
-    return result.rows;
+    return aggregateRows(result.rows);
   }
-  const result = await getFirstConnectionOrDie().query(
-    'SELECT * FROM ledger_adapter.account_mappings ORDER BY created_at ASC, account ASC',
+  const result = await pool.query(
+    'SELECT * FROM ledger_adapter.account_mappings ORDER BY fin_id ASC, field_name ASC',
   );
-  return result.rows;
+  return aggregateRows(result.rows);
 }
 
-export async function getAccountMappingsByAccount(account: string): Promise<AccountMapping[]> {
-  const result = await getFirstConnectionOrDie().query(
-    'SELECT * FROM ledger_adapter.account_mappings WHERE account = $1 ORDER BY created_at ASC, fin_id ASC',
-    [account.toLowerCase()],
+export async function getAccountMappingsByFieldValue(fieldName: string, value: string): Promise<{ finId: string; fields: Record<string, string> }[]> {
+  const pool = getFirstConnectionOrDie();
+  const result = await pool.query(
+    `SELECT DISTINCT am.* FROM ledger_adapter.account_mappings am
+     WHERE am.fin_id IN (
+       SELECT fin_id FROM ledger_adapter.account_mappings
+       WHERE field_name = $1 AND value = $2
+     )
+     ORDER BY am.fin_id ASC, am.field_name ASC`,
+    [fieldName, value.toLowerCase()],
   );
-  return result.rows;
+  return aggregateRows(result.rows);
 }
 
-export async function saveAccountMapping(finId: string, account: string): Promise<AccountMapping> {
-  const normalizedAccount = account.toLowerCase();
-  const result = await getFirstConnectionOrDie().query(
-    `INSERT INTO ledger_adapter.account_mappings (fin_id, account)
-    VALUES ($1, $2)
-    ON CONFLICT (fin_id, account) DO NOTHING
-    RETURNING *;`,
-    [finId, normalizedAccount],
-  );
-  if (result.rows.length === 0) {
-    const existing = await getFirstConnectionOrDie().query(
-      'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
-      [finId, normalizedAccount],
+export async function saveAccountMapping(finId: string, fields: Record<string, string>): Promise<{ finId: string; fields: Record<string, string> }> {
+  const pool = getFirstConnectionOrDie();
+  const savedFields: Record<string, string> = {};
+  for (const [fieldName, rawValue] of Object.entries(fields)) {
+    const value = rawValue.toLowerCase();
+    await pool.query(
+      `INSERT INTO ledger_adapter.account_mappings (fin_id, field_name, value)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (fin_id, field_name) DO UPDATE SET value = $3, updated_at = NOW()`,
+      [finId, fieldName, value],
     );
-    return existing.rows[0];
+    savedFields[fieldName] = value;
   }
-  return result.rows[0];
+  return { finId, fields: savedFields };
 }
 
-export async function deleteAccountMapping(finId: string, account?: string): Promise<void> {
-  if (account) {
-    await getFirstConnectionOrDie().query(
-      'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND account = $2',
-      [finId, account.toLowerCase()],
+export async function deleteAccountMapping(finId: string, fieldName?: string): Promise<void> {
+  const pool = getFirstConnectionOrDie();
+  if (fieldName) {
+    await pool.query(
+      'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND field_name = $2',
+      [finId, fieldName],
     );
   } else {
-    await getFirstConnectionOrDie().query(
+    await pool.query(
       'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
       [finId],
     );
@@ -192,7 +214,7 @@ export class Storage {
     const c = await this.c.query(
       `INSERT INTO ledger_adapter.operations (cid, method, status, inputs, outputs)
       VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT(inputs) DO UPDATE
+      ON CONFLICT(method, inputs) DO UPDATE
       -- no-op
       SET inputs = ledger_adapter.operations.inputs
       RETURNING
