@@ -1,5 +1,6 @@
 export type LedgerAssetInfo = {
   tokenId: string
+  ledgerBinding?: { name: string }
   ledgerReference?: LedgerReference
 };
 
