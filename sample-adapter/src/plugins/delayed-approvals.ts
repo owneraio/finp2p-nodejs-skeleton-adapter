@@ -1,6 +1,9 @@
 import {
   PlanApprovalPlugin,
   PlanApprovalStatus,
+  PlanFailureReason,
+  PlanContract,
+  IntentType,
   approvedPlan,
   Asset,
   DestinationAccount,
@@ -38,6 +41,14 @@ export class DelayedApprovals implements PlanApprovalPlugin {
     this.logger.debug(`Approving transfer of ${amount} ${asset.assetId} from ${source.finId}`);
     await sleep(defaultDelay);
     return approvedPlan();
+  }
+
+  async onPlanCompleted(planId: string, intentType: IntentType | undefined, contract: PlanContract): Promise<void> {
+    this.logger.info(`Plan completed: ${planId}, intent=${intentType}`);
+  }
+
+  async onPlanFailed(planId: string, intentType: IntentType | undefined, contract: PlanContract, status: string, reason: PlanFailureReason | undefined): Promise<void> {
+    this.logger.info(`Plan failed: ${planId}, intent=${intentType}, status=${status}, reason=${reason?.message ?? 'unknown'}`);
   }
 
 }
