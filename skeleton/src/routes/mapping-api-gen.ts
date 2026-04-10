@@ -18,8 +18,8 @@ export interface paths {
     get: operations['getOwnerMappings'];
     put?: never;
     /**
-         * Create or update owner mapping
-         * @description Associate a FinP2P finId with a ledger-specific account identifier. Also provisions an on-ledger credential when possible.
+         * Create, update, or delete owner mapping
+         * @description Associate a FinP2P finId with ledger-specific account identifiers. Setting status to "inactive" deletes the mapping.
          */
     post: operations['createOwnerMapping'];
     delete?: never;
@@ -48,26 +48,81 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/mapping/networks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+         * Query network mappings
+         * @description Retrieve registered network mappings, optionally filtered by networkId list.
+         */
+    get: operations['getNetworkMappings'];
+    put?: never;
+    /**
+         * Create, update, or delete network mapping
+         * @description Register or update a network execution environment. Setting status to "inactive" deletes the mapping.
+         */
+    post: operations['createNetworkMapping'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/mapping/network-fields': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+         * Get supported network mapping fields
+         * @description Returns metadata describing the network mapping fields supported by this adapter.
+         */
+    get: operations['getNetworkMappingFields'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    /** @enum {string} */
-    ownerStatus: 'active' | 'inactive';
     /** @description Key-value pairs of adapter-specific account identifiers (e.g. ledgerAccountId, custodyAccountId) */
     accountMappings: {
+      [key: string]: string;
+    };
+    /** @description Key-value pairs of adapter-specific network configuration (e.g. chainId, rpcUrl, submitMode) */
+    networkMappings: {
       [key: string]: string;
     };
     ownerMapping: {
       /** @description FinP2P identity (hex secp256k1 compressed public key) */
       finId: string;
-      status: components['schemas']['ownerStatus'];
       accountMappings: components['schemas']['accountMappings'];
+    };
+    networkMapping: {
+      /** @description Stable network identifier (e.g. eip155:1, besu:corp-settlement) */
+      networkId: string;
+      networkMappings: components['schemas']['networkMappings'];
     };
     createOwnerMappingRequest: {
       /** @description FinP2P identity (hex secp256k1 compressed public key) */
       finId: string;
-      status?: components['schemas']['ownerStatus'];
+      /**
+             * @description Set to "inactive" to delete the mapping
+             * @default active
+             * @enum {string}
+             */
+      status: 'active' | 'inactive';
       accountMappings: components['schemas']['accountMappings'];
     };
     createOwnerMappingResponse: components['schemas']['ownerMapping'] & {
@@ -76,8 +131,19 @@ export interface components {
       /** @description Status of on-ledger credential provisioning (e.g. "created", "existing", "skipped") */
       credentialStatus?: string;
     };
-    accountMappingField: {
-      /** @description The field name within accountMappings */
+    createNetworkMappingRequest: {
+      /** @description Stable network identifier (e.g. eip155:1, besu:corp-settlement) */
+      networkId: string;
+      /**
+             * @description Set to "inactive" to delete the mapping
+             * @default active
+             * @enum {string}
+             */
+      status: 'active' | 'inactive';
+      networkMappings: components['schemas']['networkMappings'];
+    };
+    mappingField: {
+      /** @description The field name within the mapping */
       field: string;
       /** @description Human-readable description of the field */
       description: string;
@@ -142,7 +208,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Mapping created or updated successfully */
+      /** @description Mapping created, updated, or deleted */
       200: {
         headers: {
           [name: string]: unknown;
@@ -186,7 +252,101 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['accountMappingField'][];
+          'application/json': components['schemas']['mappingField'][];
+        };
+      };
+    };
+  };
+  getNetworkMappings: {
+    parameters: {
+      query?: {
+        /** @description Comma-separated list of networkIds to filter by */
+        networkIds?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of network mappings */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['networkMapping'][];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+    };
+  };
+  createNetworkMapping: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['createNetworkMappingRequest'];
+      };
+    };
+    responses: {
+      /** @description Network mapping created, updated, or deleted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['networkMapping'];
+        };
+      };
+      /** @description Invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /** @description Internal server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+    };
+  };
+  getNetworkMappingFields: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description List of network mapping field descriptors */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['mappingField'][];
         };
       };
     };

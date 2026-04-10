@@ -76,6 +76,7 @@ export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | '
 export type AssetIdentifier = {
   type: AssetIdentifierType
   value: string
+  networkId?: string
 };
 
 export type AssetDenominationType = 'fiat' | 'cryptocurrency' | 'finp2p';
@@ -537,6 +538,11 @@ export type Receipt = {
 
 export type OwnerMapping = {
   finId: string;
+  fields: Record<string, string>;
+};
+
+export type NetworkMapping = {
+  networkId: string;
   fields: Record<string, string>;
 };
 

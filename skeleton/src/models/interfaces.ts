@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, OwnerMapping,
+  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, OwnerMapping, NetworkMapping,
 } from './model';
 
 
@@ -98,4 +98,16 @@ export interface MappingService {
  */
 export interface MappingValidator {
   validate(finId: string, fields: Record<string, string>): Promise<Record<string, string>>
+}
+
+export interface NetworkMappingService {
+  getNetworkMappings(networkIds?: string[]): Promise<NetworkMapping[]>
+
+  saveNetworkMapping(networkId: string, fields: Record<string, string>): Promise<NetworkMapping>
+
+  deleteNetworkMapping(networkId: string, fieldName?: string): Promise<void>
+}
+
+export interface NetworkMappingValidator {
+  validate(networkId: string, fields: Record<string, string>): Promise<Record<string, string>>
 }

@@ -23,6 +23,7 @@ export interface Asset {
   updated_at: Date;
   contract_address: string;
   decimals: number;
+  network_id?: string;
 }
 
 const openConnections = [] as WeakRef<Pool>[];
@@ -84,8 +85,8 @@ export async function getAsset(asset: { id: string, type: string }): Promise<Ass
 
 export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset> {
   const result = await getFirstConnectionOrDie().query(
-    `INSERT INTO ledger_adapter.assets (id, type, contract_address, decimals, token_standard)
-    VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO ledger_adapter.assets (id, type, contract_address, decimals, token_standard, network_id)
+    VALUES ($1, $2, $3, $4, $5, $6)
     RETURNING *;`,
     [
       asset.id,
@@ -93,6 +94,7 @@ export async function saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>)
       asset.contract_address,
       asset.decimals,
       asset.token_standard,
+      asset.network_id ?? null,
     ],
   );
 
@@ -180,6 +182,74 @@ export async function deleteAccountMapping(finId: string, fieldName?: string): P
     await pool.query(
       'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
       [finId],
+    );
+  }
+}
+
+// ─── Network Mappings ───────────────────────────────────────────────
+
+export interface NetworkMappingRow {
+  network_id: string;
+  field_name: string;
+  value: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+function aggregateNetworkRows(rows: NetworkMappingRow[]): { networkId: string; fields: Record<string, string> }[] {
+  const map = new Map<string, Record<string, string>>();
+  for (const row of rows) {
+    let fields = map.get(row.network_id);
+    if (!fields) {
+      fields = {};
+      map.set(row.network_id, fields);
+    }
+    fields[row.field_name] = row.value;
+  }
+  return Array.from(map.entries()).map(([networkId, fields]) => ({ networkId, fields }));
+}
+
+export async function getNetworkMappings(networkIds?: string[]): Promise<{ networkId: string; fields: Record<string, string> }[]> {
+  const pool = getFirstConnectionOrDie();
+  if (networkIds && networkIds.length > 0) {
+    const result = await pool.query(
+      'SELECT * FROM ledger_adapter.network_mappings WHERE network_id = ANY($1) ORDER BY network_id ASC, field_name ASC',
+      [networkIds],
+    );
+    return aggregateNetworkRows(result.rows);
+  }
+  const result = await pool.query(
+    'SELECT * FROM ledger_adapter.network_mappings ORDER BY network_id ASC, field_name ASC',
+  );
+  return aggregateNetworkRows(result.rows);
+}
+
+export async function saveNetworkMapping(networkId: string, fields: Record<string, string>): Promise<{ networkId: string; fields: Record<string, string> }> {
+  const pool = getFirstConnectionOrDie();
+  const savedFields: Record<string, string> = {};
+  for (const [fieldName, value] of Object.entries(fields)) {
+    await pool.query(
+      `INSERT INTO ledger_adapter.network_mappings (network_id, field_name, value)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (network_id, field_name) DO UPDATE SET value = $3, updated_at = NOW()`,
+      [networkId, fieldName, value],
+    );
+    savedFields[fieldName] = value;
+  }
+  return { networkId, fields: savedFields };
+}
+
+export async function deleteNetworkMapping(networkId: string, fieldName?: string): Promise<void> {
+  const pool = getFirstConnectionOrDie();
+  if (fieldName) {
+    await pool.query(
+      'DELETE FROM ledger_adapter.network_mappings WHERE network_id = $1 AND field_name = $2',
+      [networkId, fieldName],
+    );
+  } else {
+    await pool.query(
+      'DELETE FROM ledger_adapter.network_mappings WHERE network_id = $1',
+      [networkId],
     );
   }
 }
