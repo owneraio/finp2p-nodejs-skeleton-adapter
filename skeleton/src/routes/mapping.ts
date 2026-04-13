@@ -49,7 +49,7 @@ const ledgerAccountFromAPI = (ledgerAccount: components['schemas']['walletLedger
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };
     default:
-      throw new Error(`unsupported ledger account type: ${(ledgerAccount as any).type}`);
+      throw new Error(`unsupported ledger account type: ${ledgerAccount.type}`);
   }
 };
 
