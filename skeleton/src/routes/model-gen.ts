@@ -500,6 +500,7 @@ export interface components {
       finId: components['schemas']['finId'];
       ledgerAccount?: components['schemas']['walletAccount'];
     };
+    walletLedgerAccount: components['schemas']['walletAccount'];
     depositPayoutAccount: {
       finId: components['schemas']['finId'];
       account: components['schemas']['finIdAccountBase'];
@@ -1102,7 +1103,11 @@ export interface components {
       resourceId: string;
     };
     walletAccount: {
-      type: string;
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'walletAccount';
       /** @description address of the wallet */
       address: string;
     };

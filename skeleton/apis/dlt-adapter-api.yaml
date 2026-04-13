@@ -874,7 +874,14 @@ components:
         finId:
           $ref: "common-external-components.yaml#/components/schemas/finId"
         ledgerAccount:
-          $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
+          oneOf:
+            - $ref: '#/components/schemas/walletLedgerAccount'
+          discriminator:
+            propertyName: type
+            mapping:
+              walletAccount: '#/components/schemas/walletLedgerAccount'
+    walletLedgerAccount:
+      $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
     depositPayoutAccount:
       type: object
       required:

@@ -44,11 +44,32 @@ export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['d
 
 type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
 
+const ledgerAccountFromAPI = (ledgerAccount: components['schemas']['walletLedgerAccount']): LedgerAccount => {
+  switch (ledgerAccount.type) {
+    case 'walletAccount':
+      return { type: ledgerAccount.type, address: ledgerAccount.address };
+    default:
+      throw new Error(`unsupported ledger account type: ${ledgerAccount.type}`);
+  }
+};
+
+const ledgerAccountToAPI = (ledgerAccount: LedgerAccount | undefined): components['schemas']['walletLedgerAccount'] | undefined => {
+  if (!ledgerAccount) {
+    return undefined;
+  }
+  switch (ledgerAccount.type) {
+    case 'walletAccount':
+      return { type: ledgerAccount.type, address: ledgerAccount.address };
+    default:
+      throw new Error(`unsupported ledger account type: ${ledgerAccount.type}`);
+  }
+};
+
 export const sourceFromAPI = (source: AccountLike): Source => {
   const { finId } = source;
   const result: Source = { finId, account: { type: 'finId', finId } };
   if ('ledgerAccount' in source && source.ledgerAccount) {
-    result.ledgerAccount = source.ledgerAccount as LedgerAccount;
+    result.ledgerAccount = ledgerAccountFromAPI(source.ledgerAccount);
   }
   return result;
 };
@@ -57,7 +78,7 @@ export const destinationFromAPI = (destination: AccountLike): Destination => {
   const { finId } = destination;
   const result: Destination = { finId, account: { type: 'finId', finId } };
   if ('ledgerAccount' in destination && destination.ledgerAccount) {
-    result.ledgerAccount = destination.ledgerAccount as LedgerAccount;
+    result.ledgerAccount = ledgerAccountFromAPI(destination.ledgerAccount);
   }
   return result;
 };
@@ -441,8 +462,8 @@ export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt']
     id,
     quantity,
     timestamp,
-    source: source ? { finId: source.finId, asset: apiAsset } : undefined,
-    destination: destination ? { finId: destination.finId, asset: apiAsset } : undefined,
+    source: source ? { finId: source.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(source.ledgerAccount) } : undefined,
+    destination: destination ? { finId: destination.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(destination.ledgerAccount) } : undefined,
     operationType: operationType as components['schemas']['operationType'],
     tradeDetails: tradeDetailsToAPI(tradeDetails),
     transactionDetails: transactionDetailsToAPI(transactionDetails),
