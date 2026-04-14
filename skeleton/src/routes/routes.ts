@@ -59,6 +59,10 @@ export const register = (app: Application,
   mappingConfig?: MappingConfig,
   mappingService?: MappingService,
 ) => {
+  if (mappingConfig && !workflowConfig && !mappingService) {
+    throw new Error('mappingConfig without workflowConfig requires a custom mappingService — built-in mapping storage needs PostgreSQL.');
+  }
+
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
   if (storage && workflowConfig) {
@@ -367,7 +371,7 @@ export const register = (app: Application,
     });
 
   if (mappingConfig) {
-    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl());
+    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl(storage!));
   }
 
   app.use(errorHandler);
