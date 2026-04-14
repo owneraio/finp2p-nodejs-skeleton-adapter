@@ -16,7 +16,7 @@ import {
   OperationResponseStrategy,
   OperationMetadata,
 } from '../models';
-import { Operation as StorageOperation, Storage, generateCid } from './storage';
+import { Operation as StorageOperation, WorkflowStorage, generateCid } from './storage';
 import { operationStatusToAPI } from '../routes/mapping';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { logger } from '../helpers';
@@ -87,7 +87,7 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
  * stays in_progress and will be replayed on restart, which is correct.
  */
 async function finalize(
-  storage: Storage,
+  storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
   cid: string,
   status: StorageOperation['status'],
@@ -120,7 +120,7 @@ async function executeAndFinalize(
   methodName: string,
   cid: string,
   opMetadata: OperationMetadata | undefined,
-  storage: Storage,
+  storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
 ): Promise<void> {
   try {
@@ -134,7 +134,7 @@ async function executeAndFinalize(
 
 export function createServiceProxy<T extends object>(
   migrationJob: () => Promise<void>,
-  storage: Storage,
+  storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
   service: T,
   ...methodsToProxy: (keyof T)[]

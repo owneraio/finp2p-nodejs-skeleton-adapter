@@ -1,5 +1,5 @@
 import { Application } from 'express';
-import { MappingService, MappingValidator, OwnerMapping, ValidationError } from '../models';
+import { AccountMappingService, AccountMappingValidator, AccountMapping, ValidationError } from '../models';
 import { logger } from '../helpers';
 import { components as MappingAPI } from './mapping-api-gen';
 
@@ -15,17 +15,17 @@ const FIN_ID_HEX_PATTERN = /^[0-9a-fA-F]+$/;
  * Adapters can use this for ledger-specific provisioning (e.g., on-ledger credentials).
  * Return value is merged into the response (e.g. credentialCid, credentialStatus).
  */
-export interface MappingProvisionHook {
-  afterSave(finId: string, accountMappings: Record<string, string>, status: string): Promise<Partial<CreateOwnerMappingResponse>>;
+export interface AccountMappingHook {
+  afterSave(finId: string, fields: Record<string, string>, status: string): Promise<Partial<CreateOwnerMappingResponse>>;
 }
 
-export interface MappingConfig {
+export interface AccountMappingConfig {
   fields: AccountMappingField[];
-  provisionHook?: MappingProvisionHook;
-  validator?: MappingValidator;
+  hook?: AccountMappingHook;
+  validator?: AccountMappingValidator;
 }
 
-function toAPIMappingResponse(m: OwnerMapping): APIMappingResponse {
+function toAPIMappingResponse(m: AccountMapping): APIMappingResponse {
   return {
     finId: m.finId,
     status: 'active',
@@ -41,8 +41,8 @@ function toAPIMappingResponse(m: OwnerMapping): APIMappingResponse {
  */
 export function registerMappingRoutes(
   app: Application,
-  config: MappingConfig,
-  mappingService: MappingService,
+  config: AccountMappingConfig,
+  mappingService: AccountMappingService,
 ): void {
 
   app.post('/mapping/owners', async (req, res) => {
@@ -74,7 +74,7 @@ export function registerMappingRoutes(
       });
 
       if (ownerStatus === 'inactive') {
-        await mappingService.deleteOwnerMapping(finId);
+        await mappingService.deleteAccount(finId);
         logger.info('Owner mapping disabled', { finId });
         const result: CreateOwnerMappingResponse = { finId, status: 'inactive', accountMappings };
         res.json(result);
@@ -86,7 +86,7 @@ export function registerMappingRoutes(
         validatedFields = await config.validator.validate(finId, accountMappings);
       }
 
-      await mappingService.saveOwnerMapping(finId, validatedFields);
+      await mappingService.saveAccount(finId, validatedFields);
 
       const result: CreateOwnerMappingResponse = {
         finId,
@@ -94,9 +94,9 @@ export function registerMappingRoutes(
         accountMappings: validatedFields,
       };
 
-      if (config.provisionHook) {
+      if (config.hook) {
         try {
-          const extra = await config.provisionHook.afterSave(finId, validatedFields, ownerStatus);
+          const extra = await config.hook.afterSave(finId, validatedFields, ownerStatus);
           Object.assign(result, extra);
         } catch (e: any) {
           logger.warning('Provision hook failed', { finId, error: e.message });
@@ -124,7 +124,7 @@ export function registerMappingRoutes(
 
       logger.info('Owner mapping query', { filter: finIds?.length ?? 'all' });
 
-      const mappings = await mappingService.getOwnerMappings(finIds);
+      const mappings = await mappingService.getAccounts(finIds);
 
       const response: APIMappingResponse[] = mappings.map(toAPIMappingResponse);
       res.json(response);
