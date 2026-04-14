@@ -57,7 +57,17 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
   const paymentsService = new PaymentsServiceImpl(pluginManager);
   const planApprovalService = new PlanApprovalServiceImpl(orgId, pluginManager, finP2PClient);
 
-  routes.register(
+  const mappingConfig = migrationsConfig ? {
+    fields: [
+      {
+        field: 'ledgerAccountId',
+        description: 'In-memory account identifier (derived from finId)',
+        exampleValue: '0x1a2b3c4d5e6f...',
+      },
+    ],
+  } : undefined;
+
+  const { storage: workflowStorage } = routes.register(
     app as any,
     tokenService,
     escrowService,
@@ -67,18 +77,10 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
     planApprovalService,
     pluginManager,
     migrationsConfig,
-    {
-      fields: [
-        {
-          field: 'ledgerAccountId',
-          description: 'In-memory account identifier (derived from finId)',
-          exampleValue: '0x1a2b3c4d5e6f...',
-        },
-      ],
-    },
+    mappingConfig,
   );
 
-  return app;
+  return { app, workflowStorage };
 }
 
 export default createApp;

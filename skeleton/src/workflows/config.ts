@@ -20,9 +20,8 @@ export interface MigrationConfig {
   additionalMigrations?: AdditionalMigration[]
 }
 
-export interface StorageConfig {
-  connectionString: string
-}
+import { StorageConfig } from '../storage/config';
+export { StorageConfig };
 
 export interface Config {
   migration: MigrationConfig

@@ -36,9 +36,11 @@ import {
   sourceFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
+import { Config, migrateIfNeeded, createServiceProxy, WorkflowStorage } from '../workflows';
+import { PgAccountMappingStore } from '../storage';
 import { MappingConfig, registerMappingRoutes } from './operational';
 import { MappingServiceImpl } from '../services/mapping';
+import { Pool } from 'pg';
 
 const basePath = 'api';
 
@@ -59,8 +61,14 @@ export const register = (app: Application,
   mappingConfig?: MappingConfig,
   mappingService?: MappingService,
 ) => {
+  if (mappingConfig && !workflowConfig && !mappingService) {
+    throw new Error('mappingConfig without workflowConfig requires a custom mappingService — built-in mapping storage needs PostgreSQL.');
+  }
+
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
-  const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
+  const storage = mapIfDefined(workflowConfig, (c) => new WorkflowStorage(c.storage));
+  const pool = mapIfDefined(workflowConfig, (c) => new Pool({ connectionString: c.storage.connectionString }));
+  const accountMappingStore = pool ? new PgAccountMappingStore(pool) : undefined;
   if (storage && workflowConfig) {
     const { finP2PClient } = workflowConfig;
     if (!finP2PClient) {
@@ -367,9 +375,10 @@ export const register = (app: Application,
     });
 
   if (mappingConfig) {
-    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl());
+    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl(accountMappingStore!));
   }
 
   app.use(errorHandler);
 
+  return { storage, accountMappingStore };
 };

@@ -1,10 +1,10 @@
-import { migrateIfNeeded, Storage, getOperation as globalGetOperation } from "../../src/workflows";
+import { migrateIfNeeded, WorkflowStorage } from "../../src/workflows";
 import { expectDateToBeClose } from "../expectDateToBeClose";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 
 describe('Storage operations', () => {
   let container: { connectionString: string, storageUser: string, cleanup: () => Promise<void> } = { connectionString: "", storageUser: "", cleanup: () => Promise.resolve() }
-  let storage = (): Storage => { throw new Error('Not initialized yet') }
+  let storage = (): WorkflowStorage => { throw new Error('Not initialized yet') }
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
@@ -15,7 +15,7 @@ describe('Storage operations', () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser
     })
-    const s = new Storage(container)
+    const s = new WorkflowStorage(container)
     storage = () => s
   })
   afterEach(async () => {
@@ -96,7 +96,7 @@ describe('Storage operations', () => {
       assetBalance: { name: "USDC", value: 12345 },
     });
 
-    const globalGrow = await globalGetOperation([32])
+    const globalGrow = await storage().getOperation([32])
     expect(globalGrow).toEqual(grow)
   });
 
