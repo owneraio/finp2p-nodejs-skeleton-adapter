@@ -6,7 +6,7 @@ import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 import {
   createServiceProxy,
   migrateIfNeeded,
-  Storage,
+  WorkflowStorage,
 } from "../../src/workflows";
 import { FinP2PClient } from "@owneraio/finp2p-client";
 import { MockFinP2PServer } from "../support/mock-finp2p-server";
@@ -35,7 +35,7 @@ const fakeReceipt = (id: string) => ({
 } as any);
 
 async function waitForStatus(
-  storage: Storage,
+  storage: WorkflowStorage,
   cid: string,
   targetStatus: "succeeded" | "failed",
   timeoutMs = 10_000,
@@ -59,7 +59,7 @@ describe("Crash recovery tests", () => {
     storageUser: "",
     cleanup: () => Promise.resolve(),
   };
-  let storage: Storage;
+  let storage: WorkflowStorage;
 
   beforeEach(async () => {
     // @ts-ignore
@@ -71,7 +71,7 @@ describe("Crash recovery tests", () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
     });
-    storage = new Storage(container);
+    storage = new WorkflowStorage(container);
   });
 
   afterEach(async () => {

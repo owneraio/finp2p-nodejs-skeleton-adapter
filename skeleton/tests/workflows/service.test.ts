@@ -11,7 +11,7 @@ import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 import {
   createServiceProxy,
   migrateIfNeeded,
-  Storage,
+  WorkflowStorage,
 } from "../../src/workflows";
 import { FinP2PClient } from "@owneraio/finp2p-client";
 import { MockFinP2PServer } from "../support/mock-finp2p-server";
@@ -60,7 +60,7 @@ describe("Service operation tests", () => {
     storageUser: "",
     cleanup: () => Promise.resolve(),
   };
-  let storage = (): Storage => {
+  let storage = (): WorkflowStorage => {
     throw new Error("Not initialized yet");
   };
   beforeEach(async () => {
@@ -73,7 +73,7 @@ describe("Service operation tests", () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
     });
-    const s = new Storage(container);
+    const s = new WorkflowStorage(container);
     storage = () => s;
   });
   afterEach(async () => {

@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, OwnerMapping,
+  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, AccountMapping,
 } from './model';
 
 
@@ -81,14 +81,14 @@ export interface PlanApprovalService {
   proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void>
 }
 
-export interface MappingService {
-  getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]>
+export interface AccountMappingService {
+  getAccounts(finIds?: string[]): Promise<AccountMapping[]>
 
-  getByFieldValue(fieldName: string, value: string): Promise<OwnerMapping[]>
+  getByFieldValue(fieldName: string, value: string): Promise<AccountMapping[]>
 
-  saveOwnerMapping(finId: string, fields: Record<string, string>): Promise<OwnerMapping>
+  saveAccount(finId: string, fields: Record<string, string>): Promise<AccountMapping>
 
-  deleteOwnerMapping(finId: string, fieldName?: string): Promise<void>
+  deleteAccount(finId: string, fieldName?: string): Promise<void>
 }
 
 /**
@@ -96,6 +96,6 @@ export interface MappingService {
  * Adapters can implement this to validate and optionally transform fields before persistence.
  * Throw ValidationError to reject the mapping.
  */
-export interface MappingValidator {
+export interface AccountMappingValidator {
   validate(finId: string, fields: Record<string, string>): Promise<Record<string, string>>
 }
