@@ -37,6 +37,7 @@ import {
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
+import { SharedStorage } from '../storage';
 import { MappingConfig, registerMappingRoutes } from './operational';
 import { MappingServiceImpl } from '../services/mapping';
 
@@ -59,8 +60,13 @@ export const register = (app: Application,
   mappingConfig?: MappingConfig,
   mappingService?: MappingService,
 ) => {
+  if (mappingConfig && !workflowConfig && !mappingService) {
+    throw new Error('mappingConfig without workflowConfig requires a custom mappingService — built-in mapping storage needs PostgreSQL.');
+  }
+
   const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
   const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
+  const sharedStorage = mapIfDefined(workflowConfig, (c) => new SharedStorage(c.storage));
   if (storage && workflowConfig) {
     const { finP2PClient } = workflowConfig;
     if (!finP2PClient) {
@@ -367,9 +373,10 @@ export const register = (app: Application,
     });
 
   if (mappingConfig) {
-    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl());
+    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl(sharedStorage!.accountMappings));
   }
 
   app.use(errorHandler);
 
+  return { storage, sharedStorage };
 };

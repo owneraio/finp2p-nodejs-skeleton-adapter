@@ -1,38 +1,42 @@
-import * as workflows from '../../src/workflows'
+import { migrateIfNeeded, Storage } from '../../src/workflows'
+import { SharedStorage } from '../../src/storage'
 
-describe("global storage methods", () => {
+describe("storage instance methods", () => {
   let container: { connectionString: string, storageUser: string, cleanup: () => Promise<void> } = { connectionString: "", storageUser: "", cleanup: () => Promise.resolve() }
-  let storage = (): workflows.Storage => { throw new Error('Not initialized yet') }
+  let storage: Storage;
+  let shared: SharedStorage;
+
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
-    await workflows.migrateIfNeeded({
+    await migrateIfNeeded({
       connectionString: container.connectionString,
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser
     })
-    const s = new workflows.Storage(container)
-    storage = () => s
+    storage = new Storage(container)
+    shared = new SharedStorage(container)
   })
   afterEach(async () => {
-    await storage().closeConnections();
+    await storage.closeConnections();
+    await shared.close();
     await container.cleanup();
   });
 
-  test("inserting and querying assets", async () => {
+  test("inserting and querying assets via shared storage", async () => {
     const asset = { type: "cryptocurrency", id: "usdc" }
-    await expect(workflows.getAsset(asset)).resolves.toBeUndefined()
+    await expect(shared.assets.getAsset(asset)).resolves.toBeUndefined()
 
-    const savedAsset = await workflows.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
-    await expect(workflows.getAsset(asset)).resolves.toEqual(savedAsset)
+    const savedAsset = await shared.assets.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
+    await expect(shared.assets.getAsset(asset)).resolves.toEqual(savedAsset)
   })
 
-  test("querying special receipt objects", async () => {
-    await expect(workflows.getReceiptOperation("do not exists")).resolves.toBeUndefined()
+  test("querying special receipt objects via workflow storage", async () => {
+    await expect(storage.getReceiptOperation("do not exists")).resolves.toBeUndefined()
 
-    await storage().insert({ cid: "random", inputs: [ "idempotencyKey", "arg1" ], method: "deposit", status: 'succeeded', outputs: { receipt: { id: "do not exists" } } })
-    await expect(workflows.getReceiptOperation("do not exists")).resolves.toBeDefined()
+    await storage.insert({ cid: "random", inputs: [ "idempotencyKey", "arg1" ], method: "deposit", status: 'succeeded', outputs: { receipt: { id: "do not exists" } } })
+    await expect(storage.getReceiptOperation("do not exists")).resolves.toBeDefined()
   })
 })

@@ -1,4 +1,4 @@
-import { migrateIfNeeded, Storage, getOperation as globalGetOperation } from "../../src/workflows";
+import { migrateIfNeeded, Storage } from "../../src/workflows";
 import { expectDateToBeClose } from "../expectDateToBeClose";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 
@@ -96,7 +96,7 @@ describe('Storage operations', () => {
       assetBalance: { name: "USDC", value: 12345 },
     });
 
-    const globalGrow = await globalGetOperation([32])
+    const globalGrow = await storage().getOperation([32])
     expect(globalGrow).toEqual(grow)
   });
 
