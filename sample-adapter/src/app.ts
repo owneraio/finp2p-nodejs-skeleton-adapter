@@ -1,4 +1,4 @@
-import express, { Application } from 'express';
+import express from 'express';
 import { Wallet } from 'ethers';
 import { logger as expressLogger } from 'express-winston';
 import { format, transports } from 'winston';
@@ -9,35 +9,21 @@ import { TokenServiceImpl, EscrowServiceImpl, Storage } from './services/inmemor
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { DelayedApprovals } from './plugins/delayed-approvals';
 
-function configureLogging(app: Application) {
-  app.use(
-    expressLogger({
-      transports: [new transports.Console({ level: process.env.LOG_LEVEL || 'info' })],
-      format: format.combine(
-        format.timestamp(),
-        format(function dynamicContent(info) {
-          if (info.timestamp) {
-            info.time = info.timestamp;
-            delete info.timestamp;
-          }
-          if (info.message) {
-            info.msg = info.message;
-            // @ts-ignore
-            delete info.message;
-          }
-          return info;
-        })(),
-        format.json(),
-      ),
-      meta: true,
-      expressFormat: true,
-      statusLevels: true,
-      ignoreRoute: (req) => req.url.toLowerCase() === '/healthcheck',
-    }),
-  );
+function configureLogging(app: ReturnType<typeof express>) {
+  app.use(expressLogger({
+    transports: [new transports.Console()],
+    format: format.combine(format.json()),
+    meta: true,
+    expressFormat: true,
+    colorize: false,
+  }));
 }
 
-function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrationsConfig: routes.workflows.Config | undefined) {
+export interface AppConfig {
+  connectionString?: string;
+}
+
+function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config?: AppConfig) {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   configureLogging(app);
@@ -57,7 +43,17 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
   const paymentsService = new PaymentsServiceImpl(pluginManager);
   const planApprovalService = new PlanApprovalServiceImpl(orgId, pluginManager, finP2PClient);
 
-  routes.register(
+  const mappingConfig = config?.connectionString ? {
+    fields: [
+      {
+        field: 'ledgerAccountId',
+        description: 'In-memory account identifier (derived from finId)',
+        exampleValue: '0x1a2b3c4d5e6f...',
+      },
+    ],
+  } : undefined;
+
+  const { storage: workflowStorage } = routes.register(
     app as any,
     tokenService,
     escrowService,
@@ -66,19 +62,12 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, migrat
     paymentsService,
     planApprovalService,
     pluginManager,
-    migrationsConfig,
-    {
-      fields: [
-        {
-          field: 'ledgerAccountId',
-          description: 'In-memory account identifier (derived from finId)',
-          exampleValue: '0x1a2b3c4d5e6f...',
-        },
-      ],
-    },
+    config?.connectionString,
+    finP2PClient,
+    mappingConfig,
   );
 
-  return app;
+  return { app, workflowStorage };
 }
 
 export default createApp;

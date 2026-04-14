@@ -1,38 +1,45 @@
-import * as workflows from '../../src/workflows'
+import { migrateIfNeeded, WorkflowStorage } from '../../src/workflows'
+import { PgAssetStore } from '../../src/storage'
+import { Pool } from 'pg'
 
-describe("global storage methods", () => {
+describe("storage instance methods", () => {
   let container: { connectionString: string, storageUser: string, cleanup: () => Promise<void> } = { connectionString: "", storageUser: "", cleanup: () => Promise.resolve() }
-  let storage = (): workflows.Storage => { throw new Error('Not initialized yet') }
+  let workflowStorage: WorkflowStorage;
+  let pool: Pool;
+  let assetStore: PgAssetStore;
+
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
-    await workflows.migrateIfNeeded({
+    await migrateIfNeeded({
       connectionString: container.connectionString,
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser
     })
-    const s = new workflows.Storage(container)
-    storage = () => s
+    workflowStorage = new WorkflowStorage(container.connectionString)
+    pool = new Pool({ connectionString: container.connectionString });
+    assetStore = new PgAssetStore(pool);
   })
   afterEach(async () => {
-    await storage().closeConnections();
+    await workflowStorage.closeConnections();
+    await pool.end();
     await container.cleanup();
   });
 
-  test("inserting and querying assets", async () => {
+  test("inserting and querying assets via asset store", async () => {
     const asset = { type: "cryptocurrency", id: "usdc" }
-    await expect(workflows.getAsset(asset)).resolves.toBeUndefined()
+    await expect(assetStore.getAsset(asset)).resolves.toBeUndefined()
 
-    const savedAsset = await workflows.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
-    await expect(workflows.getAsset(asset)).resolves.toEqual(savedAsset)
+    const savedAsset = await assetStore.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
+    await expect(assetStore.getAsset(asset)).resolves.toEqual(savedAsset)
   })
 
-  test("querying special receipt objects", async () => {
-    await expect(workflows.getReceiptOperation("do not exists")).resolves.toBeUndefined()
+  test("querying special receipt objects via workflow storage", async () => {
+    await expect(workflowStorage.getReceiptOperation("do not exists")).resolves.toBeUndefined()
 
-    await storage().insert({ cid: "random", inputs: [ "idempotencyKey", "arg1" ], method: "deposit", status: 'succeeded', outputs: { receipt: { id: "do not exists" } } })
-    await expect(workflows.getReceiptOperation("do not exists")).resolves.toBeDefined()
+    await workflowStorage.insert({ cid: "random", inputs: [ "idempotencyKey", "arg1" ], method: "deposit", status: 'succeeded', outputs: { receipt: { id: "do not exists" } } })
+    await expect(workflowStorage.getReceiptOperation("do not exists")).resolves.toBeDefined()
   })
 })

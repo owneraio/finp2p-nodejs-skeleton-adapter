@@ -1,29 +1,29 @@
-import { MappingService, OwnerMapping } from '../models';
-import {
-  getAccountMappings,
-  getAccountMappingsByFieldValue,
-  saveAccountMapping,
-  deleteAccountMapping,
-} from '../workflows/storage';
+import { AccountMappingService, AccountMapping } from '../models';
+import { AccountStore } from '../storage';
 
 /**
- * MappingService backed by the skeleton's built-in PostgreSQL storage.
- * Used when no external MappingService is provided.
+ * AccountMappingService backed by a shared AccountStore.
  */
-export class MappingServiceImpl implements MappingService {
-  async getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]> {
-    return getAccountMappings(finIds);
+export class AccountMappingServiceImpl implements AccountMappingService {
+  private store: AccountStore;
+
+  constructor(store: AccountStore) {
+    this.store = store;
   }
 
-  async getByFieldValue(fieldName: string, value: string): Promise<OwnerMapping[]> {
-    return getAccountMappingsByFieldValue(fieldName, value);
+  async getAccounts(finIds?: string[]): Promise<AccountMapping[]> {
+    return this.store.getAccounts(finIds);
   }
 
-  async saveOwnerMapping(finId: string, fields: Record<string, string>): Promise<OwnerMapping> {
-    return saveAccountMapping(finId, fields);
+  async getByFieldValue(fieldName: string, value: string): Promise<AccountMapping[]> {
+    return this.store.getByFieldValue(fieldName, value);
   }
 
-  async deleteOwnerMapping(finId: string, fieldName?: string): Promise<void> {
-    await deleteAccountMapping(finId, fieldName);
+  async saveAccount(finId: string, fields: Record<string, string>): Promise<AccountMapping> {
+    return this.store.saveAccount(finId, fields);
+  }
+
+  async deleteAccount(finId: string, fieldName?: string): Promise<void> {
+    await this.store.deleteAccount(finId, fieldName);
   }
 }

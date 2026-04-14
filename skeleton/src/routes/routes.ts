@@ -4,7 +4,7 @@ import {
 
   EscrowService,
   HealthService,
-  MappingService,
+  AccountMappingService,
   PaymentService,
   PlanApprovalService,
   Source,
@@ -36,9 +36,12 @@ import {
   sourceFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
-import { MappingConfig, registerMappingRoutes } from './operational';
-import { MappingServiceImpl } from '../services/mapping';
+import { createServiceProxy, WorkflowStorage } from '../workflows';
+import { PgAccountStore } from '../storage';
+import { AccountMappingConfig, registerMappingRoutes } from './operational';
+import { AccountMappingServiceImpl } from '../services/mapping';
+import { FinP2PClient } from '@owneraio/finp2p-client';
+import { Pool } from 'pg';
 
 const basePath = 'api';
 
@@ -55,43 +58,49 @@ export const register = (app: Application,
   paymentService: PaymentService,
   planService: PlanApprovalService,
   pluginManager: PluginManager | undefined,
-  workflowConfig: Config | undefined,
-  mappingConfig?: MappingConfig,
-  mappingService?: MappingService,
+  connectionString?: string,
+  finP2PClient?: FinP2PClient,
+  mappingConfig?: AccountMappingConfig,
+  mappingService?: AccountMappingService,
 ) => {
-  const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
-  const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
-  if (storage && workflowConfig) {
-    const { finP2PClient } = workflowConfig;
+  if (mappingConfig && !connectionString && !mappingService) {
+    throw new Error('mappingConfig without connectionString requires a custom mappingService — built-in mapping storage needs PostgreSQL.');
+  }
+
+  const storage = connectionString ? new WorkflowStorage(connectionString) : undefined;
+  const pool = connectionString ? new Pool({ connectionString }) : undefined;
+  const accountMappingStore = pool ? new PgAccountStore(pool) : undefined;
+  if (storage) {
     if (!finP2PClient) {
       logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
     }
-    planService = createServiceProxy(() => migrationJob, storage, finP2PClient, planService,
+    const ready = () => Promise.resolve();
+    planService = createServiceProxy(ready, storage, finP2PClient, planService,
       'approvePlan',
       'proposeCancelPlan',
       'proposeResetPlan',
       'proposeInstructionApproval',
     );
 
-    tokenService = createServiceProxy(() => migrationJob, storage, finP2PClient, tokenService,
+    tokenService = createServiceProxy(ready, storage, finP2PClient, tokenService,
       'createAsset',
       'issue',
       'transfer',
       'redeem',
     );
 
-    escrowService = createServiceProxy(() => migrationJob, storage, finP2PClient, escrowService,
+    escrowService = createServiceProxy(ready, storage, finP2PClient, escrowService,
       'hold',
       'release',
       'rollback',
     );
 
-    paymentService = createServiceProxy(() => migrationJob, storage, finP2PClient, paymentService,
+    paymentService = createServiceProxy(ready, storage, finP2PClient, paymentService,
       'getDepositInstruction',
       'payout',
     );
 
-    commonService = createServiceProxy(() => migrationJob, storage, finP2PClient, commonService);
+    commonService = createServiceProxy(ready, storage, finP2PClient, commonService);
   }
 
   app.get('/health/liveness', async (req, res) => {
@@ -103,7 +112,6 @@ export const register = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
-    await migrationJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
@@ -367,9 +375,10 @@ export const register = (app: Application,
     });
 
   if (mappingConfig) {
-    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl());
+    registerMappingRoutes(app, mappingConfig, mappingService ?? new AccountMappingServiceImpl(accountMappingStore!));
   }
 
   app.use(errorHandler);
 
+  return { storage, accountMappingStore };
 };
