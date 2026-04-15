@@ -15,6 +15,7 @@ import {
 } from "../../src/workflows";
 import { FinP2PClient } from "@owneraio/finp2p-client";
 import { MockFinP2PServer } from "../support/mock-finp2p-server";
+import { Pool } from "pg";
 
 let mockServer: MockFinP2PServer;
 let finP2PClient: FinP2PClient;
@@ -63,6 +64,7 @@ describe("Service operation tests", () => {
   let storage = (): WorkflowStorage => {
     throw new Error("Not initialized yet");
   };
+  let pool: Pool;
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
@@ -73,11 +75,12 @@ describe("Service operation tests", () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
     });
-    const s = new WorkflowStorage(container.connectionString);
+    pool = new Pool({ connectionString: container.connectionString });
+    const s = new WorkflowStorage(pool);
     storage = () => s;
   });
   afterEach(async () => {
-    await storage().closeConnections();
+    await pool.end();
     await container.cleanup();
   });
 

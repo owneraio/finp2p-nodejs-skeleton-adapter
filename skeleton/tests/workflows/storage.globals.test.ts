@@ -18,12 +18,11 @@ describe("storage instance methods", () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser
     })
-    workflowStorage = new WorkflowStorage(container.connectionString)
     pool = new Pool({ connectionString: container.connectionString });
+    workflowStorage = new WorkflowStorage(pool)
     assetStore = new PgAssetStore(pool);
   })
   afterEach(async () => {
-    await workflowStorage.closeConnections();
     await pool.end();
     await container.cleanup();
   });

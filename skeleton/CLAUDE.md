@@ -63,7 +63,7 @@ Default implementations that adapter developers can extend or replace:
    - `TokenService` for token issue/transfer/redeem (most adapters need this)
    - `EscrowService` for hold/release/rollback
    - Optionally register plugins for payments, plan approval, transaction hooks
-4. Construct your services. If you want PostgreSQL-backed async workflows, build a `WorkflowStorage(connectionString)` and wrap each service with `createServiceProxy(...)` before passing them to `register()`.
+4. Construct your services. If you want PostgreSQL-backed async workflows, create a `pg.Pool`, build a `WorkflowStorage(pool)`, and wrap each service with `createServiceProxy(...)` before passing them to `register()`. The caller owns the pool lifecycle.
 5. If you want account mapping, construct an `AccountStore` (e.g. `PgAccountStore(pool)`) and an `AccountMappingServiceImpl(store)`, and pass them along with an `AccountMappingConfig` to `register()`.
 6. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, mappingConfig?, mappingService?)`.
 

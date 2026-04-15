@@ -10,6 +10,7 @@ import {
 } from "../../src/workflows";
 import { FinP2PClient } from "@owneraio/finp2p-client";
 import { MockFinP2PServer } from "../support/mock-finp2p-server";
+import { Pool } from "pg";
 
 let mockServer: MockFinP2PServer;
 let finP2PClient: FinP2PClient;
@@ -60,6 +61,7 @@ describe("Crash recovery tests", () => {
     cleanup: () => Promise.resolve(),
   };
   let storage: WorkflowStorage;
+  let pool: Pool;
 
   beforeEach(async () => {
     // @ts-ignore
@@ -71,11 +73,12 @@ describe("Crash recovery tests", () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
     });
-    storage = new WorkflowStorage(container.connectionString);
+    pool = new Pool({ connectionString: container.connectionString });
+    storage = new WorkflowStorage(pool);
   });
 
   afterEach(async () => {
-    await storage.closeConnections();
+    await pool.end();
     await container.cleanup();
   });
 
