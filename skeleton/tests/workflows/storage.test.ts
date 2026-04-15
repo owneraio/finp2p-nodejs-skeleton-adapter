@@ -36,7 +36,7 @@ describe('Storage operations', () => {
     };
     const creationDate = new Date();
 
-    const [row, inserted] = await storage().insert(ix);
+    const [row, inserted] = await storage().saveOperation(ix);
     expect(inserted).toBe(true);
     expect(row.cid).toEqual("123");
     expect(row.status).toEqual(ix.status);
@@ -58,7 +58,7 @@ describe('Storage operations', () => {
     };
     const creationDate = new Date();
 
-    const [row, inserted] = await storage().insert(ix);
+    const [row, inserted] = await storage().saveOperation(ix);
     expect(inserted).toBe(true);
     expect(row.cid).toEqual("should be overriden");
     expect(row.status).toEqual(ix.status);
@@ -76,11 +76,11 @@ describe('Storage operations', () => {
     };
     const creationDate = new Date();
 
-    const [row, inserted] = await storage().insert(ix);
+    const [row, inserted] = await storage().saveOperation(ix);
     await setTimeoutPromise(20_000);
 
     const updateDate = new Date();
-    const urow = await storage().update(row.cid, "failed", {
+    const urow = await storage().completeOperation(row.cid, "failed", {
       assetBalance: { name: "USDC", value: 12345 },
     });
 
@@ -91,7 +91,7 @@ describe('Storage operations', () => {
       assetBalance: { name: "USDC", value: 12345 },
     });
 
-    const grow = await storage().operation(row.cid);
+    const grow = await storage().getOperationByCid(row.cid);
     expectDateToBeClose(row.created_at, urow.created_at);
     expectDateToBeClose(urow.updated_at, updateDate);
     expect(urow.status).toEqual("failed");
@@ -99,12 +99,12 @@ describe('Storage operations', () => {
       assetBalance: { name: "USDC", value: 12345 },
     });
 
-    const globalGrow = await storage().getOperation([32])
+    const globalGrow = await storage().getOperationByInputs([32])
     expect(globalGrow).toEqual(grow)
   });
 
   test("insert same inputs returns older CID", async () => {
-    const [row1, inserted1] = await storage().insert({
+    const [row1, inserted1] = await storage().saveOperation({
       cid: "cid-1",
       status: "in_progress",
       method: "approvePlan",
@@ -113,7 +113,7 @@ describe('Storage operations', () => {
     });
     expect(inserted1).toBe(true);
 
-    const [row2, inserted2] = await storage().insert({
+    const [row2, inserted2] = await storage().saveOperation({
       cid: "cid-2",
       status: "in_progress",
       method: "approvePlan",
@@ -126,7 +126,7 @@ describe('Storage operations', () => {
   });
 
   test("inserting and querying existing operations", async () => {
-    const [row1, inserted1] = await storage().insert({
+    const [row1, inserted1] = await storage().saveOperation({
       cid: "cid-1",
       inputs: ["idempotency-key1"],
       method: "method",
@@ -144,7 +144,7 @@ describe('Storage operations', () => {
       storage().getCompletedOperations("method"),
     ).resolves.toEqual([]);
 
-    const updatedRow1 = await storage().update("cid-1", "succeeded", {
+    const updatedRow1 = await storage().completeOperation("cid-1", "succeeded", {
       value: 42,
     });
     await expect(
@@ -157,7 +157,7 @@ describe('Storage operations', () => {
       storage().getCompletedOperations("method"),
     ).resolves.toEqual([updatedRow1]);
 
-    const [row2, inserted2] = await storage().insert({
+    const [row2, inserted2] = await storage().saveOperation({
       cid: "cid-2",
       inputs: ["idempotency-key2"],
       method: "method",

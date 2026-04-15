@@ -36,9 +36,9 @@ describe("storage instance methods", () => {
   })
 
   test("querying special receipt objects via workflow storage", async () => {
-    await expect(workflowStorage.getReceiptOperation("do not exists")).resolves.toBeUndefined()
+    await expect(workflowStorage.getOperationByReceiptId("do not exists")).resolves.toBeUndefined()
 
-    await workflowStorage.insert({ cid: "random", inputs: [ "idempotencyKey", "arg1" ], method: "deposit", status: 'succeeded', outputs: { receipt: { id: "do not exists" } } })
-    await expect(workflowStorage.getReceiptOperation("do not exists")).resolves.toBeDefined()
+    await workflowStorage.saveOperation({ cid: "random", inputs: [ "idempotencyKey", "arg1" ], method: "deposit", status: 'succeeded', outputs: { receipt: { id: "do not exists" } } })
+    await expect(workflowStorage.getOperationByReceiptId("do not exists")).resolves.toBeDefined()
   })
 })

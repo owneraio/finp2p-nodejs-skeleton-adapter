@@ -94,7 +94,7 @@ async function finalize(
   outputs: OperationStatus,
 ): Promise<void> {
   try {
-    await storage.update(cid, status, outputs);
+    await storage.completeOperation(cid, status, outputs);
   } catch (err) {
     logger.error('Failed to persist operation result — skipping callback so restart can retry', { cid, error: err });
     return;
@@ -176,7 +176,7 @@ export function createServiceProxy<T extends object>(
           const cid = args[0];
           if (typeof cid !== 'string') throw new Error('Expected string argument. Did the interface got changed?');
 
-          const operation = await storage.operation(cid);
+          const operation = await storage.getOperationByCid(cid);
           if (operation === undefined) throw new Error(`Operation with following cid not found: ${cid}`);
 
           return operation.outputs;
@@ -193,7 +193,7 @@ export function createServiceProxy<T extends object>(
         const correlationId = generateCid();
         const pendingPlaceholder = wrappedResponse(String(prop), opMetadata, [correlationId]);
 
-        const [storageOperation, inserted] = await storage.insert({
+        const [storageOperation, inserted] = await storage.saveOperation({
           inputs: args, // <- already contains idempotency key
           method: String(prop),
           outputs: pendingPlaceholder,
