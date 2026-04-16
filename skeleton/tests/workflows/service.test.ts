@@ -192,10 +192,10 @@ describe("Service operation tests", () => {
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
     ).toBeUndefined();
-    await expect(
-      proxied.approvePlan(idempotencyKey, planId),
-    ).resolves.toBeDefined();
-    await setTimeoutPromise(500); // let background execution complete
+    const result = await proxied.approvePlan(idempotencyKey, planId);
+    expect(result).toBeDefined();
+    const cid = (result as any).correlationId;
+    await waitForOperationCompletion(proxied as any, cid);
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
     ).toBe(1);

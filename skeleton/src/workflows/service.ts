@@ -163,12 +163,6 @@ export function createServiceProxy<T extends object>(
 
   return new Proxy(service, {
     get(target: T, prop: string | symbol, receiver: any) {
-      const originalMethod = target[prop as keyof T];
-
-      if (typeof originalMethod !== 'function') {
-        return originalMethod;
-      }
-
       if (String(prop) === getOperationStatusMethod) {
         return async function (this: any, ...args: any[]) {
           await ready;
@@ -181,6 +175,12 @@ export function createServiceProxy<T extends object>(
 
           return operation.outputs;
         };
+      }
+
+      const originalMethod = target[prop as keyof T];
+
+      if (typeof originalMethod !== 'function') {
+        return originalMethod;
       }
 
       const m = methodsToProxy.find((m) => m === String(prop));
