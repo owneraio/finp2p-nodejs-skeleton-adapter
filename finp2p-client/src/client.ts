@@ -71,8 +71,8 @@ export class FinP2PClient {
    */
   async syncBalanceForOwner(finId: string, orgId: string, assetId: string) {
     return this.finAPIClient.syncBalance({
-      account: { type: 'finId', finId, orgId },
-      asset: { type: 'finp2p', resourceId: assetId },
+      account: { type: 'finId', finId, orgId, custodian: { orgId } },
+      asset: { resourceId: assetId },
     });
   }
 

@@ -735,7 +735,7 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/nonce'
         operationId:
           type: string
-          description: 'Escrow operation id'
+          description: 'A unique operation ID assigned to the hold request, used to track and reference the asset for future release or rollback actions'
           pattern: .*\S.*
           x-autoMinLength: true
         source:
@@ -768,7 +768,7 @@ components:
       properties:
         operationId:
           type: string
-          description: 'Hold operation id'
+          description: 'The operation ID from the hold request, required to authorize the asset release'
           pattern: .*\S.*
           x-autoMinLength: true
         source:
@@ -794,7 +794,7 @@ components:
       properties:
         operationId:
           type: string
-          description: 'Hold operation id'
+          description: 'The operation ID from the hold request, required to revert the asset hold'
           pattern: .*\S.*
           x-autoMinLength: true
         source:
@@ -863,6 +863,7 @@ components:
           description: 'withdrawal description'
           pattern: .*\S.*
           x-autoMinLength: true
+
     account:
       type: object
       required:
@@ -874,7 +875,16 @@ components:
         finId:
           $ref: "common-external-components.yaml#/components/schemas/finId"
         ledgerAccount:
-          $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
+          oneOf:
+            - $ref: '#/components/schemas/walletLedgerAccount'
+          discriminator:
+            propertyName: type
+            mapping:
+              walletAccount: '#/components/schemas/walletLedgerAccount'
+
+    walletLedgerAccount:
+      $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
+
     depositPayoutAccount:
       type: object
       required:
