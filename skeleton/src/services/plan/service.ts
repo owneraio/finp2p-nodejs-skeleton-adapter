@@ -1,7 +1,7 @@
 import {
   approvedPlan,
   ExecutionPlan,
-  FinIdAccount, InstructionResult, PlanFailureReason,
+  InstructionResult, PlanFailureReason,
   PlanApprovalService, PlanProposal, InboundTransferHook,
   PlanApprovalStatus, rejectedPlan,
 } from '../../models';
@@ -112,10 +112,9 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
             await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
               planId,
               instructionSequence,
-              sourceAccount: operation.source.account,
-              sourceAsset: operation.source.asset,
-              destinationAccount: operation.destination.account,
-              destinationAsset: operation.destination.asset,
+              sourceFinId: operation.source.finId,
+              asset: operation.source.asset,
+              destinationFinId: operation.destination.finId,
               amount: operation.amount,
               result,
             });
@@ -182,57 +181,44 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
         switch (operation.type) {
           case 'issue': {
             const { destination, amount } = operation;
-            if (destination.account.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId destination is supported in primary sale');
-            }
             if (plugin) {
-              return await plugin.validateIssuance(destination.account, destination.asset, amount);
+              return await plugin.validateIssuance(destination.finId, destination.asset, amount);
             }
             break;
           }
 
           case 'transfer': {
             const { source, destination, amount } = operation;
-            if (source.account.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId source is supported in transfer operation');
-            }
             if (this.inboundTransferHook) {
               await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
                 planId,
-                sourceAccount: source.account,
-                sourceAsset: source.asset,
-                destinationAccount: destination.account,
-                destinationAsset: destination.asset,
+                sourceFinId: source.finId,
+                asset: source.asset,
+                destinationFinId: destination.finId,
                 amount,
               });
             }
             if (plugin) {
-              return await plugin.validateTransfer(source.account, destination.account, source.asset, destination.asset, amount);
+              return await plugin.validateTransfer(source.finId, destination.finId, source.asset, amount);
             }
             break;
           }
 
           case 'hold': {
             const { source, destination, amount } = operation;
-            if (source.account.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId source is supported in hold operation');
-            }
             if (!destination) {
               return rejectedPlan(1, 'No destination in hold operation');
             }
             if (plugin) {
-              return await plugin.validateTransfer(source.account, destination.account, source.asset, destination.asset, amount);
+              return await plugin.validateTransfer(source.finId, destination.finId, source.asset, amount);
             }
             break;
           }
 
           case 'redeem': {
             const { source, destination, amount } = operation;
-            if (source.account.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId source is supported in redemption');
-            }
             if (plugin) {
-              return await plugin.validateRedemption(source.account, destination?.account, source.asset, destination?.asset, amount);
+              return await plugin.validateRedemption(source.finId, destination?.finId, source.asset, destination?.asset, amount);
             }
             break;
           }

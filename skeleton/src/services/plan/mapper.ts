@@ -1,5 +1,4 @@
 import {
-  Account,
   AccountAssetPair,
   Asset,
   ExecutionInstruction,
@@ -22,20 +21,9 @@ export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => 
   return { assetType: 'finp2p', assetId: asset.resourceId, ledgerIdentifier: asset.ledgerIdentifier };
 };
 
-export const accountFromAPI = (account: OpComponents['schemas']['schemas-finIdAccount']): Account => {
-  return { type: 'finId', finId: account.finId };
-};
-
-export const accountOptFromAPI = (account?: OpComponents['schemas']['schemas-finIdAccount']): Account | undefined => {
-  if (!account) {
-    return undefined;
-  }
-  return accountFromAPI(account);
-};
-
 export const accountAssetPairFromAPI = (ledgerAccount: OpComponents['schemas']['ledgerAccountAsset']): AccountAssetPair => {
   return {
-    account: accountFromAPI(ledgerAccount.finp2pAccount.account),
+    finId: ledgerAccount.finp2pAccount.account.finId,
     asset: assetFromFinp2pAsset(ledgerAccount.finp2pAccount.asset),
   };
 };
@@ -55,15 +43,13 @@ const legFromSourceDestinationExecuteAsset = (order: OpComponents['schemas']['so
   }
   const { amount } = term;
   const { sourceAccount, destinationAccount } = instruction;
-  const srcAccount = sourceAccount.account;
-  const dstAccount = destinationAccount.account;
   const srcAsset = assetFromFinp2pAsset(sourceAccount.asset);
   const dstAsset = assetFromFinp2pAsset(destinationAccount.asset);
   return {
     asset: srcAsset,
     amount,
-    source: srcAccount ? { account: accountFromAPI(srcAccount), asset: srcAsset } : undefined,
-    destination: dstAccount ? { account: accountFromAPI(dstAccount), asset: dstAsset } : undefined,
+    source: sourceAccount.account ? { finId: sourceAccount.account.finId, asset: srcAsset } : undefined,
+    destination: destinationAccount.account ? { finId: destinationAccount.account.finId, asset: dstAsset } : undefined,
   };
 };
 
@@ -83,8 +69,8 @@ const legFromLoanExecuteAsset = (order: OpComponents['schemas']['loanExecuteAsse
   return {
     asset: srcAsset,
     amount,
-    source: { account: accountFromAPI(borrowerAccount.account), asset: srcAsset },
-    destination: { account: accountFromAPI(lenderAccount.account), asset: dstAsset },
+    source: { finId: borrowerAccount.account.finId, asset: srcAsset },
+    destination: { finId: lenderAccount.account.finId, asset: dstAsset },
   };
 };
 

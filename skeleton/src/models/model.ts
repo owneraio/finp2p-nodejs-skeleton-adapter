@@ -9,13 +9,15 @@ export type Caip19LedgerAssetIdentifier = {
   standard: string;
 };
 
+export type LedgerAssetIdentifier = Caip19LedgerAssetIdentifier;
+
 export type AssetBase = {
   assetId: string
   assetType: AssetType
 };
 
 export type Asset = AssetBase & {
-  ledgerIdentifier: Caip19LedgerAssetIdentifier
+  ledgerIdentifier: LedgerAssetIdentifier
 };
 
 // Per API spec, deposit assets are limited to 'finp2p' or 'custom' variants (no ledgerIdentifier)
@@ -26,23 +28,6 @@ export type DepositAsset = {
   assetType: 'custom'
 };
 
-export type FinIdAccount = {
-  type: 'finId',
-  finId: string
-};
-
-export type CryptocurrencyWallet = {
-  type: 'crypto'
-  address: string
-};
-
-export type IbanIdentifier = {
-  type: 'iban',
-  code: string
-};
-
-export type SourceAccount = FinIdAccount;
-
 export type LedgerAccount = {
   type: string;
   address: string;
@@ -50,21 +35,12 @@ export type LedgerAccount = {
 
 export type Source = {
   finId: string
-  account: SourceAccount
   ledgerAccount?: LedgerAccount
 };
-
-export type Account = FinIdAccount | CryptocurrencyWallet | IbanIdentifier;
-export type DestinationAccount = Account;
 
 export type Destination = {
   finId: string
-  account: DestinationAccount
   ledgerAccount?: LedgerAccount
-};
-
-export const finIdDestination = (finId: string): Destination => {
-  return { finId, account: { type: 'finId', finId } };
 };
 
 export type ExecutionContext = {
@@ -91,12 +67,6 @@ export type TokenIdentifier = {
   standard: string
 };
 
-export type LedgerAssetIdentifier = {
-  network: string;
-  tokenId: string;
-  standard: string;
-  resourceId?: string;
-};
 
 export type AssetBind = {
   tokenIdentifier: TokenIdentifier
@@ -133,7 +103,7 @@ export type IntentType =
 
 
 export type AccountAssetPair = {
-  account: Account;
+  finId: string;
   asset: Asset;
 };
 

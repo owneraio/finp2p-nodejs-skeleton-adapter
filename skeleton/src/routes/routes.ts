@@ -3,7 +3,6 @@ import {
   Destination,
 
   EscrowService,
-  FinIdAccount,
   HealthService,
   AccountMappingService,
   PaymentService,
@@ -15,7 +14,7 @@ import { Application } from 'express';
 import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
-  assetFromAPI, assetBaseFromAPI,
+  assetFromAPI,
   balanceToAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
@@ -125,7 +124,7 @@ export const register = (app: Application,
 
       const result = await tokenService.createAsset(
         idempotencyKey,
-        assetBaseFromAPI(asset),
+        asset.resourceId,
         assetBindingOptFromAPI(ledgerAssetBinding),
         metadata,
         name,
@@ -162,11 +161,9 @@ export const register = (app: Application,
       const { quantity, destination, /*signature,*/ executionContext } = req.body;
       const asset = destination.asset;
       const ast = assetFromAPI(asset);
-      const dst: Destination = { finId: destination.finId, account: { type: 'finId', finId: destination.finId } };
-      // const sgn = signatureFromAPI(signature); // it's not provided by the router currently
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.issue(ik, ast, dst, quantity, exCtx);
+      const rsp = await tokenService.issue(ik, ast, destination.finId, quantity, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -180,24 +177,11 @@ export const register = (app: Application,
       const { nonce, source, destination, quantity, signature, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
-      const srcAsset = assetFromAPI(source.asset);
-      const dstAsset = assetFromAPI(destination.asset);
+      const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const srcL = srcAsset.ledgerIdentifier;
-      const dstL = dstAsset.ledgerIdentifier;
-      const isCrosschain = (srcL && dstL)
-        ? srcL.network !== dstL.network || srcL.tokenId !== dstL.tokenId || srcL.standard !== dstL.standard
-        : srcAsset.assetId !== dstAsset.assetId;
-      if (isCrosschain) {
-        const supported = await tokenService.doesSupportCrosschainTransfer(srcAsset, dstAsset);
-        if (!supported) {
-          throw new Error(`Cross-chain transfer is not supported between assets ${srcAsset.assetId} and ${dstAsset.assetId}`);
-        }
-      }
-
-      const rsp = await tokenService.transfer(ik, nonce, src, dst, srcAsset, dstAsset, quantity, sgn, exCtx);
+      const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -209,13 +193,11 @@ export const register = (app: Application,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
       const { nonce, source, quantity, operationId, signature, executionContext } = req.body;
-      const finIdAcc: FinIdAccount = { type: 'finId', finId: source.finId };
-      const src: Source = { finId: source.finId, account: finIdAcc };
       const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.redeem(ik, nonce, finIdAcc, ast, quantity, operationId, sgn, exCtx);
+      const rsp = await tokenService.redeem(ik, nonce, source.finId, ast, quantity, operationId, sgn, exCtx);
       res.json(receiptOperationToAPI(rsp));
     });
 

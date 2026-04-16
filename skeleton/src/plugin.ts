@@ -22,14 +22,11 @@ export {
 
 export {
   // Domain types used by plugin method signatures
-  Account,
   Asset,
   DepositAsset,
   DepositOperation,
   Destination,
-  DestinationAccount,
   ExecutionContext,
-  FinIdAccount,
   OperationStatus,
   PlanApprovalStatus,
   ExecutionPlan,

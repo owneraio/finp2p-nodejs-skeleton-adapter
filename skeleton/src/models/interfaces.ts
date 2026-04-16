@@ -1,12 +1,12 @@
 import {
-  Asset, AssetBase,
+  Asset,
   AssetCreationStatus,
   Destination,
   ExecutionContext,
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AccountMapping,
+  AssetBind, AssetDenomination, AccountMapping,
 } from './model';
 
 
@@ -25,7 +25,7 @@ export interface CommonService {
 
 export interface TokenService {
 
-  createAsset(idempotencyKey: string, asset: AssetBase,
+  createAsset(idempotencyKey: string, assetId: string,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus>;
 
@@ -33,15 +33,12 @@ export interface TokenService {
 
   balance(asset: Asset, finId: string): Promise<Balance>;
 
-  issue(idempotencyKey: string, asset: Asset, to: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
+  issue(idempotencyKey: string, asset: Asset, destinationFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
-  doesSupportCrosschainTransfer(sourceAsset: Asset, destinationAsset: Asset): Promise<boolean>;
-
-  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
-    sourceAsset: Asset, destinationAsset: Asset,
+  transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
-  redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
+  redeem(idempotencyKey: string, nonce: string, sourceFinId: string, asset: Asset, quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 

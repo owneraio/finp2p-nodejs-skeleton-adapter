@@ -8,8 +8,8 @@ import {
   ReceiptOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
-  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails, DestinationAccount,
-  FinIdAccount, AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
+  HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
+  AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
 } from '../models';
 import { components } from './model-gen';
@@ -67,7 +67,7 @@ const ledgerAccountToAPI = (ledgerAccount: LedgerAccount | undefined): component
 
 export const sourceFromAPI = (source: AccountLike): Source => {
   const { finId } = source;
-  const result: Source = { finId, account: { type: 'finId', finId } };
+  const result: Source = { finId };
   if ('ledgerAccount' in source && source.ledgerAccount) {
     result.ledgerAccount = ledgerAccountFromAPI(source.ledgerAccount);
   }
@@ -76,7 +76,7 @@ export const sourceFromAPI = (source: AccountLike): Source => {
 
 export const destinationFromAPI = (destination: AccountLike): Destination => {
   const { finId } = destination;
-  const result: Destination = { finId, account: { type: 'finId', finId } };
+  const result: Destination = { finId };
   if ('ledgerAccount' in destination && destination.ledgerAccount) {
     result.ledgerAccount = ledgerAccountFromAPI(destination.ledgerAccount);
   }
@@ -93,11 +93,6 @@ export const destinationOptFromAPI = (destination: AccountLike | undefined): Des
 export const depositPayoutAccountToAPI = (dest: Destination): components['schemas']['depositPayoutAccount'] => {
   const { finId } = dest;
   return { finId, account: { type: 'finId', finId } };
-};
-
-export const finIdAccountFromAPI = (account: components['schemas']['finIdAccountBase']): FinIdAccount => {
-  const { finId } = account;
-  return { type: 'finId', finId };
 };
 
 export const executionContextFromAPI = (ep: components['schemas']['executionContext']): ExecutionContext => {
