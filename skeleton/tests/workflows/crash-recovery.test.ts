@@ -10,6 +10,7 @@ import {
 } from "../../src/workflows";
 import { FinP2PClient } from "@owneraio/finp2p-client";
 import { MockFinP2PServer } from "../support/mock-finp2p-server";
+import { Pool } from "pg";
 
 let mockServer: MockFinP2PServer;
 let finP2PClient: FinP2PClient;
@@ -42,7 +43,7 @@ async function waitForStatus(
 ): Promise<any> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const op = await storage.operation(cid);
+    const op = await storage.getOperationByCid(cid);
     if (op && op.status === targetStatus) return op;
     await setTimeoutPromise(200);
   }
@@ -60,6 +61,7 @@ describe("Crash recovery tests", () => {
     cleanup: () => Promise.resolve(),
   };
   let storage: WorkflowStorage;
+  let pool: Pool;
 
   beforeEach(async () => {
     // @ts-ignore
@@ -71,11 +73,12 @@ describe("Crash recovery tests", () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
     });
-    storage = new WorkflowStorage(container.connectionString);
+    pool = new Pool({ connectionString: container.connectionString });
+    storage = new WorkflowStorage(pool);
   });
 
   afterEach(async () => {
-    await storage.closeConnections();
+    await pool.end();
     await container.cleanup();
   });
 
@@ -99,7 +102,7 @@ describe("Crash recovery tests", () => {
     expect(pendingResult).toHaveProperty("correlationId");
     const cid = (pendingResult as any).correlationId;
 
-    const op = await storage.operation(cid);
+    const op = await storage.getOperationByCid(cid);
     expect(op!.status).toBe("in_progress");
     expect(op!.method).toBe("issue");
     expect(op!.inputs).toEqual(["idem-key-1", "asset-1", "user-1", "100"]);
@@ -133,7 +136,7 @@ describe("Crash recovery tests", () => {
     const statusResult = await proxy2.operationStatus(cid);
     expect(statusResult.type).toBe("success");
 
-    const allOps = await storage.operationsAll();
+    const allOps = await storage.getOperations();
     expect(allOps.length).toBe(1);
     const dbOp = allOps[0];
     expect(dbOp.cid).toBe(cid);
@@ -143,7 +146,7 @@ describe("Crash recovery tests", () => {
   });
 
   test("operation that fails on recovery is marked as failed", async () => {
-    const [inserted] = await storage.insert({
+    const [inserted] = await storage.saveOperation({
       cid: "crash-cid-1",
       method: "issue",
       status: "in_progress",
@@ -170,7 +173,7 @@ describe("Crash recovery tests", () => {
     expect(failed.status).toBe("failed");
     expect(JSON.stringify(failed.outputs)).toContain("Ledger RPC connection refused");
 
-    const allOps = await storage.operationsAll();
+    const allOps = await storage.getOperations();
     expect(allOps.length).toBe(1);
     const dbOp = allOps[0];
     expect(dbOp.cid).toBe("crash-cid-1");
@@ -180,7 +183,7 @@ describe("Crash recovery tests", () => {
   });
 
   test("callback is sent to router on successful recovery", async () => {
-    await storage.insert({
+    await storage.saveOperation({
       cid: "callback-cid-1",
       method: "issue",
       status: "in_progress",
@@ -209,7 +212,7 @@ describe("Crash recovery tests", () => {
     const callback = mockServer.getCallback("callback-cid-1");
     expect(callback).toBeDefined();
 
-    const allOps = await storage.operationsAll();
+    const allOps = await storage.getOperations();
     expect(allOps.length).toBe(1);
     const dbOp = allOps[0];
     expect(dbOp.status).toBe("succeeded");
@@ -218,15 +221,15 @@ describe("Crash recovery tests", () => {
   });
 
   test("multiple pending operations are all recovered", async () => {
-    await storage.insert({
+    await storage.saveOperation({
       cid: "multi-1", method: "transfer", status: "in_progress",
       inputs: ["idem-1", "asset-1", "from-1", "to-1", "100"], outputs: {},
     });
-    await storage.insert({
+    await storage.saveOperation({
       cid: "multi-2", method: "transfer", status: "in_progress",
       inputs: ["idem-2", "asset-2", "from-2", "to-2", "200"], outputs: {},
     });
-    await storage.insert({
+    await storage.saveOperation({
       cid: "multi-3", method: "transfer", status: "in_progress",
       inputs: ["idem-3", "asset-3", "from-3", "to-3", "300"], outputs: {},
     });
@@ -255,7 +258,7 @@ describe("Crash recovery tests", () => {
 
     expect(recoveredInputs.length).toBe(3);
 
-    const allOps = await storage.operationsAll();
+    const allOps = await storage.getOperations();
     expect(allOps.length).toBe(3);
 
     for (const [cid, idemKey, asset, from, to, qty] of [
@@ -263,7 +266,7 @@ describe("Crash recovery tests", () => {
       ["multi-2", "idem-2", "asset-2", "from-2", "to-2", "200"],
       ["multi-3", "idem-3", "asset-3", "from-3", "to-3", "300"],
     ]) {
-      const op = await storage.operation(cid);
+      const op = await storage.getOperationByCid(cid);
       expect(op!.status).toBe("succeeded");
       expect(op!.method).toBe("transfer");
       expect(op!.inputs).toEqual([idemKey, asset, from, to, qty]);
@@ -273,7 +276,7 @@ describe("Crash recovery tests", () => {
   });
 
   test("already completed operations are not re-executed on restart", async () => {
-    const [inserted] = await storage.insert({
+    const [inserted] = await storage.saveOperation({
       cid: "done-cid",
       method: "issue",
       status: "succeeded",
@@ -301,11 +304,11 @@ describe("Crash recovery tests", () => {
     await setTimeoutPromise(2000);
 
     expect(callCount).toBe(0);
-    const op = await storage.operation("done-cid");
+    const op = await storage.getOperationByCid("done-cid");
     expect(op!.status).toBe("succeeded");
     expect(op!.outputs.receipt.id).toBe("already-done");
 
-    const allOps = await storage.operationsAll();
+    const allOps = await storage.getOperations();
     expect(allOps.length).toBe(1);
     expect(allOps[0].updated_at.getTime()).toBe(inserted.updated_at.getTime());
     expect(allOps[0].created_at.getTime()).toBe(inserted.created_at.getTime());

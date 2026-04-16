@@ -15,6 +15,7 @@ import {
 } from "../../src/workflows";
 import { FinP2PClient } from "@owneraio/finp2p-client";
 import { MockFinP2PServer } from "../support/mock-finp2p-server";
+import { Pool } from "pg";
 
 let mockServer: MockFinP2PServer;
 let finP2PClient: FinP2PClient;
@@ -63,6 +64,7 @@ describe("Service operation tests", () => {
   let storage = (): WorkflowStorage => {
     throw new Error("Not initialized yet");
   };
+  let pool: Pool;
   beforeEach(async () => {
     // @ts-ignore
     container = await global.startPostgresContainer();
@@ -73,11 +75,12 @@ describe("Service operation tests", () => {
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
     });
-    const s = new WorkflowStorage(container.connectionString);
+    pool = new Pool({ connectionString: container.connectionString });
+    const s = new WorkflowStorage(pool);
     storage = () => s;
   });
   afterEach(async () => {
-    await storage().closeConnections();
+    await pool.end();
     await container.cleanup();
   });
 
@@ -134,10 +137,10 @@ describe("Service operation tests", () => {
       "getDepositInstruction",
     );
 
-    await expect(storage().operationsAll()).resolves.toEqual([]);
+    await expect(storage().getOperations()).resolves.toEqual([]);
     const result = await proxied.approvePlan("idempotency-key-1", "plan1");
-    await expect(storage().operationsAll()).resolves.not.toEqual([]);
-    let operation = (await storage().operationsAll())[0];
+    await expect(storage().getOperations()).resolves.not.toEqual([]);
+    let operation = (await storage().getOperations())[0];
     expect(operation.inputs).toEqual(["idempotency-key-1", "plan1"]);
     expect(result).toEqual(pendingPlan(operation.cid, { responseStrategy: 'callback' }));
     await expect(
@@ -145,17 +148,17 @@ describe("Service operation tests", () => {
     ).resolves.toEqual(approvedPlan());
 
     const result2 = await proxied.createAsset("idempotency-key-2", "asset-id");
-    expect((await storage().operationsAll()).length).toBe(1);
+    expect((await storage().getOperations()).length).toBe(1);
 
     const crash = await proxied.getDepositInstruction("idempotency-key-3", "155.322");
     await setTimeoutPromise(5000);
-    expect((await storage().operationsAll()).length).toBe(2);
-    operation = (await storage().operationsAll())[1];
+    expect((await storage().getOperations()).length).toBe(2);
+    operation = (await storage().getOperations())[1];
 
     await expect(
       waitForOperationCompletion(proxied, operation.cid),
     ).resolves.toEqual(expect.anything());
-    operation = (await storage().operationsAll())[1];
+    operation = (await storage().getOperations())[1];
     expect(operation.status).toEqual("failed");
     expect(JSON.stringify(operation.outputs)).toMatch("connect to RPC");
   });
@@ -189,10 +192,10 @@ describe("Service operation tests", () => {
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
     ).toBeUndefined();
-    await expect(
-      proxied.approvePlan(idempotencyKey, planId),
-    ).resolves.toBeDefined();
-    await setTimeoutPromise(500); // let background execution complete
+    const result = await proxied.approvePlan(idempotencyKey, planId);
+    expect(result).toBeDefined();
+    const cid = (result as any).correlationId;
+    await waitForOperationCompletion(proxied as any, cid);
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
     ).toBe(1);
@@ -260,7 +263,7 @@ describe("Service operation tests", () => {
       }
     }
 
-    const [row1, inserted1] = await storage().insert({
+    const [row1, inserted1] = await storage().saveOperation({
       cid: "old-cid",
       inputs: ["fake-idempotency-key-1", 5, "655000"],
       method: "createAsset",
@@ -269,7 +272,7 @@ describe("Service operation tests", () => {
     });
     expect(inserted1).toBe(true);
 
-    const [row2, inserted2] = await storage().insert({
+    const [row2, inserted2] = await storage().saveOperation({
       cid: "new-cid",
       inputs: ["should-fail-idempotency", "plan-id-0"],
       method: "proposeCancelPlan",
@@ -278,7 +281,7 @@ describe("Service operation tests", () => {
     });
     expect(inserted2).toBe(true);
 
-    const [row3, inserted3] = await storage().insert({
+    const [row3, inserted3] = await storage().saveOperation({
       cid: "newer-cid",
       inputs: ["crash-idempotency-key-2", "plan-id-0"],
       method: "proposeCancelPlan",
@@ -298,7 +301,7 @@ describe("Service operation tests", () => {
     );
     await setTimeoutPromise(5000);
 
-    await expect(storage().operation(row1.cid)).resolves.toEqual({
+    await expect(storage().getOperationByCid(row1.cid)).resolves.toEqual({
       ...row1,
       outputs: successfulAssetCreation({
         tokenId: "fake-idempotency-key-1",
@@ -317,20 +320,20 @@ describe("Service operation tests", () => {
       updated_at: expect.any(Date),
     });
 
-    await expect(storage().operation(row2.cid)).resolves.toEqual({
+    await expect(storage().getOperationByCid(row2.cid)).resolves.toEqual({
       ...row2,
       updated_at: expect.any(Date),
       outputs: rejectedPlan(404, "should-fail-idempotency:plan-id-0"),
       status: "failed",
     });
 
-    await expect(storage().operation(row3.cid)).resolves.toEqual({
+    await expect(storage().getOperationByCid(row3.cid)).resolves.toEqual({
       ...row3,
       updated_at: expect.any(Date),
       outputs: expect.anything(),
       status: "failed",
     });
-    expect(JSON.stringify(await storage().operation(row3.cid))).toMatch(
+    expect(JSON.stringify(await storage().getOperationByCid(row3.cid))).toMatch(
       "OSS failed to return proper data",
     );
   });

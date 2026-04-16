@@ -2,7 +2,7 @@ import path from 'node:path';
 import winston from 'winston';
 import { Pool } from 'pg';
 import {
-  CommonService, EscrowService, HealthService, InboundTransferHook, MappingService, TokenService,
+  CommonService, EscrowService, HealthService, InboundTransferHook, AccountMappingService, TokenService,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { AssetDelegate, DistributionService, EscrowDelegate, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
@@ -29,7 +29,7 @@ export interface VanillaServices {
   tokenService: TokenService;
   escrowService: EscrowService;
   commonService: CommonService & HealthService;
-  mappingService: MappingService;
+  mappingService: AccountMappingService;
   distributionService?: DistributionService;
   inboundTransferHook?: InboundTransferHook;
 }

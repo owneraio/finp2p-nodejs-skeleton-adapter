@@ -9,14 +9,8 @@ import {
   PlanApprovalService,
   Source,
   TokenService,
-  pendingAssetCreation,
-  pendingDepositOperation,
-  pendingPlan,
-  pendingReceiptOperation,
 } from '../models';
 import { Application } from 'express';
-import { PluginManager } from '../plugins';
-import { logger } from '../helpers';
 import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
@@ -36,19 +30,9 @@ import {
   sourceFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import { createServiceProxy, WorkflowStorage } from '../workflows';
-import { PgAccountStore } from '../storage';
 import { AccountMappingConfig, registerMappingRoutes } from './operational';
-import { AccountMappingServiceImpl } from '../services/mapping';
-import { FinP2PClient } from '@owneraio/finp2p-client';
-import { Pool } from 'pg';
 
 const basePath = 'api';
-
-const mapIfDefined = <T, R>(value: T | undefined, mapper: (val: T) => R): R | undefined => {
-  if (value === undefined) return undefined;
-  return mapper(value);
-};
 
 export const register = (app: Application,
   tokenService: TokenService,
@@ -57,50 +41,11 @@ export const register = (app: Application,
   healthService: HealthService,
   paymentService: PaymentService,
   planService: PlanApprovalService,
-  pluginManager: PluginManager | undefined,
-  connectionString?: string,
-  finP2PClient?: FinP2PClient,
   mappingConfig?: AccountMappingConfig,
   mappingService?: AccountMappingService,
-) => {
-  if (mappingConfig && !connectionString && !mappingService) {
-    throw new Error('mappingConfig without connectionString requires a custom mappingService — built-in mapping storage needs PostgreSQL.');
-  }
-
-  const storage = connectionString ? new WorkflowStorage(connectionString) : undefined;
-  const pool = connectionString ? new Pool({ connectionString }) : undefined;
-  const accountMappingStore = pool ? new PgAccountStore(pool) : undefined;
-  if (storage) {
-    if (!finP2PClient) {
-      logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
-    }
-    const ready = () => Promise.resolve();
-    planService = createServiceProxy(ready, storage, finP2PClient, planService,
-      'approvePlan',
-      'proposeCancelPlan',
-      'proposeResetPlan',
-      'proposeInstructionApproval',
-    );
-
-    tokenService = createServiceProxy(ready, storage, finP2PClient, tokenService,
-      'createAsset',
-      'issue',
-      'transfer',
-      'redeem',
-    );
-
-    escrowService = createServiceProxy(ready, storage, finP2PClient, escrowService,
-      'hold',
-      'release',
-      'rollback',
-    );
-
-    paymentService = createServiceProxy(ready, storage, finP2PClient, paymentService,
-      'getDepositInstruction',
-      'payout',
-    );
-
-    commonService = createServiceProxy(ready, storage, finP2PClient, commonService);
+): void => {
+  if (mappingConfig && !mappingService) {
+    throw new Error('mappingConfig requires a mappingService. Construct AccountMappingServiceImpl(store) and pass it in.');
   }
 
   app.get('/health/liveness', async (req, res) => {
@@ -375,10 +320,8 @@ export const register = (app: Application,
     });
 
   if (mappingConfig) {
-    registerMappingRoutes(app, mappingConfig, mappingService ?? new AccountMappingServiceImpl(accountMappingStore!));
+    registerMappingRoutes(app, mappingConfig, mappingService!);
   }
 
   app.use(errorHandler);
-
-  return { storage, accountMappingStore };
 };
