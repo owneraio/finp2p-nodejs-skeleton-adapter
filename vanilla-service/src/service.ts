@@ -266,7 +266,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
     return successfulReceiptOperation({
       id: tx.id,
-      asset: { assetId: tx.asset_id, assetType: tx.asset_type as any },
+      asset: { assetId: tx.asset_id, assetType: tx.asset_type as any, ledgerIdentifier: undefined as any },
       source: tx.source ? { finId: tx.source, account: { type: 'finId', finId: tx.source } } : undefined,
       destination: tx.destination ? { finId: tx.destination, account: { type: 'finId', finId: tx.destination } } : undefined,
       quantity: tx.amount,
