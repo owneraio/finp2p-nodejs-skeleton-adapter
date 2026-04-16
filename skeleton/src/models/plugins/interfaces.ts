@@ -2,7 +2,7 @@
 import {
   Account, Asset, DepositAsset,
   DepositOperation,
-  DestinationAccount, ExecutionPlan,
+  DestinationAccount, ExecutionPlan, IntentType, PlanContract,
   FinIdAccount,
   OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature,
 } from '../model';
@@ -15,12 +15,22 @@ export interface AssetCreationPlugin {
 //------------------------------------------------------------
 
 
+export type PlanFailureReason = {
+  instructionSequence: number;
+  code: number;
+  message: string;
+};
+
 export interface PlanApprovalPlugin {
   validateIssuance(destination: FinIdAccount, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
 
   validateTransfer(source: FinIdAccount, destination: DestinationAccount, sourceAsset: Asset, destinationAsset: Asset, amount: string): Promise<PlanApprovalStatus>;
 
   validateRedemption(source: FinIdAccount, destination: DestinationAccount | undefined, sourceAsset: Asset, destinationAsset: Asset | undefined, amount: string): Promise<PlanApprovalStatus>;
+
+  onPlanCompleted(planId: string, intentType: IntentType | undefined, contract: PlanContract): Promise<void>;
+
+  onPlanFailed(planId: string, intentType: IntentType | undefined, contract: PlanContract, status: string, reason: PlanFailureReason | undefined): Promise<void>;
 }
 
 //------------------------------------------------------------

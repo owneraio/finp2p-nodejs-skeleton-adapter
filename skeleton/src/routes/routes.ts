@@ -5,19 +5,13 @@ import {
   EscrowService,
   FinIdAccount,
   HealthService,
-  MappingService,
+  AccountMappingService,
   PaymentService,
   PlanApprovalService,
   Source,
   TokenService,
-  pendingAssetCreation,
-  pendingDepositOperation,
-  pendingPlan,
-  pendingReceiptOperation,
 } from '../models';
 import { Application } from 'express';
-import { PluginManager } from '../plugins';
-import { logger } from '../helpers';
 import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
@@ -36,16 +30,9 @@ import {
   sourceFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import { Config, migrateIfNeeded, createServiceProxy, Storage } from '../workflows';
-import { MappingConfig, registerMappingRoutes } from './operational';
-import { MappingServiceImpl } from '../services/mapping';
+import { AccountMappingConfig, registerMappingRoutes } from './operational';
 
 const basePath = 'api';
-
-const mapIfDefined = <T, R>(value: T | undefined, mapper: (val: T) => R): R | undefined => {
-  if (value === undefined) return undefined;
-  return mapper(value);
-};
 
 export const register = (app: Application,
   tokenService: TokenService,
@@ -54,44 +41,11 @@ export const register = (app: Application,
   healthService: HealthService,
   paymentService: PaymentService,
   planService: PlanApprovalService,
-  pluginManager: PluginManager | undefined,
-  workflowConfig: Config | undefined,
-  mappingConfig?: MappingConfig,
-  mappingService?: MappingService,
-) => {
-  const migrationJob = mapIfDefined(workflowConfig, c => migrateIfNeeded(c.migration)) ?? Promise.resolve();
-  const storage = mapIfDefined(workflowConfig, (c) => new Storage(c.storage));
-  if (storage && workflowConfig) {
-    const { finP2PClient } = workflowConfig;
-    if (!finP2PClient) {
-      logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
-    }
-    planService = createServiceProxy(() => migrationJob, storage, finP2PClient, planService,
-      'approvePlan',
-      'proposeCancelPlan',
-      'proposeResetPlan',
-      'proposeInstructionApproval',
-    );
-
-    tokenService = createServiceProxy(() => migrationJob, storage, finP2PClient, tokenService,
-      'createAsset',
-      'issue',
-      'transfer',
-      'redeem',
-    );
-
-    escrowService = createServiceProxy(() => migrationJob, storage, finP2PClient, escrowService,
-      'hold',
-      'release',
-      'rollback',
-    );
-
-    paymentService = createServiceProxy(() => migrationJob, storage, finP2PClient, paymentService,
-      'getDepositInstruction',
-      'payout',
-    );
-
-    commonService = createServiceProxy(() => migrationJob, storage, finP2PClient, commonService);
+  mappingConfig?: AccountMappingConfig,
+  mappingService?: AccountMappingService,
+): void => {
+  if (mappingConfig && !mappingService) {
+    throw new Error('mappingConfig requires a mappingService. Construct AccountMappingServiceImpl(store) and pass it in.');
   }
 
   app.get('/health/liveness', async (req, res) => {
@@ -103,7 +57,6 @@ export const register = (app: Application,
   );
 
   app.get('/health/readiness', async (req, res) => {
-    await migrationJob;
     if (req.headers['skip-vendor'] !== 'true') {
       await healthService.readiness();
     }
@@ -379,9 +332,8 @@ export const register = (app: Application,
     });
 
   if (mappingConfig) {
-    registerMappingRoutes(app, mappingConfig, mappingService ?? new MappingServiceImpl());
+    registerMappingRoutes(app, mappingConfig, mappingService!);
   }
 
   app.use(errorHandler);
-
 };

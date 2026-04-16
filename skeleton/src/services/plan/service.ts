@@ -1,7 +1,7 @@
 import {
   approvedPlan,
   ExecutionPlan,
-  InstructionResult,
+  FinIdAccount, InstructionResult, PlanFailureReason,
   PlanApprovalService, PlanProposal, InboundTransferHook,
   PlanApprovalStatus, rejectedPlan,
 } from '../../models';
@@ -131,6 +131,45 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
   public async proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void> {
     logger.info(`Got plan proposal status: planId=${planId}, type=${proposal.proposalType}, status=${status}`);
+
+    const plugin = this.pluginManager?.getPlanApprovalPlugin();
+    if (!plugin || !this.finP2P) return;
+
+    const execution = await this.fetchExecution(planId);
+    if (!execution) return;
+
+    const planStatus = execution.executionPlanStatus;
+    const terminalStatuses = ['completed', 'failed', 'halted', 'canceled'];
+    if (!terminalStatuses.includes(planStatus)) return;
+
+    const plan = executionFromAPI(execution.plan);
+
+    try {
+      if (planStatus === 'completed') {
+        logger.info(`Plan completed: ${planId}`);
+        await plugin.onPlanCompleted(planId, plan.intentType, plan.contract);
+      } else {
+        const reason = this.extractFailureReason(execution);
+        logger.info(`Plan failed: ${planId}, status=${planStatus}`, { reason });
+        await plugin.onPlanFailed(planId, plan.intentType, plan.contract, planStatus, reason);
+      }
+    } catch (e: any) {
+      logger.error('Plan lifecycle callback failed', { planId, planStatus, error: e.message });
+    }
+  }
+
+  private extractFailureReason(execution: OpComponents['schemas']['execution']): PlanFailureReason | undefined {
+    const events = execution.instructionsCompletionEvents ?? [];
+    for (const event of events) {
+      if (event.output?.type === 'error') {
+        return {
+          instructionSequence: event.instructionSequenceNumber,
+          code: event.output.code,
+          message: event.output.message,
+        };
+      }
+    }
+    return undefined;
   }
 
   private async validatePlan(idempotencyKey: string, planId: string, plan: ExecutionPlan): Promise<PlanApprovalStatus> {

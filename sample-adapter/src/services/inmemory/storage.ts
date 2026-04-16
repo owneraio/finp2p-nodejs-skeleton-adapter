@@ -1,12 +1,6 @@
 import { Asset, BusinessError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { workflows } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { createHash } from 'node:crypto';
 import { HoldOperation, Transaction } from './model';
 import { Account } from './accounts';
-
-function generateAdapterAccount(finId: string): string {
-  return '0x' + createHash('sha256').update(finId).digest('hex').slice(0, 40);
-}
 
 export class Storage {
 
@@ -90,8 +84,6 @@ export class Storage {
     }
     const newAccount = new Account();
     this.accounts[finId] = newAccount;
-    const adapterAccount = generateAdapterAccount(finId);
-    workflows.saveAccountMapping(finId, { ledgerAccountId: adapterAccount }).catch(() => {});
     return newAccount;
   }
 

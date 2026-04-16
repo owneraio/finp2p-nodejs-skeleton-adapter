@@ -16,7 +16,7 @@ import {
   OperationResponseStrategy,
   OperationMetadata,
 } from '../models';
-import { Operation as StorageOperation, Storage, generateCid } from './storage';
+import { Operation as StorageOperation, WorkflowStorage, generateCid } from './storage';
 import { operationStatusToAPI } from '../routes/mapping';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { logger } from '../helpers';
@@ -87,14 +87,14 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
  * stays in_progress and will be replayed on restart, which is correct.
  */
 async function finalize(
-  storage: Storage,
+  storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
   cid: string,
   status: StorageOperation['status'],
   outputs: OperationStatus,
 ): Promise<void> {
   try {
-    await storage.update(cid, status, outputs);
+    await storage.completeOperation(cid, status, outputs);
   } catch (err) {
     logger.error('Failed to persist operation result — skipping callback so restart can retry', { cid, error: err });
     return;
@@ -120,7 +120,7 @@ async function executeAndFinalize(
   methodName: string,
   cid: string,
   opMetadata: OperationMetadata | undefined,
-  storage: Storage,
+  storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
 ): Promise<void> {
   try {
@@ -134,7 +134,7 @@ async function executeAndFinalize(
 
 export function createServiceProxy<T extends object>(
   migrationJob: () => Promise<void>,
-  storage: Storage,
+  storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
   service: T,
   ...methodsToProxy: (keyof T)[]
@@ -163,12 +163,6 @@ export function createServiceProxy<T extends object>(
 
   return new Proxy(service, {
     get(target: T, prop: string | symbol, receiver: any) {
-      const originalMethod = target[prop as keyof T];
-
-      if (typeof originalMethod !== 'function') {
-        return originalMethod;
-      }
-
       if (String(prop) === getOperationStatusMethod) {
         return async function (this: any, ...args: any[]) {
           await ready;
@@ -176,11 +170,17 @@ export function createServiceProxy<T extends object>(
           const cid = args[0];
           if (typeof cid !== 'string') throw new Error('Expected string argument. Did the interface got changed?');
 
-          const operation = await storage.operation(cid);
+          const operation = await storage.getOperationByCid(cid);
           if (operation === undefined) throw new Error(`Operation with following cid not found: ${cid}`);
 
           return operation.outputs;
         };
+      }
+
+      const originalMethod = target[prop as keyof T];
+
+      if (typeof originalMethod !== 'function') {
+        return originalMethod;
       }
 
       const m = methodsToProxy.find((m) => m === String(prop));
@@ -193,7 +193,7 @@ export function createServiceProxy<T extends object>(
         const correlationId = generateCid();
         const pendingPlaceholder = wrappedResponse(String(prop), opMetadata, [correlationId]);
 
-        const [storageOperation, inserted] = await storage.insert({
+        const [storageOperation, inserted] = await storage.saveOperation({
           inputs: args, // <- already contains idempotency key
           method: String(prop),
           outputs: pendingPlaceholder,

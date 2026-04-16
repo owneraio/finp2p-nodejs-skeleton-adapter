@@ -1,11 +1,6 @@
-export type LedgerIdentifier = {
-  network: string;
-  standard: string;
-  tokenId: string;
-};
-
 export type LedgerAssetInfo = {
-  ledgerIdentifier?: LedgerIdentifier
+  tokenId: string
+  ledgerBinding?: { name: string }
   ledgerReference?: LedgerReference
 };
 
@@ -83,15 +78,6 @@ export type OssCertificate = {
   providerId?: string;
 };
 
-export type OssWalletAccount = {
-  type: string;
-  address: string;
-};
-
-export type OssNetworkAccount = {
-  wallet: OssWalletAccount | null;
-};
-
 export type OssAsset = {
   id: string,
   name: string,
@@ -102,7 +88,7 @@ export type OssAsset = {
   },
   issuerId: string,
   config: string,
-  financialIdentifier: AssetIdentifier;
+  assetIdentifier: AssetIdentifier;
   allowedIntents: string[],
   regulationVerifiers: {
     id: string,
@@ -117,7 +103,6 @@ export type OssAsset = {
     nodes: OssIntent[]
   }
   ledgerAssetInfo: LedgerAssetInfo
-  orgSettlementAccount: OssNetworkAccount | null
 };
 
 export type OssAssetNodes = {
@@ -236,11 +221,6 @@ export type OssAccountIdentifier =
   | { __typename: 'Iban'; code: string };
 
 export type OssAccountInstruction = {
-  asset: OssAssetDetails;
-  identifier: OssAccountIdentifier | null;
-};
-
-export type OssAccountInstructionDetails = {
   asset: OssAssetDetails;
   identifier: OssAccountIdentifier | null;
 };

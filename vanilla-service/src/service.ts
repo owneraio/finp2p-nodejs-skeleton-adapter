@@ -2,8 +2,8 @@ import {
   Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetType,
   Balance, BusinessError, CommonService, Destination,
   EscrowService, ExecutionContext, FinIdAccount,
-  HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, MappingService, OperationStatus, OperationType,
-  OwnerMapping, ReceiptOperation, Signature, Source,
+  HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, AccountMappingService, OperationStatus, OperationType,
+  AccountMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
   failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
@@ -15,7 +15,7 @@ import { buildReceipt, generateCid } from './utils';
 /** Well-known finId prefix for omnibus accounts in the local ledger. */
 const OMNIBUS_FIN_ID = '__omnibus__';
 
-export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, MappingService, DistributionService, InboundTransferHook {
+export class VanillaServiceImpl implements TokenService, EscrowService, CommonService, HealthService, AccountMappingService, DistributionService, InboundTransferHook {
   constructor(
     private storage: LedgerStorage,
     private transferDelegate?: TransferDelegate,
@@ -295,9 +295,9 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     await this.storage.ping();
   }
 
-  // ─── MappingService ──────────────────────────────────────────────────
+  // ─── AccountMappingService ──────────────────────────────────────────────────
 
-  private aggregateRows(rows: any[]): OwnerMapping[] {
+  private aggregateRows(rows: any[]): AccountMapping[] {
     const map = new Map<string, Record<string, string>>();
     for (const row of rows) {
       let fields = map.get(row.fin_id);
@@ -310,7 +310,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     return Array.from(map.entries()).map(([finId, fields]) => ({ finId, fields }));
   }
 
-  async getOwnerMappings(finIds?: string[]): Promise<OwnerMapping[]> {
+  async getAccounts(finIds?: string[]): Promise<AccountMapping[]> {
     if (finIds && finIds.length > 0) {
       const result = await this.storage.query(
         'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY fin_id ASC, field_name ASC',
@@ -324,7 +324,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     return this.aggregateRows(result.rows);
   }
 
-  async getByFieldValue(fieldName: string, value: string): Promise<OwnerMapping[]> {
+  async getByFieldValue(fieldName: string, value: string): Promise<AccountMapping[]> {
     const result = await this.storage.query(
       `SELECT DISTINCT am.* FROM ledger_adapter.account_mappings am
        WHERE am.fin_id IN (
@@ -337,7 +337,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     return this.aggregateRows(result.rows);
   }
 
-  async saveOwnerMapping(finId: string, fields: Record<string, string>): Promise<OwnerMapping> {
+  async saveAccount(finId: string, fields: Record<string, string>): Promise<AccountMapping> {
     const savedFields: Record<string, string> = {};
     for (const [fieldName, rawValue] of Object.entries(fields)) {
       const value = rawValue.toLowerCase();
@@ -352,7 +352,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     return { finId, fields: savedFields };
   }
 
-  async deleteOwnerMapping(finId: string, fieldName?: string): Promise<void> {
+  async deleteAccount(finId: string, fieldName?: string): Promise<void> {
     if (fieldName) {
       await this.storage.query(
         'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND field_name = $2',

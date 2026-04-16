@@ -559,7 +559,7 @@ export type Receipt = {
 
 // -------------------------------------------------------------------
 
-export type OwnerMapping = {
+export type AccountMapping = {
   finId: string;
   fields: Record<string, string>;
 };

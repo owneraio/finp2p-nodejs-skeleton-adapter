@@ -65,6 +65,17 @@ export class FinP2PClient {
     return this.finAPIClient.syncBalance(...args);
   }
 
+  /**
+   * Trigger balance sync for a specific owner + asset.
+   * The router will call the adapter's getBalance endpoint to refresh the balance.
+   */
+  async syncBalanceForOwner(finId: string, orgId: string, assetId: string) {
+    return this.finAPIClient.syncBalance({
+      account: { type: 'finId', finId, orgId },
+      asset: { type: 'finp2p', resourceId: assetId },
+    });
+  }
+
   // ── Operations ──
 
   async getOperationStatus(id: string) {

@@ -53,6 +53,16 @@ jobs:
         working-directory: ./skeleton
         run: npm run test
 
+      - name: skeleton prune dev dependencies
+        # Consumers (adapter-tests, vanilla-service, sample-adapter) install
+        # skeleton via `npm install ../skeleton`, which symlinks the directory.
+        # Skeleton's devDeps include @owneraio/finp2p-client and pg, which the
+        # consumer also installs. Without pruning, the symlinked nested copy
+        # shadows the consumer's copy and causes "two distinct nominal types"
+        # TS errors at the call sites where the types meet.
+        working-directory: ./skeleton
+        run: npm prune --omit=dev
+
         # ----------------------------------
 
       - name: adapter-tests install dependencies

@@ -13,7 +13,7 @@ The goal is to narrow the scope of building a new adapter to **just implementing
 ### Route layer (`src/routes/`)
 
 - **`model-gen.ts`** &mdash; TypeScript types auto-generated from the DLT adapter API OpenAPI spec (`apis/dlt-adapter-api.yaml`). Generated via `npm run api-generate` using `openapi-typescript`, then post-processed by `scripts/postprocess-model-gen.ts` to handle circular references and export recursive types.
-- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point: it takes service implementations and wires them to HTTP endpoints. Endpoints:
+- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point and is **pure routing**: it takes finalized service implementations and mounts them on HTTP endpoints. All wiring (workflow proxy wrapping, plugin construction, account-mapping store/service, FinP2P client) must happen in the caller before `register()` is invoked. Signature: `register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, mappingConfig?, mappingService?): void`. Endpoints:
   - **Plan**: `POST /api/plan/approve`, `POST /api/plan/proposal`, `POST /api/plan/proposal/status`
   - **Tokens**: `POST /api/assets/create`, `POST /api/assets/issue`, `POST /api/assets/transfer`, `POST /api/assets/redeem`, `POST /api/assets/getBalance`, `POST /api/asset/balance`
   - **Escrow**: `POST /api/assets/hold`, `POST /api/assets/release`, `POST /api/assets/rollback`
@@ -63,8 +63,9 @@ Default implementations that adapter developers can extend or replace:
    - `TokenService` for token issue/transfer/redeem (most adapters need this)
    - `EscrowService` for hold/release/rollback
    - Optionally register plugins for payments, plan approval, transaction hooks
-4. Call `routes.register(app, tokenService, escrowService, ...)` with your implementations
-5. Pass a `Config` if you want PostgreSQL-backed async workflows (recommended for production)
+4. Construct your services. If you want PostgreSQL-backed async workflows, create a `pg.Pool`, build a `WorkflowStorage(pool)`, and wrap each service with `createServiceProxy(...)` before passing them to `register()`. The caller owns the pool lifecycle.
+5. If you want account mapping, construct an `AccountStore` (e.g. `PgAccountStore(pool)`) and an `AccountMappingServiceImpl(store)`, and pass them along with an `AccountMappingConfig` to `register()`.
+6. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, mappingConfig?, mappingService?)`.
 
 ## API spec management
 

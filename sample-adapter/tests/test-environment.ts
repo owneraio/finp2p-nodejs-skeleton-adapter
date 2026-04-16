@@ -6,7 +6,8 @@ import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
 import { RandomPortGenerator } from "testcontainers";
 import createApp from "../src/app";
-import { workflows } from "@owneraio/finp2p-nodejs-skeleton-adapter"
+import { workflows } from "@owneraio/finp2p-nodejs-skeleton-adapter";
+import type { Pool } from "pg";
 
 type AdapterParameters = {
   url: string,
@@ -17,6 +18,7 @@ class CustomTestEnvironment extends NodeEnvironment {
   adapter: AdapterParameters | undefined;
   httpServer: http.Server | undefined;
   postgresContainer: StartedPostgreSqlContainer | undefined;
+  pool: Pool | undefined;
 
   constructor(config: JestEnvironmentConfig, context: EnvironmentContext) {
     super(config, context);
@@ -40,7 +42,7 @@ class CustomTestEnvironment extends NodeEnvironment {
   async teardown() {
     try {
       this.httpServer?.close();
-      await workflows.Storage.closeAllConnections()
+      await this.pool?.end();
       console.log("Server stopped successfully.");
     } catch (err) {
       console.error("Error stopping server:", err);
@@ -56,18 +58,17 @@ class CustomTestEnvironment extends NodeEnvironment {
   private async startApp() {
     const port = await new RandomPortGenerator().generatePort()
     const connectionString = this.postgresContainer?.getConnectionUri() ?? ""
-    const app = createApp("my-org", undefined, {
-      migration: {
-        connectionString,
-        migrationListTableName: "finp2p_nodejs_skeleton",
-        gooseExecutablePath: await this.whichGoose(),
-        storageUser: new URL(connectionString).username
-      },
-      storage: {
-        connectionString
-      },
-      finP2PClient: undefined
-    })
+
+    // Run migrations before starting the app
+    await workflows.migrateIfNeeded({
+      connectionString,
+      migrationListTableName: "finp2p_nodejs_skeleton",
+      gooseExecutablePath: await this.whichGoose(),
+      storageUser: new URL(connectionString).username,
+    });
+
+    const { app, pool } = createApp("my-org", undefined, { connectionString })
+    this.pool = pool;
     console.log("App created successfully.");
 
     this.httpServer = app.listen(port, () => {
