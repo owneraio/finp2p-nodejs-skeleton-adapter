@@ -102,16 +102,18 @@ export type IntentType =
   | 'requestForTransferIntent';
 
 
-export type AccountAssetPair = {
+export type LegAccount = {
   finId: string;
+  orgId: string;
+  custodianOrgId: string;
   asset: Asset;
 };
 
 export type Leg = {
   asset: Asset;
   amount: string;
-  source?: AccountAssetPair;
-  destination?: AccountAssetPair;
+  source?: LegAccount;
+  destination?: LegAccount;
 };
 
 export type PlanContract = {
@@ -130,30 +132,30 @@ export type PlanInvestor = {
 
 export type HoldInstruction = {
   type: 'hold';
-  source: AccountAssetPair;
-  destination?: AccountAssetPair;
+  source: LegAccount;
+  destination?: LegAccount;
   amount: string;
   // signature: Signature;
 };
 
 export type ReleaseInstruction = {
   type: 'release';
-  source: AccountAssetPair;
-  destination: AccountAssetPair;
+  source: LegAccount;
+  destination: LegAccount;
   amount: string;
 };
 
 export type IssueInstruction = {
   type: 'issue';
-  destination: AccountAssetPair;
+  destination: LegAccount;
   amount: string;
   // signature: Signature;
 };
 
 export type TransferInstruction = {
   type: 'transfer';
-  source: AccountAssetPair;
-  destination: AccountAssetPair;
+  source: LegAccount;
+  destination: LegAccount;
   amount: string;
   // signature: Signature;
 };
@@ -165,14 +167,14 @@ export type AwaitInstruction = {
 
 export type RevertHoldInstruction = {
   type: 'revertHoldInstruction';
-  source?: AccountAssetPair;
-  destination: AccountAssetPair;
+  source?: LegAccount;
+  destination: LegAccount;
 };
 
 export type RedemptionInstruction = {
   type: 'redeem';
-  source: AccountAssetPair;
-  destination?: AccountAssetPair;
+  source: LegAccount;
+  destination?: LegAccount;
   amount: string;
   // signature: Signature;
 };

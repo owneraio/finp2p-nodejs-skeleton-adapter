@@ -3,7 +3,7 @@ import {
   ExecutionPlan,
   InstructionResult, PlanFailureReason,
   PlanApprovalService, PlanProposal, InboundTransferHook,
-  PlanApprovalStatus, rejectedPlan,
+  PlanApprovalStatus, rejectedPlan, TransferInstruction,
 } from '../../models';
 import { FinP2PClient, OpComponents } from '@owneraio/finp2p-client';
 
@@ -97,24 +97,25 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       }
 
       const { operation } = instruction;
-      if (operation.type === 'transfer' &&
-          instruction.organizations.includes(this.orgId)) {
-
-        const event = execution.instructionsCompletionEvents
-          ?.find(e => e.instructionSequenceNumber === instructionSequence);
-        const result = mapInstructionResult(event);
-        if (result) {
-          await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
-            planId,
-            instructionSequence,
-            sourceFinId: operation.source.finId,
-            asset: operation.source.asset,
-            destinationFinId: operation.destination.finId,
-            amount: operation.amount,
-            result,
-          });
-        } else {
-          logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
+      if (operation.type === 'transfer') {
+        const transfer = instruction.operation as TransferInstruction;
+        if (transfer.destination.orgId === this.orgId) {
+          const event = execution.instructionsCompletionEvents
+            ?.find(e => e.instructionSequenceNumber === instructionSequence);
+          const result = mapInstructionResult(event);
+          if (result) {
+            await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
+              planId,
+              instructionSequence,
+              sourceFinId: operation.source.finId,
+              asset: operation.source.asset,
+              destinationFinId: operation.destination.finId,
+              amount: operation.amount,
+              result,
+            });
+          } else {
+            logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
+          }
         }
       }
     }

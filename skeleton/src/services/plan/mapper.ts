@@ -1,5 +1,5 @@
 import {
-  AccountAssetPair,
+  LegAccount,
   Asset,
   ExecutionInstruction,
   ExecutionPlan,
@@ -17,20 +17,18 @@ export const assetFromFinp2pAsset = (asset: OpComponents['schemas']['finp2pAsset
   return { assetType: 'finp2p', assetId: asset.id, ledgerIdentifier: asset.ledgerIdentifier };
 };
 
-export const assetFromAPI = (asset: OpComponents['schemas']['asset']): Asset => {
-  return { assetType: 'finp2p', assetId: asset.resourceId, ledgerIdentifier: asset.ledgerIdentifier };
+const legAccountFromFinp2pAssetAccount = (acc: OpComponents['schemas']['finp2pAssetAccount']): LegAccount => {
+  const { finId, orgId, custodian: { orgId: custodianOrgId } } = acc.account;
+  return { finId, orgId, custodianOrgId, asset: assetFromFinp2pAsset(acc.asset) };
 };
 
-export const accountAssetPairFromAPI = (ledgerAccount: OpComponents['schemas']['ledgerAccountAsset']): AccountAssetPair => {
-  return {
-    finId: ledgerAccount.finp2pAccount.account.finId,
-    asset: assetFromFinp2pAsset(ledgerAccount.finp2pAccount.asset),
-  };
+export const legAccountFromAPI = (account: OpComponents['schemas']['ledgerAccountAsset']): LegAccount => {
+  return legAccountFromFinp2pAssetAccount(account.finp2pAccount);
 };
 
-export const accountAssetPairOptFromAPI = (ledgerAccount?: OpComponents['schemas']['ledgerAccountAsset']): AccountAssetPair | undefined => {
-  if (!ledgerAccount) return undefined;
-  return accountAssetPairFromAPI(ledgerAccount);
+export const legAccountOptFromAPI = (account?: OpComponents['schemas']['ledgerAccountAsset']): LegAccount | undefined => {
+  if (!account) return undefined;
+  return legAccountFromAPI(account);
 };
 
 const legFromSourceDestinationExecuteAsset = (order: OpComponents['schemas']['sourceDestinationExecuteAsset']): Leg => {
@@ -43,13 +41,11 @@ const legFromSourceDestinationExecuteAsset = (order: OpComponents['schemas']['so
   }
   const { amount } = term;
   const { sourceAccount, destinationAccount } = instruction;
-  const srcAsset = assetFromFinp2pAsset(sourceAccount.asset);
-  const dstAsset = assetFromFinp2pAsset(destinationAccount.asset);
   return {
-    asset: srcAsset,
+    asset: assetFromFinp2pAsset(sourceAccount.asset),
     amount,
-    source: sourceAccount.account ? { finId: sourceAccount.account.finId, asset: srcAsset } : undefined,
-    destination: destinationAccount.account ? { finId: destinationAccount.account.finId, asset: dstAsset } : undefined,
+    source: legAccountFromFinp2pAssetAccount(sourceAccount),
+    destination: legAccountFromFinp2pAssetAccount(destinationAccount),
   };
 };
 
@@ -64,13 +60,11 @@ const legFromLoanExecuteAsset = (order: OpComponents['schemas']['loanExecuteAsse
   const { assetTerm, assetInstruction } = order;
   const { amount } = assetTerm;
   const { borrowerAccount, lenderAccount } = assetInstruction;
-  const srcAsset = assetFromFinp2pAsset(borrowerAccount.asset);
-  const dstAsset = assetFromFinp2pAsset(lenderAccount.asset);
   return {
-    asset: srcAsset,
+    asset: assetFromFinp2pAsset(borrowerAccount.asset),
     amount,
-    source: { finId: borrowerAccount.account.finId, asset: srcAsset },
-    destination: { finId: lenderAccount.account.finId, asset: dstAsset },
+    source: legAccountFromFinp2pAssetAccount(borrowerAccount),
+    destination: legAccountFromFinp2pAssetAccount(lenderAccount),
   };
 };
 
@@ -168,7 +162,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { destination, amount } = instruction;
       return {
         type: 'issue',
-        destination: accountAssetPairFromAPI(destination),
+        destination: legAccountFromAPI(destination),
         amount,
       };
     }
@@ -176,8 +170,8 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'transfer',
-        source: accountAssetPairFromAPI(source),
-        destination: accountAssetPairFromAPI(destination),
+        source: legAccountFromAPI(source),
+        destination: legAccountFromAPI(destination),
         amount,
       };
     }
@@ -185,8 +179,8 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'redeem',
-        source: accountAssetPairFromAPI(source),
-        destination: accountAssetPairFromAPI(destination),
+        source: legAccountFromAPI(source),
+        destination: legAccountFromAPI(destination),
         amount,
       };
     }
@@ -194,8 +188,8 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'hold',
-        source: accountAssetPairFromAPI(source),
-        destination: accountAssetPairOptFromAPI(destination),
+        source: legAccountFromAPI(source),
+        destination: legAccountOptFromAPI(destination),
         amount,
       };
     }
@@ -203,8 +197,8 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination, amount } = instruction;
       return {
         type: 'release',
-        source: accountAssetPairFromAPI(source),
-        destination: accountAssetPairFromAPI(destination),
+        source: legAccountFromAPI(source),
+        destination: legAccountFromAPI(destination),
         amount,
       };
     }
@@ -212,8 +206,8 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       const { source, destination } = instruction;
       return {
         type: 'revertHoldInstruction',
-        source: accountAssetPairOptFromAPI(source),
-        destination: accountAssetPairFromAPI(destination),
+        source: legAccountOptFromAPI(source),
+        destination: legAccountFromAPI(destination),
       };
     }
     case 'await': {
