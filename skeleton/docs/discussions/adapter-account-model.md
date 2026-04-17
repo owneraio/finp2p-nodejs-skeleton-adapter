@@ -471,13 +471,34 @@ The adapter then decides internally whether this is "managed" or "external" base
 
 The structured `ExternalEndpoint` union (`wallet` | `bank` | `other`) is premature for skeleton-level types. Today the API sends `LedgerAccount = { type: string; address: string }`. The adapter can interpret `type` however it wants. Adding structured variants now would be speculative.
 
+### On orgId in service-level types
+
+`orgId` and `custodianOrgId` are not needed at the service level (`Source`/`Destination`). The adapter implicitly knows:
+
+- Source is always our org — we know who we are.
+- Destination is either our account (we check mapping by `finId`) or external (we get the wallet address). The adapter does not need `orgId` to decide that. The FinP2P API may not even provide these details during ledger requests.
+
+`orgId`/`custodianOrgId` are only meaningful during plan introspection, where we inspect instructions across multiple orgs to decide which ones are ours. That context belongs in the plan-level type (`LegAccount`), not in the service-level types.
+
+This gives two layers:
+
+```ts
+// Service-level (routes -> adapter): minimal, no org context
+type Source = { finId: string };
+type Destination = { finId?: string; account?: LedgerAccount };
+
+// Plan introspection (execution plan mapper): full org context
+type LegAccount = { finId: string; orgId: string; custodianOrgId: string; asset: Asset };
+```
+
 ### Skeleton-level action
 
 Apply the simple model at the skeleton level:
 
 1. `Source = { finId: string }` — always managed, no ledger account (adapter resolves internally)
-2. `Destination = { orgId: string; finId?: string; account?: LedgerAccount }` — counterparty org, optional finId, optional wallet address from the router
-3. Leave `ManagedAccountRef` / `ExternalAccountRef` / `AccountRef` for adapters to implement locally if they want
+2. `Destination = { finId?: string; account?: LedgerAccount }` — optional finId (may not be known for external counterparties), optional wallet address from the router
+3. Keep `LegAccount` with `orgId`/`custodianOrgId` for plan introspection only
+4. Leave `ManagedAccountRef` / `ExternalAccountRef` / `AccountRef` for adapters to implement locally if they want
 
 This matches the recommendation in this document: normalize at the adapter boundary first, promote into shared skeleton types only after a few adapters confirm the model.
 
