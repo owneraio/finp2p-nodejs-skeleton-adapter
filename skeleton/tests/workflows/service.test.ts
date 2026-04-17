@@ -244,6 +244,7 @@ describe("Service operation tests", () => {
       ): Promise<OperationStatus> {
         return successfulAssetCreation({
           ledgerIdentifier: {
+            assetIdentifierType: "CAIP-19" as const,
             network: "fake",
             standard: "mock",
             tokenId: idempotencyKey
@@ -314,6 +315,7 @@ describe("Service operation tests", () => {
       ...row1,
       outputs: successfulAssetCreation({
         ledgerIdentifier: {
+          assetIdentifierType: "CAIP-19" as const,
           network: "fake",
           standard: "mock",
           tokenId: "fake-idempotency-key-1",

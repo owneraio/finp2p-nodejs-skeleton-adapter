@@ -97,30 +97,24 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       }
 
       const { operation } = instruction;
-      if (operation.type === 'transfer') {
-        const rawInstruction = execution.plan.instructions
-          ?.find(i => i.sequence === instructionSequence);
-        const isDestination =
-          rawInstruction?.executionPlanOperation.type === 'transfer' &&
-          rawInstruction.executionPlanOperation.destination.finp2pAccount.account.orgId === this.orgId;
+      if (operation.type === 'transfer' &&
+          instruction.organizations.includes(this.orgId)) {
 
-        if (isDestination) {
-          const event = execution.instructionsCompletionEvents
-            ?.find(e => e.instructionSequenceNumber === instructionSequence);
-          const result = mapInstructionResult(event);
-          if (result) {
-            await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
-              planId,
-              instructionSequence,
-              sourceFinId: operation.source.finId,
-              asset: operation.source.asset,
-              destinationFinId: operation.destination.finId,
-              amount: operation.amount,
-              result,
-            });
-          } else {
-            logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
-          }
+        const event = execution.instructionsCompletionEvents
+          ?.find(e => e.instructionSequenceNumber === instructionSequence);
+        const result = mapInstructionResult(event);
+        if (result) {
+          await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
+            planId,
+            instructionSequence,
+            sourceFinId: operation.source.finId,
+            asset: operation.source.asset,
+            destinationFinId: operation.destination.finId,
+            amount: operation.amount,
+            result,
+          });
+        } else {
+          logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
         }
       }
     }
@@ -180,26 +174,23 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       try {
         switch (operation.type) {
           case 'issue': {
-            const { destination, amount } = operation;
+            const { destination: { finId, asset }, amount } = operation;
+
             if (plugin) {
-              return await plugin.validateIssuance(destination.finId, destination.asset, amount);
+              return await plugin.validateIssuance(finId, asset, amount);
             }
             break;
           }
 
           case 'transfer': {
-            const { source, destination, amount } = operation;
+            const { source: { finId: sourceFinId, asset }, destination: { finId: destinationFinId }, amount } = operation;
             if (this.inboundTransferHook) {
               await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
-                planId,
-                sourceFinId: source.finId,
-                asset: source.asset,
-                destinationFinId: destination.finId,
-                amount,
+                planId, sourceFinId, asset, destinationFinId, amount,
               });
             }
             if (plugin) {
-              return await plugin.validateTransfer(source.finId, destination.finId, source.asset, amount);
+              return await plugin.validateTransfer(sourceFinId, destinationFinId, asset, amount);
             }
             break;
           }
