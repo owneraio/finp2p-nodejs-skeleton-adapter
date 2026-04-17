@@ -98,7 +98,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
 
       const { operation } = instruction;
       if (operation.type === 'transfer' &&
-          instruction.organizations.includes(this.orgId)) {
+          !instruction.organizations.includes(this.orgId)) {
 
         const event = execution.instructionsCompletionEvents
           ?.find(e => e.instructionSequenceNumber === instructionSequence);
