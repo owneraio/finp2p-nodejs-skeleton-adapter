@@ -502,6 +502,26 @@ Apply the simple model at the skeleton level:
 
 This matches the recommendation in this document: normalize at the adapter boundary first, promote into shared skeleton types only after a few adapters confirm the model.
 
+## Compromise: No Type Changes For Now
+
+The current skeleton types already accommodate the discussed direction without breaking changes:
+
+```ts
+type Source = { finId: string; account?: LedgerAccount };
+type Destination = { finId: string; account?: LedgerAccount };
+type LedgerAccount = { type: string; address: string };
+```
+
+Why this is sufficient:
+
+- `Source.account` is optional. Adapters that resolve ledger addresses internally already ignore it. Removing it would break adapters that use it as a hint from the router.
+- `Destination.finId` is always present in the current FinP2P API. Making it optional adds no value until the API actually stops sending it, and would force every adapter to handle `undefined` for a case that does not exist yet.
+- `LedgerAccount` on `Destination` is optional. Adapters that receive a wallet address from the router use it; others resolve via account mapping. Both paths work today.
+
+The discussion document captures the design direction. The types stay stable. When the FinP2P API evolves (drops `finId` from destination, or stops sending `ledgerAccount` on source), the skeleton types update to match.
+
+Adapters that want a richer internal model (`ManagedAccountRef` / `ExternalAccountRef`) can build that on top of the current types at their own boundary.
+
 ## References
 
 - `skeleton/src/models/model.ts`
