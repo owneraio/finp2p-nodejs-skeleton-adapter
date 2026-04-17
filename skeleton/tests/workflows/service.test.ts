@@ -111,6 +111,7 @@ describe("Service operation tests", () => {
               type: "ledgerReference",
             },
             ledgerIdentifier: {
+              assetIdentifierType: "CAIP-19" as const,
               network: "fake",
               standard: "mock",
               tokenId: "123"
