@@ -5,45 +5,48 @@ export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 export type Asset = {
   assetId: string
   assetType: AssetType
+  ledgerIdentifier: LedgerAssetIdentifier
 };
 
-export type DepositAsset = Asset | {
+export type LedgerAssetIdentifier = Caip19LedgerAssetIdentifier;
+
+export type Caip19LedgerAssetIdentifier = {
+  assetIdentifierType: 'CAIP-19';
+  network: string;
+  tokenId: string;
+  standard: string;
+};
+
+// Per API spec, deposit assets are limited to 'finp2p' or 'custom' variants (no ledgerIdentifier)
+export type DepositAsset = {
+  assetId: string
+  assetType: 'finp2p'
+} | {
   assetType: 'custom'
 };
 
+
 export type FinIdAccount = {
-  type: 'finId',
-  finId: string
+  finId: string;
+  orgId: string;
+  custodianOrgId: string;
 };
-
-export type CryptocurrencyWallet = {
-  type: 'crypto'
-  address: string
-};
-
-export type IbanIdentifier = {
-  type: 'iban',
-  code: string
-};
-
-export type SourceAccount = FinIdAccount;
 
 export type Source = {
   finId: string
-  account: SourceAccount
+  account?: LedgerAccount
 };
-
-export type Account = FinIdAccount | CryptocurrencyWallet | IbanIdentifier;
-export type DestinationAccount = Account;
 
 export type Destination = {
   finId: string
-  account: DestinationAccount
+  account?: LedgerAccount
 };
 
-export const finIdDestination = (finId: string): Destination => {
-  return { finId, account: { type: 'finId', finId } };
+export type LedgerAccount = {
+  type: string;
+  address: string;
 };
+
 
 export type ExecutionContext = {
   planId: string
@@ -65,20 +68,16 @@ export type Balance = {
 
 export type TokenIdentifier = {
   tokenId: string
+  network: string
+  standard: string
 };
+
 
 export type AssetBind = {
-  tokenIdentifier: TokenIdentifier | undefined
+  tokenIdentifier: TokenIdentifier
 };
 
-export type AssetIdentifierType = 'ISIN' | 'CUSIP' | 'SEDOL' | 'DTI' | 'CMU' | 'FIGI' | 'CUSTOM' | 'ISO4217';
-
-export type AssetIdentifier = {
-  type: AssetIdentifierType
-  value: string
-};
-
-export type AssetDenominationType = 'fiat' | 'cryptocurrency' | 'finp2p';
+export type AssetDenominationType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
 export type AssetDenomination = {
   type: AssetDenominationType
@@ -108,11 +107,12 @@ export type IntentType =
   | 'requestForTransferIntent';
 
 
+
 export type Leg = {
   asset: Asset;
   amount: string;
-  source?: Account;
-  destination?: Account;
+  source?: FinIdAccount;
+  destination?: FinIdAccount;
 };
 
 export type PlanContract = {
@@ -131,36 +131,33 @@ export type PlanInvestor = {
 
 export type HoldInstruction = {
   type: 'hold';
-  source: Account;
-  destination?: Account;
   asset: Asset;
+  source: FinIdAccount;
+  destination?: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type ReleaseInstruction = {
   type: 'release';
   asset: Asset;
-  source: Account;
-  destination: Account;
+  source: FinIdAccount;
+  destination: FinIdAccount;
   amount: string;
 };
 
 export type IssueInstruction = {
   type: 'issue';
   asset: Asset;
-  destination: Account;
+  destination: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type TransferInstruction = {
   type: 'transfer';
   asset: Asset;
-  source: Account;
-  destination: Account;
+  source: FinIdAccount;
+  destination: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type AwaitInstruction = {
@@ -170,18 +167,16 @@ export type AwaitInstruction = {
 
 export type RevertHoldInstruction = {
   type: 'revertHoldInstruction';
-  asset: Asset;
-  source?: Account;
-  destination: Account;
+  source?: FinIdAccount;
+  destination: FinIdAccount;
 };
 
 export type RedemptionInstruction = {
   type: 'redeem';
   asset: Asset;
-  source: Account;
-  destination?: Account;
+  source: FinIdAccount;
+  destination?: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type ExecutionPlanOperation = HoldInstruction | ReleaseInstruction | IssueInstruction | TransferInstruction | AwaitInstruction | RevertHoldInstruction | RedemptionInstruction;
@@ -289,7 +284,7 @@ export const pendingPlan = (correlationId: string, metadata: OperationMetadata |
 // -------------------------------------------------------------------
 
 export type AssetCreationResult = {
-  tokenId: string;
+  ledgerIdentifier: LedgerAssetIdentifier;
   reference: LedgerReference | undefined;
 };
 
@@ -441,6 +436,7 @@ export type PaymentMethod = {
 };
 
 export type DepositInstruction = {
+  asset: DepositAsset
   account: Destination
   description: string
   paymentOptions: PaymentMethod[]

@@ -45,10 +45,6 @@ export class FinP2PClient {
     return this.finAPIClient.executeIntent(...args);
   }
 
-  async executeTransferIntent(...args: Parameters<FinAPIClient['executeTransferIntent']>) {
-    return this.finAPIClient.executeTransferIntent(...args);
-  }
-
   async cancelExecution(...args: Parameters<FinAPIClient['cancelExecution']>) {
     return this.finAPIClient.cancelExecution(...args);
   }
@@ -75,8 +71,8 @@ export class FinP2PClient {
    */
   async syncBalanceForOwner(finId: string, orgId: string, assetId: string) {
     return this.finAPIClient.syncBalance({
-      account: { type: 'finId', finId, orgId },
-      asset: { type: 'finp2p', resourceId: assetId },
+      account: { type: 'finId', finId, orgId, custodian: { orgId } },
+      asset: { resourceId: assetId },
     });
   }
 
@@ -145,10 +141,6 @@ export class FinP2PClient {
   }
 
   // ── OSS queries ──
-
-  async createTransferRequest(...args: Parameters<FinAPIClient['createTransferRequest']>) {
-    return this.finAPIClient.createTransferRequest(...args);
-  }
 
   async updateCertificate(...args: Parameters<FinAPIClient['updateCertificate']>) {
     return this.finAPIClient.updateCertificate(...args);

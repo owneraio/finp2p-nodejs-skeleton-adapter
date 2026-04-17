@@ -121,6 +121,20 @@ export class OssClient {
     return ast;
   }
 
+  async getOrganization(orgId: string) {
+    const resp = await this.queryOss<OssOrganizationNodes>(ORGANIZATIONS, {
+      filter: {
+        key: 'id',
+        operator: 'EQ',
+        value: orgId,
+      },
+    });
+    if (resp.organizations.nodes.length == 0) {
+      throw new ItemNotFoundError(orgId, 'Organization');
+    }
+    return resp.organizations.nodes[0];
+  }
+
   async getLedgers() {
     const resp = await this.queryOss<OssLedgerBindingNodes>(LEDGERS, {});
     return resp.ledgers.nodes;
@@ -144,21 +158,6 @@ export class OssClient {
     const resp = await this.queryOss<OssApprovalConfigNodes>(APPROVAL_CONFIGS, {});
     return resp.approvalConfigs.nodes;
   }
-
-  async getOrganization(orgId: string) {
-    const resp = await this.queryOss<OssOrganizationNodes>(ORGANIZATIONS, {
-      filter: {
-        key: 'id',
-        operator: 'EQ',
-        value: orgId,
-      },
-    });
-    if (resp.organizations.nodes.length == 0) {
-      throw new ItemNotFoundError(orgId, 'Organization');
-    }
-    return resp.organizations.nodes[0];
-  }
-
 
   async getOwnerHoldings(ownerId: string) {
     const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {

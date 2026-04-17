@@ -1,9 +1,8 @@
 
 import {
-  Account, Asset, DepositAsset,
+  Asset, DepositAsset,
   DepositOperation,
-  DestinationAccount, ExecutionPlan, IntentType, PlanContract,
-  FinIdAccount,
+  ExecutionPlan, IntentType, PlanContract,
   OperationStatus, PlanApprovalStatus, ReceiptOperation, Signature,
 } from '../model';
 
@@ -22,11 +21,11 @@ export type PlanFailureReason = {
 };
 
 export interface PlanApprovalPlugin {
-  validateIssuance(destination: FinIdAccount, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
+  validateIssuance(destinationFinId: string, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
 
-  validateTransfer(source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
+  validateTransfer(sourceFinId: string, destinationFinId: string, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
 
-  validateRedemption(source: FinIdAccount, destination: DestinationAccount | undefined, asset: Asset, amount: string): Promise<PlanApprovalStatus>;
+  validateRedemption(sourceFinId: string, destinationFinId: string | undefined, sourceAsset: Asset, destinationAsset: Asset | undefined, amount: string): Promise<PlanApprovalStatus>;
 
   onPlanCompleted(planId: string, intentType: IntentType | undefined, contract: PlanContract): Promise<void>;
 
@@ -38,11 +37,11 @@ export interface PlanApprovalPlugin {
 
 export interface PaymentsPlugin {
 
-  deposit(idempotencyKey: string, owner: FinIdAccount, asset: DepositAsset, amount: string | undefined, signature: Signature | undefined): Promise<DepositOperation>;
+  deposit(idempotencyKey: string, ownerFinId: string, asset: DepositAsset, amount: string | undefined, signature: Signature | undefined): Promise<DepositOperation>;
 
-  depositCustom(idempotencyKey: string, owner: FinIdAccount, amount: string | undefined, details: any, signature: Signature | undefined): Promise<DepositOperation>;
+  depositCustom(idempotencyKey: string, ownerFinId: string, amount: string | undefined, details: any, signature: Signature | undefined): Promise<DepositOperation>;
 
-  payout(idempotencyKey: string, source: FinIdAccount, destination: DestinationAccount, asset: Asset, amount: string, signature: Signature | undefined): Promise<ReceiptOperation>;
+  payout(idempotencyKey: string, sourceFinId: string, destinationFinId: string, asset: Asset, amount: string, signature: Signature | undefined): Promise<ReceiptOperation>;
 }
 
 //------------------------------------------------------------
@@ -59,9 +58,9 @@ export type InstructionResult =
 
 export interface PlannedInboundTransferContext {
   planId: string;
-  source: Account;
+  sourceFinId: string;
   asset: Asset;
-  destination: Account;
+  destinationFinId: string;
   amount: string;
 }
 

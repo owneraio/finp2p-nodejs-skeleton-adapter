@@ -110,7 +110,12 @@ describe("Service operation tests", () => {
               tokenStandard: "ERC20",
               type: "ledgerReference",
             },
-            tokenId: "123",
+            ledgerIdentifier: {
+              assetIdentifierType: "CAIP-19" as const,
+              network: "fake",
+              standard: "mock",
+              tokenId: "123"
+            }
           }),
         );
       }
@@ -240,7 +245,12 @@ describe("Service operation tests", () => {
         amount: string,
       ): Promise<OperationStatus> {
         return successfulAssetCreation({
-          tokenId: idempotencyKey,
+          ledgerIdentifier: {
+            assetIdentifierType: "CAIP-19" as const,
+            network: "fake",
+            standard: "mock",
+            tokenId: idempotencyKey
+          },
           reference: {
             type: "ledgerReference",
             tokenStandard: "createAsset",
@@ -306,7 +316,12 @@ describe("Service operation tests", () => {
     await expect(storage().getOperationByCid(row1.cid)).resolves.toEqual({
       ...row1,
       outputs: successfulAssetCreation({
-        tokenId: "fake-idempotency-key-1",
+        ledgerIdentifier: {
+          assetIdentifierType: "CAIP-19" as const,
+          network: "fake",
+          standard: "mock",
+          tokenId: "fake-idempotency-key-1",
+        },
         reference: {
           type: "ledgerReference",
           tokenStandard: "createAsset",

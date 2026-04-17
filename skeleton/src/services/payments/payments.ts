@@ -1,6 +1,5 @@
 import {
   failedDepositOperation,
-  FinIdAccount,
   PaymentService,
   Asset,
   DepositAsset,
@@ -26,9 +25,9 @@ export class PaymentsServiceImpl implements PaymentService {
 
     switch (asset.assetType) {
       case 'custom':
-        return this.depositCustom(idempotencyKey, owner.account, amount, details, signature);
+        return this.depositCustom(idempotencyKey, owner.finId, amount, details, signature);
       default:
-        return this.deposit(idempotencyKey, owner.account, destination, asset, amount, signature);
+        return this.deposit(idempotencyKey, owner.finId, destination, asset, amount, signature);
     }
   }
 
@@ -43,33 +42,33 @@ export class PaymentsServiceImpl implements PaymentService {
       return failedReceiptOperation(1, 'No destination specified');
     }
     try {
-      return await plugin.payout(idempotencyKey, source.account, destination.account, asset, amount, signature);
+      return await plugin.payout(idempotencyKey, source.finId, destination.finId, asset, amount, signature);
     } catch (e: any) {
       logger.error('Payout plugin failed', { error: e.message ?? e });
       return failedReceiptOperation(e.code ?? 1, e.message ?? String(e));
     }
   }
 
-  private async deposit(idempotencyKey: string, owner: FinIdAccount, destination: Destination, asset: DepositAsset, amount: string | undefined, signature: Signature | undefined): Promise<DepositOperation> {
+  private async deposit(idempotencyKey: string, ownerFinId: string, destination: Destination, asset: DepositAsset, amount: string | undefined, signature: Signature | undefined): Promise<DepositOperation> {
     const plugin = this.pluginManager?.getPaymentsPlugin();
     if (!plugin) {
       return failedDepositOperation(1, 'Deposits are not supported');
     }
     try {
-      return await plugin.deposit(idempotencyKey, owner, asset, amount, signature);
+      return await plugin.deposit(idempotencyKey, ownerFinId, asset, amount, signature);
     } catch (e: any) {
       logger.error('Deposit plugin failed', { error: e.message ?? e });
       return failedDepositOperation(e.code ?? 1, e.message ?? String(e));
     }
   }
 
-  private async depositCustom(idempotencyKey: string, owner: FinIdAccount, amount: string | undefined, details: any, signature: Signature | undefined): Promise<DepositOperation> {
+  private async depositCustom(idempotencyKey: string, ownerFinId: string, amount: string | undefined, details: any, signature: Signature | undefined): Promise<DepositOperation> {
     const plugin = this.pluginManager?.getPaymentsPlugin();
     if (!plugin) {
       return failedDepositOperation(1, 'Custom deposits are not supported');
     }
     try {
-      return await plugin.depositCustom(idempotencyKey, owner, amount, details, signature);
+      return await plugin.depositCustom(idempotencyKey, ownerFinId, amount, details, signature);
     } catch (e: any) {
       logger.error('Custom deposit plugin failed', { error: e.message ?? e });
       return failedDepositOperation(e.code ?? 1, e.message ?? String(e));

@@ -2,9 +2,8 @@ import { CommonServiceImpl } from './common';
 import {
   AssetBind, AssetCreationStatus,
   AssetDenomination,
-  AssetIdentifier, Balance, BusinessError, Destination, failedReceiptOperation,
-  FinIdAccount,
-  finIdDestination, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
+  Balance, BusinessError, Destination,
+  LedgerAssetIdentifier, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
   TokenService,
   Asset, ExecutionContext,
   Signature,
@@ -25,26 +24,27 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     this.proofProvider = proofProvider;
   }
 
-  public async createAsset(idempotencyKey: string, asset: Asset,
+  public async createAsset(idempotencyKey: string, assetId: string,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus> {
-    logger.info(`Creating asset ${asset.assetId}`, {
+    assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus> {
+    logger.info(`Creating asset ${assetId}`, {
       idempotencyKey,
       assetBind,
       assetMetadata,
       assetName,
       issuerId,
       assetDenomination,
-      assetIdentifier,
     });
-    let tokenId: string;
+    let ledgerIdentifier: LedgerAssetIdentifier;
     if (!assetBind || !assetBind.tokenIdentifier) {
-      tokenId = generateId();
-      this.storage.createAsset(asset.assetId, asset);
+      ledgerIdentifier = { assetIdentifierType: 'CAIP-19', network: 'inmemory', tokenId: generateId(), standard: 'mock' };
     } else {
-      ({ tokenIdentifier: { tokenId } } = assetBind);
+      const { network, tokenId, standard } = assetBind.tokenIdentifier;
+      ledgerIdentifier = { assetIdentifierType: 'CAIP-19', network, tokenId, standard };
     }
-    return successfulAssetCreation({ tokenId, reference: undefined });
+    const asset: Asset = { assetId, assetType: 'finp2p', ledgerIdentifier };
+    this.storage.createAsset(assetId, asset);
+    return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
   }
 
   public async balance(asset: Asset, finId: string): Promise<Balance> {
@@ -60,12 +60,12 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return this.storage.getBalance(finId, asset.assetId);
   }
 
-  public async issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-    const { finId } = to;
-    logger.info(`Issuing ${quantity} of ${asset.assetId} to ${finId}`);
+  public async issue(idempotencyKey: string, asset: Asset, destinationFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+    logger.info(`Issuing ${quantity} of ${asset.assetId} to ${destinationFinId}`);
 
-    this.storage.credit(finId, quantity, asset.assetId);
-    const tx = new Transaction(quantity, asset, undefined, finIdDestination(finId), exCtx, 'issue', undefined);
+    this.storage.credit(destinationFinId, quantity, asset.assetId);
+    const destination: Destination = { finId: destinationFinId };
+    const tx = new Transaction(quantity, asset, undefined, destination, exCtx, 'issue', undefined);
     this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
@@ -74,18 +74,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return successfulReceiptOperation(receipt);
   }
 
-  public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
+  public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
+    asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
-
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
-    const signer = source.finId;
-    // if (!await verifySignature(signature, signer)) {
-    //   return failedReceiptOperation(1, 'Signature verification failed');
-    // }
 
     this.storage.move(source.finId, destination.finId, quantity, asset.assetId);
-    const tx = new Transaction(quantity, asset, source.account, destination, exCtx, 'transfer', undefined);
+    const tx = new Transaction(quantity, asset, source, destination, exCtx, 'transfer', undefined);
     this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {
@@ -94,13 +90,12 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return successfulReceiptOperation(receipt);
   }
 
-  public async redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
+  public async redeem(idempotencyKey: string, nonce: string, sourceFinId: string, asset: Asset, quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
+    logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${sourceFinId}`);
 
-    const signer = source.finId;
-    // if (!await verifySignature(signature, signer)) {
+    // if (!await verifySignature(signature, sourceFinId)) {
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
 
@@ -112,9 +107,10 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       // do no movement, account is effected at hold time
       this.storage.removeHoldOperation(operationId);
     } else {
-      this.storage.debit(source.finId, quantity, asset.assetId);
+      this.storage.debit(sourceFinId, quantity, asset.assetId);
     }
 
+    const source: Source = { finId: sourceFinId };
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);
     this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();

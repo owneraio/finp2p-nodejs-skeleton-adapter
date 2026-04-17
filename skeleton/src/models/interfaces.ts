@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  FinIdAccount, AssetBind, AssetDenomination, AssetIdentifier, AccountMapping,
+  AssetBind, AssetDenomination, AccountMapping,
 } from './model';
 
 
@@ -25,20 +25,20 @@ export interface CommonService {
 
 export interface TokenService {
 
-  createAsset(idempotencyKey: string, asset: Asset,
+  createAsset(idempotencyKey: string, assetId: string,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined): Promise<AssetCreationStatus>;
+    assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus>;
 
   getBalance(asset: Asset, finId: string): Promise<string>;
 
   balance(asset: Asset, finId: string): Promise<Balance>;
 
-  issue(idempotencyKey: string, asset: Asset, to: FinIdAccount, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
+  issue(idempotencyKey: string, asset: Asset, destinationFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
   transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
-  redeem(idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset, quantity: string, operationId: string | undefined,
+  redeem(idempotencyKey: string, nonce: string, sourceFinId: string, asset: Asset, quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 

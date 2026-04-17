@@ -19,6 +19,8 @@ tags:
     description: Operations information
   - name: messages
     description: Messaging
+  - name: data
+    description: Asset data management and refresh operations
 
 paths:
   /profiles/owner:
@@ -30,7 +32,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: 'Creates a new global identity for an asset owner, the Global Identity cryptography is based on the secp256k1 curve'
       operationId: createOwnerProfile
       responses:
@@ -50,13 +52,13 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: ownerId
           in: path
           description: ID of the owner profile
           required: true
           schema:
-            $ref: '#/components/schemas/ownerId'
+            $ref: 'common-external-components.yaml#/components/schemas/ownerId'
       description: 'Adds a custody managed account to an owner'
       operationId: addAccount
       requestBody:
@@ -93,14 +95,14 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: Creates a new profile for an asset identity
       operationId: createAssetProfile
       requestBody:
         content:
           application/json:
             schema:
-              required: [ name, type, assetIdentifier, denomination, ledgerAssetBinding ]
+              required: [ name, type, denomination, ledgerAssetBinding ]
               type: object
               properties:
                 metadata:
@@ -110,7 +112,7 @@ paths:
                   additionalProperties: true
                 config:
                   type: string
-                  description: The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
+                  description: The asset configuration, in serialized JSON representation (deprecated, use metadata instead)
                   deprecated: true
                 verifiers:
                   type: array
@@ -119,7 +121,7 @@ paths:
                     $ref: '#/components/schemas/assetVerifier'
                   x-go-type-skip-optional-pointer: true
                 intentTypes:
-                  $ref: '#/components/schemas/intentTypesAllowEmpty'
+                  $ref: 'common-external-components.yaml#/components/schemas/intentTypesAllowEmpty'
                 name:
                   $ref: '#/components/schemas/name'
                 symbol:
@@ -127,15 +129,17 @@ paths:
                 type:
                   $ref: 'common-external-components.yaml#/components/schemas/assetType'
                 issuerId:
-                  $ref: '#/components/schemas/ownerId'
+                  $ref: 'common-external-components.yaml#/components/schemas/ownerId'
                 denomination:
                   $ref: 'common-external-components.yaml#/components/schemas/assetDenomination'
                 ledgerAssetBinding:
                   $ref: '#/components/schemas/ledgerAssetBinding'
                 assetPolicies:
                   $ref: '#/components/schemas/assetPolicies'
-                assetIdentifier:
-                  $ref: 'common-external-components.yaml#/components/schemas/assetIdentifier'
+                financialIdentifier:
+                  $ref: 'common-external-components.yaml#/components/schemas/financialAssetIdentifier'
+                orgSettlementAccount:
+                  $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
                 allowPolicyDefaultFallback:
                   type: boolean
                   description: Flag to indicate if default policy fallback is allowed when no matching policy is found
@@ -146,6 +150,10 @@ paths:
                   minimum: 0
                   maximum: 18
                   description: Defines how many decimal places the asset supports. Used to determine the smallest divisible unit (e.g., cents for USD with 2 decimals, satoshis for BTC with 8 decimals).
+                autoShare:
+                  type: boolean
+                  description: Flag to indicate if the asset should be automatically shared with known organizations.
+                  default: false
 
         required: true
       responses:
@@ -163,121 +171,6 @@ paths:
                 $ref: '#/components/schemas/operationBase'
 
   '/profiles/asset/{id}':
-    put:
-      deprecated: true
-      tags:
-        - profiles
-      summary: Update asset profile
-      description: Update a profile for an asset identity
-      operationId: updateAssetProfile
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          schema:
-            $ref: '#/components/schemas/nonce'
-        - name: id
-          in: path
-          description: ID of the asset profile
-          required: true
-          schema:
-            $ref: '#/components/schemas/assetId'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [ name ]
-              properties:
-                metadata:
-                  type: object
-                  description: The asset metadata
-                  x-go-type-skip-optional-pointer: true
-                  additionalProperties: true
-                config:
-                  type: string
-                  description: The asset configuration, in serilized JSON representation (deprecated, use metadata instead)
-                  deprecated: true
-                verifiers:
-                  type: array
-                  description: A list of regulation verifiers to execute to validate a transaction
-                  items:
-                    $ref: '#/components/schemas/assetVerifier'
-                  x-go-type-skip-optional-pointer: true
-                name:
-                  $ref: '#/components/schemas/name'
-                symbol:
-                  $ref: '#/components/schemas/symbol'
-                assetPolicies:
-                  $ref: '#/components/schemas/assetPolicies'
-        required: true
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/resourceIdResponse'
-        '202':
-          description: accepted operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/operationBase'
-        '400':
-          description: Invalid Input
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '502':
-          description: Bad Gateway
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '503':
-          description: Service Unavailable
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '504':
-          description: Gateway Timeout
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-
     patch:
       tags:
         - profiles
@@ -288,7 +181,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: id
           in: path
           description: ID of the asset profile
@@ -326,6 +219,15 @@ paths:
                   $ref: '#/components/schemas/symbolOpt'
                 assetPolicies:
                   $ref: '#/components/schemas/assetPoliciesOpt'
+                allowPolicyDefaultFallback:
+                  type: boolean
+                  description: Flag to indicate if default policy fallback is allowed when no matching policy is found
+                  x-custom-format: "nullable"
+                  nullable: true
+                autoShare:
+                  type: boolean
+                  description: Flag to indicate if the asset should be automatically shared with known organizations.
+                  nullable: true
         required: true
       responses:
         '200':
@@ -352,7 +254,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: id
           in: path
           description: ID of the asset profile
@@ -381,14 +283,8 @@ paths:
                   # maximum: 10000000000
                   description: end time for intent, in epoch (seconds)
                   x-go-type-skip-optional-pointer: true
-                #                assetTerm:
-                #                  $ref: '#/components/schemas/finp2pAssetTerm'
-                #                assetInstruction:
-                #                  $ref: '#/components/schemas/intentAssetInstruction'
-                #                settlementTerm:
-                #                  $ref: '#/components/schemas/settlementTerm'
                 intent:
-                  $ref: '#/components/schemas/intent'
+                  $ref: 'common-external-components.yaml#/components/schemas/intent'
                 intentId:
                   type: string
                   description: 'unique identifier for the intent, will default to generated UUID if not provided'
@@ -457,7 +353,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: id
           in: path
           description: ID of the asset profile
@@ -475,7 +371,6 @@ paths:
           application/json:
             schema:
               type: object
-              #              required: [ start, end ]
               properties:
                 start:
                   type: integer
@@ -562,7 +457,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: id
           in: path
           description: ID of the asset profile
@@ -582,8 +477,14 @@ paths:
                 organizations:
                   type: array
                   items:
-                    type: string
+                    $ref: 'common-external-components.yaml#/components/schemas/orgId'
                   description: 'Collections of organizations ids to share the profile with'
+                dataAccess:
+                  type: 'array'
+                  items:
+                    $ref: '#/components/schemas/dataAccess'
+                  description: 'data information the profile owner allows to be shared with the organizations'
+                  x-go-type-skip-optional-pointer: true
         required: true
       responses:
         '200':
@@ -664,7 +565,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: profileId
           in: path
           description: ID of The profile that holds the certificate
@@ -718,7 +619,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: profileId
           in: path
           description: ID of The profile that holds the certificate
@@ -822,7 +723,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: profileId
           in: path
           description: ID of The profile that holds the certificate
@@ -847,7 +748,7 @@ paths:
                   minimum: 0
                   # maximum: 10000000000
                   description: The issuance date of the Certificate in epoch time seconds
-                  
+
                 expirationDate:
                   type: integer
                   x-custom-format: "nullable"
@@ -874,13 +775,13 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: profileId
           in: path
           description: ID of The profile that holds the certificate
           required: true
           schema:
-            $ref: '#/components/schemas/ownerId'
+            $ref: 'common-external-components.yaml#/components/schemas/ownerId'
         - name: certificateId
           in: path
           description: ID of The certificate that will hold the doc
@@ -909,7 +810,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/documentsList'
-  
 
   '/docs/{uri}':
     get:
@@ -947,7 +847,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
         - name: docId
           in: path
           description: Document ID
@@ -992,7 +892,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: Execute a token intent
       operationId: ExecuteToken
       requestBody:
@@ -1003,7 +903,7 @@ paths:
               type: object
               properties:
                 user:
-                  $ref: '#/components/schemas/ownerId'
+                  $ref: 'common-external-components.yaml#/components/schemas/ownerId'
                 intentId:
                   $ref: '#/components/schemas/intentId'
                 intent:
@@ -1029,7 +929,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: Best effort cancellation of ongoing plan
       operationId: CancelExecuteToken
       requestBody:
@@ -1064,7 +964,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: Transfer existing asset token to a new owner. Transfer of ownership is done by eliminating existing tokens owned by the sender and creating new tokens with the new owner.
       operationId: transferToken
       requestBody:
@@ -1075,13 +975,19 @@ paths:
               type: object
               properties:
                 nonce:
-                  $ref: '#/components/schemas/nonce'
+                  $ref: 'common-external-components.yaml#/components/schemas/nonce'
                 source:
-                  $ref: '#/components/schemas/ownerId'
+                  $ref: 'common-external-components.yaml#/components/schemas/ownerId'
                 destination:
-                  $ref: '#/components/schemas/ownerId'
+                  $ref: 'common-external-components.yaml#/components/schemas/ownerId'
                 asset:
-                  $ref: '#/components/schemas/transferRequestAssetOrder'
+                  type: object
+                  required: [ term, instruction ]
+                  properties:
+                    term:
+                      $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
+                    instruction:
+                      $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationAccountAssetInstruction'
 
         required: true
       responses:
@@ -1091,7 +997,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/executionOperationResult'
-
 
   '/tokens/balance':
     post:
@@ -1131,7 +1036,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: Create a new deposit request
       operationId: createDepositRequest
       requestBody:
@@ -1142,16 +1047,16 @@ paths:
               type: object
               properties:
                 profileId:
-                  $ref: '#/components/schemas/ownerId'
+                  $ref: 'common-external-components.yaml#/components/schemas/ownerId'
                 account:
-                  $ref: '#/components/schemas/depositAccount'
+                  $ref: 'common-external-components.yaml#/components/schemas/depositAccount'
                 amount:
-                  $ref: '#/components/schemas/amount'
+                  $ref: 'common-external-components.yaml#/components/schemas/amount'
                 details:
                   type: object
                   description: Any addition deposit specific information
                 nonce:
-                  $ref: '#/components/schemas/nonce'
+                  $ref: 'common-external-components.yaml#/components/schemas/nonce'
                 signaturePolicy:
                   $ref: '#/components/schemas/depositSignaturePolicy'
 
@@ -1181,7 +1086,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       operationId: resetExecutionPlan
       requestBody:
         content:
@@ -1215,7 +1120,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/operationBase'
-  
 
   '/payments/withdraw':
     post:
@@ -1226,7 +1130,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: Create a new withdraw request
       operationId: createWithdrawRequest
       requestBody:
@@ -1237,16 +1141,15 @@ paths:
               type: object
               properties:
                 profileId:
-                  $ref: '#/components/schemas/ownerId'
+                  $ref: 'common-external-components.yaml#/components/schemas/ownerId'
                 account:
-                  $ref: '#/components/schemas/withdrawAccount'
+                  $ref: 'common-external-components.yaml#/components/schemas/withdrawAccount'
                 amount:
-                  $ref: '#/components/schemas/amount'
+                  $ref: 'common-external-components.yaml#/components/schemas/amount'
                 withdrawInstruction:
-                  $ref: '#/components/schemas/withdrawInstruction'
+                  $ref: 'common-external-components.yaml#/components/schemas/withdrawInstruction'
                 nonce:
-                  deprecated: true
-                  $ref: "#/components/schemas/nonce"
+                  $ref: 'common-external-components.yaml#/components/schemas/nonce'
                 signaturePolicy:
                   $ref: '#/components/schemas/withdrawSignaturePolicy'
         required: true
@@ -1320,7 +1223,7 @@ paths:
         - in: header
           name: Idempotency-Key
           schema:
-            $ref: '#/components/schemas/nonce'
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
       description: 'Send a message to a group of users'
       operationId: sendMessage
       requestBody:
@@ -1341,7 +1244,7 @@ paths:
                 recipients:
                   type: array
                   items:
-                    $ref: '#/components/schemas/ownerId'
+                    $ref: 'common-external-components.yaml#/components/schemas/ownerId'
                   description: 'Collections of owners ids to send the message to'
                 attachments:
                   type: object
@@ -1360,154 +1263,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/messageResponse'
-        
-
-  '/profiles/asset/intent/transfer':
-    post:
-      tags:
-        - profiles
-      summary: Initiate a transfer
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          schema:
-            $ref: '#/components/schemas/nonce'
-      description: Send or request an asset, fiat currency, or cryptocurrency transfer between users.
-      operationId: createRequestForTransferIntent
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/requestForTransferIntent'
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/intentIdResponse'
-        
-
-  '/profiles/asset/intent/transfer/execute/{intentId}':
-    post:
-      tags:
-        - profiles
-      summary: Execute a transfer
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          schema:
-            $ref: '#/components/schemas/nonce'
-        - name: intentId
-          in: path
-          description: ID of the transfer profile
-          required: true
-          schema:
-            type: string
-            pattern: '^[^:](?:.+):105:(?:.+)'
-
-      description: Send or request an asset, fiat currency, or cryptocurrency transfer between users.
-      operationId: executeRequestForTransferIntent
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/requestForTransferExecuteIntent'
-      responses:
-        '200':
-          description: operation information
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/operationResponse'
-        
-
-  '/profiles/asset/intent/transfer/{intentId}':
-    patch:
-      tags:
-        - profiles
-      summary: Update a transfer intent
-      parameters:
-        - in: header
-          name: Idempotency-Key
-          schema:
-            $ref: '#/components/schemas/nonce'
-        - name: intentId
-          in: path
-          description: ID of the intent
-          required: true
-          schema:
-            type: string
-            pattern: '^[^:](?:.+):105:(?:.+)'
-      description: Update transfer intent, send or request an asset, fiat currency, or cryptocurrency transfer between users.
-      operationId: updateRequestForTransferIntent
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/requestForTransferUpdateIntent'
-        required: true
-      responses:
-        '200':
-          description: operation information
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/operationResponse'
-        '400':
-          description: Invalid Input
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '502':
-          description: Bad Gateway
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '503':
-          description: Service Unavailable
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
-        '504':
-          description: Gateway Timeout
-          content:
-            application/json:
-              schema:
-                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
 
   /profiles/owner/account/balance/sync:
     post:
@@ -1526,7 +1281,172 @@ paths:
       responses:
         '202':
           description: sync request received, sync in progress
-          content: { }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cid:
+                    type: string
+                    description: correlation id for tracking the operation status
+                  message:
+                    type: string
+
+
+  '/data/refresh':
+    post:
+      tags:
+        - data
+      summary: Trigger immediate data refresh
+      description: |
+        Manually trigger a data refresh for the specified identifiers.
+        This fetches the latest data from configured data providers immediately,
+        regardless of the scheduled refresh interval.
+      operationId: refreshDataNow
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identifiers
+              properties:
+                identifiers:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AssetDataIdentifier'
+                  description: Asset identifiers to fetch data for (e.g. ISIN, CAIP19)
+                providerName:
+                  type: string
+                  description: Specific provider to fetch from (empty = all configured providers)
+      responses:
+        '200':
+          description: Refresh triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/operationBase'
+
+  '/data/assets/ingest':
+    post:
+      tags:
+        - data
+      summary: Ingest asset data
+      description: |
+        Unified endpoint for ingesting asset data from any source:
+        - Manual push from API consumers
+        - Adapter subscription callbacks (push mode)
+        - Adapter async pull responses
+
+        Supports single or batch. Asset identifiers are in the request body.
+      operationId: ingestAssetData
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestAssetDataRequest'
+      responses:
+        '200':
+          description: Data ingested successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestAssetDataResponse'
+
+  # Data Rules Endpoints
+  '/data/rules':
+    post:
+      tags:
+        - data
+      summary: Create a data rule
+      description: |
+        Create a new data rule that maps an asset identifier (e.g. ISIN) to a data provider
+        and the data types that provider supplies for matching assets.
+      operationId: createDataRule
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDataRuleRequest'
+      responses:
+        '200':
+          description: Data rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRuleResponse'
+
+  '/data/rules/{ruleId}':
+    patch:
+      tags:
+        - data
+      summary: Update a data rule
+      description: Update the data types or enabled status of an existing data rule.
+      operationId: updateDataRule
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: ruleId
+          in: path
+          description: Data rule ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDataRuleRequest'
+      responses:
+        '200':
+          description: Data rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRuleResponse'
+    delete:
+      tags:
+        - data
+      summary: Delete a data rule
+      description: Remove a data rule. Existing refresh configs created from this rule are not affected.
+      operationId: deleteDataRule
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: ruleId
+          in: path
+          description: Data rule ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Data rule deleted
 
   /health:
     get:
@@ -1599,16 +1519,7 @@ components:
 
         const authorizationHeader = Buffer.from(JSON.stringify(authInfo)).toString("base64");
   schemas:
-    idempotency-key:
-      allOf:
-        - $ref: '#/components/schemas/nonce'
-
-    resourceId:
-      type: string
-      description: 'finp2p resource id format'
-      pattern: '^[^:](?:.+):(101|102|103|104|105):(?:.+)'
-      maxLength: 150
-      example: 'bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388'
+    # IDs
 
     profileId:
       type: string
@@ -1616,13 +1527,6 @@ components:
       pattern: '^[^:](?:.+):(101|102):(?:.+)'
       maxLength: 150
       example: 'bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388'
-
-    ownerId:
-      type: string
-      description: 'The Owner resource id'
-      pattern: '^[^:](?:.+):101:(?:.+)'
-      maxLength: 150
-      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
 
     assetId:
       type: string
@@ -1645,578 +1549,131 @@ components:
       maxLength: 150
       example: 'bank-x:106:9929ccaf-8967-4ba3-9198-a4b8e3128388'
 
-    primarySaleExecution:
-      type: object
-      required: [ type, nonce, issuer, buyer, asset ]
-      properties:
-        type:
-          type: string
-          enum: [ primarySaleExecution ]
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        issuer:
-          $ref: '#/components/schemas/ownerId'
-        buyer:
-          $ref: '#/components/schemas/ownerId'
-        asset:
-          $ref: '#/components/schemas/issueRequestAssetOrder'
-        settlement:
-          $ref: '#/components/schemas/executeIntentRequestSettlement'
+    # Create intent
 
-    buyingIntentExecution:
-      type: object
-      required: [ type, nonce, asset, seller ]
-      properties:
-        type:
-          type: string
-          enum: [ buyingIntentExecution ]
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        asset:
-          $ref: '#/components/schemas/transferRequestAssetOrder'
-        settlement:
-          $ref: '#/components/schemas/executeIntentRequestSettlement'
-        seller:
-          $ref: '#/components/schemas/ownerId'
+    intentTypes:
+      type: array
+      description: Allowed intent types to be applied on an asset
+      items:
+        $ref: 'common-external-components.yaml#/components/schemas/intentType'
+      uniqueItems: true
+      minItems: 1
 
-    sellingIntentExecution:
-      type: object
-      required: [ type, nonce, asset, buyer ]
-      properties:
-        type:
-          type: string
-          enum: [ sellingIntentExecution ]
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        asset:
-          $ref: '#/components/schemas/transferRequestAssetOrder'
-        settlement:
-          $ref: '#/components/schemas/executeIntentRequestSettlement'
-        buyer:
-          $ref: '#/components/schemas/ownerId'
+    # Update intent payloads
 
-    loanIntentExecution:
-      type: object
-      required: [ type, executorType, nonce, asset, lender, borrower ]
-      properties:
-        type:
-          type: string
-          enum: [ loanIntentExecution ]
-        executorType:
-          type: string
-          enum: [ borrower, lender ]
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        borrower:
-          $ref: '#/components/schemas/ownerId'
-        lender:
-          $ref: '#/components/schemas/ownerId'
-        asset:
-          $ref: '#/components/schemas/loanRequestAssetOrder'
-        settlement:
-          $ref: '#/components/schemas/executeLoanIntentRequestSettlement'
-        loanInstruction:
-          $ref: '#/components/schemas/loanInstruction'
-
-    redemptionIntentExecution:
-      type: object
-      required: [ type, nonce, issuer, seller, asset ]
-      properties:
-        type:
-          type: string
-          enum: [ redemptionIntentExecution ]
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        issuer:
-          $ref: '#/components/schemas/ownerId'
-        seller:
-          $ref: '#/components/schemas/ownerId'
-        asset:
-          $ref: '#/components/schemas/transferRequestAssetOrder'
-        settlement:
-          $ref: '#/components/schemas/executeIntentRequestSettlement'
-
-    privateOfferIntentExecution:
-      type: object
-      required: [ type, nonce, asset, buyer, seller ]
-      properties:
-        type:
-          type: string
-          enum: [ privateOfferIntentExecution ]
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        asset:
-          $ref: '#/components/schemas/privateOfferRequestAssetOrder'
-        settlement:
-          $ref: '#/components/schemas/executeIntentRequestSettlement'
-        buyer:
-          $ref: '#/components/schemas/ownerId'
-        seller:
-          $ref: '#/components/schemas/ownerId'
-
-    intentExecution:
+    updateIntent:
       type: object
       oneOf:
-        - $ref: '#/components/schemas/primarySaleExecution'
-        - $ref: '#/components/schemas/buyingIntentExecution'
-        - $ref: '#/components/schemas/sellingIntentExecution'
-        - $ref: '#/components/schemas/loanIntentExecution'
-        - $ref: '#/components/schemas/redemptionIntentExecution'
-        - $ref: '#/components/schemas/privateOfferIntentExecution'
+        - $ref: '#/components/schemas/primarySaleIntentUpdatePayload'
+        - $ref: '#/components/schemas/buyingIntentUpdatePayload'
+        - $ref: '#/components/schemas/sellingIntentUpdatePayload'
+        - $ref: '#/components/schemas/loanIntentUpdatePayload'
+        - $ref: '#/components/schemas/redemptionIntentUpdatePayload'
+        - $ref: '#/components/schemas/privateOfferIntentUpdatePayload'
+        - $ref: '#/components/schemas/requestForTransferIntentUpdatePayload'
       discriminator:
         propertyName: type
         mapping:
-          primarySaleExecution: '#/components/schemas/primarySaleExecution'
-          buyingIntentExecution: '#/components/schemas/buyingIntentExecution'
-          sellingIntentExecution: '#/components/schemas/sellingIntentExecution'
-          loanIntentExecution: '#/components/schemas/loanIntentExecution'
-          redemptionIntentExecution: '#/components/schemas/redemptionIntentExecution'
-          privateOfferIntentExecution: '#/components/schemas/privateOfferIntentExecution'
+          primarySale: '#/components/schemas/primarySaleIntentUpdatePayload'
+          buyingIntent: '#/components/schemas/buyingIntentUpdatePayload'
+          sellingIntent: '#/components/schemas/sellingIntentUpdatePayload'
+          loanIntent: '#/components/schemas/loanIntentUpdatePayload'
+          redemptionIntent: '#/components/schemas/redemptionIntentUpdatePayload'
+          privateOfferIntent: '#/components/schemas/privateOfferIntentUpdatePayload'
+          requestForTransferIntent: '#/components/schemas/requestForTransferIntentUpdatePayload'
 
-    correspondent:
+    primarySaleIntentUpdatePayload:
       type: object
-      oneOf:
-        - $ref: '#/components/schemas/assetIssuer'
-      discriminator:
-        propertyName: type
-        mapping:
-          assetIssuer: '#/components/schemas/assetIssuer'
-
-    intent:
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/primarySale'
-        - $ref: '#/components/schemas/buyingIntent'
-        - $ref: '#/components/schemas/sellingIntent'
-        - $ref: '#/components/schemas/loanIntent'
-        - $ref: '#/components/schemas/redemptionIntent'
-        - $ref: '#/components/schemas/privateOfferIntent'
-      discriminator:
-        propertyName: type
-        mapping:
-          primarySale: '#/components/schemas/primarySale'
-          buyingIntent: '#/components/schemas/buyingIntent'
-          sellingIntent: '#/components/schemas/sellingIntent'
-          loanIntent: '#/components/schemas/loanIntent'
-          redemptionIntent: '#/components/schemas/redemptionIntent'
-          privateOfferIntent: '#/components/schemas/privateOfferIntent'
-
-    primarySale:
-      type: object
-      required: [ type, issuer, assetTerm, assetInstruction, settlementTerm ]
+      required: [ type ]
+      description: allowed fields to be updated on given intent type
       properties:
         type:
           type: string
           enum: [ primarySale ]
-        issuer:
-          $ref: '#/components/schemas/ownerId'
-        assetTerm:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        assetInstruction:
-          $ref: '#/components/schemas/intentAssetInstruction'
         settlementTerm:
-          $ref: '#/components/schemas/settlementTerm'
-        settlementInstruction:
-          $ref: '#/components/schemas/sellingIntentSettlementInstruction'
+          $ref: '#/components/schemas/settlementTermUpdate'
+        assetTerm:
+          $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
-
-    buyingIntent:
+    buyingIntentUpdatePayload:
       type: object
-      required:
-        [ type, buyer, assetTerm, assetInstruction, settlementTerm ]
+      required: [ type ]
+      description: allowed fields to be updated on given intent type
       properties:
         type:
           type: string
           enum: [ buyingIntent ]
-        buyer:
-          type: string
-          description: 'resource id of the buyer'
-        assetTerm:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        assetInstruction:
-          $ref: '#/components/schemas/intentAssetInstruction'
         settlementTerm:
-          $ref: '#/components/schemas/settlementTerm'
-        settlementInstruction:
-          $ref: '#/components/schemas/buyingIntentSettlementInstruction'
-        signaturePolicy:
-          oneOf:
-            - $ref: '#/components/schemas/presignedBuyIntentSignaturePolicy'
-            - $ref: '#/components/schemas/manualSignaturePolicy'
-          discriminator:
-            propertyName: type
-            mapping:
-              presignedPolicy: '#/components/schemas/presignedBuyIntentSignaturePolicy'
-              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+          $ref: '#/components/schemas/settlementTermUpdate'
+        assetTerm:
+          $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
-    sellingIntent:
+    sellingIntentUpdatePayload:
       type: object
-      required: [ type, seller, assetTerm, assetInstruction, settlementTerm ]
+      required: [ type ]
+      description: allowed fields to be updated on given intent type
       properties:
         type:
           type: string
           enum: [ sellingIntent ]
-        seller:
-          $ref: '#/components/schemas/ownerId'
-        assetTerm:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        assetInstruction:
-          $ref: '#/components/schemas/intentAssetInstruction'
         settlementTerm:
-          $ref: '#/components/schemas/settlementTerm'
-        signaturePolicy:
-          oneOf:
-            - $ref: '#/components/schemas/presignedSellIntentSignaturePolicy'
-            - $ref: '#/components/schemas/manualSignaturePolicy'
-          discriminator:
-            propertyName: type
-            mapping:
-              presignedPolicy: '#/components/schemas/presignedSellIntentSignaturePolicy'
-              manualPolicy: '#/components/schemas/manualSignaturePolicy'
-        settlementInstruction:
-          $ref: '#/components/schemas/sellingIntentSettlementInstruction'
+          $ref: '#/components/schemas/settlementTermUpdate'
+        assetTerm:
+          $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
-    loanIntent:
+    loanIntentUpdatePayload:
       type: object
-      required: [ type, creatorType, borrower, lender, settlementTerm]
+      required: [ type ]
+      description: allowed fields to be updated on given intent type
       properties:
         type:
           type: string
           enum: [ loanIntent ]
-        creatorType:
-          type: string
-          enum: [ borrower, lender ]
-        borrower:
-          $ref: '#/components/schemas/ownerId'
-        lender:
-          $ref: '#/components/schemas/ownerId'
-        assetTerm:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        assetInstruction:
-          $ref: '#/components/schemas/loanIntentAssetInstruction'
         settlementTerm:
-          $ref: '#/components/schemas/settlementTerm'
-        settlementInstruction:
-          $ref: '#/components/schemas/loanIntentSettlementInstruction'
-        loanInstruction:
-          $ref: '#/components/schemas/loanInstruction'
-        signaturePolicy:
-          oneOf:
-            - $ref: '#/components/schemas/presignedLoanIntentSignaturePolicy'
-          discriminator:
-            propertyName: type
-            mapping:
-              presignedPolicy: '#/components/schemas/presignedLoanIntentSignaturePolicy'
+          $ref: '#/components/schemas/settlementTermUpdate'
+        assetTerm:
+          $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
-    redemptionIntent:
+    redemptionIntentUpdatePayload:
       type: object
-      required: [ type, issuer, assetTerm, settlementTerm ]
+      required: [ type ]
+      description: allowed fields to be updated on given intent type
       properties:
         type:
           type: string
           enum: [ redemptionIntent ]
-        issuer:
-          $ref: '#/components/schemas/ownerId'
-        assetTerm:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        assetInstruction:
-          $ref: '#/components/schemas/intentAssetInstruction'
         settlementTerm:
-          $ref: '#/components/schemas/settlementTerm'
-        settlementInstruction:
-          $ref: '#/components/schemas/redemptionIntentSettlementInstruction'
-        conditions:
-          $ref: '#/components/schemas/redemptionIntentConditions'
-        signaturePolicy:
-          oneOf:
-            - $ref: '#/components/schemas/preSignedRedemptionIntentSignaturePolicy'
-            - $ref: '#/components/schemas/manualSignaturePolicy'
-          discriminator:
-            propertyName: type
-            mapping:
-              preSignedPolicy: '#/components/schemas/preSignedRedemptionIntentSignaturePolicy'
-              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+          $ref: '#/components/schemas/settlementTermUpdate'
+        assetTerm:
+          $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
-    privateOfferIntent:
+    privateOfferIntentUpdatePayload:
       type: object
-      required: [ type, buyer, seller, assetTerm, settlementTerm ]
+      required: [ type ]
+      description: allowed fields to be updated on given intent type
       properties:
         type:
           type: string
           enum: [ privateOfferIntent ]
-        buyer:
-          $ref: '#/components/schemas/ownerId'
-        seller:
-          $ref: '#/components/schemas/ownerId'
-        assetTerm:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        assetInstruction:
-          $ref: '#/components/schemas/privateOfferIntentAssetInstruction'
         settlementTerm:
-          $ref: '#/components/schemas/settlementTerm'
-        signaturePolicy:
-          oneOf:
-            - $ref: '#/components/schemas/presignedSellIntentSignaturePolicy'
-            - $ref: '#/components/schemas/manualSignaturePolicy'
-          discriminator:
-            propertyName: type
-            mapping:
-              presignedPolicy: '#/components/schemas/presignedSellIntentSignaturePolicy'
-              manualPolicy: '#/components/schemas/manualSignaturePolicy'
-        settlementInstruction:
-          $ref: '#/components/schemas/sellingIntentSettlementInstruction'
+          $ref: '#/components/schemas/settlementTermUpdate'
+        assetTerm:
+          $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
-
-
-
-    assetTerm:
+    requestForTransferIntentUpdatePayload:
       type: object
-      required: [ asset, amount ]
-      properties:
-        asset:
-          $ref: '#/components/schemas/asset'
-        amount:
-          $ref: '#/components/schemas/amount'
-
-    issueRequestAssetOrder:
-      type: object
-      required: [ term, instruction ]
-      properties:
-        term:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        instruction:
-          $ref: '#/components/schemas/issueRequestAssetOrderInstruction'
-
-    issueRequestAssetOrderInstruction:
-      type: object
-      required: [ destinationAccount ]
-      properties:
-        destinationAccount:
-          $ref: '#/components/schemas/assetInstruction'
-
-    #    issueRequestSettlement:
-    #      type: object
-    #      description: Settlement information for the issuance request
-    #      required: [ term, instruction ]
-    #      properties:
-    #        term:
-    #          $ref: '#/components/schemas/assetTerm'
-    #        instruction:
-    #          $ref: '#/components/schemas/issueRequestSettlementInstruction'
-
-    #    issueRequestSettlementInstruction:
-    #      type: object
-    #      oneOf:
-    #        - $ref: '#/components/schemas/escrowSettlement'
-    #      discriminator:
-    #        propertyName: type
-    #        mapping:
-    #          escrow: '#/components/schemas/escrowSettlement'
-
-    privateOfferRequestAssetOrder:
-      type: object
-      required: [ term, instruction ]
-      properties:
-        term:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        instruction:
-          $ref: '#/components/schemas/privateOfferRequestAssetOrderInstruction'
-
-    transferRequestAssetOrder:
-      type: object
-      required: [ term, instruction ]
-      properties:
-        term:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        instruction:
-          $ref: '#/components/schemas/transferRequestAssetOrderInstruction'
-
-    loanRequestAssetOrder:
-      type: object
-      required: [ term, instruction ]
-      properties:
-        term:
-          $ref: '#/components/schemas/finp2pAssetTerm'
-        instruction:
-          $ref: '#/components/schemas/loanRequestAssetOrderInstruction'
-
-    transferRequestAssetOrderInstruction:
-      type: object
-      required: [ sourceAccount, destinationAccount ]
-      properties:
-        sourceAccount:
-          $ref: '#/components/schemas/assetInstruction'
-        destinationAccount:
-          $ref: '#/components/schemas/assetInstruction'
-
-    privateOfferRequestAssetOrderInstruction:
-      type: object
-      required: [ destinationAccount ]
-      properties:
-        sourceAccount:
-          $ref: '#/components/schemas/assetInstruction'
-        destinationAccount:
-          $ref: '#/components/schemas/assetInstruction'
-
-    loanRequestAssetOrderInstruction:
-      type: object
-      required: [ borrowerAccount, lenderAccount ]
-      properties:
-        borrowerAccount:
-          $ref: '#/components/schemas/assetInstruction'
-        lenderAccount:
-          $ref: '#/components/schemas/assetInstruction'
-
-    executeIntentRequestSettlement:
-      type: object
-      description: Settlement information for the execute intent request
-      required: [ term, instruction ]
-      properties:
-        term:
-          $ref: '#/components/schemas/assetTerm'
-        instruction:
-          $ref: '#/components/schemas/settlementInstruction'
-
-    executeLoanIntentRequestSettlement:
-      type: object
-      description: Settlement information for the execute intent request
-      required: [ term, instruction ]
-      properties:
-        term:
-          $ref: '#/components/schemas/assetTerm'
-        instruction:
-          $ref: '#/components/schemas/loanSettlementInstruction'
-
-    #    transferRequestSettlementInstruction:
-    #      type: object
-    #      oneOf:
-    #        - $ref: '#/components/schemas/escrowSettlement'
-    #      discriminator:
-    #        propertyName: type
-    #        mapping:
-    #          escrow: '#/components/schemas/escrowSettlement'
-
-    finp2pAssetTerm:
-      type: object
-      required: [ asset, amount ]
-      properties:
-        asset:
-          $ref: '#/components/schemas/finp2pAsset'
-        amount:
-          $ref: '#/components/schemas/amount'
-
-    intentAssetInstruction:
-      type: object
-      required: [ account ]
-      properties:
-        account:
-          $ref: '#/components/schemas/assetInstruction'
-
-    privateOfferIntentAssetInstruction:
-      type: object
-      required: [ account ]
-      properties:
-        account:
-          $ref: '#/components/schemas/privateOfferAssetInstruction'
-
-    loanIntentAssetInstruction:
-      type: object
-      required: [ borrowerAccount, lenderAccount ]
-      properties:
-        borrowerAccount:
-          $ref: '#/components/schemas/assetInstruction'
-        lenderAccount:
-          $ref: '#/components/schemas/assetInstruction'
-
-    assetInstruction:
-      type: object
-      required: [ account, asset ]
-      properties:
-        account:
-          $ref: '#/components/schemas/assetInstructionAccount'
-        asset:
-          $ref: '#/components/schemas/finp2pAsset'
-
-    privateOfferAssetInstruction:
-      type: object
-      required: [ asset ]
-      properties:
-        account:
-          $ref: '#/components/schemas/assetInstructionAccount'
-        asset:
-          $ref: '#/components/schemas/finp2pAsset'
-
-    assetInstructionAccount:
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/finIdAccount'
-      discriminator:
-        propertyName: type
-        mapping:
-          finId: '#/components/schemas/finIdAccount'
-
-    settlementInstruction:
-      type: object
-      required: [ sourceAccount, destinationAccount ]
-      properties:
-        sourceAccount:
-          $ref: '#/components/schemas/accountAsset'
-        destinationAccount:
-          $ref: '#/components/schemas/accountAsset'
-
-    settlementTerm:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          noSettlement: '#/components/schemas/noSettlementOption'
-          partialSettlement: '#/components/schemas/partialSettlementOption'
-          fullSettlement: '#/components/schemas/fullSettlementOption'
-      oneOf:
-        - $ref: '#/components/schemas/noSettlementOption'
-        - $ref: '#/components/schemas/partialSettlementOption'
-        - $ref: '#/components/schemas/fullSettlementOption'
-      description: "Defines whether settlement occurs on FinP2P and the settlement obligation required from the counterparty."
-
-
-    partialSettlementOption:
-      type: object
-      required: [ type, asset, unitValue ]
+      required: [ type ]
+      description: allowed fields to be updated on given intent type
       properties:
         type:
           type: string
-          enum: [ 'partialSettlement' ]
-        asset:
-          $ref: '#/components/schemas/asset'
-        unitValue:
-          $ref: '#/components/schemas/unitValue'
-      description: "Counterparty may settle for any amount up to the specified units, enabling partial fulfillment."
-
-    fullSettlementOption:
-      type: object
-      required: [ type, asset, amount ]
-      properties:
-        type:
-          type: string
-          enum: [ 'fullSettlement' ]
-        asset:
-          $ref: '#/components/schemas/asset'
-        amount:
-          $ref: '#/components/schemas/amount'
-      description: "Counterparty must settle for the entire trade amount. Partial fulfillment is not permitted."
-
-    noSettlementOption:
-      type: object
-      required: [ type]
-      properties:
-        type:
-          type: string
-          enum: [ 'noSettlement' ]
-      description: "Indicates that settlement will not occur on the FinP2P network. The trade settlement is expected to be handled externally through an alternative payment rail."
+          enum: [ requestForTransferIntent ]
+        assetTerm:
+          $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
     noSettlementOptionUpdate:
       type: object
-      required:  [type]
+      required: [ type ]
       properties:
         type:
           type: string
@@ -2230,7 +1687,7 @@ components:
           type: string
           enum: [ 'partialSettlement' ]
         unitValue:
-          $ref: '#/components/schemas/unitValue'
+          $ref: 'common-external-components.yaml#/components/schemas/unitValue'
 
     fullSettlementOptionUpdate:
       type: object
@@ -2240,7 +1697,7 @@ components:
           type: string
           enum: [ 'fullSettlement' ]
         amount:
-          $ref: '#/components/schemas/amount'
+          $ref: 'common-external-components.yaml#/components/schemas/amount'
 
     settlementTermUpdate:
       type: object
@@ -2256,141 +1713,195 @@ components:
         - $ref: '#/components/schemas/fullSettlementOptionUpdate'
 
 
-    loanSettlementInstruction:
-      type: object
-      required: [ borrowerAccount, lenderAccount ]
-      properties:
-        borrowerAccount:
-          $ref: '#/components/schemas/accountAsset'
-        lenderAccount:
-          $ref: '#/components/schemas/accountAsset'
+    # Execute intent
 
-    buyingIntentSettlementInstruction:
+    intentExecution:
       type: object
-      required: [ sourceAccount ]
-      properties:
-        sourceAccount:
-          $ref: '#/components/schemas/accountAsset'
+      oneOf:
+        - $ref: '#/components/schemas/primarySaleExecution'
+        - $ref: '#/components/schemas/buyingIntentExecution'
+        - $ref: '#/components/schemas/sellingIntentExecution'
+        - $ref: '#/components/schemas/loanIntentExecution'
+        - $ref: '#/components/schemas/redemptionIntentExecution'
+        - $ref: '#/components/schemas/privateOfferIntentExecution'
+        - $ref: '#/components/schemas/requestForTransferIntentExecution'
+      discriminator:
+        propertyName: type
+        mapping:
+          primarySaleExecution: '#/components/schemas/primarySaleExecution'
+          buyingIntentExecution: '#/components/schemas/buyingIntentExecution'
+          sellingIntentExecution: '#/components/schemas/sellingIntentExecution'
+          loanIntentExecution: '#/components/schemas/loanIntentExecution'
+          redemptionIntentExecution: '#/components/schemas/redemptionIntentExecution'
+          privateOfferIntentExecution: '#/components/schemas/privateOfferIntentExecution'
+          requestForTransferIntentExecution: '#/components/schemas/requestForTransferIntentExecution'
 
-    sellingIntentSettlementInstruction:
+    primarySaleExecution:
       type: object
-      required: [ destinationAccounts ]
-      properties:
-        destinationAccounts:
-          type: array
-          items:
-            $ref: '#/components/schemas/accountAsset'
-          minItems: 1
-
-    redemptionIntentSettlementInstruction:
-      type: object
-      required: [ sourceAccounts ]
-      properties:
-        sourceAccounts:
-          type: array
-          items:
-            $ref: '#/components/schemas/accountAsset'
-
-    loanIntentSettlementInstruction:
-      type: object
-      required: [ borrowerAccount, lenderAccount ]
-      properties:
-        borrowerAccount:
-          $ref: '#/components/schemas/accountAsset'
-        lenderAccount:
-          $ref: '#/components/schemas/accountAsset'
-
-    privateOfferIntentSettlementInstruction:
-      type: object
-      required: [ sellerAccount, buyerAccount ]
-      properties:
-        sellerAccount:
-          $ref: '#/components/schemas/accountAsset'
-        buyerAccount:
-          $ref: '#/components/schemas/accountAsset'
-
-    loanInstruction:
-      type: object
-      required: [ openDate, closeDate ]
-      properties:
-        openDate:
-          type: integer
-          format: int64
-          description: date and time operation starts, in epoch (seconds)
-          minimum: 0
-          # maximum: 10000000000
-          x-go-type-skip-optional-pointer: true
-        closeDate:
-          type: integer
-          format: int64
-          description: date and time operation ends, in epoch (seconds)
-          minimum: 0
-          # maximum: 10000000000
-          x-go-type-skip-optional-pointer: true
-        conditions:
-          $ref: '#/components/schemas/loanConditions'
-
-    presignedSellIntentSignaturePolicy:
-      type: object
-      required: [ type ]
+      required: [ type, nonce, issuer, buyer, asset ]
       properties:
         type:
           type: string
-          enum: [ 'presignedPolicy' ]
-
-    presignedBuyIntentSignaturePolicy:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: string
-          enum: [ 'presignedPolicy' ]
-
-    presignedLoanIntentSignaturePolicy:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: string
-          enum: [ 'presignedPolicy' ]
-
-    preSignedRedemptionIntentSignaturePolicy:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: string
-          enum: [ 'presignedPolicy' ]
-
-    presignedPrivateOfferIntentSignaturePolicy:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: string
-          enum: [ 'presignedPolicy' ]
-
-    manualSignaturePolicy:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: string
-          enum: [ 'manualPolicy' ]
+          enum: [ primarySaleExecution ]
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        issuer:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        buyer:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/issuingAsset'
+        settlement:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+
+    buyingIntentExecution:
+      type: object
+      required: [ type, nonce, asset, seller ]
+      properties:
+        type:
+          type: string
+          enum: [ buyingIntentExecution ]
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        settlement:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        seller:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+
+    sellingIntentExecution:
+      type: object
+      required: [ type, nonce, asset, buyer ]
+      properties:
+        type:
+          type: string
+          enum: [ sellingIntentExecution ]
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        settlement:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        buyer:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+
+    loanIntentExecution:
+      type: object
+      required: [ type, executorType, nonce, asset, lender, borrower ]
+      properties:
+        type:
+          type: string
+          enum: [ loanIntentExecution ]
+        executorType:
+          type: string
+          enum: [ borrower, lender ]
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        borrower:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        lender:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/loanIntentAsset'
+        settlement:
+          $ref: 'common-external-components.yaml#/components/schemas/loanIntentAsset'
+        loanInstruction:
+          $ref: 'common-external-components.yaml#/components/schemas/loanInstruction'
+
+    redemptionIntentExecution:
+      type: object
+      required: [ type, nonce, issuer, seller, asset ]
+      properties:
+        type:
+          type: string
+          enum: [ redemptionIntentExecution ]
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        issuer:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        seller:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        asset:
+          type: object
+          required: [ term, instruction ]
+          properties:
+            term:
+              $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
+            instruction:
+              type: object
+              required: [ sourceAccount, destinationAccount ]
+              properties:
+                sourceAccount:
+                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
+                destinationAccount:
+                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccountOptional'
+        settlement:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+
+    privateOfferIntentExecution:
+      type: object
+      required: [ type, nonce, asset, buyer, seller ]
+      properties:
+        type:
+          type: string
+          enum: [ privateOfferIntentExecution ]
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        asset:
+          type: object
+          required: [ term, instruction ]
+          properties:
+            term:
+              $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
+            instruction:
+              type: object
+              required: [ sourceAccount, destinationAccount ]
+              properties:
+                sourceAccount:
+                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccountOptional'
+                destinationAccount:
+                  $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
+        settlement:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        buyer:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        seller:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+
+    requestForTransferIntentExecution:
+      type: object
+      required: [ type, nonce, action, asset, sender, receiver ]
+      properties:
+        type:
+          type: string
+          enum: [ requestForTransferIntentExecution ]
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        sender:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        receiver:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        action:
+          type: string
+          enum: [ send, request ]
+          description: Indicates whether the operation is to send or request money/asset.
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
 
     signatureResponseType:
       type: string
       enum: [ signature, acknowledgement ]
       description: Type of response, immediate / synchronous response or asynchronous
 
+    # Responses
+
     idResponse:
       type: object
       required: [ id ]
       properties:
         id:
-          $ref: '#/components/schemas/ownerId'
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
 
     certificateIdResponse:
       type: object
@@ -2399,20 +1910,13 @@ components:
         id:
           type: string
           description: "Certificate's ID"
-          
-    intentIdResponse:
-      type: object
-      required: [ intentId ]
-      properties:
-        intentId:
-          $ref: '#/components/schemas/ownerId'
 
     resourceIdResponse:
       type: object
       required: [ id ]
       properties:
         id:
-          $ref: '#/components/schemas/resourceId'
+          $ref: 'common-external-components.yaml#/components/schemas/resourceId'
 
     operationBase:
       type: object
@@ -2438,6 +1942,7 @@ components:
         - $ref: '#/components/schemas/resetExecutionOperation'
         - $ref: '#/components/schemas/accountOperation'
         - $ref: '#/components/schemas/workflowOperation'
+        - $ref: '#/components/schemas/balanceSyncOperation'
       discriminator:
         propertyName: type
         mapping:
@@ -2450,6 +1955,7 @@ components:
           reset-execution: '#/components/schemas/resetExecutionOperation'
           account: '#/components/schemas/accountOperation'
           workflow: '#/components/schemas/workflowOperation'
+          balance-sync: '#/components/schemas/balanceSyncOperation'
 
     tokenOperation:
       allOf:
@@ -2482,7 +1988,6 @@ components:
               type: string
               enum: [ 'success' ]
         - $ref: '#/components/schemas/tokenOperationResult'
-
 
     executionOperation:
       allOf:
@@ -2580,7 +2085,6 @@ components:
     workflowOperationResult:
       type: object
 
-
     executionOperationResultResponse:
       allOf:
         - type: object
@@ -2618,7 +2122,7 @@ components:
           required: [ type ]
           properties:
             type:
-              type: string 
+              type: string
               enum: [ 'account' ]
             metadata:
               x-go-type-skip-optional-pointer: false
@@ -2634,7 +2138,7 @@ components:
                 - $ref: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
                 - $ref: '#/components/schemas/accountOperationResultResponse'
 
-    accountOperationResultResponse:  
+    accountOperationResultResponse:
       allOf:
         - type: object
           required: [ type ]
@@ -2742,6 +2246,34 @@ components:
               enum: [ 'success' ]
         - $ref: '#/components/schemas/resourceIdResponse'
 
+    balanceSyncOperation:
+      allOf:
+        - $ref: '#/components/schemas/operationBase'
+        - type: object
+          required: [ type ]
+          properties:
+            type:
+              type: string
+              enum: [ 'balance-sync' ]
+            response:
+              type: object
+              discriminator:
+                propertyName: type
+                mapping:
+                  error: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
+                  success: '#/components/schemas/balanceSyncOperationResponse'
+              oneOf:
+                - $ref: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
+                - $ref: '#/components/schemas/balanceSyncOperationResponse'
+
+    balanceSyncOperationResponse:
+      type: object
+      required: [ type ]
+      properties:
+        type:
+          type: string
+          enum: [ 'success' ]
+
     depositOperation:
       allOf:
         - $ref: '#/components/schemas/operationBase'
@@ -2819,7 +2351,7 @@ components:
           required: [ account, description ]
           properties:
             account:
-              $ref: '#/components/schemas/depositAccount'
+              $ref: 'common-external-components.yaml#/components/schemas/depositAccount'
             description:
               type: string
               description: Instruction details
@@ -2829,6 +2361,15 @@ components:
             paymentOptions:
               $ref: 'common-external-components.yaml#/components/schemas/paymentMethods'
 
+    messageResponse:
+      type: object
+      required: [ id ]
+      properties:
+        id:
+          type: string
+
+    # Receipts
+
     receipt:
       type: object
       required: [ id, asset, quantity, details, timestamp, operationType ]
@@ -2836,18 +2377,16 @@ components:
         id:
           type: string
           description: receipt id
-        asset:
-          $ref: '#/components/schemas/receiptAsset'
         source:
-          $ref: '#/components/schemas/ownerId'
+          $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
         destination:
-          $ref: '#/components/schemas/ownerId'
+          $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
         quantity:
           type: string
         tradeDetails:
-          $ref: '#/components/schemas/receiptTradeDetails'
-        details:
-          $ref: '#/components/schemas/receiptDetails'
+          $ref: 'common-external-components.yaml#/components/schemas/receiptTradeDetails'
+        assetDetails:
+          $ref: 'common-external-components.yaml#/components/schemas/receiptAssetDetails'
         operationRef:
           type: string
         operationType:
@@ -2856,87 +2395,7 @@ components:
         timestamp:
           type: integer
 
-    receiptAsset:
-      type: object
-      required: [ code, type ]
-      properties:
-        code:
-          type: string
-          description: asset code
-        type:
-          type: string
-          description: asset type
-
-    receiptTradeDetails:
-      type: object
-      properties:
-        intentId:
-          type: string
-        intentVersion:
-          type: string
-        executionContext:
-          $ref: '#/components/schemas/receiptExecutionContext'
-
-    receiptExecutionContext:
-      type: object
-      required: [ executionPlanId, instructionSequenceNumber ]
-      properties:
-        executionPlanId:
-          type: string
-        instructionSequenceNumber:
-          type: integer
-
-    receiptDetails:
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/receiptAssetDetails'
-        - $ref: '#/components/schemas/receiptPaymentDetails'
-      discriminator:
-        propertyName: type
-        mapping:
-          asset: '#/components/schemas/receiptAssetDetails'
-          payment: '#/components/schemas/receiptPaymentDetails'
-
-    receiptAssetDetails:
-      type: object
-      required: [ type, transactionDetails ]
-      properties:
-        type:
-          type: string
-          enum: [ 'asset' ]
-        sourceFinId:
-          $ref: "common-external-components.yaml#/components/schemas/finId"
-        destinationFinId:
-          $ref: "common-external-components.yaml#/components/schemas/finId"
-        transactionDetails:
-          $ref: '#/components/schemas/receiptTransactionDetails'
-
-    receiptPaymentDetails:
-      type: object
-      required: [ type, transactionDetails ]
-      properties:
-        type:
-          type: string
-          enum: [ 'payment' ]
-        source:
-          $ref: '#/components/schemas/accountAsset'
-        destination:
-          $ref: '#/components/schemas/accountAsset'
-        transactionDetails:
-          $ref: '#/components/schemas/receiptTransactionDetails'
-
-    receiptTransactionDetails:
-      description: Additional input and output details for UTXO supporting DLTs
-      type: object
-      required:
-        - transactionId
-      properties:
-        transactionId:
-          type: string
-          description: Transaction id
-        operationId:
-          type: string
-          description: Operation id
+    # Signatures
 
     wildcardTransferSignature:
       type: string
@@ -2978,13 +2437,6 @@ components:
 
         Signature = sign(sender private secp256k1 key, hashGroups)
 
-    signatureResultResponse:
-      type: object
-      properties:
-        nonce:
-          type: string
-          description: Nonce
-
     transferWithSettlementSignature:
       type: string
       description: |
@@ -3023,17 +2475,6 @@ components:
 
         Signature = sign(sender private secp256k1 key, hashGroups)
 
-    nonce:
-      type: string
-      description: |
-        32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-
-          const nonce = Buffer.alloc(32);
-          nonce.fill(crypto.randomBytes(24), 0, 24);
-
-          const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-          const t = BigInt(nowEpochSeconds);
-          nonce.writeBigInt64BE(t, 24);
     sellerTransferSignature:
       type: string
       description: |
@@ -3198,159 +2639,37 @@ components:
         |---|--|--|--|
         |  1 | nonce           | []byte  |  |
         |  2 | operation       | string  | "loan" |
-        |  3 | assetType       | string  | "finp2p" |
-        |  4 | assetId         | string  | unique identifier of the collateral asset |
-        |  5 | srcAccountType  | string  | "finId" |
-        |  6 | srcAccount      | string  | source account finId address  |
-        |  7 | dstAccountType  | string  | "finId" |
-        |  8 | dstAccount      | string  | destination account finId address  |
-        |  9 | amount          | string  | string representation of the transfer amount |
-        | 10 | assetType       | string  | money asset type "finp2p", "fiat", "cryptocurrency" |
-        | 11 | assetId         | string  | unique identifier of the money asset |
-        | 12 | srcAccountType  | string  | source money account type "finId", "cryptoWallet", "escrow" |
-        | 13 | srcAccount      | string  | source money account id  |
-        | 14 | dstAccountType  | string  | destination money account type "finId", "cryptoWallet", "escrow" |
-        | 15 | dstAccount      | string  | destination money account id  |
-        | 16 | amount          | string  | string representation of the money borrowed |
-        | 17 | closeAmount     | string  | string representation of the money returned back |
-        | 18 | openTime        | string  | string representation of the open time volume |
-        | 19 | closeTime       | string  | string representation of the close time volume |
+        |  3 | assetId         | string  | unique identifier of the collateral asset |
+        |  4 | srcAccount      | string  | source account finId address  |
+        |  5 | dstAccount      | string  | destination account finId address  |
+        |  6 | amount          | string  | string representation of the transfer amount |
+        | 7 | assetId         | string  | unique identifier of the money asset |
+        | 8 | srcAccount      | string  | source money account id  |
+        | 9 | dstAccount      | string  | destination money account id  |
+        | 10 | amount          | string  | string representation of the money borrowed |
+        | 11 | closeAmount     | string  | string representation of the money returned back |
+        | 12 | openTime        | string  | string representation of the open time volume |
+        | 13 | closeTime       | string  | string representation of the close time volume |
 
         hashGroups = hash('SHA3-256', [HASH]);
 
         Signature = sign(sender private secp256k1 key, hashGroups)
 
-    accountAsset:
-      type: object
-      description: 'describes account information'
-      required: [ account, asset ]
-      properties:
-        account:
-          $ref: '#/components/schemas/account'
-        asset:
-          $ref: '#/components/schemas/asset'
-
-    finIdAccount:
-      type: object
-      required: [ type, finId, orgId ]
-      properties:
-        type:
-          type: string
-          enum: [ 'finId' ]
-        finId:
-          $ref: "common-external-components.yaml#/components/schemas/finId"
-        orgId:
-          $ref: 'common-external-components.yaml#/components/schemas/orgId'
-        custodian:
-          $ref: '#/components/schemas/custodian'
-
-    custodian:
-      type: object
-      required: [ orgId ]
-      properties:
-        orgId:
-          $ref: 'common-external-components.yaml#/components/schemas/orgId'
-
-    cryptoWalletAccount:
-      type: object
-      required: [ type, address ]
-      properties:
-        type:
-          type: string
-          enum: [ 'cryptoWallet' ]
-        address:
-          type: 'string'
-          description: 'address of the cryptocurrency wallet'
-          pattern: '^0x[0-9a-hA-H]+$'
-
-    ibanAccount:
-      type: object
-      required: [ type, code ]
-      properties:
-        type:
-          type: string
-          enum: [ 'iban' ]
-        code:
-          type: 'string'
-          description: 'iban address'
-          example: 'GB29NWBK60161331926819'
-
-    asset:
-      type: object
+    withdrawSignaturePolicy:
+      oneOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/manualSignaturePolicy'
       discriminator:
         propertyName: type
         mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
+          manualPolicy: 'common-external-components.yaml#/components/schemas/manualSignaturePolicy'
 
     depositSignaturePolicy:
       oneOf:
-        - $ref: '#/components/schemas/manualSignaturePolicy'
+        - $ref: 'common-external-components.yaml#/components/schemas/manualSignaturePolicy'
       discriminator:
         propertyName: type
         mapping:
-          manualPolicy: '#/components/schemas/manualSignaturePolicy'
-
-    withdrawSignaturePolicy:
-      oneOf:
-        - $ref: '#/components/schemas/manualSignaturePolicy'
-      discriminator:
-        propertyName: type
-        mapping:
-          manualPolicy: '#/components/schemas/manualSignaturePolicy'
-
-    amount:
-      type: string
-      description: 'the total number of units'
-      pattern: '^\d+\.?\d*$'
-      maxLength: 150
-
-    unitValue:
-      type: string
-      description: 'A unit value represented as a string, the value is a decimal number'
-      pattern: '^\d+(\.\d+)?$'
-
-    cryptocurrencyAsset:
-      type: object
-      required: [ type, code ]
-      properties:
-        type:
-          type: 'string'
-          enum: [ 'cryptocurrency' ]
-        code:
-          type: 'string'
-          description: 'unique identifier symbol of the cryptocurrency'
-          pattern: '^[0-9a-zA-Z_\-]+$'
-          maxLength: 150
-
-    fiatAsset:
-      type: object
-      required: [ type, code ]
-      properties:
-        type:
-          type: 'string'
-          enum: [ 'fiat' ]
-        code:
-          type: 'string'
-          description: 'unique identifier code of the fiat currency - based on ISO-4217'
-          pattern: '^(?:AED|AFN|ALL|AMD|ANG|AOA|ARS|AUD|AWG|AZN|BAM|BBD|BDT|BGN|BHD|BIF|BMD|BND|BOB|BRL|BSD|BTN|BWP|BYR|BZD|CAD|CDF|CHF|CLP|CNY|COP|CRC|CUC|CUP|CVE|CZK|DJF|DKK|DOP|DZD|EGP|ERN|ETB|EUR|FJD|FKP|GBP|GEL|GGP|GHS|GIP|GMD|GNF|GTQ|GYD|HKD|HNL|HRK|HTG|HUF|IDR|ILS|IMP|INR|IQD|IRR|ISK|JEP|JMD|JOD|JPY|KES|KGS|KHR|KMF|KPW|KRW|KWD|KYD|KZT|LAK|LBP|LKR|LRD|LSL|LYD|MAD|MDL|MGA|MKD|MMK|MNT|MOP|MRO|MUR|MVR|MWK|MXN|MYR|MZN|NAD|NGN|NIO|NOK|NPR|NZD|OMR|PAB|PEN|PGK|PHP|PKR|PLN|PYG|QAR|RON|RSD|RUB|RWF|SAR|SBD|SCR|SDG|SEK|SGD|SHP|SLL|SOS|SPL|SRD|STD|SVC|SYP|SZL|THB|TJS|TMT|TND|TOP|TRY|TTD|TVD|TWD|TZS|UAH|UGX|USD|UYU|UZS|VEF|VND|VUV|WST|XAF|XCD|XDR|XOF|XPF|YER|ZAR|ZMW|ZWD)$'
-
-    finp2pAsset:
-      type: object
-      required: [ type, resourceId ]
-      properties:
-        type:
-          type: 'string'
-          enum: [ 'finp2p' ]
-        resourceId:
-          type: 'string'
-          pattern: '^[^:](?:.+):102:(?:.+)'
-          description: 'unique resource ID of the FinP2P asset'
+          manualPolicy: 'common-external-components.yaml#/components/schemas/manualSignaturePolicy'
 
     signatureTemplate:
       type: object
@@ -3398,99 +2717,6 @@ components:
           type: string
           description: 'hex representation of the field value'
 
-    depositAccount:
-      type: object
-      description: 'describes account information'
-      required: [ account, asset ]
-      properties:
-        account:
-          type: object
-          oneOf:
-            - $ref: '#/components/schemas/finIdAccount'
-          discriminator:
-            propertyName: type
-            mapping:
-              finId: '#/components/schemas/finIdAccount'
-        asset:
-          $ref: '#/components/schemas/depositAsset'
-
-    depositAsset:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-          custom: '#/components/schemas/customAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
-        - $ref: '#/components/schemas/customAsset'
-
-    customAsset:
-      type: object
-      required: [ type ]
-      properties:
-        type:
-          type: 'string'
-          enum: [ 'custom' ]
-
-    withdrawAccount:
-      type: object
-      description: 'describes account information'
-      required: [ account, asset ]
-      properties:
-        account:
-          type: object
-          oneOf:
-            - $ref: '#/components/schemas/finIdAccount'
-          discriminator:
-            propertyName: type
-            mapping:
-              finId: '#/components/schemas/finIdAccount'
-        asset:
-          $ref: '#/components/schemas/asset'
-
-    withdrawInstruction:
-      type: object
-      description: Withdrawal instruction
-      required: [ account, description ]
-      properties:
-        account:
-          $ref: '#/components/schemas/accountAsset'
-        description:
-          type: string
-          description: Instruction details
-
-    documentsList:
-      type: object
-      required: [ refs ]
-      properties:
-        refs:
-          type: array
-          description: A list document references
-          items:
-            $ref: '#/components/schemas/documentRef'
-
-    documentRef:
-      type: object
-      required: [ id, uri, fileName, mimeType ]
-      properties:
-        id:
-          type: string
-          description: the ID of the document
-        uri:
-          type: string
-          description: the URI to retrieve the document
-        fileName:
-          type: string
-          description: The file name
-        mimeType:
-          type: string
-          description: The file mimeType
-
     name:
       type: string
       pattern: '^[a-zA-Z0-9\-_. /]*$'
@@ -3520,7 +2746,6 @@ components:
       description: The name of the asset
       x-custom-format: "nullable"
 
-
     assetVerifier:
       type: object
       required: [ id, name, provider ]
@@ -3536,6 +2761,70 @@ components:
           type: string
           description: one from the list [REG_APP_STORE, OTHER]
           enum: [ 'REG_APP_STORE', 'OTHER' ]
+
+
+
+    assetIssuer:
+      type: object
+      required: [ type, issuerId, assetId ]
+      properties:
+        type:
+          type: string
+          enum: [ 'assetIssuer' ]
+        issuerId:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        assetId:
+          $ref: '#/components/schemas/assetId'
+
+    ledgerAssetBinding:
+      type: object
+      required: [ ledger ]
+      properties:
+        ledger:
+          type: string
+          description: The name of the ledger to which the asset will be bound. Must match the ledgerName defined in /ledger/bind call
+        bind:
+          $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+
+    ledgerTokenId:
+      type: object
+      required: [ type, tokenId ]
+      properties:
+        type:
+          type: string
+          description: 'the type of the identifier'
+          enum: [ 'tokenId' ]
+        tokenId:
+          type: string
+          description: 'the token id binding'
+
+    correspondent:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/assetIssuer'
+      discriminator:
+        propertyName: type
+        mapping:
+          assetIssuer: '#/components/schemas/assetIssuer'
+
+    balanceInformation:
+      type: object
+      required: [ quantity ]
+      properties:
+        quantity:
+          type: string
+          description: 'the asset token balance quantity'
+
+    AccountBalanceSyncRequest:
+      type: object
+      required: [ account, asset ]
+      properties:
+        account:
+          $ref: 'common-external-components.yaml#/components/schemas/finIdAccount'
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
+
+    # Proofs
 
     assetPolicies:
       type: object
@@ -3622,489 +2911,234 @@ components:
               enum: [ 'hashlist', 'EIP712' ]
               x-custom-format: "nullable+signatureTemplate"
 
-    balanceInformation:
-      type: object
-      required: [ quantity ]
-      properties:
-        quantity:
-          type: string
-          description: 'the asset token balance quantity'
+    # Documents
 
-    assetIssuer:
+    documentsList:
       type: object
-      required: [ type, issuerId, assetId ]
+      required: [ refs ]
       properties:
-        type:
-          type: string
-          enum: [ 'assetIssuer' ]
-        issuerId:
-          $ref: '#/components/schemas/ownerId'
-        assetId:
-          $ref: '#/components/schemas/assetId'
+        refs:
+          type: array
+          description: A list document references
+          items:
+            $ref: '#/components/schemas/documentRef'
 
-    messageResponse:
+    documentRef:
       type: object
-      required: [ id ]
+      required: [ id, uri, fileName, mimeType ]
       properties:
         id:
           type: string
-
-    loanConditions:
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/repaymentTerm'
-        - $ref: '#/components/schemas/interestTerm'
-        - $ref: '#/components/schemas/closeAmountTerm'
-      discriminator:
-        propertyName: type
-        mapping:
-          repaymentTerm: '#/components/schemas/repaymentTerm'
-          interestTerm: '#/components/schemas/interestTerm'
-          closeAmountTerm: '#/components/schemas/closeAmountTerm'
-
-    repaymentTerm:
-      type: object
-      required: [ type, closeAmount ]
-      properties:
-        type:
+          description: the ID of the document
+        uri:
           type: string
-          enum: [ repaymentTerm ]
-        closeAmount:
-          $ref: '#/components/schemas/amount'
-        interestRate:
+          description: the URI to retrieve the document
+        fileName:
           type: string
-          description: indicative annual interest rate of the operation
-          pattern: '^-?\d*\.?\d*$'
-          maxLength: 150
-
-    interestTerm:
-      type: object
-      required: [ type, interestRate ]
-      properties:
-        type:
+          description: The file name
+        mimeType:
           type: string
-          enum: [ interestTerm ]
-        interestRate:
-          type: string
-          description: indicative annual interest rate of the operation
+          description: The file mimeType
 
-    closeAmountTerm:
+    dataAccess:
       type: object
-      required: [ type, closeAmount ]
+      required: [ accessType, status ]
       properties:
-        type:
-          type: string
-          enum: [ closeAmountTerm ]
-        closeAmount:
-          $ref: '#/components/schemas/amount'
+        accessType:
+          type: 'string'
+          enum: [ balance ]
+          description: |
+            Type of data access granted to shared organizations.
+            balance - grants receipt forwarding for balance synchronization.
+        status:
+          type: 'string'
+          enum: [ active, inactive ]
+          description: Status of the data access permission.
 
-    intentTypesAllowEmpty:
-      type: array
-      description: Allowed intent types to be applied on an asset
-      items:
-        $ref: '#/components/schemas/intentType'
-      uniqueItems: true
-
-    intentTypes:
-      type: array
-      description: Allowed intent types to be applied on an asset
-      items:
-        $ref: '#/components/schemas/intentType'
-      uniqueItems: true
-      minItems: 1
-
-    intentType:
-      type: string
-      enum:
-        - primarySale
-        - buyingIntent
-        - sellingIntent
-        - loanIntent
-        - redemptionIntent
-        - privateOfferIntent
-        - requestForTransferIntent
-
-    updateIntent:
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/primarySaleIntentUpdatePayload'
-        - $ref: '#/components/schemas/buyingIntentUpdatePayload'
-        - $ref: '#/components/schemas/sellingIntentUpdatePayload'
-        - $ref: '#/components/schemas/loanIntentUpdatePayload'
-        - $ref: '#/components/schemas/redemptionIntentUpdatePayload'
-        - $ref: '#/components/schemas/privateOfferIntentUpdatePayload'
-      discriminator:
-        propertyName: type
-        mapping:
-          primarySale: '#/components/schemas/primarySaleIntentUpdatePayload'
-          buyingIntent: '#/components/schemas/buyingIntentUpdatePayload'
-          sellingIntent: '#/components/schemas/sellingIntentUpdatePayload'
-          loanIntent: '#/components/schemas/loanIntentUpdatePayload'
-          redemptionIntent: '#/components/schemas/redemptionIntentUpdatePayload'
-          privateOfferIntent: '#/components/schemas/privateOfferIntentUpdatePayload'
-
-    primarySaleIntentUpdatePayload:
-      type: object
-      required: [ type ]
-      description: allowed fields to be updated on given intent type
-      properties:
-        type:
-          type: string
-          enum: [ primarySale ]
-        settlementTerm:
-          $ref: '#/components/schemas/settlementTermUpdate'
-        assetTerm:
-          $ref: '#/components/schemas/primarySaleAssetTermUpdate'
-
-    primarySaleAssetTermUpdate:
-      type: object
-      required: [ amount ]
-      properties:
-        amount:
-          $ref: '#/components/schemas/amount'
-
-
-
-    buyingIntentUpdatePayload:
-      type: object
-      required: [ type ]
-      description: allowed fields to be updated on given intent type
-      properties:
-        type:
-          type: string
-          enum: [ buyingIntent ]
-        settlementTerm:
-          $ref: '#/components/schemas/settlementTermUpdate'
-        assetTerm:
-          $ref: '#/components/schemas/buyingIntentAssetTermUpdate'
-
-
-    buyingIntentAssetTermUpdate:
-      type: object
-      required: [ amount ]
-      properties:
-        amount:
-          $ref: '#/components/schemas/amount'
-
-    sellingIntentUpdatePayload:
-      type: object
-      required: [ type ]
-      description: allowed fields to be updated on given intent type
-      properties:
-        type:
-          type: string
-          enum: [ sellingIntent ]
-        settlementTerm:
-          $ref: '#/components/schemas/settlementTermUpdate'
-        assetTerm:
-          $ref: '#/components/schemas/sellingIntentAssetTermUpdate'
-
-
-    sellingIntentAssetTermUpdate:
-      type: object
-      required: [ amount ]
-      properties:
-        amount:
-          $ref: '#/components/schemas/amount'
-
-    loanIntentUpdatePayload:
-      type: object
-      required: [ type ]
-      description: allowed fields to be updated on given intent type
-      properties:
-        type:
-          type: string
-          enum: [ loanIntent ]
-        settlementTerm:
-          $ref: '#/components/schemas/settlementTermUpdate'
-        assetTerm:
-          $ref: '#/components/schemas/loanIntentAssetTermUpdate'
-
-
-    loanIntentAssetTermUpdate:
-      type: object
-      required: [ amount ]
-      properties:
-        amount:
-          $ref: '#/components/schemas/amount'
-
-    redemptionIntentUpdatePayload:
-      type: object
-      required: [ type ]
-      description: allowed fields to be updated on given intent type
-      properties:
-        type:
-          type: string
-          enum: [ redemptionIntent ]
-        settlementTerm:
-          $ref: '#/components/schemas/settlementTermUpdate'
-        assetTerm:
-          $ref: '#/components/schemas/redemptionIntentAssetTermUpdate'
-
-
-    redemptionIntentAssetTermUpdate:
-      type: object
-      required: [ amount ]
-      properties:
-        amount:
-          $ref: '#/components/schemas/amount'
-
-    redemptionIntentConditions:
-      properties:
-        redemptionDuration:
-          type: string
-          format: duration
-          description: duration in ISO 8601 format (e.g., "PT1H30M" for 1 hour 30 minutes)
-          pattern: '^P(\d{1}Y)?(\d{1,2}M)?(\d{1,3}D)?(T(\d{1,2}H)?(\d{1,2}M)?(\d{1,2}S)?)?$'
-
-    privateOfferIntentUpdatePayload:
-      type: object
-      required: [ type ]
-      description: allowed fields to be updated on given intent type
-      properties:
-        type:
-          type: string
-          enum: [ privateOfferIntent ]
-        settlementTerm:
-          $ref: '#/components/schemas/settlementTermUpdate'
-        assetTerm:
-          $ref: '#/components/schemas/privateOfferIntentAssetTermUpdate'
-
-    privateOfferIntentAssetTermUpdate:
-      type: object
-      required: [ amount ]
-      properties:
-        amount:
-          $ref: '#/components/schemas/amount'
-
-    ledgerAssetBinding:
-      type: object
-      required: [ ledger ]
-      properties:
-        ledger:
-          type: string
-          description: The name of the ledger to which the asset will be bound. Must match the name defined in /ledger/bind API call
-        bind: 
-          oneOf:
-            - $ref: '#/components/schemas/ledgerTokenId'
-          discriminator:
-            propertyName: type
-            mapping:
-              tokenId: '#/components/schemas/ledgerTokenId'
-
-    ledgerTokenId:
-      type: object
-      required: [ type, tokenId ]
-      properties:
-        type:
-          type: string
-          description: 'the type of the identifier'
-          enum: [ 'tokenId' ]
-        tokenId:
-          type: string
-          description: 'the token id binding'
-
-    requestForTransferIntent:
+    # Data Provider Asset Data Schemas
+    IngestAssetDataRequest:
       type: object
       required:
-        - start
-        - end
-        - senderId
-        - receiverId
-        - intentInfo
+        - assets
       properties:
-        start:
-          type: integer
-          format: int64
-          minimum: 0
-          description: start time for intent, in epoch (seconds)
-        end:
-          type: integer
-          format: int64
-          minimum: 0
-          description: end time for intent, in epoch (seconds)
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        senderId:
-          $ref: '#/components/schemas/ownerId'
-        receiverId:
-          $ref: '#/components/schemas/ownerId'
-        intentId:
+        requestId:
           type: string
-          format: ^[a-zA-Z0-9-]{1,64}$
-          description: 'unique identifier for the intent, will default to generated UUID if not provided'
-        intentInfo:
-          $ref: '#/components/schemas/requestForTransferIntentInfo'
-        transactionMetadata:
-          $ref: '#/components/schemas/transactionMetadata'
+          description: Correlation ID from async fetch (202 response)
+        subscriptionId:
+          type: string
+          description: Correlation ID from subscription
+        source:
+          type: string
+          description: |
+            Source identifier. Examples: provider name, "manual".
+          default: 'manual'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestAssetDataItem'
+          minItems: 1
+          description: Array of asset data items (single item or batch)
 
-    requestForTransferExecuteIntent:
+    IngestAssetDataItem:
       type: object
       required:
-        - senderId
-        - receiverId
-        - action
-        - type
-        - amount
-        - asset
-        - sourceAccount
-        - destinationAccount
+        - identifier
+        - data
       properties:
-        nonce:
-          $ref: '#/components/schemas/nonce'
-        senderId:
-          $ref: '#/components/schemas/ownerId'
-        receiverId:
-          $ref: '#/components/schemas/ownerId'
-        action:
-          type: string
-          enum: [ send, request ]
-          description: Indicates whether the operation is to send or request money/asset.
-        type:
-          type: string
-          enum: [ requestForTransferIntent ]
-          description: The type of the intent.
-        amount:
-          type: string
-          example: '100'
-          description: The amount of the asset, fiat or cryptocurrency to be transferred.
-        asset:
-          $ref: '#/components/schemas/asset'
-        sourceAccount:
-          $ref: '#/components/schemas/accountRequestForTransfer'
-        destinationAccount:
-          $ref: '#/components/schemas/accountRequestForTransfer'
-        transactionMetadata:
-          $ref: '#/components/schemas/transactionMetadata'
+        identifier:
+          $ref: '#/components/schemas/AssetDataIdentifier'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssetDataItem'
+          minItems: 1
 
-    requestForTransferUpdateIntent:
+    AssetDataItem:
       type: object
+      required:
+        - dataType
+        - data
       properties:
-        start:
+        dataType:
+          $ref: '#/components/schemas/DataType'
+        schemaRef:
+          type: string
+          format: uri
+          description: URI to JSON schema for validation of the data object
+        data:
+          type: object
+          additionalProperties: true
+          description: The actual data payload conforming to the referenced schema
+        source:
+          type: string
+          description: Data source identifier
+        timestamp:
           type: integer
           format: int64
-          minimum: 0
-          description: start time for intent, in epoch (seconds)
-        end:
-          type: integer
-          format: int64
-          minimum: 0
-          description: end time for intent, in epoch (seconds)
+          description: Provider timestamp (epoch milliseconds)
+
+    IngestAssetDataResponse:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestEntryResult'
+
+    IngestEntryResult:
+      type: object
+      required:
+        - identifier
+        - dataType
+        - status
+      properties:
+        identifier:
+          $ref: '#/components/schemas/AssetDataIdentifier'
+        dataType:
+          type: string
+          description: The data type of this entry
         status:
           type: string
-          enum:
-            [
-              Unknown,
-              Active,
-              NonActive,
-              Cancelled,
-              Completed,
-              Expired,
-              Rejected,
-            ]
-          description: To change the status of the intent
-        intentInfo:
+          enum: [accepted, rejected]
+        error:
           type: object
+          description: Present only when status is "rejected"
           properties:
-            amount:
+            code:
+              type: integer
+              description: Error code from the errorcodes catalog
+            message:
               type: string
-              example: '100'
-              description: The amount of the asset, fiat or cryptocurrency to be transferred.
-        transactionMetadata:
-          $ref: '#/components/schemas/transactionMetadata'
 
-    account:
-      oneOf:
-        - $ref: '#/components/schemas/finIdAccount'
-        - $ref: '#/components/schemas/cryptoWalletAccount'
-        - $ref: '#/components/schemas/ibanAccount'
-      discriminator:
-        propertyName: type
-        mapping:
-          finId: '#/components/schemas/finIdAccount'
-          cryptoWallet: '#/components/schemas/cryptoWalletAccount'
-          iban: '#/components/schemas/ibanAccount'
-
-    accountRequestForTransfer:
-      oneOf:
-        - $ref: '#/components/schemas/finIdAccount'
-      discriminator:
-        propertyName: type
-        mapping:
-          finId: '#/components/schemas/finIdAccount'
-
-    intentInfo:
+    AssetDataIdentifier:
       type: object
       required:
-        - type
-        - amount
-        - asset
+        - identifierType
+        - identifierValue
       properties:
-        type:
+        identifierType:
           type: string
-          enum: [ requestForTransferIntent ]
-          description: The type of the intent.
-        amount:
+          description: Identifier type (e.g. ISIN, CAIP19)
+        identifierValue:
           type: string
-          example: '100'
-          description: The amount of the asset, fiat or cryptocurrency to be transferred.
-        asset:
-          $ref: '#/components/schemas/asset'
+          description: Identifier value (e.g. US0378331005)
 
-    requestForTransferIntentInfo:
-      oneOf:
-        - $ref: '#/components/schemas/requestForTransferSourceAccount'
-        - $ref: '#/components/schemas/requestForTransferDestinationAccount'
-      discriminator:
-        propertyName: action
-        mapping:
-          send: '#/components/schemas/requestForTransferSourceAccount'
-          request: '#/components/schemas/requestForTransferDestinationAccount'
+    DataType:
+      type: string
+      enum:
+        - assetHeader
+        - pricing
+        - fundamentals
+        - ratings
+        - corporateActions
+        - marketData
+        - referenceData
 
-    requestForTransferSourceAccount:
-      allOf:
-        - $ref: '#/components/schemas/intentInfo'
-        - type: object
-          required: [ action ]
-          properties:
-            action:
-              type: string
-              enum: [ send ]
-              description: Indicates whether the operation is to send or request money/asset.
-            sourceAccount:
-              $ref: '#/components/schemas/accountRequestForTransfer'
+    # Data Rules Schemas
+    CreateDataRuleRequest:
+      type: object
+      required:
+        - identifierType
+        - identifierValue
+        - providerName
+        - dataType
+      properties:
+        identifierType:
+          type: string
+          description: Identifier type (e.g. ISIN, CAIP19)
+        identifierValue:
+          type: string
+          description: Identifier value (e.g. US0378331005) or "*" for all
+        providerName:
+          type: string
+          description: Name of the data provider
+        dataType:
+          $ref: '#/components/schemas/DataType'
+          description: Data type this provider supplies for matching assets
+        refreshInterval:
+          type: string
+          description: Refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based). Null means system default (24h).
+        enabled:
+          type: boolean
+          description: Whether this rule is active
+          default: true
 
-    requestForTransferDestinationAccount:
-      allOf:
-        - $ref: '#/components/schemas/intentInfo'
-        - type: object
-          required: [ action ]
-          properties:
-            action:
-              type: string
-              enum: [ request ]
-              description: Indicates whether the operation is to send or request money/asset.
-            destinationAccount:
-              $ref: '#/components/schemas/accountRequestForTransfer'
-
-    transactionMetadata:
+    UpdateDataRuleRequest:
       type: object
       properties:
-        referenceId:
+        refreshInterval:
           type: string
-          example: ref-2024-003
-          description: Optional reference ID for the transaction.
-        description:
-          type: string
-          example: Transfer of funds for invoice #1234
-          description: Optional description or note for the transfer.
+          description: Updated refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based)
+        enabled:
+          type: boolean
+          description: Whether this rule is active
 
-    AccountBalanceSyncRequest:
+    DataRuleResponse:
       type: object
-      required: [ account, asset ]
       properties:
-        account:
-          $ref: '#/components/schemas/finIdAccount'
-        asset:
-          $ref: '#/components/schemas/asset'
+        id:
+          type: string
+          format: uuid
+        identifierType:
+          type: string
+        identifierValue:
+          type: string
+        providerId:
+          type: string
+          format: uuid
+        dataType:
+          $ref: '#/components/schemas/DataType'
+        refreshInterval:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
 

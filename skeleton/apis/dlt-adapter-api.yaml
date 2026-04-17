@@ -536,11 +536,11 @@ components:
         - asset
       properties:
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/depositPayoutAccount'
         owner:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/depositPayoutAccount'
         asset:
-          $ref: '#/components/schemas/depositAsset'
+          $ref: 'common-external-components.yaml#/components/schemas/depositAsset'
         amount:
           type: string
           description: Amount to deposit
@@ -549,7 +549,7 @@ components:
         details:
           type: object
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         signature:
           $ref: '#/components/schemas/signature'
     DepositInstructionResponse:
@@ -563,9 +563,9 @@ components:
         - asset
       properties:
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/depositPayoutAccount'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/depositPayoutAccount'
         quantity:
           type: string
           description: 'How many units of the asset'
@@ -576,7 +576,7 @@ components:
         asset:
           $ref: '#/components/schemas/payoutAsset'
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         signature:
           $ref: '#/components/schemas/signature'
     PayoutResponse:
@@ -586,12 +586,9 @@ components:
       type: object
       required:
         - owner
-        - asset
       properties:
         owner:
-          $ref: '#/components/schemas/source'
-        asset:
-          $ref: '#/components/schemas/asset'
+          $ref: '#/components/schemas/account'
     GetAssetBalanceResponse:
       allOf:
         - $ref: '#/components/schemas/balance'
@@ -605,7 +602,7 @@ components:
           description: The asset metadata
           additionalProperties: true
         asset:
-          $ref: '#/components/schemas/asset'
+          $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
         ledgerAssetBinding:
           $ref: '#/components/schemas/ledgerAssetBinding'
         name:
@@ -614,8 +611,6 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/ownerResourceId'
         denomination:
           $ref: 'common-external-components.yaml#/components/schemas/assetDenomination'
-        assetIdentifier:
-          $ref: 'common-external-components.yaml#/components/schemas/assetIdentifier'
     CreateAssetResponse:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
@@ -631,21 +626,18 @@ components:
         - nonce
         - destination
         - quantity
-        - asset
         - settlementRef
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         destination:
-          $ref: '#/components/schemas/finIdAccount'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
           pattern: .*\S.*
           x-autoMinLength: true
-        asset:
-          $ref: '#/components/schemas/finp2pAsset'
         settlementRef:
           type: string
           description: 'Reference to the corresponding settlement operation'
@@ -664,26 +656,23 @@ components:
         - nonce
         - source
         - quantity
-        - asset
         - settlementRef
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         operationId:
           type: string
           x-go-type-skip-optional-pointer: true
           pattern: .*\S.*
           x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/finIdAccount'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
           pattern: .*\S.*
           x-autoMinLength: true
-        asset:
-          $ref: '#/components/schemas/finp2pAsset'
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
@@ -703,23 +692,20 @@ components:
         - source
         - destination
         - quantity
-        - asset
         - settlementRef
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
           pattern: .*\S.*
           x-autoMinLength: true
-        asset:
-          $ref: '#/components/schemas/asset'
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
@@ -742,28 +728,25 @@ components:
         - operationId
         - source
         - quantity
-        - asset
         - expiry
         - signature
       properties:
         nonce:
-          $ref: '#/components/schemas/nonce'
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
         operationId:
           type: string
-          description: 'Escrow operation id'
+          description: 'A unique operation ID assigned to the hold request, used to track and reference the asset for future release or rollback actions'
           pattern: .*\S.*
           x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
           pattern: .*\S.*
           x-autoMinLength: true
-        asset:
-          $ref: '#/components/schemas/asset'
         expiry:
           type: integer
           format: uint64
@@ -782,24 +765,21 @@ components:
         - source
         - destination
         - quantity
-        - asset
       properties:
         operationId:
           type: string
-          description: 'Hold operation id'
+          description: 'The operation ID from the hold request, required to authorize the asset release'
           pattern: .*\S.*
           x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
           pattern: .*\S.*
           x-autoMinLength: true
-        asset:
-          $ref: '#/components/schemas/asset'
         executionContext:
           $ref: '#/components/schemas/executionContext'
     ReleaseOperationResponse:
@@ -811,22 +791,19 @@ components:
         - operationId
         - source
         - quantity
-        - asset
       properties:
         operationId:
           type: string
-          description: 'Hold operation id'
+          description: 'The operation ID from the hold request, required to revert the asset hold'
           pattern: .*\S.*
           x-autoMinLength: true
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
           pattern: .*\S.*
           x-autoMinLength: true
-        asset:
-          $ref: '#/components/schemas/asset'
         executionContext:
           $ref: '#/components/schemas/executionContext'
     RollbackOperationResponse:
@@ -841,25 +818,15 @@ components:
           x-allowEmpty: true
     GetOperationStatusResponse:
       $ref: '#/components/schemas/operationStatus'
-    nonce:
-      type: string
-      description: |
-        32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
-
-          const nonce = Buffer.alloc(32);
-          nonce.fill(crypto.randomBytes(24), 0, 24);
-
-          const nowEpochSeconds = Math.floor(new Date().getTime() / 1000);
-          const t = BigInt(nowEpochSeconds);
-          nonce.writeBigInt64BE(t, 24);
-      x-allowEmpty: true
     depositInstruction:
       required:
         - account
       type: object
       properties:
         account:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/depositPayoutAccount'
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/depositAsset'
         description:
           type: string
           description: 'Instructions for the deposit operation'
@@ -877,43 +844,15 @@ components:
           pattern: .*\S.*
           x-autoMinLength: true
     asset:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
-    depositAsset:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-          custom: '#/components/schemas/customAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
-        - $ref: '#/components/schemas/customAsset'
+      allOf:
+        - type: object
+          required: [ledgerIdentifier]
+          properties:
+            ledgerIdentifier:
+               $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+        - $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
     payoutAsset:
-      type: object
-      discriminator:
-        propertyName: type
-        mapping:
-          cryptocurrency: '#/components/schemas/cryptocurrencyAsset'
-          fiat: '#/components/schemas/fiatAsset'
-          finp2p: '#/components/schemas/finp2pAsset'
-      oneOf:
-        - $ref: '#/components/schemas/cryptocurrencyAsset'
-        - $ref: '#/components/schemas/fiatAsset'
-        - $ref: '#/components/schemas/finp2pAsset'
+      $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
     payoutInstruction:
       type: object
       required:
@@ -924,58 +863,29 @@ components:
           description: 'withdrawal description'
           pattern: .*\S.*
           x-autoMinLength: true
-    cryptocurrencyAsset:
+
+    account:
       type: object
       required:
-        - type
-        - code
+        - asset
+        - finId
       properties:
-        type:
-          type: "string"
-          enum: ["cryptocurrency"]
-        code:
-          type: "string"
-          description: 'unique identifier symbol of the cryptocurrency'
-          pattern: .*\S.*
-          x-autoMinLength: true
-    fiatAsset:
-      type: object
-      required:
-        - type
-        - code
-      properties:
-        type:
-          type: "string"
-          enum: ["fiat"]
-        code:
-          type: "string"
-          description: 'unique identifier code of the fiat currency - based on ISO-4217'
-          pattern: .*\S.*
-          x-autoMinLength: true
-    finp2pAsset:
-      type: object
-      required:
-        - type
-        - resourceId
-      properties:
-        type:
-          type: "string"
-          enum: ["finp2p"]
-        resourceId:
-          type: "string"
-          description: |
-            Unique resource ID of the FinP2P asset [format]('https://finp2p.atlassian.net/wiki/spaces/FINP2P/pages/67764240/FinP2P+Network+Interface+Specification#ResourceID-format')
-          pattern: .*\S.*
-          x-autoMinLength: true
-    customAsset:
-      type: object
-      required:
-        - type
-      properties:
-        type:
-          type: "string"
-          enum: ["custom"]
-    source:
+        asset:
+          $ref: '#/components/schemas/asset'
+        finId:
+          $ref: "common-external-components.yaml#/components/schemas/finId"
+        ledgerAccount:
+          oneOf:
+            - $ref: '#/components/schemas/walletLedgerAccount'
+          discriminator:
+            propertyName: type
+            mapping:
+              walletAccount: '#/components/schemas/walletLedgerAccount'
+
+    walletLedgerAccount:
+      $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
+
+    depositPayoutAccount:
       type: object
       required:
         - finId
@@ -985,32 +895,12 @@ components:
           $ref: "common-external-components.yaml#/components/schemas/finId"
         account:
           oneOf:
-            - $ref: '#/components/schemas/finIdAccount'
+            - $ref: '#/components/schemas/finIdAccountBase'
           discriminator:
             propertyName: type
             mapping:
-              finId: '#/components/schemas/finIdAccount'
-    destination:
-      description: 'describes destination for remote operations operations'
-      type: object
-      required:
-        - finId
-        - account
-      properties:
-        finId:
-          $ref: "common-external-components.yaml#/components/schemas/finId"
-        account:
-          oneOf:
-            - $ref: '#/components/schemas/finIdAccount'
-            - $ref: '#/components/schemas/cryptoWalletAccount'
-            - $ref: '#/components/schemas/fiatAccount'
-          discriminator:
-            propertyName: type
-            mapping:
-              finId: '#/components/schemas/finIdAccount'
-              cryptoWallet: '#/components/schemas/cryptoWalletAccount'
-              fiatAccount: '#/components/schemas/fiatAccount'
-    finIdAccount:
+              finId: '#/components/schemas/finIdAccountBase'
+    finIdAccountBase:
       type: object
       required:
         - finId
@@ -1021,34 +911,6 @@ components:
           enum: ["finId"]
         finId:
           $ref: "common-external-components.yaml#/components/schemas/finId"
-    cryptoWalletAccount:
-      type: object
-      required:
-        - type
-        - address
-      properties:
-        type:
-          type: string
-          enum: ["cryptoWallet"]
-        address:
-          type: "string"
-          description: 'address of the cryptocurrency wallet'
-          pattern: .*\S.*
-          x-autoMinLength: true
-    fiatAccount:
-      type: object
-      required:
-        - type
-        - code
-      properties:
-        type:
-          type: string
-          enum: ["fiatAccount"]
-        code:
-          type: "string"
-          description: 'IBAN or other code to represent a fiat account'
-          pattern: .*\S.*
-          x-autoMinLength: true
     balance:
       type: object
       required:
@@ -1386,7 +1248,6 @@ components:
       type: object
       required:
         - id
-        - asset
         - quantity
         - timestamp
         - tradeDetails
@@ -1396,8 +1257,6 @@ components:
           description: the receipt id
           pattern: .*\S.*
           x-autoMinLength: true
-        asset:
-          $ref: '#/components/schemas/asset'
         quantity:
           type: string
           description: 'How many units of the asset tokens'
@@ -1408,40 +1267,17 @@ components:
           format: int64
           description: transaction timestamp
         source:
-          $ref: '#/components/schemas/source'
+          $ref: '#/components/schemas/account'
         destination:
-          $ref: '#/components/schemas/destination'
+          $ref: '#/components/schemas/account'
         transactionDetails:
           $ref: '#/components/schemas/transactionDetails'
         operationType:
           $ref: '#/components/schemas/operationType'
         tradeDetails:
-          $ref: '#/components/schemas/receiptTradeDetails'
+          $ref: 'common-external-components.yaml#/components/schemas/receiptTradeDetails'
         proof:
           $ref: '#/components/schemas/proofPolicy'
-    receiptTradeDetails:
-      type: object
-      properties:
-        intentId:
-          type: string
-          pattern: .*\S.*
-          x-autoMinLength: true
-        intentVersion:
-          type: string
-          pattern: .*\S.*
-          x-autoMinLength: true
-        executionContext:
-          $ref: '#/components/schemas/receiptExecutionContext'
-    receiptExecutionContext:
-      type: object
-      required: [executionPlanId, instructionSequenceNumber]
-      properties:
-        executionPlanId:
-          type: string
-          pattern: .*\S.*
-          x-autoMinLength: true
-        instructionSequenceNumber:
-          type: integer
     proofPolicy:
       description: additional proof information attached to a receipt
       type: object
@@ -1491,10 +1327,10 @@ components:
       enum: ['issue', 'transfer', 'hold', 'release', 'redeem']
     ledgerAssetInfo:
       type: object
-      required: [ledgerTokenId]
+      required: [ledgerIdentifier]
       properties:
-        ledgerTokenId:
-          $ref: '#/components/schemas/ledgerTokenId'
+        ledgerIdentifier:
+           $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
         ledgerReference:
           oneOf:
             - $ref: '#/components/schemas/contractDetails'
@@ -1504,15 +1340,12 @@ components:
               contractDetails: '#/components/schemas/contractDetails'
     contractDetails:
       type: object
-      required: [network, address, type]
+      required: [address, type]
       properties:
         type:
           type: string
           description: 'the type of the identifier'
           enum: ["contractDetails"]
-        network:
-          type: string
-          description: 'the network'
           pattern: .*\S.*
           x-autoMinLength: true
         address:
@@ -1540,26 +1373,7 @@ components:
           type: boolean
           description: 'Indicates if allowance is required'
     ledgerAssetBinding:
-      type: object
-      oneOf:
-        - $ref: '#/components/schemas/ledgerTokenId'
-      discriminator:
-        propertyName: type
-        mapping:
-          tokenId: '#/components/schemas/ledgerTokenId'
-    ledgerTokenId:
-      type: object
-      required: [tokenId, type]
-      properties:
-        type:
-          type: string
-          description: 'the type of the identifier'
-          enum: ["tokenId"]
-        tokenId:
-          type: string
-          description: 'the token id binding'
-          pattern: .*\S.*
-          x-autoMinLength: true
+      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
     AssetBalanceInfoRequest:
       type: object
       required:
@@ -1573,12 +1387,7 @@ components:
         marker:
           $ref: '#/components/schemas/balanceMarker'
     assetBalanceAccount:
-      oneOf:
-        - $ref: '#/components/schemas/finIdAccount'
-      discriminator:
-        propertyName: type
-        mapping:
-          finId: '#/components/schemas/finIdAccount'
+      $ref: '#/components/schemas/finIdAccountBase'
     balanceMarker:
       description: marker of balance to denote the balance as of marker
       discriminator:

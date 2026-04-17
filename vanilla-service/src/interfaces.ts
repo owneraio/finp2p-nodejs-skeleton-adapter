@@ -1,5 +1,5 @@
 import {
-  Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetIdentifier, AssetType,
+  Asset, AssetBind, AssetCreationResult, AssetDenomination, AssetType,
   Destination, ExecutionContext, Source,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
@@ -19,13 +19,12 @@ export type DelegateResult =
 export interface AssetDelegate {
   createAsset(
     idempotencyKey: string,
-    asset: Asset,
+    assetId: string,
     assetBind: AssetBind | undefined,
     assetMetadata: any | undefined,
     assetName: string | undefined,
     issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined,
-    assetIdentifier: AssetIdentifier | undefined,
   ): Promise<AssetCreationResult>;
 }
 

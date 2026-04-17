@@ -15,14 +15,13 @@ import { errorHandler } from './errors';
 import {
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
-  assetIdentifierOptFromAPI,
   balanceToAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
   depositOperationToAPI,
   destinationFromAPI,
   destinationOptFromAPI,
-  executionContextOptFromAPI, finIdAccountFromAPI,
+  executionContextOptFromAPI,
   operationStatusToAPI, planApprovalOperationToAPI, planProposalFromAPI,
   receiptOperationToAPI,
   signatureFromAPI,
@@ -121,17 +120,16 @@ export const register = (app: Application,
     `/${basePath}/assets/create`,
     async (req, res, next) => {
       const idempotencyKey = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { asset, ledgerAssetBinding, metadata, name, issuerId, denomination, assetIdentifier } = req.body;
+      const { asset, ledgerAssetBinding, metadata, name, issuerId, denomination } = req.body;
 
       const result = await tokenService.createAsset(
         idempotencyKey,
-        assetFromAPI(asset),
+        asset.resourceId,
         assetBindingOptFromAPI(ledgerAssetBinding),
         metadata,
         name,
         issuerId,
         assetDenominationOptFromAPI(denomination),
-        assetIdentifierOptFromAPI(assetIdentifier),
       );
       return res.send(createAssetOperationToAPI(result));
     });
@@ -141,7 +139,7 @@ export const register = (app: Application,
   LedgerAPI['schemas']['GetAssetBalanceRequest']>(
     `/${basePath}/assets/getBalance`,
     async (req, res) => {
-      const { asset, owner: { finId } } = req.body;
+      const { owner: { finId, asset } } = req.body;
       const balance = await tokenService.getBalance(assetFromAPI(asset), finId);
       res.send({ asset, balance });
     });
@@ -160,14 +158,12 @@ export const register = (app: Application,
     `/${basePath}/assets/issue`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { asset, quantity, destination, /*signature,*/ executionContext } = req.body;
+      const { quantity, destination, /*signature,*/ executionContext } = req.body;
+      const asset = destination.asset;
       const ast = assetFromAPI(asset);
-      const finIdAcc = finIdAccountFromAPI(destination);
-      const dst: Destination = { finId: finIdAcc.finId, account: finIdAcc };
-      // const sgn = signatureFromAPI(signature); // it's not provided by the router currently
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.issue(ik, ast, finIdAcc, quantity, exCtx);
+      const rsp = await tokenService.issue(ik, ast, destination.finId, quantity, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -178,10 +174,10 @@ export const register = (app: Application,
     `/${basePath}/assets/transfer`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, destination, asset, quantity, signature, executionContext } = req.body;
+      const { nonce, source, destination, quantity, signature, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
@@ -196,14 +192,12 @@ export const register = (app: Application,
     `/${basePath}/assets/redeem`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, asset, quantity, operationId, signature, executionContext } = req.body;
-      const finIdAcc = finIdAccountFromAPI(source);
-      const src: Source = { finId: finIdAcc.finId, account: finIdAcc };
-      const ast = assetFromAPI(asset);
+      const { nonce, source, quantity, operationId, signature, executionContext } = req.body;
+      const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.redeem(ik, nonce, finIdAcc, ast, quantity, operationId, sgn, exCtx);
+      const rsp = await tokenService.redeem(ik, nonce, source.finId, ast, quantity, operationId, sgn, exCtx);
       res.json(receiptOperationToAPI(rsp));
     });
 
@@ -223,10 +217,10 @@ export const register = (app: Application,
     `/${basePath}/assets/hold`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, destination, asset, quantity, operationId, signature, executionContext } = req.body;
+      const { nonce, source, destination, quantity, operationId, signature, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationOptFromAPI(destination);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
@@ -240,10 +234,10 @@ export const register = (app: Application,
     `/${basePath}/assets/release`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { source, destination, asset, quantity, operationId, executionContext } = req.body;
+      const { source, destination, quantity, operationId, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
       const rsp = await escrowService.release(ik, src, dst, ast, quantity, operationId, exCtx);
@@ -257,9 +251,9 @@ export const register = (app: Application,
     `/${basePath}/assets/rollback`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { source, asset, quantity, operationId, executionContext } = req.body;
+      const { source, quantity, operationId, executionContext } = req.body;
       const src = sourceFromAPI(source);
-      const ast = assetFromAPI(asset);
+      const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
       const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx);

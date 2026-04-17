@@ -1,9 +1,9 @@
 import {
-  approvedPlan, Asset, DestinationAccount,
+  approvedPlan,
   ExecutionPlan,
-  FinIdAccount, InstructionResult, PlanFailureReason,
+  InstructionResult, PlanFailureReason,
   PlanApprovalService, PlanProposal, InboundTransferHook,
-  PlanApprovalStatus, rejectedPlan,
+  PlanApprovalStatus, rejectedPlan, TransferInstruction,
 } from '../../models';
 import { FinP2PClient, OpComponents } from '@owneraio/finp2p-client';
 
@@ -97,24 +97,25 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       }
 
       const { operation } = instruction;
-      if (operation.type === 'transfer' &&
-          !instruction.organizations.includes(this.orgId)) {
-
-        const event = execution.instructionsCompletionEvents
-          ?.find(e => e.instructionSequenceNumber === instructionSequence);
-        const result = mapInstructionResult(event);
-        if (result) {
-          await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
-            planId,
-            instructionSequence,
-            source: operation.source,
-            asset: operation.asset,
-            destination: operation.destination,
-            amount: operation.amount,
-            result,
-          });
-        } else {
-          logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
+      if (operation.type === 'transfer') {
+        const transfer = instruction.operation as TransferInstruction;
+        if (transfer.destination.orgId === this.orgId) {
+          const event = execution.instructionsCompletionEvents
+            ?.find(e => e.instructionSequenceNumber === instructionSequence);
+          const result = mapInstructionResult(event);
+          if (result) {
+            await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
+              planId,
+              instructionSequence,
+              sourceFinId: operation.source.finId,
+              asset: operation.asset,
+              destinationFinId: operation.destination.finId,
+              amount: operation.amount,
+              result,
+            });
+          } else {
+            logger.warning(`No completion event for instruction ${instructionSequence} in plan ${planId}, skipping hook`);
+          }
         }
       }
     }
@@ -175,55 +176,40 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
         switch (operation.type) {
           case 'issue': {
             const { asset, destination, amount } = operation;
-            if (!destination) {
-              return rejectedPlan(1, 'No destination in primary sale');
-            }
-            if (destination.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId destination is supported in primary sale');
-            }
             if (plugin) {
-              return await plugin.validateIssuance(destination, asset, amount);
+              return await plugin.validateIssuance(destination.finId, asset, amount);
             }
             break;
           }
 
           case 'transfer': {
             const { asset, source, destination, amount } = operation;
-            if (source.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId source is supported in transfer operation');
-            }
             if (this.inboundTransferHook) {
               await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
-                planId, source, asset, destination, amount,
+                planId, sourceFinId: source.finId, asset, destinationFinId: destination.finId, amount,
               });
             }
             if (plugin) {
-              return await plugin.validateTransfer(source, destination, asset, amount);
+              return await plugin.validateTransfer(source.finId, destination.finId, asset, amount);
             }
             break;
           }
 
           case 'hold': {
             const { asset, source, destination, amount } = operation;
-            if (source.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId source is supported in hold operation');
-            }
             if (!destination) {
               return rejectedPlan(1, 'No destination in hold operation');
             }
             if (plugin) {
-              return await plugin.validateTransfer(source, destination, asset, amount);
+              return await plugin.validateTransfer(source.finId, destination.finId, asset, amount);
             }
             break;
           }
 
           case 'redeem': {
             const { asset, source, destination, amount } = operation;
-            if (source.type !== 'finId') {
-              return rejectedPlan(1, 'Only finId source is supported in redemption');
-            }
             if (plugin) {
-              return await plugin.validateRedemption(source, destination, asset, amount);
+              return await plugin.validateRedemption(source.finId, destination?.finId, asset, undefined, amount);
             }
             break;
           }

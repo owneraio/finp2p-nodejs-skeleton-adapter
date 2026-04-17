@@ -1,24 +1,45 @@
 import {
+  Asset,
   AssetCreationStatus,
+  Destination,
   DepositOperation,
   OperationStatus,
   PlanApprovalStatus,
+  Receipt,
   ReceiptOperation,
+  Source,
 } from '../models';
 import { OpComponents } from '@owneraio/finp2p-client';
-import { depositInstructionToAPI, receiptToAPI } from '../routes';
+import { contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
+
+const receiptToFinAPI = (receipt: Receipt): OpComponents['schemas']['receipt'] => {
+  const { id, asset, source, destination, quantity, operationType, tradeDetails, transactionDetails, proof, timestamp } = receipt;
+  const apiAsset: OpComponents['schemas']['asset'] = { resourceId: asset.assetId, ledgerIdentifier: asset.ledgerIdentifier };
+  return {
+    id,
+    quantity,
+    timestamp,
+    source: source ? { finId: source.finId, asset: apiAsset } : undefined,
+    destination: destination ? { finId: destination.finId, asset: apiAsset } : undefined,
+    operationType: operationType as OpComponents['schemas']['operationType'],
+    tradeDetails: tradeDetailsToAPI(tradeDetails),
+    transactionDetails: transactionDetails ? transactionDetailsToAPI(transactionDetails) : undefined,
+    proof: proofPolicyOptToAPI(proof) as OpComponents['schemas']['schemas-proofPolicy'] | undefined,
+  };
+};
 
 
 export const createAssetOperationToFinAPI = (operationStatus: AssetCreationStatus): OpComponents['schemas']['operationStatusCreateAsset'] => {
   switch (operationStatus.type) {
     case 'success':
-      const { result: { tokenId, reference } } = operationStatus;
+      const { result: { ledgerIdentifier, reference } } = operationStatus;
       let ledgerReference: OpComponents['schemas']['contractDetails'] | undefined;
       if (reference) {
-        const { network, address, tokenStandard: TokenStandard, additionalContractDetails } = reference;
+        const { address, tokenStandard: TokenStandard, additionalContractDetails } = reference;
         ledgerReference = {
           type: 'contractDetails',
-          network, address, TokenStandard, additionalContractDetails,
+          address, TokenStandard,
+          additionalContractDetails: contractDetailsOptToAPI(additionalContractDetails) as OpComponents['schemas']['finP2PEVMOperatorDetails'] | undefined,
         };
       }
       return {
@@ -28,9 +49,11 @@ export const createAssetOperationToFinAPI = (operationStatus: AssetCreationStatu
           isCompleted: true,
           response: {
             ledgerAssetInfo: {
-              ledgerTokenId: {
-                type: 'tokenId',
-                tokenId,
+              ledgerIdentifier: {
+                assetIdentifierType: 'CAIP-19',
+                network: ledgerIdentifier.network,
+                tokenId: ledgerIdentifier.tokenId,
+                standard: ledgerIdentifier.standard,
               },
               ledgerReference,
             },
@@ -125,7 +148,7 @@ export const receiptOperationToFinAPI = (operationStatus: ReceiptOperation): OpC
         operation: {
           cid: '',
           isCompleted: true,
-          response: receiptToAPI(receipt) as OpComponents['schemas']['operationStatusReceipt']['operation']['response'],
+          response: receiptToFinAPI(receipt),
         },
       };
     case 'failure':

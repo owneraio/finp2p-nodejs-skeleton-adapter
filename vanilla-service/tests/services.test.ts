@@ -1,7 +1,6 @@
 import { Pool } from 'pg';
 import {
   Asset, Destination, ReceiptOperation, Signature, Source,
-  finIdDestination,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { DelegateResult, EscrowDelegate, TransferDelegate } from '../src/interfaces';
 import { LedgerStorage } from '../src/storage';
@@ -38,10 +37,10 @@ describe('vanilla services', () => {
     },
   };
 
-  const asset: Asset = { assetId: 'bond-1', assetType: 'finp2p' };
-  const aliceSource: Source = { finId: 'alice', account: { type: 'finId', finId: 'alice' } };
-  const bobDest = finIdDestination('bob');
-  const cryptoDest: Destination = { finId: 'ext-wallet', account: { type: 'crypto', address: '0xABC' } };
+  const asset: Asset = { assetId: 'bond-1', assetType: 'finp2p', ledgerIdentifier: { assetIdentifierType: 'CAIP-19', network: 'test', tokenId: 'bond-1', standard: 'mock' } };
+  const aliceSource: Source = { finId: 'alice' };
+  const bobDest: Destination = { finId: 'bob' };
+  const cryptoDest: Destination = { finId: 'ext-wallet', account: { type: 'walletAccount', address: '0xABC' } };
 
   let ikCounter = 0;
   const nextIk = () => `ik-svc-${Date.now()}-${++ikCounter}`;

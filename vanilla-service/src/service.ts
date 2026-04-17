@@ -1,11 +1,11 @@
 import {
-  Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetIdentifier, AssetType,
+  Asset, AssetBind, AssetCreationStatus, AssetDenomination, AssetType,
   Balance, BusinessError, CommonService, Destination,
-  EscrowService, ExecutionContext, FinIdAccount,
+  EscrowService, ExecutionContext,
   HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, AccountMappingService, OperationStatus, OperationType,
   AccountMapping, ReceiptOperation, Signature, Source,
   TokenService, ValidationError,
-  failedReceiptOperation, finIdDestination, successfulAssetCreation, successfulReceiptOperation,
+  failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
@@ -27,40 +27,43 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   // ─── TokenService ─────────────────────────────────────────────────────
 
   async createAsset(
-    idempotencyKey: string, asset: Asset,
+    idempotencyKey: string, assetId: string,
     assetBind: AssetBind | undefined, assetMetadata: any | undefined,
     assetName: string | undefined, issuerId: string | undefined,
-    assetDenomination: AssetDenomination | undefined, assetIdentifier: AssetIdentifier | undefined,
+    assetDenomination: AssetDenomination | undefined,
   ): Promise<AssetCreationStatus> {
-    getLogger().info(`Creating asset ${asset.assetId}`, { idempotencyKey });
+    getLogger().info(`Creating asset ${assetId}`, { idempotencyKey });
 
     if (this.assetDelegate) {
       const result = await this.assetDelegate.createAsset(
-        idempotencyKey, asset, assetBind, assetMetadata,
-        assetName, issuerId, assetDenomination, assetIdentifier,
+        idempotencyKey, assetId, assetBind, assetMetadata,
+        assetName, issuerId, assetDenomination,
       );
       return successfulAssetCreation(result);
     }
 
-    const tokenId = assetBind?.tokenIdentifier?.tokenId ?? generateCid();
-    return successfulAssetCreation({ tokenId, reference: undefined });
+    const ledgerIdentifier = assetBind?.tokenIdentifier
+      ? { assetIdentifierType: 'CAIP-19' as const, tokenId: assetBind.tokenIdentifier.tokenId, network: assetBind.tokenIdentifier.network, standard: assetBind.tokenIdentifier.standard }
+      : { assetIdentifierType: 'CAIP-19' as const, tokenId: generateCid(), network: 'db', standard: 'vanilla' };
+    return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
   }
 
   async issue(
-    idempotencyKey: string, asset: Asset, to: FinIdAccount,
+    idempotencyKey: string, asset: Asset, destinationFinId: string,
     quantity: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    getLogger().info(`Issuing ${quantity} of ${asset.assetId} to ${to.finId}`);
+    getLogger().info(`Issuing ${quantity} of ${asset.assetId} to ${destinationFinId}`);
 
-    await this.storage.ensureAccount(to.finId, asset.assetId, asset.assetType);
-    const tx = await this.storage.credit(to.finId, quantity, asset.assetId, {
+    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
+    const tx = await this.storage.credit(destinationFinId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,
       operation_type: 'issue',
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
+    const destination: Destination = { finId: destinationFinId };
     const receipt = buildReceipt(
-      tx, asset, undefined, finIdDestination(to.finId), quantity, 'issue', exCtx, undefined,
+      tx, asset, undefined, destination, quantity, 'issue', exCtx, undefined,
     );
     return successfulReceiptOperation(receipt);
   }
@@ -77,7 +80,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     };
 
-    if (destination.account.type === 'finId') {
+    if (!destination.account) {
       await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
       const tx = await this.storage.move(source.finId, destination.finId, quantity, asset.assetId, details, asset.assetType);
       const receipt = buildReceipt(
@@ -116,11 +119,11 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async redeem(
-    idempotencyKey: string, nonce: string, source: FinIdAccount, asset: Asset,
+    idempotencyKey: string, nonce: string, sourceFinId: string, asset: Asset,
     quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    getLogger().info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
+    getLogger().info(`Redeeming ${quantity} of ${asset.assetId} from ${sourceFinId}`);
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -130,11 +133,11 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     };
 
     const tx = operationId
-      ? await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, details, asset.assetType)
-      : await this.storage.debit(source.finId, quantity, asset.assetId, details, asset.assetType);
+      ? await this.storage.unlockAndDebit(sourceFinId, quantity, asset.assetId, details, asset.assetType)
+      : await this.storage.debit(sourceFinId, quantity, asset.assetId, details, asset.assetType);
 
     const receipt = buildReceipt(
-      tx, asset, { finId: source.finId, account: source }, undefined, quantity, 'redeem', exCtx, operationId,
+      tx, asset, { finId: sourceFinId }, undefined, quantity, 'redeem', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
   }
@@ -260,9 +263,9 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
     return successfulReceiptOperation({
       id: tx.id,
-      asset: { assetId: tx.asset_id, assetType: tx.asset_type as any },
-      source: tx.source ? { finId: tx.source, account: { type: 'finId', finId: tx.source } } : undefined,
-      destination: tx.destination ? { finId: tx.destination, account: { type: 'finId', finId: tx.destination } } : undefined,
+      asset: { assetId: tx.asset_id, assetType: tx.asset_type as any, ledgerIdentifier: undefined as any },
+      source: tx.source ? { finId: tx.source } : undefined,
+      destination: tx.destination ? { finId: tx.destination } : undefined,
       quantity: tx.amount,
       transactionDetails: {
         transactionId: tx.id,
@@ -405,21 +408,14 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   // ─── InboundTransferHook ─────────────────────────────────────────────
 
   async onPlannedInboundTransfer(_idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void> {
-    const { asset, destination } = ctx;
-    if (destination.type !== 'finId') {
-      return;
-    }
-    await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
+    const { destinationFinId, asset } = ctx;
+    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
   }
 
   async onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void> {
-    const { planId, instructionSequence, source, asset, destination, amount, result } = ctx;
+    const { planId, instructionSequence, sourceFinId, destinationFinId, asset, amount, result } = ctx;
 
     if (result.type === 'error') {
-      return;
-    }
-
-    if (destination.type !== 'finId') {
       return;
     }
 
@@ -427,15 +423,15 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       const exCtx = { planId, sequence: instructionSequence };
       await this.transferDelegate.onInboundTransfer(
         result.transactionId,
-        { finId: (source as FinIdAccount).finId, account: source as FinIdAccount },
+        { finId: sourceFinId },
         asset,
-        { finId: destination.finId, account: destination },
+        { finId: destinationFinId },
         amount, exCtx,
       );
     }
 
-    await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
-    await this.storage.credit(destination.finId, amount, asset.assetId, {
+    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
+    await this.storage.credit(destinationFinId, amount, asset.assetId, {
       idempotency_key: idempotencyKey,
       operation_type: 'transfer',
       execution_context: { planId, sequence: instructionSequence },
