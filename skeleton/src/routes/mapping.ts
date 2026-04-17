@@ -1,5 +1,5 @@
 import {
-  Asset, AssetBase,
+  Asset,
   Source,
   Destination,
   Signature,
@@ -14,10 +14,6 @@ import {
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
-
-export const assetBaseFromAPI = (asset: components['schemas']['finp2pAssetBase']): AssetBase => {
-  return { assetId: asset.resourceId, assetType: 'finp2p' };
-};
 
 export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
   const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
@@ -69,7 +65,7 @@ export const sourceFromAPI = (source: AccountLike): Source => {
   const { finId } = source;
   const result: Source = { finId };
   if ('ledgerAccount' in source && source.ledgerAccount) {
-    result.ledgerAccount = ledgerAccountFromAPI(source.ledgerAccount);
+    result.account = ledgerAccountFromAPI(source.ledgerAccount);
   }
   return result;
 };
@@ -78,7 +74,7 @@ export const destinationFromAPI = (destination: AccountLike): Destination => {
   const { finId } = destination;
   const result: Destination = { finId };
   if ('ledgerAccount' in destination && destination.ledgerAccount) {
-    result.ledgerAccount = ledgerAccountFromAPI(destination.ledgerAccount);
+    result.account = ledgerAccountFromAPI(destination.ledgerAccount);
   }
   return result;
 };
@@ -457,8 +453,8 @@ export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt']
     id,
     quantity,
     timestamp,
-    source: source ? { finId: source.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(source.ledgerAccount) } : undefined,
-    destination: destination ? { finId: destination.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(destination.ledgerAccount) } : undefined,
+    source: source ? { finId: source.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(source.account) } : undefined,
+    destination: destination ? { finId: destination.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(destination.account) } : undefined,
     operationType: operationType as components['schemas']['operationType'],
     tradeDetails: tradeDetailsToAPI(tradeDetails),
     transactionDetails: transactionDetailsToAPI(transactionDetails),

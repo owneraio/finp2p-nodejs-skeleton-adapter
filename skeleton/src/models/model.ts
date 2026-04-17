@@ -2,22 +2,19 @@ import { EIP712Template } from './eip712';
 
 export type AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
 
+export type Asset = {
+  assetId: string
+  assetType: AssetType
+  ledgerIdentifier: LedgerAssetIdentifier
+};
+
+export type LedgerAssetIdentifier = Caip19LedgerAssetIdentifier;
+
 export type Caip19LedgerAssetIdentifier = {
   assetIdentifierType: 'CAIP-19';
   network: string;
   tokenId: string;
   standard: string;
-};
-
-export type LedgerAssetIdentifier = Caip19LedgerAssetIdentifier;
-
-export type AssetBase = {
-  assetId: string
-  assetType: AssetType
-};
-
-export type Asset = AssetBase & {
-  ledgerIdentifier: LedgerAssetIdentifier
 };
 
 // Per API spec, deposit assets are limited to 'finp2p' or 'custom' variants (no ledgerIdentifier)
@@ -28,20 +25,28 @@ export type DepositAsset = {
   assetType: 'custom'
 };
 
+
+export type FinIdAccount = {
+  finId: string;
+  orgId: string;
+  custodianOrgId: string;
+};
+
+export type Source = {
+  finId: string
+  account?: LedgerAccount
+};
+
+export type Destination = {
+  finId: string
+  account?: LedgerAccount
+};
+
 export type LedgerAccount = {
   type: string;
   address: string;
 };
 
-export type Source = {
-  finId: string
-  ledgerAccount?: LedgerAccount
-};
-
-export type Destination = {
-  finId: string
-  ledgerAccount?: LedgerAccount
-};
 
 export type ExecutionContext = {
   planId: string
@@ -102,18 +107,12 @@ export type IntentType =
   | 'requestForTransferIntent';
 
 
-export type LegAccount = {
-  finId: string;
-  orgId: string;
-  custodianOrgId: string;
-  asset: Asset;
-};
 
 export type Leg = {
   asset: Asset;
   amount: string;
-  source?: LegAccount;
-  destination?: LegAccount;
+  source?: FinIdAccount;
+  destination?: FinIdAccount;
 };
 
 export type PlanContract = {
@@ -132,32 +131,33 @@ export type PlanInvestor = {
 
 export type HoldInstruction = {
   type: 'hold';
-  source: LegAccount;
-  destination?: LegAccount;
+  asset: Asset;
+  source: FinIdAccount;
+  destination?: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type ReleaseInstruction = {
   type: 'release';
-  source: LegAccount;
-  destination: LegAccount;
+  asset: Asset;
+  source: FinIdAccount;
+  destination: FinIdAccount;
   amount: string;
 };
 
 export type IssueInstruction = {
   type: 'issue';
-  destination: LegAccount;
+  asset: Asset;
+  destination: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type TransferInstruction = {
   type: 'transfer';
-  source: LegAccount;
-  destination: LegAccount;
+  asset: Asset;
+  source: FinIdAccount;
+  destination: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type AwaitInstruction = {
@@ -167,16 +167,16 @@ export type AwaitInstruction = {
 
 export type RevertHoldInstruction = {
   type: 'revertHoldInstruction';
-  source?: LegAccount;
-  destination: LegAccount;
+  source?: FinIdAccount;
+  destination: FinIdAccount;
 };
 
 export type RedemptionInstruction = {
   type: 'redeem';
-  source: LegAccount;
-  destination?: LegAccount;
+  asset: Asset;
+  source: FinIdAccount;
+  destination?: FinIdAccount;
   amount: string;
-  // signature: Signature;
 };
 
 export type ExecutionPlanOperation = HoldInstruction | ReleaseInstruction | IssueInstruction | TransferInstruction | AwaitInstruction | RevertHoldInstruction | RedemptionInstruction;

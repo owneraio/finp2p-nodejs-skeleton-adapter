@@ -74,22 +74,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return successfulReceiptOperation(receipt);
   }
 
-  public async doesSupportCrosschainTransfer(sourceAsset: Asset, destinationAsset: Asset): Promise<boolean> {
-    return false;
-  }
-
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
-    sourceAsset: Asset, destinationAsset: Asset,
+    asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
-    logger.info(`Transferring ${quantity} of ${sourceAsset.assetId} from ${source.finId} to ${destination.finId}`);
-    // const signer = source.finId;
-    // if (!await verifySignature(signature, signer)) {
-    //   return failedReceiptOperation(1, 'Signature verification failed');
-    // }
+    logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
 
-    this.storage.move(source.finId, destination.finId, quantity, sourceAsset.assetId);
-    const tx = new Transaction(quantity, sourceAsset, source, destination, exCtx, 'transfer', undefined);
+    this.storage.move(source.finId, destination.finId, quantity, asset.assetId);
+    const tx = new Transaction(quantity, asset, source, destination, exCtx, 'transfer', undefined);
     this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();
     if (this.proofProvider) {

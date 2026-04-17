@@ -108,7 +108,7 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
               planId,
               instructionSequence,
               sourceFinId: operation.source.finId,
-              asset: operation.source.asset,
+              asset: operation.asset,
               destinationFinId: operation.destination.finId,
               amount: operation.amount,
               result,
@@ -175,42 +175,41 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       try {
         switch (operation.type) {
           case 'issue': {
-            const { destination: { finId, asset }, amount } = operation;
-
+            const { asset, destination, amount } = operation;
             if (plugin) {
-              return await plugin.validateIssuance(finId, asset, amount);
+              return await plugin.validateIssuance(destination.finId, asset, amount);
             }
             break;
           }
 
           case 'transfer': {
-            const { source: { finId: sourceFinId, asset }, destination: { finId: destinationFinId }, amount } = operation;
+            const { asset, source, destination, amount } = operation;
             if (this.inboundTransferHook) {
               await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
-                planId, sourceFinId, asset, destinationFinId, amount,
+                planId, sourceFinId: source.finId, asset, destinationFinId: destination.finId, amount,
               });
             }
             if (plugin) {
-              return await plugin.validateTransfer(sourceFinId, destinationFinId, asset, amount);
+              return await plugin.validateTransfer(source.finId, destination.finId, asset, amount);
             }
             break;
           }
 
           case 'hold': {
-            const { source, destination, amount } = operation;
+            const { asset, source, destination, amount } = operation;
             if (!destination) {
               return rejectedPlan(1, 'No destination in hold operation');
             }
             if (plugin) {
-              return await plugin.validateTransfer(source.finId, destination.finId, source.asset, amount);
+              return await plugin.validateTransfer(source.finId, destination.finId, asset, amount);
             }
             break;
           }
 
           case 'redeem': {
-            const { source, destination, amount } = operation;
+            const { asset, source, destination, amount } = operation;
             if (plugin) {
-              return await plugin.validateRedemption(source.finId, destination?.finId, source.asset, destination?.asset, amount);
+              return await plugin.validateRedemption(source.finId, destination?.finId, asset, undefined, amount);
             }
             break;
           }
