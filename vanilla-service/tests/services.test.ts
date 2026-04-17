@@ -1,7 +1,6 @@
 import { Pool } from 'pg';
 import {
   Asset, Destination, ReceiptOperation, Signature, Source,
-  finIdDestination,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { DelegateResult, EscrowDelegate, TransferDelegate } from '../src/interfaces';
 import { LedgerStorage } from '../src/storage';
@@ -28,20 +27,20 @@ describe('vanilla services', () => {
   let storage: LedgerStorage;
   let service: VanillaServiceImpl;
 
-  let payoutCalls: Array<{ idempotencyKey: string; source: Source; destination: Destination; sourceAsset: Asset; destinationAsset: Asset; quantity: string }>;
+  let payoutCalls: Array<{ idempotencyKey: string; source: Source; destination: Destination; asset: Asset; quantity: string }>;
   let payoutResult: DelegateResult;
 
   const mockDelegate: TransferDelegate = {
-    async outboundTransfer(idempotencyKey, source, destination, sourceAsset, destinationAsset, quantity, _exCtx) {
-      payoutCalls.push({ idempotencyKey, source, destination, sourceAsset, destinationAsset, quantity });
+    async outboundTransfer(idempotencyKey, source, destination, asset, quantity, _exCtx) {
+      payoutCalls.push({ idempotencyKey, source, destination, asset, quantity });
       return payoutResult;
     },
   };
 
-  const asset: Asset = { assetId: 'bond-1', assetType: 'finp2p' };
-  const aliceSource: Source = { finId: 'alice', account: { type: 'finId', finId: 'alice' } };
-  const bobDest = finIdDestination('bob');
-  const cryptoDest: Destination = { finId: 'ext-wallet', account: { type: 'crypto', address: '0xABC' } };
+  const asset: Asset = { assetId: 'bond-1', assetType: 'finp2p', ledgerIdentifier: { assetIdentifierType: 'CAIP-19', network: 'test', tokenId: 'bond-1', standard: 'mock' } };
+  const aliceSource: Source = { finId: 'alice' };
+  const bobDest: Destination = { finId: 'bob' };
+  const cryptoDest: Destination = { finId: 'ext-wallet', account: { type: 'walletAccount', address: '0xABC' } };
 
   let ikCounter = 0;
   const nextIk = () => `ik-svc-${Date.now()}-${++ikCounter}`;
@@ -75,7 +74,7 @@ describe('vanilla services', () => {
 
     test('successful payout: locks, calls delegate, unlocks and debits', async () => {
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '200', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '200', dummySig, undefined,
       );
 
       const success = expectSuccess(result);
@@ -93,7 +92,7 @@ describe('vanilla services', () => {
       payoutResult = { success: true, transactionId: 'chain-tx-42' };
 
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '100', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '100', dummySig, undefined,
       );
 
       const success = expectSuccess(result);
@@ -104,7 +103,7 @@ describe('vanilla services', () => {
       payoutResult = { success: false, error: 'chain reverted' };
 
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '300', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '300', dummySig, undefined,
       );
 
       const failure = expectFailure(result);
@@ -121,7 +120,7 @@ describe('vanilla services', () => {
       payoutResult = { success: false, error: 'insufficient gas' };
 
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, cryptoDest, asset, asset, '50', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, cryptoDest, asset, '50', dummySig, undefined,
       );
 
       const failure = expectFailure(result);
@@ -140,7 +139,7 @@ describe('vanilla services', () => {
 
     test('moves funds locally, does not call payout delegate', async () => {
       const result = await service.transfer(
-        nextIk(), 'nonce', aliceSource, bobDest, asset, asset, '100', dummySig, undefined,
+        nextIk(), 'nonce', aliceSource, bobDest, asset, '100', dummySig, undefined,
       );
 
       expectSuccess(result);
