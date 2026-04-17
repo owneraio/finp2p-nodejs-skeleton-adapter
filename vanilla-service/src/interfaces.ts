@@ -19,7 +19,7 @@ export type DelegateResult =
 export interface AssetDelegate {
   createAsset(
     idempotencyKey: string,
-    asset: Asset,
+    assetId: string,
     assetBind: AssetBind | undefined,
     assetMetadata: any | undefined,
     assetName: string | undefined,
@@ -53,8 +53,7 @@ export interface TransferDelegate {
     idempotencyKey: string,
     source: Source,
     destination: Destination,
-    sourceAsset: Asset,
-    destinationAsset: Asset,
+    asset: Asset,
     quantity: string,
     exCtx: ExecutionContext | undefined,
   ): Promise<DelegateResult>;

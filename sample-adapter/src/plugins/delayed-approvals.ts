@@ -6,8 +6,6 @@ import {
   IntentType,
   approvedPlan,
   Asset,
-  DestinationAccount,
-  FinIdAccount,
   Logger,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
@@ -25,20 +23,20 @@ export class DelayedApprovals implements PlanApprovalPlugin {
     this.logger = logger;
   }
 
-  async validateIssuance(destination: FinIdAccount, asset: Asset, amount: string): Promise<PlanApprovalStatus> {
-    this.logger.debug(`Approving issuance of ${amount} ${asset.assetId} to ${destination.finId}`);
+  async validateIssuance(destinationFinId: string, asset: Asset, amount: string): Promise<PlanApprovalStatus> {
+    this.logger.debug(`Approving issuance of ${amount} ${asset.assetId} to ${destinationFinId}`);
     await sleep(defaultDelay);
     return approvedPlan();
   }
 
-  async validateRedemption(source: FinIdAccount, destination: DestinationAccount | undefined, sourceAsset: Asset, destinationAsset: Asset | undefined, amount: string): Promise<PlanApprovalStatus> {
-    this.logger.debug(`Approving redemption of ${amount} ${sourceAsset.assetId} from ${source.finId}`);
+  async validateRedemption(sourceFinId: string, destinationFinId: string | undefined, sourceAsset: Asset, destinationAsset: Asset | undefined, amount: string): Promise<PlanApprovalStatus> {
+    this.logger.debug(`Approving redemption of ${amount} ${sourceAsset.assetId} from ${sourceFinId}`);
     await sleep(defaultDelay);
     return approvedPlan();
   }
 
-  async validateTransfer(source: FinIdAccount, destination: DestinationAccount, sourceAsset: Asset, destinationAsset: Asset, amount: string): Promise<PlanApprovalStatus> {
-    this.logger.debug(`Approving transfer of ${amount} ${sourceAsset.assetId} from ${source.finId}`);
+  async validateTransfer(sourceFinId: string, destinationFinId: string, asset: Asset, amount: string): Promise<PlanApprovalStatus> {
+    this.logger.debug(`Approving transfer of ${amount} ${asset.assetId} from ${sourceFinId}`);
     await sleep(defaultDelay);
     return approvedPlan();
   }
