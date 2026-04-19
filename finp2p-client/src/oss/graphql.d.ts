@@ -143,6 +143,43 @@ export type AssetIssuedTokensArgs = {
   filter?: InputMaybe<Array<Filter>>;
 };
 
+/** Identifier type for asset data */
+export enum AssetDataIdentifierType {
+  Caip19 = 'CAIP19',
+  Isin = 'ISIN',
+}
+
+/** Represents financial data for an asset from a data provider */
+export type AssetDataItem = {
+  __typename?: 'AssetDataItem';
+  /** When the record was created */
+  createdAt: Scalars['Int']['output'];
+  /** The actual data as JSON string */
+  data: Scalars['String']['output'];
+  /** Type of financial data */
+  dataType: DataType;
+  id: Scalars['String']['output'];
+  /** Type of identifier used (ISIN or CAIP19) */
+  identifierType: AssetDataIdentifierType;
+  /** The identifier value (e.g., US0378331005 for ISIN) */
+  identifierValue: Scalars['String']['output'];
+  /** Provider timestamp (epoch ms) */
+  providerTimestamp?: Maybe<Scalars['Int']['output']>;
+  /** Data provider source identifier */
+  source?: Maybe<Scalars['String']['output']>;
+  /** When the record was last updated */
+  updatedAt: Scalars['Int']['output'];
+};
+
+/** Results for asset data query. */
+export type AssetDatas = {
+  __typename?: 'AssetDatas';
+  /** Collection of AssetDataItem Objects, conforms to the Filter input if provided. */
+  nodes?: Maybe<Array<AssetDataItem>>;
+  /** Keeps pagination info in-case limit input was provided */
+  pageInfo?: Maybe<PageInfo>;
+};
+
 /** Asset details - now always FinP2P */
 export type AssetDetails = FinP2PAsset;
 
@@ -184,6 +221,23 @@ export type AssetOrderTerm = {
 export type AssetPolicies = {
   __typename?: 'AssetPolicies';
   proof: ProofPolicy;
+};
+
+/** Refresh configuration for an asset's data from a provider */
+export type AssetRefreshConfigItem = {
+  __typename?: 'AssetRefreshConfigItem';
+  createdAt: Scalars['Int']['output'];
+  dataType: Scalars['String']['output'];
+  enabled: Scalars['Boolean']['output'];
+  id: Scalars['String']['output'];
+  identifierType: AssetDataIdentifierType;
+  identifierValue: Scalars['String']['output'];
+  lastRefreshAt?: Maybe<Scalars['Int']['output']>;
+  nextRefreshAt?: Maybe<Scalars['Int']['output']>;
+  /** UUID of the data provider */
+  providerId?: Maybe<Scalars['String']['output']>;
+  refreshInterval: Scalars['String']['output'];
+  updatedAt: Scalars['Int']['output'];
 };
 
 export type AssetTerm = {
@@ -368,6 +422,77 @@ export type DataAccess = {
 export enum DataAccessType {
   Balance = 'Balance',
   Unknown = 'Unknown',
+}
+
+/** Represents a data provider binding configuration */
+export type DataProviderBinding = {
+  __typename?: 'DataProviderBinding';
+  backoff: Scalars['String']['output'];
+  createdAt: Scalars['Int']['output'];
+  /** JSON string of per-data-type fetch configuration */
+  dataTypeConfig?: Maybe<Scalars['String']['output']>;
+  /** JSON array of data type strings this provider serves */
+  dataTypes?: Maybe<Array<Scalars['String']['output']>>;
+  displayName?: Maybe<Scalars['String']['output']>;
+  endpoint: Scalars['String']['output'];
+  /** Unique identifier (UUID) for the data provider */
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  /** Type of data provider: adapter (external HTTP) or finp2p (internal P2P) */
+  providerType: Scalars['String']['output'];
+  requestTimeout: Scalars['String']['output'];
+  updatedAt: Scalars['Int']['output'];
+};
+
+/** Results for data provider query. */
+export type DataProviderBindings = {
+  __typename?: 'DataProviderBindings';
+  /** Collection of DataProviderBinding Objects, conforms to the Filter input if provided. */
+  nodes?: Maybe<Array<DataProviderBinding>>;
+  /** Keeps pagination info in-case limit input was provided */
+  pageInfo?: Maybe<PageInfo>;
+};
+
+/** Represents a data rule mapping an asset identifier to a data provider */
+export type DataRuleItem = {
+  __typename?: 'DataRuleItem';
+  /** When the rule was created (epoch seconds) */
+  createdAt: Scalars['Int']['output'];
+  /** The data type this rule covers */
+  dataType: Scalars['String']['output'];
+  /** Whether this rule is active */
+  enabled: Scalars['Boolean']['output'];
+  id: Scalars['String']['output'];
+  /** Type of identifier (e.g., ISIN) */
+  identifierType: Scalars['String']['output'];
+  /** The identifier value (e.g., US0378331005) */
+  identifierValue: Scalars['String']['output'];
+  /** UUID of the data provider */
+  providerId: Scalars['String']['output'];
+  /** Refresh interval for this rule (e.g., 1h, 24h, RT) */
+  refreshInterval?: Maybe<Scalars['String']['output']>;
+  /** When the rule was last updated (epoch seconds) */
+  updatedAt: Scalars['Int']['output'];
+};
+
+/** Results for data rules query. */
+export type DataRules = {
+  __typename?: 'DataRules';
+  /** Collection of DataRuleItem Objects, conforms to the Filter input if provided. */
+  nodes?: Maybe<Array<DataRuleItem>>;
+  /** Keeps pagination info in-case limit input was provided */
+  pageInfo?: Maybe<PageInfo>;
+};
+
+/** Financial data types provided by data providers */
+export enum DataType {
+  AssetHeader = 'assetHeader',
+  CorporateActions = 'corporateActions',
+  Fundamentals = 'fundamentals',
+  MarketData = 'marketData',
+  Pricing = 'pricing',
+  Ratings = 'ratings',
+  ReferenceData = 'referenceData',
 }
 
 export type Delivered = {
@@ -581,6 +706,34 @@ export type FinP2PevmOperatorDetails = {
   __typename?: 'FinP2PEVMOperatorDetails';
   allowanceRequired: Scalars['Boolean']['output'];
   finP2POperatorContractAddress: Scalars['String']['output'];
+};
+
+/** Aggregated view of a financial asset identified by ISIN */
+export type FinancialAsset = {
+  __typename?: 'FinancialAsset';
+  /** CAIP19 identifiers — asset instances on different networks/blockchains (from assetHeader data) */
+  caip19Identifiers: Array<Scalars['String']['output']>;
+  /** Financial data items from data adapters for this ISIN */
+  dataItems: Array<AssetDataItem>;
+  /** ISIN identifier value (e.g., US0378331005) */
+  isin: Scalars['String']['output'];
+  /** FinP2P assets linked by matching ISIN identifier (may be empty) */
+  linkedAssets: Array<Asset>;
+  /** Refresh configurations for this ISIN */
+  refreshConfigs: Array<AssetRefreshConfigItem>;
+};
+
+
+/** Aggregated view of a financial asset identified by ISIN */
+export type FinancialAssetDataItemsArgs = {
+  dataTypes?: InputMaybe<Array<DataType>>;
+};
+
+/** Results for financial asset query. */
+export type FinancialAssets = {
+  __typename?: 'FinancialAssets';
+  nodes?: Maybe<Array<FinancialAsset>>;
+  pageInfo?: Maybe<PageInfo>;
 };
 
 export type FinancialIdentifier = {
@@ -1324,11 +1477,19 @@ export type ProofPolicy = NoProofPolicy | SignatureProofPolicy;
 export type Query = {
   __typename?: 'Query';
   approvalConfigs: ApprovalConfigs;
+  /** Look up Asset Data, Optional provide Filter. */
+  assetDatas: AssetDatas;
   /** Look up Assets, Optional provide Filters or Aggregates. */
   assets: Assets;
   /** Look up Certificates, Optional provide Filter or Aggregate. */
   certificates: Certificates;
   custodyProviders: CustodyProviders;
+  /** Look up Data Provider bindings. */
+  dataProviders: DataProviderBindings;
+  /** Look up Data Rules that map identifiers to data providers. */
+  dataRules: DataRules;
+  /** Look up FinancialAssets aggregated by ISIN from data adapter data. Filter by isin to get a specific asset. */
+  financialAssets: FinancialAssets;
   /** Look up Issuers, Optional provide Filter. */
   issuers: Issuers;
   ledgers: LedgerBindings;
@@ -1353,6 +1514,13 @@ export type QueryApprovalConfigsArgs = {
 
 
 /** The query root of Ownera's GraphQL interface. */
+export type QueryAssetDatasArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
 export type QueryAssetsArgs = {
   aggregate?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
@@ -1371,6 +1539,27 @@ export type QueryCertificatesArgs = {
 
 /** The query root of Ownera's GraphQL interface. */
 export type QueryCustodyProvidersArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryDataProvidersArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryDataRulesArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryFinancialAssetsArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
 };
@@ -1558,6 +1747,8 @@ export type RepaymentTerm = {
   repaymentVolume: Scalars['String']['output'];
 };
 
+export type RequestForTransferAssetInstruction = RequestForTransferRequestInstruction | RequestForTransferSendInstruction;
+
 export type RequestForTransferContractDetails = {
   __typename?: 'RequestForTransferContractDetails';
   asset: AssetOrder;
@@ -1565,21 +1756,33 @@ export type RequestForTransferContractDetails = {
 
 export type RequestForTransferIntent = {
   __typename?: 'RequestForTransferIntent';
-  /** Action type of the intent */
-  actionType: ActionType;
-  /** Asset term specifies the asset information and amount of the intent */
-  assetTerm: AssetTerm;
-  /** resource id of the creditor */
-  creditor?: Maybe<Scalars['String']['output']>;
-  /** resource id of the debitor */
-  debitor?: Maybe<Scalars['String']['output']>;
-  /** Destination account - used when actionType is REQUEST */
-  destination?: Maybe<FinP2PAssetAccount>;
+  asset: RequestForTransferIntentAsset;
+  /** resource id of the receiver */
+  receiver?: Maybe<Scalars['String']['output']>;
+  /** resource id of the sender */
+  sender?: Maybe<Scalars['String']['output']>;
   signaturePolicy: RequestForTransferSignaturePolicy;
-  /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
-  /** Source account - used when actionType is SEND */
-  source?: Maybe<FinP2PAssetAccount>;
+};
+
+export type RequestForTransferIntentAsset = {
+  __typename?: 'RequestForTransferIntentAsset';
+  assetInstruction: RequestForTransferAssetInstruction;
+  assetTerm: AssetTerm;
+};
+
+export type RequestForTransferRequestInstruction = {
+  __typename?: 'RequestForTransferRequestInstruction';
+  /** Action type - always 'request' */
+  action: Scalars['String']['output'];
+  receiverAccount?: Maybe<FinP2PAssetAccount>;
+};
+
+export type RequestForTransferSendInstruction = {
+  __typename?: 'RequestForTransferSendInstruction';
+  /** Action type - always 'send' */
+  action: Scalars['String']['output'];
+  senderAccount?: Maybe<FinP2PAssetAccount>;
 };
 
 export type RequestForTransferSignaturePolicy = ManualIntentSignaturePolicy | PresignedRequestForTransferIntentSignaturePolicy;
@@ -1683,11 +1886,19 @@ export type StatusTransition = {
 
 export type Subscription = {
   __typename?: 'Subscription';
+  assetDataChanged: AssetDataItem;
   planAdded: ExecutionPlan;
   plansChangedBy: ExecutionPlan;
   receiptAdded: Receipt;
   userHoldingAdded: User;
   userHoldingChanged: User;
+};
+
+
+export type SubscriptionAssetDataChangedArgs = {
+  dataTypes?: InputMaybe<Array<DataType>>;
+  identifierType?: InputMaybe<AssetDataIdentifierType>;
+  identifierValue?: InputMaybe<Scalars['String']['input']>;
 };
 
 
