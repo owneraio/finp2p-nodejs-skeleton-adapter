@@ -28,11 +28,11 @@ describe("storage instance methods", () => {
   });
 
   test("inserting and querying assets via asset store", async () => {
-    const asset = { type: "cryptocurrency", id: "usdc" }
-    await expect(assetStore.getAsset(asset)).resolves.toBeUndefined()
+    const assetId = "usdc"
+    await expect(assetStore.getAsset(assetId)).resolves.toBeUndefined()
 
-    const savedAsset = await assetStore.saveAsset({ ...asset, contract_address: "", decimals: 6, token_standard: 'ERC20' })
-    await expect(assetStore.getAsset(asset)).resolves.toEqual(savedAsset)
+    const savedAsset = await assetStore.saveAsset({ id: assetId, contract_address: "", decimals: 6, token_standard: 'ERC20' })
+    await expect(assetStore.getAsset(assetId)).resolves.toEqual(savedAsset)
   })
 
   test("querying special receipt objects via workflow storage", async () => {
