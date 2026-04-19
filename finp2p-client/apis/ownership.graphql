@@ -185,6 +185,146 @@ type CustodyProvider {
     singleRequestTimeout: String!
 }
 
+"Identifier type for asset data"
+enum AssetDataIdentifierType {
+    ISIN
+    CAIP19
+}
+
+"Financial data types provided by data providers"
+enum DataType {
+    assetHeader
+    pricing
+    fundamentals
+    ratings
+    corporateActions
+    marketData
+    referenceData
+}
+
+"Represents financial data for an asset from a data provider"
+type AssetDataItem {
+    id: String!
+    "Type of identifier used (ISIN or CAIP19)"
+    identifierType: AssetDataIdentifierType!
+    "The identifier value (e.g., US0378331005 for ISIN)"
+    identifierValue: String!
+    "Type of financial data"
+    dataType: DataType!
+    "The actual data as JSON string"
+    data: String!
+    "Data provider source identifier"
+    source: String
+    "Provider timestamp (epoch ms)"
+    providerTimestamp: Int
+    "When the record was created"
+    createdAt: Int!
+    "When the record was last updated"
+    updatedAt: Int!
+}
+
+"Results for asset data query."
+type AssetDatas {
+    "Collection of AssetDataItem Objects, conforms to the Filter input if provided."
+    nodes: [AssetDataItem!]
+
+    "Keeps pagination info in-case limit input was provided"
+    pageInfo: PageInfo
+}
+
+"Represents a data provider binding configuration"
+type DataProviderBinding {
+    "Unique identifier (UUID) for the data provider"
+    id: ID!
+    name: String!
+    "Type of data provider: adapter (external HTTP) or finp2p (internal P2P)"
+    providerType: String!
+    endpoint: String!
+    displayName: String
+    requestTimeout: String!
+    backoff: String!
+    "JSON array of data type strings this provider serves"
+    dataTypes: [String!]
+    "JSON string of per-data-type fetch configuration"
+    dataTypeConfig: String
+    createdAt: Int!
+    updatedAt: Int!
+}
+
+"Results for data provider query."
+type DataProviderBindings {
+    "Collection of DataProviderBinding Objects, conforms to the Filter input if provided."
+    nodes: [DataProviderBinding!]
+
+    "Keeps pagination info in-case limit input was provided"
+    pageInfo: PageInfo
+}
+
+"Aggregated view of a financial asset identified by ISIN"
+type FinancialAsset {
+    "ISIN identifier value (e.g., US0378331005)"
+    isin: String!
+    "Financial data items from data adapters for this ISIN"
+    dataItems(dataTypes: [DataType!]): [AssetDataItem!]!
+    "Refresh configurations for this ISIN"
+    refreshConfigs: [AssetRefreshConfigItem!]!
+    "CAIP19 identifiers — asset instances on different networks/blockchains (from assetHeader data)"
+    caip19Identifiers: [String!]!
+    "FinP2P assets linked by matching ISIN identifier (may be empty)"
+    linkedAssets: [Asset!]!
+}
+
+"Results for financial asset query."
+type FinancialAssets {
+    nodes: [FinancialAsset!]
+    pageInfo: PageInfo
+}
+
+"Refresh configuration for an asset's data from a provider"
+type AssetRefreshConfigItem {
+    id: String!
+    identifierType: AssetDataIdentifierType!
+    identifierValue: String!
+    dataType: String!
+    refreshInterval: String!
+    lastRefreshAt: Int
+    nextRefreshAt: Int
+    "UUID of the data provider"
+    providerId: String
+    enabled: Boolean!
+    createdAt: Int!
+    updatedAt: Int!
+}
+
+"Represents a data rule mapping an asset identifier to a data provider"
+type DataRuleItem {
+    id: String!
+    "Type of identifier (e.g., ISIN)"
+    identifierType: String!
+    "The identifier value (e.g., US0378331005)"
+    identifierValue: String!
+    "UUID of the data provider"
+    providerId: String!
+    "The data type this rule covers"
+    dataType: String!
+    "Refresh interval for this rule (e.g., 1h, 24h, RT)"
+    refreshInterval: String
+    "Whether this rule is active"
+    enabled: Boolean!
+    "When the rule was created (epoch seconds)"
+    createdAt: Int!
+    "When the rule was last updated (epoch seconds)"
+    updatedAt: Int!
+}
+
+"Results for data rules query."
+type DataRules {
+    "Collection of DataRuleItem Objects, conforms to the Filter input if provided."
+    nodes: [DataRuleItem!]
+
+    "Keeps pagination info in-case limit input was provided"
+    pageInfo: PageInfo
+}
 
 union LedgerReference = ContractDetails
 
@@ -1130,27 +1270,34 @@ type PrivateOfferIntent{
 }
 
 type RequestForTransferIntent{
-    "resource id of the creditor"
-    creditor: String
+    "resource id of the sender"
+    sender: String
 
-    "resource id of the debitor"
-    debitor: String
+    "resource id of the receiver"
+    receiver: String
 
-    "Asset term specifies the asset information and amount of the intent"
-    assetTerm: AssetTerm!
-
-    "Source account - used when actionType is SEND"
-    source: FinP2PAssetAccount
-
-    "Destination account - used when actionType is REQUEST"
-    destination: FinP2PAssetAccount
-
-    "Signature policy type"
-    signaturePolicyType: SignaturePolicyType!
+    asset: RequestForTransferIntentAsset!
     signaturePolicy: RequestForTransferSignaturePolicy!
+    signaturePolicyType: SignaturePolicyType!
+}
 
-    "Action type of the intent"
-    actionType: ActionType!
+type RequestForTransferIntentAsset {
+    assetTerm: AssetTerm!
+    assetInstruction: RequestForTransferAssetInstruction!
+}
+
+union RequestForTransferAssetInstruction = RequestForTransferSendInstruction | RequestForTransferRequestInstruction
+
+type RequestForTransferSendInstruction {
+    "Action type - always 'send'"
+    action: String!
+    senderAccount: FinP2PAssetAccount
+}
+
+type RequestForTransferRequestInstruction {
+    "Action type - always 'request'"
+    action: String!
+    receiverAccount: FinP2PAssetAccount
 }
 
 type LoanIntent{
@@ -1437,6 +1584,18 @@ type Query {
     approvalConfigs(paginate: PaginateInput = {}): ApprovalConfigs!
 
     pinningConfig: PinningConfigs
+
+    "Look up Asset Data, Optional provide Filter."
+    assetDatas(filter: [Filter!], paginate: PaginateInput = {}): AssetDatas!
+
+    "Look up Data Provider bindings."
+    dataProviders(filter: [Filter!], paginate: PaginateInput = {}): DataProviderBindings!
+
+    "Look up Data Rules that map identifiers to data providers."
+    dataRules(filter: [Filter!], paginate: PaginateInput = {}): DataRules!
+
+    "Look up FinancialAssets aggregated by ISIN from data adapter data. Filter by isin to get a specific asset."
+    financialAssets(filter: [Filter!], paginate: PaginateInput = {}): FinancialAssets!
 }
 
 type PageInfo {
@@ -1459,6 +1618,7 @@ type Subscription {
     plansChangedBy(fieldNames: [PlanField!]!): ExecutionPlan!
     userHoldingAdded: User!
     userHoldingChanged(fieldNames: [HoldingFields!]!): User!
+    assetDataChanged(identifierType: AssetDataIdentifierType, identifierValue: String, dataTypes: [DataType!]): AssetDataItem!
 }
 
 "Fields to subscribe on"
