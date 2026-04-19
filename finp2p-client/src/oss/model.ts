@@ -17,7 +17,7 @@ export type LedgerReference = {
   };
 };
 
-export type AssetIdentifier = {
+export type FinancialIdentifier = {
   type: string
   value: string
 };
@@ -88,7 +88,7 @@ export type OssAsset = {
   },
   issuerId: string,
   config: string,
-  assetIdentifier: AssetIdentifier;
+  financialIdentifier: FinancialIdentifier;
   allowedIntents: string[],
   regulationVerifiers: {
     id: string,
