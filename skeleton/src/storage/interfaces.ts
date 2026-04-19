@@ -5,7 +5,6 @@ export interface Account {
 
 export interface Asset {
   id: string;
-  type: string;
   token_standard: string;
   contract_address: string;
   decimals: number;
@@ -21,6 +20,6 @@ export interface AccountStore {
 }
 
 export interface AssetStore {
-  getAsset(asset: { id: string; type: string }): Promise<Asset | undefined>;
+  getAsset(assetId: string): Promise<Asset | undefined>;
   saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset>;
 }
