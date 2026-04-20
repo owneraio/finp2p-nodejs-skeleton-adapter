@@ -115,21 +115,6 @@ export type OssAssetNodes = {
   assets: { nodes: OssAsset[] }
 };
 
-/**
- * Legacy payment-asset / escrow types.
- *
- * The `escrows` root query (and the `PaymentAsset` schema graph that hung off it)
- * was removed from the OSS schema in router v0.28. The surviving
- * `OssClient.getPaymentAsset` / `getPaymentAssets` methods are kept for
- * API compatibility but now return empty / throw `ItemNotFoundError`.
- * This type is retained only so callers that still reference it continue to compile.
- */
-export type OssPaymentAsset = {
-  code: string
-  type: string
-  policies: AssetPolicies
-};
-
 export type OssOwner = {
   id: string,
   name: string,
