@@ -47,12 +47,6 @@ query GetOwners(
 
 fragment asset on AssetDetails {
     type: __typename
-    ... on Cryptocurrency {
-        symbol
-    }
-    ... on FiatAsset {
-        code
-    }
     ... on FinP2PAsset {
         resourceId
     }

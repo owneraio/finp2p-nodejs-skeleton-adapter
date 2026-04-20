@@ -81,35 +81,40 @@ fragment contractDetailsFields on ExecutionPlanContractDetails {
 
 fragment assetOrderFields on AssetOrder {
     term {
-        asset { ...assetDetailsFields }
         amount
+    }
+    instruction {
+        sourceAccount { ...ledgerAccountAssetFields }
+        destinationAccount { ...ledgerAccountAssetFields }
     }
 }
 
 fragment loanOrderFields on LoanOrder {
     term {
-        asset { ...assetDetailsFields }
         amount
+    }
+    instruction {
+        borrowerAccount { ...ledgerAccountAssetFields }
+        lenderAccount { ...ledgerAccountAssetFields }
     }
 }
 
-fragment assetDetailsFields on AssetDetails {
-    __typename
-    ... on FinP2PAsset { resourceId }
-    ... on FiatAsset { code }
-    ... on Cryptocurrency { symbol }
-}
-
-fragment accountIdFields on AccountIdentifier {
-    __typename
-    ... on FinP2PAssetAccount { finId orgId }
-    ... on CryptoWalletAccount { address }
-    ... on Iban { code }
-}
-
-fragment accountInstructionFields on AccountInstruction {
-    asset { ...assetDetailsFields }
-    identifier { ...accountIdFields }
+fragment ledgerAccountAssetFields on LedgerAccountAsset {
+    finp2pAccount {
+        asset {
+            resourceId
+        }
+        account {
+            finId
+            orgId
+        }
+    }
+    networkAccount {
+        wallet {
+            type
+            address
+        }
+    }
 }
 
 fragment instructionFields on ExecutionPlanInstruction {
@@ -122,36 +127,32 @@ fragment instructionFields on ExecutionPlanInstruction {
     details {
         __typename
         ... on HoldInstruction {
-            source
-            destination
+            holdSource: source { ...ledgerAccountAssetFields }
+            holdDestination: destination { ...ledgerAccountAssetFields }
             amount
-            holdSrc: sourceAccount { ...accountInstructionFields }
-            holdDest: destinationAccount { ...accountInstructionFields }
         }
         ... on TransferInstruction {
-            source
-            destination
+            transferSource: source { ...ledgerAccountAssetFields }
+            transferDestination: destination { ...ledgerAccountAssetFields }
             amount
-            transferSrc: sourceAccount { ...accountInstructionFields }
-            transferDest: destinationAccount { ...accountInstructionFields }
         }
         ... on ReleaseInstruction {
+            releaseSource: source { ...ledgerAccountAssetFields }
+            releaseDestination: destination { ...ledgerAccountAssetFields }
             amount
-            releaseSrc: sourceAccount { ...accountInstructionFields }
-            releaseDest: destinationAccount { ...accountInstructionFields }
         }
         ... on RevertHoldInstruction {
             holdInstructionSequence
-            revertDest: destinationAccount { ...accountInstructionFields }
+            revertDestination: destination { ...ledgerAccountAssetFields }
         }
         ... on IssueInstruction {
-            buyer
+            issueSource: source { ...ledgerAccountAssetFields }
+            issueDestination: destination { ...ledgerAccountAssetFields }
             amount
-            issueDest: destinationAccount { ...accountInstructionFields }
         }
         ... on RedeemInstruction {
+            redeemSource: source { ...ledgerAccountAssetFields }
             amount
-            redeemSrc: sourceAccount { ...accountInstructionFields }
         }
         ... on AwaitInstruction {
             waitTime
@@ -192,18 +193,10 @@ fragment receiptFields on SuccessStateOutput {
         operationId
         transactionId
         operationType
-        source {
-            id
-            organizationId
-            finIds
-        }
-        destination {
-            id
-            organizationId
-            finIds
-        }
-        sourceAccount { ...accountIdFields }
-        destinationAccount { ...accountIdFields }
+        source
+        destination
+        sourceAccount { ...ledgerAccountAssetFields }
+        destinationAccount { ...ledgerAccountAssetFields }
         quantity
         timestamp
         status

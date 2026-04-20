@@ -8,52 +8,32 @@ query GetReceipts($filter: [Filter!]) {
             status
             timestamp
             transactionId
-            source {
-                id
-                organizationId
-                finIds
-            }
-            destination {
-                id
-                organizationId
-                finIds
-            }
+            source
+            destination
             sourceAccount {
-                ... accountId
+                ... ledgerAccountAsset
             }
             destinationAccount {
-                ... accountId
-            }
-            asset {
-                ... assetDetails
+                ... ledgerAccountAsset
             }
         }
     }
 }
 
-fragment accountId on AccountIdentifier {
-    type: __typename
-    ... on FinP2PAssetAccount {
-        finId
-        orgId
+fragment ledgerAccountAsset on LedgerAccountAsset {
+    finp2pAccount {
+        asset {
+            resourceId
+        }
+        account {
+            finId
+            orgId
+        }
     }
-    ... on CryptoWalletAccount {
-        address
-    }
-    ... on Iban {
-        code
-    }
-}
-
-fragment assetDetails on AssetDetails {
-    type: __typename
-    ... on FinP2PAsset {
-        resourceId
-    }
-    ... on FiatAsset {
-        code
-    }
-    ... on Cryptocurrency {
-        symbol
+    networkAccount {
+        wallet {
+            type
+            address
+        }
     }
 }
