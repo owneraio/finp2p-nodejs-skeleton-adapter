@@ -249,6 +249,66 @@ export async function createRedemptionIntent(client: FinP2PClient, params: Redem
   return intentId;
 }
 
+export interface RequestForTransferIntentParams {
+  assetId: string;
+  amount: number;
+  senderId: string;
+  senderFinId: string;
+  receiverId: string;
+  receiverFinId: string;
+  action: 'send' | 'request';
+  custodianOrgId: string;
+}
+
+export async function createRequestForTransferIntent(
+  client: FinP2PClient,
+  params: RequestForTransferIntentParams,
+): Promise<string> {
+  const assetOrgId = extractOrgId(params.assetId);
+  const { start, end } = intentWindow();
+
+  // The side that *initiates* the intent provides its own account.
+  // `send`: sender initiates, provides senderAccount.
+  // `request`: receiver initiates, provides receiverAccount.
+  const assetInstruction = params.action === 'send'
+    ? {
+      action: 'send',
+      senderAccount: {
+        asset: { type: 'finp2p', resourceId: params.assetId },
+        account: finIdAccount(params.senderFinId, assetOrgId, params.custodianOrgId),
+      },
+    }
+    : {
+      action: 'request',
+      receiverAccount: {
+        asset: { type: 'finp2p', resourceId: params.assetId },
+        account: finIdAccount(params.receiverFinId, assetOrgId, params.custodianOrgId),
+      },
+    };
+
+  const result = await (client.createIntent as any)(params.assetId, {
+    start, end,
+    intent: {
+      type: 'requestForTransferIntent',
+      sender: params.senderId,
+      receiver: params.receiverId,
+      asset: {
+        assetTerm: {
+          asset: { type: 'finp2p', resourceId: params.assetId },
+          amount: String(params.amount),
+        },
+        assetInstruction,
+      },
+      signaturePolicy: { type: 'manualPolicy' },
+    },
+  });
+
+  const res = await unwrap(client, result, 'createRequestForTransferIntent');
+  const intentId = res?.id;
+  if (!intentId) throw new Error('Failed to create request-for-transfer intent');
+  return intentId;
+}
+
 // ── Intent execution ──
 
 export interface ExecutePrimarySaleParams {
@@ -449,5 +509,61 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
   const res = await unwrap(client, result, 'executeRedemptionIntent');
   const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
   if (!planId) throw new Error('Failed to execute redemption intent');
+  return planId;
+}
+
+export interface ExecuteRequestForTransferIntentParams {
+  intentId: string;
+  executionId: string;
+  assetId: string;
+  amount: number;
+  sender: { id: string; finId: string; custodianOrgId: string };
+  receiver: { id: string; finId: string; custodianOrgId: string };
+  action: 'send' | 'request';
+}
+
+export async function executeRequestForTransferIntent(
+  client: FinP2PClient,
+  params: ExecuteRequestForTransferIntentParams,
+): Promise<string> {
+  const assetOrgId = extractOrgId(params.assetId);
+
+  // Counterparty to the action initiates execution:
+  // `send`: sender initiated → receiver executes
+  // `request`: receiver initiated → sender executes
+  const user = params.action === 'send' ? params.receiver.id : params.sender.id;
+
+  const result = await (client.executeIntent as any)({
+    user,
+    intentId: params.intentId,
+    executionId: params.executionId,
+    intent: {
+      type: 'requestForTransferIntentExecution',
+      nonce: hexNonce(),
+      action: params.action,
+      sender: params.sender.id,
+      receiver: params.receiver.id,
+      asset: {
+        term: {
+          asset: { type: 'finp2p', resourceId: params.assetId },
+          amount: String(params.amount),
+        },
+        instruction: {
+          sourceAccount: {
+            asset: { type: 'finp2p', resourceId: params.assetId },
+            account: finIdAccount(params.sender.finId, assetOrgId, params.sender.custodianOrgId),
+          },
+          destinationAccount: {
+            asset: { type: 'finp2p', resourceId: params.assetId },
+            account: finIdAccount(params.receiver.finId, assetOrgId, params.receiver.custodianOrgId),
+          },
+        },
+      },
+    },
+  });
+
+  const res = await unwrap(client, result, 'executeRequestForTransferIntent');
+  const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
+  if (!planId) throw new Error('Failed to execute request-for-transfer intent');
   return planId;
 }
