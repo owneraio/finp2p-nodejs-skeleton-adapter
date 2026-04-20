@@ -90,7 +90,13 @@ fragment proofInfo on ProofPolicy {
 }
 
 fragment assetInfo on LedgerAssetInfo {
-    tokenId
+    ledgerIdentifier {
+        ... on Caip19Identifier {
+            network
+            standard
+            tokenId
+        }
+    }
     ledgerBinding {
         name
     }

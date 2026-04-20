@@ -20,7 +20,7 @@ export type AccountIdentifier = CryptoWalletAccount | FinP2PAccount | Iban;
 export enum ActionType {
   Request = 'request',
   Send = 'send',
-  Unknown = 'unknown',
+  Unknown = 'unknown'
 }
 
 export type AdditionalContractDetails = {
@@ -42,7 +42,7 @@ export enum AggregateFunc {
   Count = 'COUNT',
   Max = 'MAX',
   Min = 'MIN',
-  Sum = 'SUM',
+  Sum = 'SUM'
 }
 
 /** Result of Aggregation function applied on an Object numeric field. */
@@ -73,7 +73,7 @@ export type ApprovalConfigs = {
 export enum ApprovalStatus {
   Approved = 'Approved',
   Rejected = 'Rejected',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 /** Represents an Asset in the network. */
@@ -146,7 +146,7 @@ export type AssetIssuedTokensArgs = {
 /** Identifier type for asset data */
 export enum AssetDataIdentifierType {
   Caip19 = 'CAIP19',
-  Isin = 'ISIN',
+  Isin = 'ISIN'
 }
 
 /** Represents financial data for an asset from a data provider */
@@ -199,7 +199,7 @@ export enum AssetOrderField {
   /** Assets order by determined by Name field */
   Name = 'NAME',
   /** Assets order by determined by OrganizationId field */
-  Organization = 'ORGANIZATION',
+  Organization = 'ORGANIZATION'
 }
 
 export type AssetOrderInput = {
@@ -249,7 +249,7 @@ export type AssetTerm = {
 export enum AssetType {
   Cryptocurrency = 'cryptocurrency',
   Fiat = 'fiat',
-  Finp2p = 'finp2p',
+  Finp2p = 'finp2p'
 }
 
 /** Results for asset query. */
@@ -349,7 +349,7 @@ export type CertificateOrder = {
 
 export enum CertificateOrderField {
   /** certificates order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for certificates query. */
@@ -421,7 +421,7 @@ export type DataAccess = {
 
 export enum DataAccessType {
   Balance = 'Balance',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 /** Represents a data provider binding configuration */
@@ -492,7 +492,7 @@ export enum DataType {
   MarketData = 'marketData',
   Pricing = 'pricing',
   Ratings = 'ratings',
-  ReferenceData = 'referenceData',
+  ReferenceData = 'referenceData'
 }
 
 export type Delivered = {
@@ -601,7 +601,7 @@ export enum ExecutionPlanInstructionStatus {
   Failed = 'Failed',
   Pending = 'Pending',
   Rejected = 'Rejected',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 export type ExecutionPlanInstructions = {
@@ -623,7 +623,7 @@ export type ExecutionPlanOrder = {
 export enum ExecutionPlanOrderField {
   CreationTimestamp = 'CREATION_TIMESTAMP',
   /** plan order by PlanId field */
-  PlanId = 'PLAN_ID',
+  PlanId = 'PLAN_ID'
 }
 
 export enum ExecutionPlanStatus {
@@ -635,7 +635,7 @@ export enum ExecutionPlanStatus {
   InProgress = 'InProgress',
   Pending = 'Pending',
   Rejected = 'Rejected',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 export type ExecutionsPlans = {
@@ -746,7 +746,7 @@ export enum FinancialIdentifierType {
   Custom = 'CUSTOM',
   Isin = 'ISIN',
   Iso4217 = 'ISO4217',
-  Unspecified = 'UNSPECIFIED',
+  Unspecified = 'UNSPECIFIED'
 }
 
 export type FullSettlement = {
@@ -797,7 +797,7 @@ export enum HoldingFields {
   SyncedAvailableBalance = 'SyncedAvailableBalance',
   SyncedBalance = 'SyncedBalance',
   SyncedHeldBalance = 'SyncedHeldBalance',
-  WithheldBalance = 'WithheldBalance',
+  WithheldBalance = 'WithheldBalance'
 }
 
 export type Holdings = {
@@ -810,7 +810,7 @@ export type Holdings = {
 
 export enum HttpSchemas {
   Http1_1 = 'HTTP1_1',
-  Http2 = 'HTTP2',
+  Http2 = 'HTTP2'
 }
 
 /** IBAN bank account */
@@ -884,7 +884,7 @@ export enum IntentStatus {
   Completed = 'COMPLETED',
   Expired = 'EXPIRED',
   NonActive = 'NON_ACTIVE',
-  Rejected = 'REJECTED',
+  Rejected = 'REJECTED'
 }
 
 export enum IntentTypes {
@@ -893,7 +893,7 @@ export enum IntentTypes {
   PrimarySale = 'PRIMARY_SALE',
   PrivateOffer = 'PRIVATE_OFFER',
   RequestForTransfer = 'REQUEST_FOR_TRANSFER',
-  Selling = 'SELLING',
+  Selling = 'SELLING'
 }
 
 /** Results for itents query. */
@@ -920,7 +920,7 @@ export enum InvestorRole {
   Buyer = 'BUYER',
   Issuer = 'ISSUER',
   Lender = 'LENDER',
-  Seller = 'SELLER',
+  Seller = 'SELLER'
 }
 
 export type IssuanceContractDetails = {
@@ -969,7 +969,7 @@ export type IssuerOrder = {
 
 export enum IssuerOrderField {
   /** issuers order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for issuers query. */
@@ -1007,7 +1007,7 @@ export type LedgerAuthOptions = LedgerApiKeyOptions | LedgerMtlsOptions | Ledger
 export enum LedgerAuthType {
   ApiKey = 'API_KEY',
   Mtls = 'MTLS',
-  Oauth = 'OAUTH',
+  Oauth = 'OAUTH'
 }
 
 export type LedgerBinding = {
@@ -1191,7 +1191,7 @@ export enum OperationType {
   Redeem = 'Redeem',
   Release = 'Release',
   Transfer = 'Transfer',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 /** Operators available to be used  */
@@ -1213,7 +1213,7 @@ export enum Operator {
   /** Not Equals */
   Neq = 'NEQ',
   /** Not In */
-  Nin = 'NIN',
+  Nin = 'NIN'
 }
 
 /** Organization's information. */
@@ -1263,7 +1263,7 @@ export type OrganizationOrder = {
 
 export enum OrganizationOrderField {
   /** organizations order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for Organization query. */
@@ -1371,7 +1371,7 @@ export type PlanApprovals = {
 
 /** Fields to subscribe on */
 export enum PlanField {
-  Status = 'Status',
+  Status = 'Status'
 }
 
 export type PresignedBuyingIntentSignaturePolicy = {
@@ -1653,7 +1653,7 @@ export type ReceiptOrder = {
 
 export enum ReceiptOrderField {
   /** receipt order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 export type ReceiptState = {
@@ -1664,7 +1664,7 @@ export type ReceiptState = {
 export enum ReceiptStatus {
   Invalid = 'Invalid',
   Unknown = 'Unknown',
-  Valid = 'Valid',
+  Valid = 'Valid'
 }
 
 /** Results for receipts query. */
@@ -1854,7 +1854,7 @@ export type Signature = {
 
 export enum SignaturePolicyType {
   ManualPolicy = 'ManualPolicy',
-  PresignedPolicy = 'PresignedPolicy',
+  PresignedPolicy = 'PresignedPolicy'
 }
 
 export type SignatureProof = {
@@ -1871,12 +1871,12 @@ export type SignatureProofPolicy = {
 export enum SignatureTemplate {
   Eip712 = 'EIP712',
   HashList = 'HashList',
-  Unknown = 'Unknown',
+  Unknown = 'Unknown'
 }
 
 export enum SortOrder {
   Asc = 'ASC',
-  Desc = 'DESC',
+  Desc = 'DESC'
 }
 
 export type StatusTransition = {
@@ -2031,7 +2031,7 @@ export type UserOrder = {
 
 export enum UserOrderField {
   /** users order by determined by Id field */
-  Id = 'ID',
+  Id = 'ID'
 }
 
 /** Results for asset query. */
@@ -2097,7 +2097,7 @@ export enum WorkflowAdminAction {
   Cancel = 'CANCEL',
   Reset = 'RESET',
   Resume = 'RESUME',
-  Retry = 'RETRY',
+  Retry = 'RETRY'
 }
 
 /** Admin operations metadata and history */
@@ -2144,7 +2144,7 @@ export enum WorkflowHealthStatus {
   Healthy = 'HEALTHY',
   Stale = 'STALE',
   Stuck = 'STUCK',
-  Unhealthy = 'UNHEALTHY',
+  Unhealthy = 'UNHEALTHY'
 }
 
 export type WorkflowMetadata = {
@@ -2168,7 +2168,7 @@ export enum WorkflowOrderField {
   /** workflow order */
   Name = 'NAME',
   ReferenceId = 'REFERENCE_ID',
-  Status = 'STATUS',
+  Status = 'STATUS'
 }
 
 export type Workflows = {
@@ -2180,5 +2180,5 @@ export type Workflows = {
 
 export enum TemplateType {
   Eip712Template = 'EIP712Template',
-  HashListTemplate = 'HashListTemplate',
+  HashListTemplate = 'HashListTemplate'
 }

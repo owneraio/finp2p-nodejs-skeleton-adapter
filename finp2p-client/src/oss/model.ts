@@ -1,7 +1,13 @@
 export type LedgerAssetInfo = {
-  tokenId: string
+  ledgerIdentifier?: Caip19Identifier
   ledgerBinding?: { name: string }
   ledgerReference?: LedgerReference
+};
+
+export type Caip19Identifier = {
+  network: string;
+  standard: string;
+  tokenId: string;
 };
 
 export type LedgerReference = {
@@ -109,32 +115,19 @@ export type OssAssetNodes = {
   assets: { nodes: OssAsset[] }
 };
 
+/**
+ * Legacy payment-asset / escrow types.
+ *
+ * The `escrows` root query (and the `PaymentAsset` schema graph that hung off it)
+ * was removed from the OSS schema in router v0.28. The surviving
+ * `OssClient.getPaymentAsset` / `getPaymentAssets` methods are kept for
+ * API compatibility but now return empty / throw `ItemNotFoundError`.
+ * This type is retained only so callers that still reference it continue to compile.
+ */
 export type OssPaymentAsset = {
-  id: string
-  accountType: string
-  orgId: string
-  version: number
-  assets: {
-    code: string
-    type: string
-    conversions: {
-      accountType: {
-
-      }
-      symbols: string[]
-    }[],
-    policies: AssetPolicies
-  }[]
-};
-
-export type OssEscrow = {
-  orgId: string
-  paymentAssetId: string
-  paymentAsset: OssPaymentAsset
-};
-
-export type OssEscrowNodes = {
-  escrows: { nodes: OssEscrow[] }
+  code: string
+  type: string
+  policies: AssetPolicies
 };
 
 export type OssOwner = {
@@ -210,23 +203,40 @@ export type OssApprovalConfigNodes = {
 
 export type OssPlanStatus = 'Pending' | 'InProgress' | 'Completed' | 'Failed' | 'Halted' | 'Rejected' | 'Cancelled';
 
+/**
+ * `AssetDetails` union now only includes `FinP2PAsset` (v0.28).
+ * `FiatAsset` and `Cryptocurrency` are no longer part of it.
+ */
 export type OssAssetDetails =
-  | { __typename: 'FinP2PAsset'; resourceId: string }
-  | { __typename: 'FiatAsset'; code: string }
-  | { __typename: 'Cryptocurrency'; symbol: string };
+  | { __typename: 'FinP2PAsset'; resourceId: string };
 
+/**
+ * `AccountIdentifier` union is `CryptoWalletAccount | FinP2PAccount | Iban` (v0.28).
+ * `FinP2PAssetAccount` is no longer a member — `FinP2PAccount` replaces it.
+ */
 export type OssAccountIdentifier =
-  | { __typename: 'FinP2PAssetAccount'; finId: string; orgId: string }
+  | { __typename: 'FinP2PAccount'; finId: string; orgId: string }
   | { __typename: 'CryptoWalletAccount'; address: string }
   | { __typename: 'Iban'; code: string };
 
-export type OssAccountInstruction = {
-  asset: OssAssetDetails;
-  identifier: OssAccountIdentifier | null;
+/**
+ * Modelled on the `LedgerAccountAsset` schema type — instruction source/destination
+ * fields on execution-plan instructions all return this composite now.
+ */
+export type OssLedgerAccountAsset = {
+  finp2pAccount: {
+    asset?: { resourceId: string } | null;
+    account?: { finId: string; orgId: string } | null;
+  };
+  networkAccount?: { wallet?: { type: string; address: string } | null } | null;
 };
 
 export type OssAssetOrder = {
-  term: { asset: OssAssetDetails; amount: string };
+  term: { amount: string };
+  instruction?: {
+    sourceAccount?: OssLedgerAccountAsset | null;
+    destinationAccount?: OssLedgerAccountAsset | null;
+  };
 };
 
 export type OssPlanContractDetails = {
@@ -266,10 +276,12 @@ export type OssReceipt = {
   operationId: string | null;
   transactionId: string | null;
   operationType: string | null;
-  source: { id: string; organizationId: string; finIds: string[] };
-  destination: { id: string; organizationId: string; finIds: string[] };
-  sourceAccount: OssAccountIdentifier | null;
-  destinationAccount: OssAccountIdentifier | null;
+  /** Source owner resource ID (now a scalar string, v0.28) */
+  source: string | null;
+  /** Destination owner resource ID (now a scalar string, v0.28) */
+  destination: string | null;
+  sourceAccount: OssLedgerAccountAsset | null;
+  destinationAccount: OssLedgerAccountAsset | null;
   quantity: string;
   timestamp: string;
   status: string;
@@ -284,24 +296,29 @@ export type OssTransition =
   | { __typename: 'SequenceTransition'; sequence: number }
   | { __typename: 'StatusTransition'; status: string };
 
+/**
+ * Union over all instruction detail types (HoldInstruction, TransferInstruction,
+ * ReleaseInstruction, RevertHoldInstruction, IssueInstruction, RedeemInstruction,
+ * AwaitInstruction). In v0.28 each instruction now exposes `source` / `destination`
+ * as `LedgerAccountAsset` objects (not scalars) — aliased in the query to avoid
+ * type conflicts across union members.
+ */
 export type OssInstructionDetails = {
   __typename: string;
-  source?: string;
-  destination?: string;
-  buyer?: string;
   amount?: string;
   holdInstructionSequence?: number;
   waitTime?: number;
   // Aliased account fields (due to nullability conflicts across union members)
-  holdSrc?: OssAccountInstruction;
-  holdDest?: OssAccountInstruction | null;
-  transferSrc?: OssAccountInstruction;
-  transferDest?: OssAccountInstruction;
-  releaseSrc?: OssAccountInstruction;
-  releaseDest?: OssAccountInstruction;
-  revertDest?: OssAccountInstruction;
-  issueDest?: OssAccountInstruction;
-  redeemSrc?: OssAccountInstruction;
+  holdSource?: OssLedgerAccountAsset;
+  holdDestination?: OssLedgerAccountAsset | null;
+  transferSource?: OssLedgerAccountAsset;
+  transferDestination?: OssLedgerAccountAsset;
+  releaseSource?: OssLedgerAccountAsset;
+  releaseDestination?: OssLedgerAccountAsset;
+  revertDestination?: OssLedgerAccountAsset;
+  issueSource?: OssLedgerAccountAsset | null;
+  issueDestination?: OssLedgerAccountAsset;
+  redeemSource?: OssLedgerAccountAsset;
 };
 
 export type OssPlanInstruction = {

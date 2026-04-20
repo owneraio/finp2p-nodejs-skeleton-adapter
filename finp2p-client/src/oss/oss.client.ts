@@ -4,12 +4,11 @@ import { DocumentNode } from 'graphql';
 import OWNERS from './graphql/owners.graphql';
 import ORGANIZATIONS from './graphql/organization.graphql';
 import ASSETS from './graphql/assets.graphql';
-import PAYMENT_ASSETS from './graphql/payment-assets.graphql';
 import LEDGERS from './graphql/ledgers.graphql';
 import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
 import PLANS from './graphql/plans.graphql';
 import RECEIPTS from './graphql/receipts.graphql';
-import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssEscrowNodes, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssReceipt, OssReceiptNodes } from './model';
+import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssPaymentAsset, OssReceipt, OssReceiptNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
 export class OssClient {
@@ -97,28 +96,14 @@ export class OssClient {
     return resp.assets.nodes[0];
   }
 
-  async getPaymentAssets() {
-    const resp = await this.queryOss<OssEscrowNodes>(PAYMENT_ASSETS, {});
-    return resp.escrows.nodes.map(e => e.paymentAsset);
+  async getPaymentAssets(): Promise<OssPaymentAsset[]> {
+    // `escrows` / payment assets query was removed in OSS schema v0.28.
+    return [];
   }
 
-  async getPaymentAsset(orgId: string, assetCode: string) {
-    const resp = await this.queryOss<OssEscrowNodes>(PAYMENT_ASSETS, {
-      filter: {
-        key: 'orgId',
-        operator: 'EQ',
-        value: orgId,
-      },
-    });
-    if (resp.escrows.nodes.length == 0) {
-      throw new ItemNotFoundError(`${orgId}`, 'Payment asset');
-    }
-
-    const ast = resp.escrows.nodes[0].paymentAsset.assets.find(a => a.code === assetCode);
-    if (!ast) {
-      throw new ItemNotFoundError(`${orgId}:${assetCode}`, 'Payment asset');
-    }
-    return ast;
+  async getPaymentAsset(orgId: string, assetCode: string): Promise<OssPaymentAsset> {
+    // `escrows` / payment assets query was removed in OSS schema v0.28.
+    throw new ItemNotFoundError(`${orgId}:${assetCode}`, 'Payment asset');
   }
 
   async getOrganization(orgId: string) {
