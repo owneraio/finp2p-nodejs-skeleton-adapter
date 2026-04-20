@@ -33,6 +33,63 @@ async function unwrap(client: FinP2PClient, result: any, label: string): Promise
   return data;
 }
 
+// ── Asset creation ──
+
+export interface CreateAssetParams {
+  name: string;
+  type: 'finp2p' | 'fiat' | 'cryptocurrency';
+  issuerId: string;
+  symbol?: string;
+  denominationCode: string;
+  denominationType?: 'finp2p' | 'fiat' | 'cryptocurrency';
+  intentTypes: Array<'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent'>;
+  /** Logical ledger name, must match the ledgerName registered via /ledger/bind */
+  ledger: string;
+  /** CAIP-2 chain id, e.g. 'eip155:11155111' (Sepolia) */
+  network: string;
+  /** Token identifier on the ledger (e.g. ERC-20 contract address) */
+  tokenId: string;
+  /** Token standard, e.g. 'erc20' */
+  standard: string;
+  assetPolicies?: any;
+  config?: string;
+  metadata?: any;
+  /** Optional financial asset identifier (ISIN/ISO4217/etc.) */
+  financialIdentifier?: {
+    assetIdentifierType: 'ISIN' | 'ISO4217' | 'NONE';
+    assetIdentifierValue?: string;
+  };
+}
+
+export async function createAsset(client: FinP2PClient, params: CreateAssetParams): Promise<string> {
+  const result = await (client.createAsset as any)(
+    params.name,
+    params.type,
+    params.issuerId,
+    params.symbol,
+    { type: params.denominationType ?? params.type, code: params.denominationCode },
+    params.intentTypes,
+    {
+      ledger: params.ledger,
+      bind: {
+        assetIdentifierType: 'CAIP-19' as const,
+        network: params.network,
+        tokenId: params.tokenId,
+        standard: params.standard,
+      },
+    },
+    params.assetPolicies,
+    params.config,
+    params.metadata,
+    params.financialIdentifier,
+  );
+
+  const res = await unwrap(client, result, 'createAsset');
+  const assetId = res?.id;
+  if (!assetId) throw new Error('Failed to create asset');
+  return assetId;
+}
+
 // ── Intent creation ──
 
 export interface PrimarySaleParams {
