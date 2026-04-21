@@ -8,7 +8,7 @@ import LEDGERS from './graphql/ledgers.graphql';
 import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
 import PLANS from './graphql/plans.graphql';
 import RECEIPTS from './graphql/receipts.graphql';
-import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssPaymentAsset, OssReceipt, OssReceiptNodes } from './model';
+import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssReceipt, OssReceiptNodes } from './model';
 import { ItemNotFoundError } from './errors';
 
 export class OssClient {
@@ -94,16 +94,6 @@ export class OssClient {
       throw new ItemNotFoundError(assetId, 'Asset');
     }
     return resp.assets.nodes[0];
-  }
-
-  async getPaymentAssets(): Promise<OssPaymentAsset[]> {
-    // `escrows` / payment assets query was removed in OSS schema v0.28.
-    return [];
-  }
-
-  async getPaymentAsset(orgId: string, assetCode: string): Promise<OssPaymentAsset> {
-    // `escrows` / payment assets query was removed in OSS schema v0.28.
-    throw new ItemNotFoundError(`${orgId}:${assetCode}`, 'Payment asset');
   }
 
   async getOrganization(orgId: string) {

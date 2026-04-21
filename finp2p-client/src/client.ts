@@ -1,8 +1,7 @@
-import { OssClient, OssExecutionPlan, parseProofDomain, Proof, ProofDomain, ProofPolicy } from './oss';
+import { OssClient, OssExecutionPlan, parseProofDomain, ProofPolicy } from './oss';
 import { FinAPIClient } from './finapi';
 import { components as FinAPIComponents } from './finapi/model-gen';
 import { components as OpComponents } from './finapi/op-model-gen';
-import { ItemNotFoundError } from './oss/errors';
 import { sleep } from './finapi/utils';
 
 
@@ -154,32 +153,14 @@ export class FinP2PClient {
     return this.ossClient.getAsset(assetId);
   }
 
-  async getAssetProofPolicy(assetCode: string, assetType: string, paymentOrgId: string): Promise<ProofPolicy> {
-    let proof: Proof;
-    let domain: ProofDomain | null = null;
-    let configRaw: string;
-    switch (assetType) {
-      case 'finp2p': {
-        ({ policies: { proof }, config: configRaw } = await this.getAsset(assetCode));
-        domain = parseProofDomain(configRaw);
-        break;
-      }
-      case 'cryptocurrency':
-      case 'fiat': {
-        try {
-          ({ policies: { proof } } = await this.getPaymentAsset(paymentOrgId, assetCode));
-        } catch (e) {
-          if (e instanceof ItemNotFoundError) {
-            return { type: 'NoProofPolicy' };
-          }
-          throw e;
-        }
-        break;
-      }
-      default:
-        throw new Error(`Unknown asset type: ${assetType}`);
+  async getAssetProofPolicy(assetCode: string, assetType: string): Promise<ProofPolicy> {
+    // v0.28 OSS schema only exposes proof policies for finp2p assets.
+    // Fiat / cryptocurrency payment assets no longer have a proof policy endpoint.
+    if (assetType !== 'finp2p') {
+      return { type: 'NoProofPolicy' };
     }
-
+    const { policies: { proof }, config: configRaw } = await this.getAsset(assetCode);
+    const domain = parseProofDomain(configRaw);
     switch (proof.type) {
       case 'NoProofPolicy':
         return { type: 'NoProofPolicy' };
@@ -187,14 +168,6 @@ export class FinP2PClient {
         return { ...proof, domain };
       }
     }
-  }
-
-  async getPaymentAssets() {
-    return this.ossClient.getPaymentAssets();
-  }
-
-  async getPaymentAsset(orgId: string, assetCode: string) {
-    return this.ossClient.getPaymentAsset(orgId, assetCode);
   }
 
   async getOwnerByFinId(finId: string) {
