@@ -751,7 +751,7 @@ components:
         code:
           type: string
           description: Unique code identifying the denomination asset type
-          pattern: '^[a-zA-Z0-9]*$'
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9.\-]*$'
           maxLength: 150
           minLength: 1
     assetType:

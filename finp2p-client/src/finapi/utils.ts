@@ -24,9 +24,21 @@ export function generateNonce(): Buffer {
   return buffer;
 }
 
-export type AccountRef = { type: string; [key: string]: unknown };
+export type FinIdAccountRef = {
+  type: 'finId';
+  finId: string;
+  orgId: string;
+  custodian: { orgId: string };
+};
 
-export function finIdAccount(finId: string, orgId: string, custodianOrgId: string): AccountRef {
+export type CryptoWalletAccountRef = {
+  type: 'cryptoWallet';
+  address: string;
+};
+
+export type AccountRef = FinIdAccountRef | CryptoWalletAccountRef;
+
+export function finIdAccount(finId: string, orgId: string, custodianOrgId: string): FinIdAccountRef {
   return { type: 'finId', finId, orgId, custodian: { orgId: custodianOrgId } };
 }
 

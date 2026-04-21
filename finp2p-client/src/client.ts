@@ -107,6 +107,16 @@ export class FinP2PClient {
     return this.finAPIClient.updateLedger(...args);
   }
 
+  // ── Custody provider management ──
+
+  async bindCustodyProvider(...args: Parameters<FinAPIClient['bindCustodyProvider']>) {
+    return this.finAPIClient.bindCustodyProvider(...args);
+  }
+
+  async updateCustodyProvider(...args: Parameters<FinAPIClient['updateCustodyProvider']>) {
+    return this.finAPIClient.updateCustodyProvider(...args);
+  }
+
   // ── Approval routing ──
 
   async setApprovalRouting(...args: Parameters<FinAPIClient['setApprovalRouting']>) {

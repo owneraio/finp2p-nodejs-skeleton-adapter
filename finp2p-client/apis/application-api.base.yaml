@@ -2725,14 +2725,14 @@ components:
 
     symbol:
       type: string
-      pattern: '^[A-Z0-9]+$'
+      pattern: '^[A-Z0-9][A-Z0-9.\-]{0,49}$'
       minLength: 1
       maxLength: 50
       description: The symbol of the asset
 
     symbolOpt:
       type: string
-      pattern: '^[A-Z0-9]+$'
+      pattern: '^[A-Z0-9][A-Z0-9.\-]{0,49}$'
       minLength: 1
       maxLength: 50
       description: The symbol of the asset

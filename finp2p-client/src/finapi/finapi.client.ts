@@ -175,6 +175,19 @@ export class FinAPIClient {
     });
   }
 
+  // ── Custody provider management (operational API) ──
+
+  async bindCustodyProvider(body: OpRequestBody<'/custody/bind', 'post'>) {
+    return this.opClient.POST('/custody/bind', { body });
+  }
+
+  async updateCustodyProvider(name: string, body: OpRequestBody<'/custody/{name}/update', 'patch'>) {
+    return this.opClient.PATCH('/custody/{name}/update', {
+      params: { path: { name } },
+      body,
+    });
+  }
+
   // ── Approval routing (operational API) ──
 
   async setApprovalRouting(body: OpRequestBody<'/execution/proposals', 'put'>) {
