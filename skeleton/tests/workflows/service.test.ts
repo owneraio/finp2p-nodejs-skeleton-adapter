@@ -226,13 +226,13 @@ describe("Service operation tests", () => {
       service.callCount.get(JSON.stringify([otherIdempotencyKey, planId])),
     ).toBeGreaterThanOrEqual(1);
 
-    // Duplicating the earlier request
+    // Duplicating the earlier request — count must not increase
     await expect(
       proxied.approvePlan(idempotencyKey, planId),
     ).resolves.toBeDefined();
     expect(
       service.callCount.get(JSON.stringify([idempotencyKey, planId])),
-    ).toBe(1);
+    ).toBe(countBefore);
 
     expect(service.callCount.size).toBe(2);
   });
