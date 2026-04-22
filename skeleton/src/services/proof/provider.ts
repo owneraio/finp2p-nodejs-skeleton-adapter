@@ -23,8 +23,7 @@ export class ProofProvider {
       return receipt;
     }
     const { asset: { assetId, assetType } } = receipt;
-    const paymentOrgId = this.orgId; // assuming we are the payment org
-    const policy = await this.finP2PClient.getAssetProofPolicy(assetId, assetType, paymentOrgId);
+    const policy = await this.finP2PClient.getAssetProofPolicy(assetId, assetType);
     switch (policy.type) {
       case 'NoProofPolicy':
         receipt.proof = {
