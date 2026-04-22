@@ -12,6 +12,19 @@ export function extractOrgId(resourceId: string): string {
   return parts[0];
 }
 
+/**
+ * Normalize a base URL: prepend `http://` if no scheme is present.
+ * Operators frequently set FINP2P_ADDRESS to `host:port` or a bare hostname —
+ * without a scheme, `fetch` rejects with "unknown scheme". Default to plain
+ * http so those configurations keep working.
+ */
+export function normalizeBaseUrl(url: string): string {
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) {
+    return url;
+  }
+  return `http://${url}`;
+}
+
 export function hexNonce(size = 16): string {
   return crypto.randomBytes(size).toString('hex');
 }
