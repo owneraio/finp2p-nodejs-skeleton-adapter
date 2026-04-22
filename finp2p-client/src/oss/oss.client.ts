@@ -10,6 +10,7 @@ import PLANS from './graphql/plans.graphql';
 import RECEIPTS from './graphql/receipts.graphql';
 import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssReceipt, OssReceiptNodes } from './model';
 import { ItemNotFoundError } from './errors';
+import { normalizeBaseUrl } from '../finapi/utils';
 
 export class OssClient {
 
@@ -18,7 +19,7 @@ export class OssClient {
   authTokenResolver: (() => string) | undefined;
 
   constructor(ossUrl: string, authTokenResolver: (() => string) | undefined = undefined) {
-    this.ossUrl = ossUrl;
+    this.ossUrl = normalizeBaseUrl(ossUrl);
     this.authTokenResolver = authTokenResolver;
   }
 

@@ -1,7 +1,7 @@
 import createClient, { Client, Middleware } from 'openapi-fetch';
 import { components as FinAPIComponents, paths as FinAPIPaths } from './model-gen';
 import { components as OpComponents, paths as OpPaths } from './op-model-gen';
-import { sleep } from './utils';
+import { normalizeBaseUrl, sleep } from './utils';
 
 // Helper: extract the request body type for a given path + method from openapi-fetch paths
 type RequestBody<P extends keyof FinAPIPaths, M extends keyof FinAPIPaths[P]> =
@@ -21,10 +21,11 @@ export class FinAPIClient {
   opClient: Client<OpPaths>;
 
   constructor(finP2PUrl: string, authTokenResolver: (() => string) | undefined = undefined) {
-    this.finP2PUrl = finP2PUrl;
+    const baseUrl = normalizeBaseUrl(finP2PUrl);
+    this.finP2PUrl = baseUrl;
     this.authTokenResolver = authTokenResolver;
-    this.apiClient = createClient<FinAPIPaths>({ baseUrl: finP2PUrl });
-    this.opClient = createClient<OpPaths>({ baseUrl: finP2PUrl });
+    this.apiClient = createClient<FinAPIPaths>({ baseUrl });
+    this.opClient = createClient<OpPaths>({ baseUrl });
 
     if (authTokenResolver) {
       const authMiddleware: Middleware = {
