@@ -86,6 +86,55 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
  * Only sends the callback if the DB write succeeds — otherwise the row
  * stays in_progress and will be replayed on restart, which is correct.
  */
+/**
+ * Extract loggable fields from an error.
+ * Plain Error has non-enumerable `message`/`stack` so JSON.stringify produces `{}`.
+ * Axios/fetch errors carry extra details (status, response body) we want to surface.
+ */
+function describeError(err: unknown): Record<string, unknown> {
+  if (err === null || err === undefined) return { error: String(err) };
+  if (typeof err !== 'object') return { error: String(err) };
+
+  const e = err as any;
+  const out: Record<string, unknown> = {};
+  if (e.name) out.name = e.name;
+  if (e.message) out.message = e.message;
+  if (e.code) out.code = e.code;
+  if (typeof e.status === 'number') out.status = e.status;
+  if (typeof e.statusCode === 'number') out.statusCode = e.statusCode;
+
+  // Axios-style: err.response.{status,statusText,data}
+  if (e.response) {
+    const r = e.response;
+    out.response = {
+      status: r.status,
+      statusText: r.statusText,
+      data: r.data,
+    };
+  }
+  // openapi-fetch style: err.cause might carry Response or body
+  if (e.cause) {
+    out.cause = describeError(e.cause);
+  }
+  // Request context (URL, method) if available
+  if (e.config) {
+    out.request = { url: e.config.url, method: e.config.method };
+  }
+  if (e.stack) {
+    // Keep only the first few frames to avoid log noise
+    out.stack = String(e.stack).split('\n').slice(0, 6).join('\n');
+  }
+  // Fallback: if nothing surfaced, preserve the raw JSON
+  if (Object.keys(out).length === 0) {
+    try {
+      out.raw = JSON.stringify(err);
+    } catch {
+      out.raw = String(err);
+    }
+  }
+  return out;
+}
+
 async function finalize(
   storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
@@ -96,15 +145,33 @@ async function finalize(
   try {
     await storage.completeOperation(cid, status, outputs);
   } catch (err) {
-    logger.error('Failed to persist operation result — skipping callback so restart can retry', { cid, error: err });
+    logger.error('Failed to persist operation result — skipping callback so restart can retry', { cid, ...describeError(err) });
     return;
   }
   if (finP2PClient) {
+    const callbackPayload = operationStatusToAPI(outputs);
+    logger.debug('Sending callback to router', { cid, status, outputsType: (outputs as any)?.type });
     try {
       // @ts-ignore — operationStatus type mismatch with sendCallback signature
-      await finP2PClient.sendCallback(cid, operationStatusToAPI(outputs));
+      const result = await finP2PClient.sendCallback(cid, callbackPayload);
+      // openapi-fetch returns { data, error, response } instead of throwing on HTTP errors
+      const httpError = (result as any)?.error;
+      if (httpError) {
+        const response = (result as any)?.response;
+        logger.error('Callback rejected by router (HTTP error)', {
+          cid,
+          status: response?.status,
+          statusText: response?.statusText,
+          error: httpError,
+          payload: callbackPayload,
+        });
+      }
     } catch (err) {
-      logger.error('Failed to send callback to router', { cid, error: err });
+      logger.error('Failed to send callback to router', {
+        cid,
+        ...describeError(err),
+        payload: callbackPayload,
+      });
     }
   }
 }
