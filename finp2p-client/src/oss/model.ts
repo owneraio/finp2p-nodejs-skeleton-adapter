@@ -206,12 +206,23 @@ export type OssAccountIdentifier =
 
 /**
  * Modelled on the `LedgerAccountAsset` schema type — instruction source/destination
- * fields on execution-plan instructions all return this composite now.
+ * and receipt source/destination fields all return this composite now.
+ *
+ * `asset.ledgerIdentifier` is the CAIP-19 union (currently single member
+ * `Caip19Identifier`); `account.custodian` carries the holding org id when the
+ * finId sits behind a custodian.
  */
 export type OssLedgerAccountAsset = {
   finp2pAccount: {
-    asset?: { resourceId: string } | null;
-    account?: { finId: string; orgId: string } | null;
+    asset?: {
+      resourceId: string;
+      ledgerIdentifier?: ({ __typename: 'Caip19Identifier' } & Caip19Identifier) | null;
+    } | null;
+    account?: {
+      finId: string;
+      orgId: string;
+      custodian?: { orgId: string } | null;
+    } | null;
   };
   networkAccount?: { wallet?: { type: string; address: string } | null } | null;
 };
@@ -255,6 +266,13 @@ export type OssInstructionApproval = {
   reason: string | null;
 };
 
+export type OssReceiptProof =
+  | { __typename: 'NoProof' }
+  | {
+    __typename: 'SignatureProof';
+    signature: { signature: string; hashFunction: string; templateType: string };
+  };
+
 export type OssReceipt = {
   __typename: 'Receipt';
   id: string;
@@ -270,6 +288,7 @@ export type OssReceipt = {
   quantity: string;
   timestamp: string;
   status: string;
+  proof?: OssReceiptProof | null;
 };
 
 export type OssInstructionState =

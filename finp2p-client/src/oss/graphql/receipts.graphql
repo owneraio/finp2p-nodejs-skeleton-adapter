@@ -16,6 +16,16 @@ query GetReceipts($filter: [Filter!]) {
             destinationAccount {
                 ... ledgerAccountAsset
             }
+            proof {
+                __typename
+                ... on SignatureProof {
+                    signature {
+                        signature
+                        hashFunction
+                        templateType
+                    }
+                }
+            }
         }
     }
 }
@@ -24,10 +34,21 @@ fragment ledgerAccountAsset on LedgerAccountAsset {
     finp2pAccount {
         asset {
             resourceId
+            ledgerIdentifier {
+                __typename
+                ... on Caip19Identifier {
+                    network
+                    standard
+                    tokenId
+                }
+            }
         }
         account {
             finId
             orgId
+            custodian {
+                orgId
+            }
         }
     }
     networkAccount {
