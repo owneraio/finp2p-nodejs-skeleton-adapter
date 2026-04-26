@@ -542,7 +542,17 @@ export type ExecutionContext = {
 export type ExecutionOrganization = {
   __typename?: 'ExecutionOrganization';
   organizationId: Scalars['String']['output'];
+  /** Roles this organization holds in the execution plan. An organization with only the observer role is a passive recipient of state updates. */
+  roles?: Maybe<Array<ExecutionOrganizationRole>>;
 };
+
+/** Role of an organization participating in an Execution Plan */
+export enum ExecutionOrganizationRole {
+  /** Participates in plan approval and instruction execution */
+  Contributor = 'contributor',
+  /** Read-only participant; receives state updates but does not approve or execute */
+  Observer = 'observer',
+}
 
 export type ExecutionPlan = {
   __typename?: 'ExecutionPlan';

@@ -1111,10 +1111,20 @@ type ReceiptState{
 }
 
 
+"Role of an organization participating in an Execution Plan"
+enum ExecutionOrganizationRole {
+    "Participates in plan approval and instruction execution"
+    contributor
+    "Read-only participant; receives state updates but does not approve or execute"
+    observer
+}
+
 "Information about organization in an Execution Plan context"
 type ExecutionOrganization {
     organizationId: String!
-    #    Role:
+
+    "Roles this organization holds in the execution plan. An organization with only the observer role is a passive recipient of state updates."
+    roles: [ExecutionOrganizationRole!]
 }
 
 type ExecutionsPlans {
