@@ -29,11 +29,11 @@ describe("account mappings", () => {
   test("save and retrieve mapping by finId", async () => {
     const saved = await store.saveAccount("fin-1", { ledgerAccountId: "0xABC123" });
     expect(saved.finId).toBe("fin-1");
-    expect(saved.fields.ledgerAccountId).toBe("0xabc123");
+    expect(saved.fields.ledgerAccountId).toBe("0xABC123");
 
     const mappings = await store.getAccounts(["fin-1"]);
     expect(mappings).toHaveLength(1);
-    expect(mappings[0].fields.ledgerAccountId).toBe("0xabc123");
+    expect(mappings[0].fields.ledgerAccountId).toBe("0xABC123");
   });
 
   test("multiple fields per finId", async () => {
@@ -44,7 +44,7 @@ describe("account mappings", () => {
 
     const mappings = await store.getAccounts(["fin-1"]);
     expect(mappings).toHaveLength(1);
-    expect(mappings[0].fields.ledgerAccountId).toBe("0xaaa");
+    expect(mappings[0].fields.ledgerAccountId).toBe("0xAAA");
     expect(mappings[0].fields.custodyAccountId).toBe("vault-1");
   });
 
@@ -54,7 +54,7 @@ describe("account mappings", () => {
 
     const all = await store.getAccounts();
     expect(all).toHaveLength(1);
-    expect(all[0].fields.ledgerAccountId).toBe("0xaaa");
+    expect(all[0].fields.ledgerAccountId).toBe("0xAAA");
   });
 
   test("update existing field value", async () => {
@@ -63,12 +63,13 @@ describe("account mappings", () => {
 
     const mappings = await store.getAccounts(["fin-1"]);
     expect(mappings).toHaveLength(1);
-    expect(mappings[0].fields.ledgerAccountId).toBe("0xnew");
+    expect(mappings[0].fields.ledgerAccountId).toBe("0xNEW");
   });
 
-  test("retrieve mappings by field value (case-insensitive)", async () => {
-    await store.saveAccount("fin-1", { ledgerAccountId: "0xAbCdEf" });
+  test("retrieve mappings by field value (case-sensitive)", async () => {
+    await store.saveAccount("fin-1", { ledgerAccountId: "0xABCDEF" });
     await store.saveAccount("fin-2", { ledgerAccountId: "0xABCDEF" });
+    await store.saveAccount("fin-3", { ledgerAccountId: "0xabcdef" });
 
     const byValue = await store.getByFieldValue("ledgerAccountId", "0xABCDEF");
     expect(byValue).toHaveLength(2);
@@ -117,18 +118,18 @@ describe("account mappings", () => {
 
   test("getByFieldValue returns all fields for matched finIds", async () => {
     await store.saveAccount("fin-1", {
-      ledgerAccountId: "0xshared",
+      ledgerAccountId: "0xShared",
       custodyAccountId: "vault-a",
     });
     await store.saveAccount("fin-2", {
-      ledgerAccountId: "0xshared",
+      ledgerAccountId: "0xShared",
       custodyAccountId: "vault-b",
     });
 
-    const byValue = await store.getByFieldValue("ledgerAccountId", "0xSHARED");
+    const byValue = await store.getByFieldValue("ledgerAccountId", "0xShared");
     expect(byValue).toHaveLength(2);
     for (const m of byValue) {
-      expect(m.fields.ledgerAccountId).toBe("0xshared");
+      expect(m.fields.ledgerAccountId).toBe("0xShared");
       expect(m.fields.custodyAccountId).toBeDefined();
     }
   });

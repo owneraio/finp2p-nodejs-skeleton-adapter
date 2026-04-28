@@ -45,24 +45,21 @@ export class PgAccountStore implements AccountStore {
          WHERE field_name = $1 AND value = $2
        )
        ORDER BY am.fin_id ASC, am.field_name ASC`,
-      [fieldName, value.toLowerCase()],
+      [fieldName, value],
     );
     return aggregateRows(result.rows);
   }
 
   async saveAccount(finId: string, fields: Record<string, string>): Promise<Account> {
-    const savedFields: Record<string, string> = {};
-    for (const [fieldName, rawValue] of Object.entries(fields)) {
-      const value = rawValue.toLowerCase();
+    for (const [fieldName, value] of Object.entries(fields)) {
       await this.pool.query(
         `INSERT INTO ledger_adapter.account_mappings (fin_id, field_name, value)
          VALUES ($1, $2, $3)
          ON CONFLICT (fin_id, field_name) DO UPDATE SET value = $3, updated_at = NOW()`,
         [finId, fieldName, value],
       );
-      savedFields[fieldName] = value;
     }
-    return { finId, fields: savedFields };
+    return { finId, fields: { ...fields } };
   }
 
   async deleteAccount(finId: string, fieldName?: string): Promise<void> {
