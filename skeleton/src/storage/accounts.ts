@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { AccountStore, Account } from './interfaces';
+import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from './config';
 
 interface DbRow {
   fin_id: string;
@@ -21,27 +22,32 @@ function aggregateRows(rows: DbRow[]): Account[] {
 }
 
 export class PgAccountStore implements AccountStore {
-  constructor(private pool: Pool) {}
+  private readonly schema: string;
+
+  constructor(private pool: Pool, schemaName: string = DEFAULT_SCHEMA_NAME) {
+    assertValidSchemaName(schemaName);
+    this.schema = schemaName;
+  }
 
   async getAccounts(finIds?: string[]): Promise<Account[]> {
     if (finIds && finIds.length > 0) {
       const result = await this.pool.query(
-        'SELECT * FROM ledger_adapter.account_mappings WHERE fin_id = ANY($1) ORDER BY fin_id ASC, field_name ASC',
+        `SELECT * FROM ${this.schema}.account_mappings WHERE fin_id = ANY($1) ORDER BY fin_id ASC, field_name ASC`,
         [finIds],
       );
       return aggregateRows(result.rows);
     }
     const result = await this.pool.query(
-      'SELECT * FROM ledger_adapter.account_mappings ORDER BY fin_id ASC, field_name ASC',
+      `SELECT * FROM ${this.schema}.account_mappings ORDER BY fin_id ASC, field_name ASC`,
     );
     return aggregateRows(result.rows);
   }
 
   async getByFieldValue(fieldName: string, value: string): Promise<Account[]> {
     const result = await this.pool.query(
-      `SELECT DISTINCT am.* FROM ledger_adapter.account_mappings am
+      `SELECT DISTINCT am.* FROM ${this.schema}.account_mappings am
        WHERE am.fin_id IN (
-         SELECT fin_id FROM ledger_adapter.account_mappings
+         SELECT fin_id FROM ${this.schema}.account_mappings
          WHERE field_name = $1 AND value = $2
        )
        ORDER BY am.fin_id ASC, am.field_name ASC`,
@@ -53,7 +59,7 @@ export class PgAccountStore implements AccountStore {
   async saveAccount(finId: string, fields: Record<string, string>): Promise<Account> {
     for (const [fieldName, value] of Object.entries(fields)) {
       await this.pool.query(
-        `INSERT INTO ledger_adapter.account_mappings (fin_id, field_name, value)
+        `INSERT INTO ${this.schema}.account_mappings (fin_id, field_name, value)
          VALUES ($1, $2, $3)
          ON CONFLICT (fin_id, field_name) DO UPDATE SET value = $3, updated_at = NOW()`,
         [finId, fieldName, value],
@@ -65,12 +71,12 @@ export class PgAccountStore implements AccountStore {
   async deleteAccount(finId: string, fieldName?: string): Promise<void> {
     if (fieldName) {
       await this.pool.query(
-        'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1 AND field_name = $2',
+        `DELETE FROM ${this.schema}.account_mappings WHERE fin_id = $1 AND field_name = $2`,
         [finId, fieldName],
       );
     } else {
       await this.pool.query(
-        'DELETE FROM ledger_adapter.account_mappings WHERE fin_id = $1',
+        `DELETE FROM ${this.schema}.account_mappings WHERE fin_id = $1`,
         [finId],
       );
     }

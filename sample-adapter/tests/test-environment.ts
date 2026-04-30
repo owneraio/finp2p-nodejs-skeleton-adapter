@@ -5,7 +5,7 @@ import * as http from "http";
 import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
 import { RandomPortGenerator } from "testcontainers";
-import createApp from "../src/app";
+import createApp, { SAMPLE_ADAPTER_SCHEMA } from "../src/app";
 import { workflows } from "@owneraio/finp2p-nodejs-skeleton-adapter";
 import type { Pool } from "pg";
 
@@ -59,15 +59,21 @@ class CustomTestEnvironment extends NodeEnvironment {
     const port = await new RandomPortGenerator().generatePort()
     const connectionString = this.postgresContainer?.getConnectionUri() ?? ""
 
+    // Resolve the adapter's schema name, allowing the operator (or a single
+    // test run) to override via LEDGER_SCHEMA. Real adapters do the
+    // same thing in their own entry points.
+    const schemaName = process.env.LEDGER_SCHEMA || SAMPLE_ADAPTER_SCHEMA;
+
     // Run migrations before starting the app
     await workflows.migrateIfNeeded({
       connectionString,
       migrationListTableName: "finp2p_nodejs_skeleton",
       gooseExecutablePath: await this.whichGoose(),
       storageUser: new URL(connectionString).username,
+      schemaName,
     });
 
-    const { app, pool } = createApp("my-org", undefined, { connectionString })
+    const { app, pool } = createApp("my-org", undefined, { connectionString, schemaName })
     this.pool = pool;
     console.log("App created successfully.");
 

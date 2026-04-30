@@ -26,6 +26,50 @@ describe('Storage operations', () => {
     await container.cleanup();
   });
 
+  test("custom schema name flows through migrations and queries", async () => {
+    // Spin up a second container just for this test so we can drive a
+    // non-default schema and prove migrations land in the right place.
+    // @ts-ignore
+    const c = await global.startPostgresContainer();
+    try {
+      await migrateIfNeeded({
+        connectionString: c.connectionString,
+        // @ts-ignore
+        gooseExecutablePath: await global.whichGoose(),
+        migrationListTableName: "finp2p_nodejs_skeleton_migrations",
+        storageUser: c.storageUser,
+        schemaName: "my_adapter",
+      });
+      const customPool = new Pool({ connectionString: c.connectionString });
+      try {
+        const present = await customPool.query(
+          "SELECT 1 FROM information_schema.schemata WHERE schema_name = 'my_adapter'",
+        );
+        expect(present.rows).toHaveLength(1);
+        const defaultAbsent = await customPool.query(
+          "SELECT 1 FROM information_schema.schemata WHERE schema_name = 'ledger_adapter'",
+        );
+        expect(defaultAbsent.rows).toHaveLength(0);
+
+        const customStorage = new WorkflowStorage(customPool, "my_adapter");
+        const [row] = await customStorage.saveOperation({
+          cid: "custom-1",
+          inputs: { x: 1 },
+          outputs: {},
+          method: "noop",
+          status: "in_progress",
+        });
+        expect(row.cid).toEqual("custom-1");
+        const fetched = await customStorage.getOperationByCid("custom-1");
+        expect(fetched?.cid).toEqual("custom-1");
+      } finally {
+        await customPool.end();
+      }
+    } finally {
+      await c.cleanup();
+    }
+  });
+
   test("check autopopulation of optional fields", async () => {
     const ix = {
       cid: "123",
