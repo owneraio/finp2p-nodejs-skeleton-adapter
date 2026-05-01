@@ -31,7 +31,17 @@ function configureLogging(app: ReturnType<typeof express>) {
 
 export interface AppConfig {
   connectionString?: string;
+  /**
+   * PostgreSQL schema name for skeleton tables. Defaults to `'sample_adapter'`
+   * for the reference adapter; operators can override at deploy time via
+   * `LEDGER_SCHEMA` (handled by the entry point in `src/index.ts`).
+   */
+  schemaName?: string;
 }
+
+/** Default schema name baked into the sample adapter. Real adapters should
+ *  pick their own (e.g. 'sepolia', 'heder'). */
+export const SAMPLE_ADAPTER_SCHEMA = 'sample_adapter';
 
 function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config?: AppConfig) {
   const app = express();
@@ -62,7 +72,8 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
   if (config?.connectionString) {
     pool = new Pool({ connectionString: config.connectionString });
 
-    const workflowStorage = new workflows.WorkflowStorage(pool);
+    const schemaName = config?.schemaName ?? SAMPLE_ADAPTER_SCHEMA;
+    const workflowStorage = new workflows.WorkflowStorage(pool, schemaName);
     if (!finP2PClient) {
       logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
     }
@@ -92,7 +103,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
     // method names so the proxy intercepts only operationStatus to read from the workflow store.
     tokenService = workflows.createServiceProxy(ready, workflowStorage, finP2PClient, tokenService);
 
-    const accountStore = new skeletonStorage.PgAccountStore(pool);
+    const accountStore = new skeletonStorage.PgAccountStore(pool, schemaName);
     mappingService = new AccountMappingServiceImpl(accountStore);
     mappingConfig = {
       fields: [
