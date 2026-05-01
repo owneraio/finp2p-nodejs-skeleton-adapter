@@ -42,6 +42,7 @@ export const FINID_TYPE = {
 export const TERM_TYPE = {
   Term: [
     { name: 'assetId', type: 'string' },
+    { name: 'assetType', type: 'string' },
     { name: 'amount', type: 'string' },
   ],
 };
@@ -210,16 +211,15 @@ export interface EIP712Message {
 }
 
 export type EIP712AssetType = 'finp2p' | 'fiat' | 'cryptocurrency';
-export const eip712Term = (assetId: string, amount: string): EIP712Term => {
-  return { assetId, amount };
+export const eip712Term = (assetId: string, assetType: EIP712AssetType, amount: string): EIP712Term => {
+  return { assetId, assetType, amount };
 };
 
 
 export interface EIP712Term {
   assetId: string,
-  amount: string,
-  // @deprecated — no longer included in the EIP712 hash from platform 0.28 onwards
-  assetType?: string,
+  assetType: string,
+  amount: string
 }
 
 export interface EIP712FinId {
