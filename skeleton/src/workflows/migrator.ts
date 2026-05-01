@@ -4,6 +4,7 @@ import path from 'node:path';
 import { URL } from 'node:url';
 import { logger } from '../helpers';
 import { MigrationConfig } from './config';
+import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from '../storage/config';
 
 interface ProcessResult {
   stdout: string;
@@ -60,6 +61,8 @@ async function runGooseMigrations(
   tableName: string,
   migrationsDir: string,
 ): Promise<void> {
+  const schemaName = config.schemaName ?? DEFAULT_SCHEMA_NAME;
+  assertValidSchemaName(schemaName);
   const result = await executeProcess(
     config.gooseExecutablePath,
     ['-table', tableName, '-dir', migrationsDir, 'up'],
@@ -68,6 +71,7 @@ async function runGooseMigrations(
         GOOSE_DBSTRING: config.connectionString,
         GOOSE_DRIVER: 'postgres',
         LEDGER_ADAPTER_USER: config.storageUser,
+        LEDGER_SCHEMA: schemaName,
       },
     },
   );

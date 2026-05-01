@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { BusinessError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { BusinessError, storage as skeletonStorage } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { randomBytes } from 'node:crypto';
 import bs58 from 'bs58';
 
@@ -39,13 +39,25 @@ const generateTxId = (): string => bs58.encode(Uint8Array.from(randomBytes(32)))
  * Ledger storage backed by PostgreSQL.
  * Provides atomic balance operations with idempotency via CTE-based queries,
  * ported from the Go vanilla adapter.
+ *
+ * The schema name (qualifying `accounts` and `transactions`) is configurable
+ * so multiple adapters can share a database without colliding.
  */
 export class LedgerStorage {
-  constructor(private pool: Pool) {}
+  private readonly schema: string;
+
+  /** Schema name this storage is bound to. Exposed so callers (e.g. the
+   *  service's account_mappings queries) can interpolate the same name. */
+  get schemaName(): string { return this.schema; }
+
+  constructor(private pool: Pool, schemaName: string = skeletonStorage.DEFAULT_SCHEMA_NAME) {
+    skeletonStorage.assertValidSchemaName(schemaName);
+    this.schema = schemaName;
+  }
 
   async ensureAccount(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<void> {
     await this.pool.query(
-      `INSERT INTO ledger_adapter.accounts (fin_id, asset_id, asset_type)
+      `INSERT INTO ${this.schema}.accounts (fin_id, asset_id, asset_type)
        VALUES ($1, $2, $3)
        ON CONFLICT (fin_id, asset_id, asset_type) DO NOTHING`,
       [finId, assetId, assetType],
@@ -89,7 +101,7 @@ export class LedgerStorage {
   async getBalance(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<LedgerBalance> {
     const result = await this.pool.query(
       `SELECT balance::TEXT, held::TEXT, (balance - held)::TEXT AS available
-       FROM ledger_adapter.accounts
+       FROM ${this.schema}.accounts
        WHERE fin_id = $1 AND asset_id = $2 AND asset_type = $3`,
       [finId, assetId, assetType],
     );
@@ -104,7 +116,7 @@ export class LedgerStorage {
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
               action, details, created_at
-       FROM ledger_adapter.transactions WHERE id = $1`,
+       FROM ${this.schema}.transactions WHERE id = $1`,
       [txId],
     );
     return result.rows[0];
@@ -117,7 +129,7 @@ export class LedgerStorage {
   async getSumBalanceExcluding(excludeFinId: string, assetId: string, assetType: string = 'finp2p'): Promise<string> {
     const result = await this.pool.query(
       `SELECT COALESCE(SUM(balance), 0)::TEXT AS total
-       FROM ledger_adapter.accounts
+       FROM ${this.schema}.accounts
        WHERE asset_id = $1 AND asset_type = $2 AND fin_id != $3`,
       [assetId, assetType, excludeFinId],
     );
@@ -136,10 +148,10 @@ export class LedgerStorage {
          COALESCE(d.total, 0)::TEXT   AS distributed,
          (COALESCE(o.balance, 0) + COALESCE(d.total, 0))::TEXT AS omnibus_balance
        FROM
-         (SELECT balance FROM ledger_adapter.accounts
+         (SELECT balance FROM ${this.schema}.accounts
           WHERE fin_id = $1 AND asset_id = $2 AND asset_type = $3) o
        FULL JOIN
-         (SELECT SUM(balance) AS total FROM ledger_adapter.accounts
+         (SELECT SUM(balance) AS total FROM ${this.schema}.accounts
           WHERE asset_id = $2 AND asset_type = $3 AND fin_id != $1) d ON TRUE`,
       [omnibusFinId, assetId, assetType],
     );
@@ -156,7 +168,7 @@ export class LedgerStorage {
       `WITH lock_asset AS (
          SELECT pg_advisory_xact_lock(hashtext($3), hashtext($4))
        )
-       UPDATE ledger_adapter.accounts
+       UPDATE ${this.schema}.accounts
        SET balance = $1::NUMERIC, updated_at = NOW()
        FROM lock_asset
        WHERE fin_id = $2 AND asset_id = $3 AND asset_type = $4`,
@@ -184,10 +196,10 @@ export class LedgerStorage {
        ),
        distributed AS (
          SELECT COALESCE(SUM(a.balance), 0) AS total
-         FROM ledger_adapter.accounts a, lock_asset
+         FROM ${this.schema}.accounts a, lock_asset
          WHERE a.asset_id = $2 AND a.asset_type = $3 AND a.fin_id != $1
        )
-       UPDATE ledger_adapter.accounts a
+       UPDATE ${this.schema}.accounts a
        SET balance = $4::NUMERIC - d.total, updated_at = NOW()
        FROM distributed d
        WHERE a.fin_id = $1 AND a.asset_id = $2 AND a.asset_type = $3
@@ -210,7 +222,7 @@ export class LedgerStorage {
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
               action, details, created_at
-       FROM ledger_adapter.transactions
+       FROM ${this.schema}.transactions
        WHERE details->>'operation_id' = $1`,
       [operationId],
     );
@@ -262,11 +274,11 @@ export class LedgerStorage {
           SELECT t.id, t.asset_id, t.asset_type, t.source, t.destination,
                  t.amount::TEXT, t.source_held::TEXT, t.destination_held::TEXT,
                  t.action, t.details, t.created_at
-          FROM ledger_adapter.transactions t, params p, lock_asset l
+          FROM ${this.schema}.transactions t, params p, lock_asset l
           WHERE t.details->>'idempotency_key' = p.details->>'idempotency_key'
         ),
         src_upd AS (
-          UPDATE ledger_adapter.accounts a
+          UPDATE ${this.schema}.accounts a
           SET balance = a.balance - p.amount,
               held = a.held + p.src_hold,
               updated_at = NOW()
@@ -278,7 +290,7 @@ export class LedgerStorage {
           RETURNING a.fin_id
         ),
         dst_upd AS (
-          UPDATE ledger_adapter.accounts a
+          UPDATE ${this.schema}.accounts a
           SET balance = a.balance + p.amount,
               held = a.held + p.dst_hold,
               updated_at = NOW()
@@ -290,7 +302,7 @@ export class LedgerStorage {
           RETURNING a.fin_id
         ),
         insert_tx AS (
-          INSERT INTO ledger_adapter.transactions
+          INSERT INTO ${this.schema}.transactions
             (id, asset_id, asset_type, source, destination, amount, source_held, destination_held, action, details)
           SELECT p.tx_id, p.asset_id, p.asset_type,
                  NULLIF(s.fin_id, ''), NULLIF(d.fin_id, ''),
