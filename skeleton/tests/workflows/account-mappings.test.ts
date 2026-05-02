@@ -1,5 +1,6 @@
 import { migrateIfNeeded } from '../../src/workflows'
 import { PgAccountStore } from '../../src/storage'
+import { AccountMappingServiceImpl } from '../../src/services/mapping'
 import { Pool } from 'pg'
 
 describe("account mappings", () => {
@@ -114,6 +115,43 @@ describe("account mappings", () => {
   test("empty result for nonexistent finId", async () => {
     const mappings = await store.getAccounts(["does-not-exist"]);
     expect(mappings).toHaveLength(0);
+  });
+
+  describe("AccountMappingServiceImpl case sensitivity", () => {
+    test("default service is case-sensitive (matches store behavior)", async () => {
+      const service = new AccountMappingServiceImpl(store);
+      await service.saveAccount("fin-1", { ledgerAccountId: "0xABCDEF" });
+      await service.saveAccount("fin-2", { ledgerAccountId: "0xabcdef" });
+
+      const upper = await service.getByFieldValue("ledgerAccountId", "0xABCDEF");
+      expect(upper.map(m => m.finId)).toEqual(["fin-1"]);
+
+      const lower = await service.getByFieldValue("ledgerAccountId", "0xabcdef");
+      expect(lower.map(m => m.finId)).toEqual(["fin-2"]);
+    });
+
+    test("caseSensitive: false normalizes on save and lookup", async () => {
+      const service = new AccountMappingServiceImpl(store, { caseSensitive: false });
+
+      // Saved with mixed case — should be lowercased before reaching the store.
+      const saved = await service.saveAccount("fin-1", { ledgerAccountId: "0xAbCdEf" });
+      expect(saved.fields.ledgerAccountId).toBe("0xabcdef");
+
+      // Lookup with any casing finds the same record.
+      for (const probe of ["0xAbCdEf", "0xabcdef", "0xABCDEF"]) {
+        const matches = await service.getByFieldValue("ledgerAccountId", probe);
+        expect(matches.map(m => m.finId)).toEqual(["fin-1"]);
+      }
+    });
+
+    test("caseSensitive: false also applies on update — last write wins, lowercased", async () => {
+      const service = new AccountMappingServiceImpl(store, { caseSensitive: false });
+      await service.saveAccount("fin-1", { ledgerAccountId: "0xOLDADDR" });
+      await service.saveAccount("fin-1", { ledgerAccountId: "0xNewAddr" });
+
+      const all = await store.getAccounts(["fin-1"]);
+      expect(all[0].fields.ledgerAccountId).toBe("0xnewaddr");
+    });
   });
 
   test("getByFieldValue returns all fields for matched finIds", async () => {
