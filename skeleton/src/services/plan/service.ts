@@ -108,7 +108,10 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
               planId,
               instructionSequence,
               sourceFinId: operation.source.finId,
-              asset: operation.asset,
+              // Use the destination-side asset binding: this hook fires only
+              // when the adapter is on the receiving side, so the local
+              // resource lives on `destination.finp2pAccount.asset`.
+              asset: operation.destinationAsset,
               destinationFinId: operation.destination.finId,
               amount: operation.amount,
               result,
@@ -183,10 +186,13 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
           }
 
           case 'transfer': {
-            const { asset, source, destination, amount } = operation;
-            if (this.inboundTransferHook) {
+            const { asset, destinationAsset, source, destination, amount } = operation;
+            // Hook fires only for the inbound side (we are the destination):
+            // the adapter's local resource is on the destination's binding.
+            if (this.inboundTransferHook && destination.orgId === this.orgId) {
               await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
-                planId, sourceFinId: source.finId, asset, destinationFinId: destination.finId, amount,
+                planId, sourceFinId: source.finId, asset: destinationAsset,
+                destinationFinId: destination.finId, amount,
               });
             }
             if (plugin) {
