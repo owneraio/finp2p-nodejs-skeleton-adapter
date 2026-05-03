@@ -10,6 +10,30 @@ type RequestBody<P extends keyof FinAPIPaths, M extends keyof FinAPIPaths[P]> =
 type OpRequestBody<P extends keyof OpPaths, M extends keyof OpPaths[P]> =
   OpPaths[P][M] extends { requestBody: { content: { 'application/json': infer B } } } ? B : never;
 
+/**
+ * Body of `POST /profiles/asset` — sourced directly from the OpenAPI types so
+ * every spec field is available without hand-maintained signatures.
+ *
+ * Required: name, type, denomination, ledgerAssetBinding.
+ * Optional: symbol, issuerId, intentTypes, assetPolicies, config (deprecated),
+ *           metadata, verifiers, financialIdentifier, orgSettlementAccount,
+ *           allowPolicyDefaultFallback, decimalPlaces, autoShare.
+ */
+export type CreateAssetOptions = RequestBody<'/profiles/asset', 'post'>;
+
+/**
+ * Body of `PATCH /profiles/asset/{id}` — sparse update.
+ *
+ * All fields optional / nullable: metadata, config (deprecated), verifiers,
+ * name, symbol, assetPolicies, allowPolicyDefaultFallback, autoShare.
+ *
+ * Immutable post-creation (not in this body): type, issuerId, denomination,
+ * ledgerAssetBinding, financialIdentifier, intentTypes, orgSettlementAccount,
+ * decimalPlaces. Intent allow-list changes have their own dedicated routes
+ * under `/profiles/asset/{id}/intent[/...]`.
+ */
+export type PatchAssetOptions = RequestBody<'/profiles/asset/{id}', 'patch'>;
+
 export class FinAPIClient {
 
   finP2PUrl: string;
@@ -50,22 +74,15 @@ export class FinAPIClient {
     return this.apiClient.POST('/profiles/owner');
   }
 
-  async createAsset(name: string, type: FinAPIComponents['schemas']['assetType'], issuerId: string,
-    symbol: string | undefined,
-    denomination: FinAPIComponents['schemas']['assetDenomination'],
-    intentTypes: FinAPIComponents['schemas']['intentType'][],
-    ledgerAssetBinding: FinAPIComponents['schemas']['ledgerAssetBinding'],
-    assetPolicies: FinAPIComponents['schemas']['assetPolicies'] | undefined,
-    config: string | undefined,
-    metadata: any | undefined,
-    financialIdentifier: FinAPIComponents['schemas']['financialAssetIdentifier'] | undefined,
-  ) {
-    return this.apiClient.POST('/profiles/asset', {
-      body: {
-        intentTypes, name, type, symbol, issuerId, denomination,
-        ledgerAssetBinding, assetPolicies, config, metadata, financialIdentifier,
-      },
-    });
+  async createAsset(opts: CreateAssetOptions) {
+    return this.apiClient.POST('/profiles/asset', { body: opts });
+  }
+
+  async patchAsset(id: string, opts: PatchAssetOptions) {
+    return this.apiClient.PATCH('/profiles/asset/{id}', {
+      params: { path: { id } },
+      body: opts,
+    } as any);
   }
 
   async shareProfile(id: string, organizations: string[]) {
