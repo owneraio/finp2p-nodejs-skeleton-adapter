@@ -36,6 +36,16 @@ function intentWindow(): { start: number; end: number } {
   return { start: now, end: now + 3600 * 4 };
 }
 
+function requireSettlementAsset(value: Finp2pAsset | undefined, side: string): Finp2pAsset {
+  if (!value) throw new Error(`settlementAsset (or ${side}SettlementAsset override) is required`);
+  return value;
+}
+
+function requireSettlementOrgId(value: string | undefined, side: string): string {
+  if (!value) throw new Error(`settlementOrgId (or ${side}SettlementOrgId override) is required`);
+  return value;
+}
+
 async function unwrap(client: FinP2PClient, result: any, label: string): Promise<any> {
   if (result.error) {
     throw new Error(`${label}: ${JSON.stringify(result.error)}`);
@@ -110,12 +120,12 @@ export async function createAsset(client: FinP2PClient, params: CreateAssetParam
 
 export interface PrimarySaleParams {
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
+  settlementAsset: Finp2pAsset;
   issuanceAmount: number;
   issuerId: string;
   issuerFinId: string;
   price: number;
-  paymentOrgId: string;
+  settlementOrgId: string;
   custodianOrgId: string;
 }
 
@@ -141,8 +151,8 @@ export async function createPrimarySale(client: FinP2PClient, params: PrimarySal
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
         settlementInstruction: {
           destinationAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.issuerFinId, params.paymentOrgId, params.custodianOrgId),
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.issuerFinId, params.settlementOrgId, params.custodianOrgId),
           },
         },
       }],
@@ -157,12 +167,12 @@ export async function createPrimarySale(client: FinP2PClient, params: PrimarySal
 
 export interface SellingIntentParams {
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
+  settlementAsset: Finp2pAsset;
   sellingAmount: number;
   sellerId: string;
   sellerFinId: string;
   price: number;
-  paymentOrgId: string;
+  settlementOrgId: string;
   custodianOrgId: string;
 }
 
@@ -188,8 +198,8 @@ export async function createSellingIntent(client: FinP2PClient, params: SellingI
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
         settlementInstruction: {
           destinationAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.sellerFinId, params.paymentOrgId, params.custodianOrgId),
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.sellerFinId, params.settlementOrgId, params.custodianOrgId),
           },
         },
       }],
@@ -205,12 +215,12 @@ export async function createSellingIntent(client: FinP2PClient, params: SellingI
 
 export interface BuyingIntentParams {
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
+  settlementAsset: Finp2pAsset;
   buyingAmount: number;
   buyerId: string;
   buyerFinId: string;
   price: number;
-  paymentOrgId: string;
+  settlementOrgId: string;
   custodianOrgId: string;
 }
 
@@ -236,8 +246,8 @@ export async function createBuyingIntent(client: FinP2PClient, params: BuyingInt
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
         settlementInstruction: {
           sourceAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.buyerFinId, params.paymentOrgId, params.custodianOrgId),
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.buyerFinId, params.settlementOrgId, params.custodianOrgId),
           },
         },
       },
@@ -253,12 +263,12 @@ export async function createBuyingIntent(client: FinP2PClient, params: BuyingInt
 
 export interface RedemptionIntentParams {
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
+  settlementAsset: Finp2pAsset;
   redemptionAmount: number;
   issuerId: string;
   issuerFinId: string;
   price: number;
-  paymentOrgId: string;
+  settlementOrgId: string;
   custodianOrgId: string;
 }
 
@@ -284,8 +294,8 @@ export async function createRedemptionIntent(client: FinP2PClient, params: Redem
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
         settlementInstruction: {
           sourceAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.issuerFinId, params.paymentOrgId, params.custodianOrgId),
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.issuerFinId, params.settlementOrgId, params.custodianOrgId),
           },
         },
       }],
@@ -307,7 +317,7 @@ export type LoanConditions =
 
 export interface LoanIntentParams {
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
+  settlementAsset: Finp2pAsset;
   loanAmount: number;
   creatorType: 'borrower' | 'lender';
   borrowerId: string;
@@ -315,7 +325,7 @@ export interface LoanIntentParams {
   lenderId: string;
   lenderFinId: string;
   price: number;
-  paymentOrgId: string;
+  settlementOrgId: string;
   custodianOrgId: string;
   /** Epoch seconds */
   openDate?: number;
@@ -364,8 +374,8 @@ export async function createLoanIntent(client: FinP2PClient, params: LoanIntentP
       settlement: [{
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
         settlementInstruction: {
-          borrowerAccount: borrowerAccount(params.paymentAsset),
-          lenderAccount: lenderAccount(params.paymentAsset),
+          borrowerAccount: borrowerAccount(params.settlementAsset),
+          lenderAccount: lenderAccount(params.settlementAsset),
         },
       }],
       loanInstruction,
@@ -440,16 +450,31 @@ export interface ExecutePrimarySaleParams {
   intentId: string;
   executionId: string;
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
   assetAmount: number;
   paymentAmount: number;
-  paymentOrgId: string;
+  /**
+   * Single-binding payment fields. Used for both buyer (settlement source) and
+   * seller (settlement destination) when the payment token has one binding
+   * across orgs. Optional — pass per-side overrides instead for bilateral
+   * DvP-cross where each org binds the payment token as its own resource.
+   */
+  settlementAsset?: Finp2pAsset;
+  settlementOrgId?: string;
+  /** Bilateral overrides — when set, take precedence over the single fields. */
+  buyerSettlementAsset?: Finp2pAsset;
+  sellerSettlementAsset?: Finp2pAsset;
+  buyerSettlementOrgId?: string;
+  sellerSettlementOrgId?: string;
   buyer: { id: string; finId: string; custodianOrgId: string };
   seller: { id: string; finId: string; custodianOrgId: string };
 }
 
 export async function executePrimarySale(client: FinP2PClient, params: ExecutePrimarySaleParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
+  const buyerSettlementAsset  = requireSettlementAsset(params.buyerSettlementAsset  ?? params.settlementAsset,  'buyer');
+  const sellerSettlementAsset = requireSettlementAsset(params.sellerSettlementAsset ?? params.settlementAsset, 'seller');
+  const buyerSettlementOrgId  = requireSettlementOrgId(params.buyerSettlementOrgId  ?? params.settlementOrgId,  'buyer');
+  const sellerSettlementOrgId = requireSettlementOrgId(params.sellerSettlementOrgId ?? params.settlementOrgId, 'seller');
 
   const result = await client.executeIntent({
     user: params.seller.id,
@@ -478,12 +503,12 @@ export async function executePrimarySale(client: FinP2PClient, params: ExecutePr
         term: { amount: String(params.paymentAmount) },
         instruction: {
           sourceAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.buyer.finId, params.paymentOrgId, params.buyer.custodianOrgId),
+            asset: finp2pAsset(buyerSettlementAsset),
+            account: finIdAccount(params.buyer.finId, buyerSettlementOrgId, params.buyer.custodianOrgId),
           },
           destinationAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.seller.finId, params.paymentOrgId, params.seller.custodianOrgId),
+            asset: finp2pAsset(sellerSettlementAsset),
+            account: finIdAccount(params.seller.finId, sellerSettlementOrgId, params.seller.custodianOrgId),
           },
         },
       },
@@ -500,16 +525,25 @@ export interface ExecuteSellingIntentParams {
   intentId: string;
   executionId: string;
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
   assetAmount: number;
   paymentAmount: number;
-  paymentOrgId: string;
+  settlementAsset?: Finp2pAsset;
+  settlementOrgId?: string;
+  /** Bilateral overrides — see ExecutePrimarySaleParams. */
+  buyerSettlementAsset?: Finp2pAsset;
+  sellerSettlementAsset?: Finp2pAsset;
+  buyerSettlementOrgId?: string;
+  sellerSettlementOrgId?: string;
   buyer: { id: string; finId: string; custodianOrgId: string };
   seller: { id: string; finId: string; custodianOrgId: string };
 }
 
 export async function executeSellingIntent(client: FinP2PClient, params: ExecuteSellingIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
+  const buyerSettlementAsset  = requireSettlementAsset(params.buyerSettlementAsset  ?? params.settlementAsset,  'buyer');
+  const sellerSettlementAsset = requireSettlementAsset(params.sellerSettlementAsset ?? params.settlementAsset, 'seller');
+  const buyerSettlementOrgId  = requireSettlementOrgId(params.buyerSettlementOrgId  ?? params.settlementOrgId,  'buyer');
+  const sellerSettlementOrgId = requireSettlementOrgId(params.sellerSettlementOrgId ?? params.settlementOrgId, 'seller');
 
   const result = await client.executeIntent({
     user: params.seller.id,
@@ -536,12 +570,12 @@ export async function executeSellingIntent(client: FinP2PClient, params: Execute
         term: { amount: String(params.paymentAmount) },
         instruction: {
           sourceAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.buyer.finId, params.paymentOrgId, params.buyer.custodianOrgId),
+            asset: finp2pAsset(buyerSettlementAsset),
+            account: finIdAccount(params.buyer.finId, buyerSettlementOrgId, params.buyer.custodianOrgId),
           },
           destinationAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.seller.finId, params.paymentOrgId, params.seller.custodianOrgId),
+            asset: finp2pAsset(sellerSettlementAsset),
+            account: finIdAccount(params.seller.finId, sellerSettlementOrgId, params.seller.custodianOrgId),
           },
         },
       },
@@ -558,16 +592,25 @@ export interface ExecuteBuyingIntentParams {
   intentId: string;
   executionId: string;
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
   assetAmount: number;
   paymentAmount: number;
-  paymentOrgId: string;
+  settlementAsset?: Finp2pAsset;
+  settlementOrgId?: string;
+  /** Bilateral overrides — see ExecutePrimarySaleParams. */
+  buyerSettlementAsset?: Finp2pAsset;
+  sellerSettlementAsset?: Finp2pAsset;
+  buyerSettlementOrgId?: string;
+  sellerSettlementOrgId?: string;
   buyer: { id: string; finId: string; custodianOrgId: string };
   seller: { id: string; finId: string; custodianOrgId: string };
 }
 
 export async function executeBuyingIntent(client: FinP2PClient, params: ExecuteBuyingIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
+  const buyerSettlementAsset  = requireSettlementAsset(params.buyerSettlementAsset  ?? params.settlementAsset,  'buyer');
+  const sellerSettlementAsset = requireSettlementAsset(params.sellerSettlementAsset ?? params.settlementAsset, 'seller');
+  const buyerSettlementOrgId  = requireSettlementOrgId(params.buyerSettlementOrgId  ?? params.settlementOrgId,  'buyer');
+  const sellerSettlementOrgId = requireSettlementOrgId(params.sellerSettlementOrgId ?? params.settlementOrgId, 'seller');
 
   const result = await client.executeIntent({
     user: params.buyer.id,
@@ -594,12 +637,12 @@ export async function executeBuyingIntent(client: FinP2PClient, params: ExecuteB
         term: { amount: String(params.paymentAmount) },
         instruction: {
           sourceAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.buyer.finId, params.paymentOrgId, params.buyer.custodianOrgId),
+            asset: finp2pAsset(buyerSettlementAsset),
+            account: finIdAccount(params.buyer.finId, buyerSettlementOrgId, params.buyer.custodianOrgId),
           },
           destinationAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.seller.finId, params.paymentOrgId, params.seller.custodianOrgId),
+            asset: finp2pAsset(sellerSettlementAsset),
+            account: finIdAccount(params.seller.finId, sellerSettlementOrgId, params.seller.custodianOrgId),
           },
         },
       },
@@ -616,16 +659,28 @@ export interface ExecuteRedemptionIntentParams {
   intentId: string;
   executionId: string;
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
   assetAmount: number;
   paymentAmount: number;
-  paymentOrgId: string;
+  settlementAsset?: Finp2pAsset;
+  settlementOrgId?: string;
+  /**
+   * Bilateral overrides for redemption — settlement source is the issuer
+   * (paying out), destination is the seller (receiving payment).
+   */
+  issuerSettlementAsset?: Finp2pAsset;
+  sellerSettlementAsset?: Finp2pAsset;
+  issuerSettlementOrgId?: string;
+  sellerSettlementOrgId?: string;
   seller: { id: string; finId: string; custodianOrgId: string };
   issuer: { id: string; finId: string; custodianOrgId: string };
 }
 
 export async function executeRedemptionIntent(client: FinP2PClient, params: ExecuteRedemptionIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
+  const issuerSettlementAsset = requireSettlementAsset(params.issuerSettlementAsset ?? params.settlementAsset, 'issuer');
+  const sellerSettlementAsset = requireSettlementAsset(params.sellerSettlementAsset ?? params.settlementAsset, 'seller');
+  const issuerSettlementOrgId = requireSettlementOrgId(params.issuerSettlementOrgId ?? params.settlementOrgId, 'issuer');
+  const sellerSettlementOrgId = requireSettlementOrgId(params.sellerSettlementOrgId ?? params.settlementOrgId, 'seller');
 
   const result = await client.executeIntent({
     user: params.issuer.id,
@@ -654,12 +709,12 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
         term: { amount: String(params.paymentAmount) },
         instruction: {
           sourceAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.issuer.finId, params.paymentOrgId, params.issuer.custodianOrgId),
+            asset: finp2pAsset(issuerSettlementAsset),
+            account: finIdAccount(params.issuer.finId, issuerSettlementOrgId, params.issuer.custodianOrgId),
           },
           destinationAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.seller.finId, params.paymentOrgId, params.seller.custodianOrgId),
+            asset: finp2pAsset(sellerSettlementAsset),
+            account: finIdAccount(params.seller.finId, sellerSettlementOrgId, params.seller.custodianOrgId),
           },
         },
       },
@@ -676,10 +731,10 @@ export interface ExecuteLoanIntentParams {
   intentId: string;
   executionId: string;
   asset: Finp2pAsset;
-  paymentAsset: Finp2pAsset;
+  settlementAsset: Finp2pAsset;
   assetAmount: number;
   paymentAmount: number;
-  paymentOrgId: string;
+  settlementOrgId: string;
   executorType: 'borrower' | 'lender';
   borrower: { id: string; finId: string; custodianOrgId: string };
   lender: { id: string; finId: string; custodianOrgId: string };
@@ -716,12 +771,12 @@ export async function executeLoanIntent(client: FinP2PClient, params: ExecuteLoa
         assetTerm: { amount: String(params.paymentAmount) },
         assetInstruction: {
           borrowerAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.borrower.finId, params.paymentOrgId, params.borrower.custodianOrgId),
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.borrower.finId, params.settlementOrgId, params.borrower.custodianOrgId),
           },
           lenderAccount: {
-            asset: finp2pAsset(params.paymentAsset),
-            account: finIdAccount(params.lender.finId, params.paymentOrgId, params.lender.custodianOrgId),
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.lender.finId, params.settlementOrgId, params.lender.custodianOrgId),
           },
         },
       },
@@ -737,8 +792,22 @@ export async function executeLoanIntent(client: FinP2PClient, params: ExecuteLoa
 export interface ExecuteRequestForTransferIntentParams {
   intentId: string;
   executionId: string;
+  /**
+   * Single-binding asset — used for both sender (source) and receiver
+   * (destination) when the asset has one binding across orgs. The orgId
+   * extracted from `asset.id` is used for both sides unless overridden.
+   */
   asset: Finp2pAsset;
   amount: number;
+  /**
+   * Bilateral overrides — when set, take precedence over the single fields.
+   * Use these when sender and receiver orgs each bind the same on-chain
+   * token as their own FinP2P resource (DvP-cross style transfers).
+   */
+  senderAsset?: Finp2pAsset;
+  receiverAsset?: Finp2pAsset;
+  senderOrgId?: string;
+  receiverOrgId?: string;
   sender: { id: string; finId: string; custodianOrgId: string };
   receiver: { id: string; finId: string; custodianOrgId: string };
   action: 'send' | 'request';
@@ -749,6 +818,10 @@ export async function executeRequestForTransferIntent(
   params: ExecuteRequestForTransferIntentParams,
 ): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
+  const senderAsset   = params.senderAsset   ?? params.asset;
+  const receiverAsset = params.receiverAsset ?? params.asset;
+  const senderOrgId   = params.senderOrgId   ?? assetOrgId;
+  const receiverOrgId = params.receiverOrgId ?? assetOrgId;
 
   // Counterparty to the action initiates execution:
   // `send`: sender initiated → receiver executes
@@ -769,12 +842,12 @@ export async function executeRequestForTransferIntent(
         term: { amount: String(params.amount) },
         instruction: {
           sourceAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.sender.finId, assetOrgId, params.sender.custodianOrgId),
+            asset: finp2pAsset(senderAsset),
+            account: finIdAccount(params.sender.finId, senderOrgId, params.sender.custodianOrgId),
           },
           destinationAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.receiver.finId, assetOrgId, params.receiver.custodianOrgId),
+            asset: finp2pAsset(receiverAsset),
+            account: finIdAccount(params.receiver.finId, receiverOrgId, params.receiver.custodianOrgId),
           },
         },
       },
