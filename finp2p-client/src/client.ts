@@ -22,6 +22,10 @@ export class FinP2PClient {
     return this.finAPIClient.createAsset(...args);
   }
 
+  async updateAsset(...args: Parameters<FinAPIClient['patchAsset']>) {
+    return this.finAPIClient.patchAsset(...args);
+  }
+
   async shareProfile(...args: Parameters<FinAPIClient['shareProfile']>) {
     return this.finAPIClient.shareProfile(...args);
   }

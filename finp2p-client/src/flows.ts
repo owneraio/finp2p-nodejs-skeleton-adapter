@@ -5,6 +5,7 @@
  * with structured parameter objects and automatic async operation polling.
  */
 import type { FinP2PClient } from './client';
+import type { FinAPIComponents } from './finapi';
 import { extractOrgId, hexNonce, finIdAccount } from './finapi/utils';
 
 const OP_TIMEOUT = 100_000;
@@ -63,12 +64,12 @@ export interface CreateAssetParams {
   name: string;
   /** Asset classification (Equity, Debt, Cryptocurrency, Fiat, etc.) */
   type: 'Equity' | 'Debt' | 'Loans' | 'Fund' | 'RealEstate' | 'Commodity' | 'Fiat' | 'Cryptocurrency' | 'TokenizedCash' | 'DigitalNatives' | 'Basket' | 'Other';
-  issuerId: string;
+  issuerId?: string;
   symbol?: string;
   denominationCode: string;
   /** How the asset is denominated for settlement purposes. Defaults to 'finp2p'. */
   denominationType?: 'finp2p' | 'fiat' | 'cryptocurrency';
-  intentTypes: Array<'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent'>;
+  intentTypes?: Array<'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent'>;
   /** Logical ledger name, must match the ledgerName registered via /ledger/bind */
   ledger: string;
   /** CAIP-2 chain id, e.g. 'eip155:11155111' (Sepolia) */
@@ -77,25 +78,64 @@ export interface CreateAssetParams {
   tokenId: string;
   /** Token standard, e.g. 'erc20' */
   standard: string;
-  assetPolicies?: any;
+  assetPolicies?: FinAPIComponents['schemas']['assetPolicies'];
+  /** @deprecated use `metadata` instead */
   config?: string;
   metadata?: any;
+  /** Regulation verifiers to execute when validating a transaction on this asset. */
+  verifiers?: FinAPIComponents['schemas']['assetVerifier'][];
   /** Optional financial asset identifier (ISIN/ISO4217/NONE) */
   financialIdentifier?:
   | { assetIdentifierType: 'ISIN'; assetIdentifierValue: string }
   | { assetIdentifierType: 'ISO4217'; assetIdentifierValue: string }
   | { assetIdentifierType: 'NONE' };
+  /** Org's on-chain settlement wallet for this asset ({ type, address }). */
+  orgSettlementAccount?: FinAPIComponents['schemas']['walletAccount'];
+  /** Whether to fall back to a default policy when none matches. Defaults to true server-side. */
+  allowPolicyDefaultFallback?: boolean;
+  /** Decimal places the asset supports (0–18). */
+  decimalPlaces?: number;
+  /** Auto-share the asset profile with all known organizations. Defaults to false server-side. */
+  autoShare?: boolean;
+}
+
+/**
+ * Sparse update over an existing asset profile. Only the fields you set are
+ * sent; omitted fields are not changed. Pass `null` for nullable fields
+ * (metadata, config, verifiers, allowPolicyDefaultFallback) to clear them.
+ *
+ * Fields that are **immutable** post-creation and therefore not on this
+ * shape: type, issuerId, denomination, ledgerAssetBinding,
+ * financialIdentifier, intentTypes, orgSettlementAccount, decimalPlaces.
+ * Intent allow-list changes go through dedicated routes under
+ * `/profiles/asset/{id}/intent[/...]`.
+ */
+export interface UpdateAssetParams {
+  name?: string;
+  symbol?: string;
+  assetPolicies?: FinAPIComponents['schemas']['assetPoliciesOpt'];
+  metadata?: any | null;
+  /** @deprecated use `metadata` instead */
+  config?: string | null;
+  verifiers?: FinAPIComponents['schemas']['assetVerifier'][] | null;
+  allowPolicyDefaultFallback?: boolean | null;
+  autoShare?: boolean | null;
+}
+
+export async function updateAsset(client: FinP2PClient, id: string, params: UpdateAssetParams): Promise<void> {
+  const result = await client.updateAsset(id, params);
+  await unwrap(client, result, 'updateAsset');
 }
 
 export async function createAsset(client: FinP2PClient, params: CreateAssetParams): Promise<string> {
-  const result = await client.createAsset(
-    params.name,
-    params.type,
-    params.issuerId,
-    params.symbol,
-    { type: params.denominationType ?? 'finp2p', code: params.denominationCode },
-    params.intentTypes,
-    {
+  const result = await client.createAsset({
+    name: params.name,
+    type: params.type,
+    issuerId: params.issuerId,
+    symbol: params.symbol,
+    denomination: { type: params.denominationType ?? 'finp2p', code: params.denominationCode },
+    intentTypes: params.intentTypes,
+    ledgerAssetBinding: {
       ledger: params.ledger,
       bind: {
         assetIdentifierType: 'CAIP-19' as const,
@@ -104,11 +144,16 @@ export async function createAsset(client: FinP2PClient, params: CreateAssetParam
         standard: params.standard,
       },
     },
-    params.assetPolicies,
-    params.config,
-    params.metadata,
-    params.financialIdentifier,
-  );
+    assetPolicies: params.assetPolicies,
+    config: params.config,
+    metadata: params.metadata,
+    verifiers: params.verifiers,
+    financialIdentifier: params.financialIdentifier,
+    orgSettlementAccount: params.orgSettlementAccount,
+    allowPolicyDefaultFallback: params.allowPolicyDefaultFallback,
+    decimalPlaces: params.decimalPlaces,
+    autoShare: params.autoShare,
+  });
 
   const res = await unwrap(client, result, 'createAsset');
   const assetId = res?.id;
