@@ -172,6 +172,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       return {
         type: 'transfer',
         asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+        destinationAsset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
         source: finIdAccountFromAPI(source),
         destination: finIdAccountFromAPI(destination),
         amount,
@@ -202,6 +203,7 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
       return {
         type: 'release',
         asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+        destinationAsset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
         source: finIdAccountFromAPI(source),
         destination: finIdAccountFromAPI(destination),
         amount,

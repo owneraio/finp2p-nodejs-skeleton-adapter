@@ -139,7 +139,15 @@ export type HoldInstruction = {
 
 export type ReleaseInstruction = {
   type: 'release';
+  /** Source-side binding of the asset (the adapter's local resource when outbound). */
   asset: Asset;
+  /**
+   * Destination-side binding of the asset (the adapter's local resource when
+   * inbound). In cross-org DvP each side binds the same on-chain token as its
+   * own FinP2P resource, so this can differ from `asset`. Consumers that act
+   * on the destination side (e.g. InboundTransferHook) must read this field.
+   */
+  destinationAsset: Asset;
   source: FinIdAccount;
   destination: FinIdAccount;
   amount: string;
@@ -154,7 +162,15 @@ export type IssueInstruction = {
 
 export type TransferInstruction = {
   type: 'transfer';
+  /** Source-side binding of the asset (the adapter's local resource when outbound). */
   asset: Asset;
+  /**
+   * Destination-side binding of the asset (the adapter's local resource when
+   * inbound). In cross-org DvP each side binds the same on-chain token as its
+   * own FinP2P resource, so this can differ from `asset`. Consumers that act
+   * on the destination side (e.g. InboundTransferHook) must read this field.
+   */
+  destinationAsset: Asset;
   source: FinIdAccount;
   destination: FinIdAccount;
   amount: string;
