@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import bs58 from 'bs58';
 import {
   Asset, Destination, ExecutionContext, OperationType, Receipt, Source,
@@ -6,6 +6,8 @@ import {
 import { LedgerTransaction } from './storage';
 
 export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes(64)));
+
+export const generateIdempotencyKey = (): string => randomUUID();
 
 export function buildReceipt(
   tx: LedgerTransaction,

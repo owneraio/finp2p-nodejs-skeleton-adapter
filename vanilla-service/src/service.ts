@@ -419,11 +419,40 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     await this.importTransaction('redeem', finId, assetId, amount, txId, createdAt);
   }
 
-  /**
-   * Push an `issue`/`redeem` transaction to the router so the investor's
-   * balance projection on the FinP2P side reflects the local move. Best-effort:
-   * the local move already succeeded, so failures are logged but not thrown.
-   */
+  // ─── InboundTransferHook ─────────────────────────────────────────────
+
+  async onPlannedInboundTransfer(_idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void> {
+    const { destinationFinId, asset } = ctx;
+    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
+  }
+
+  async onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void> {
+    const { planId, instructionSequence, sourceFinId, destinationFinId, asset, amount, result } = ctx;
+
+    if (result.type === 'error') {
+      return;
+    }
+
+    if (this.transferDelegate?.onInboundTransfer) {
+      const exCtx = { planId, sequence: instructionSequence };
+      await this.transferDelegate.onInboundTransfer(
+        result.transactionId,
+        { finId: sourceFinId },
+        asset,
+        { finId: destinationFinId },
+        amount, exCtx,
+      );
+    }
+
+    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
+    await this.storage.credit(destinationFinId, amount, asset.assetId, {
+      idempotency_key: idempotencyKey,
+      operation_type: 'transfer',
+      execution_context: { planId, sequence: instructionSequence },
+      transaction_id: result.transactionId,
+    }, asset.assetType);
+  }
+
   private async importTransaction(
     operationType: 'issue' | 'redeem',
     finId: string,
@@ -468,39 +497,5 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
         finId, assetId, quantity, message: err?.message ?? String(err),
       });
     }
-  }
-
-  // ─── InboundTransferHook ─────────────────────────────────────────────
-
-  async onPlannedInboundTransfer(_idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void> {
-    const { destinationFinId, asset } = ctx;
-    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
-  }
-
-  async onInboundTransfer(idempotencyKey: string, ctx: InboundTransferContext): Promise<void> {
-    const { planId, instructionSequence, sourceFinId, destinationFinId, asset, amount, result } = ctx;
-
-    if (result.type === 'error') {
-      return;
-    }
-
-    if (this.transferDelegate?.onInboundTransfer) {
-      const exCtx = { planId, sequence: instructionSequence };
-      await this.transferDelegate.onInboundTransfer(
-        result.transactionId,
-        { finId: sourceFinId },
-        asset,
-        { finId: destinationFinId },
-        amount, exCtx,
-      );
-    }
-
-    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
-    await this.storage.credit(destinationFinId, amount, asset.assetId, {
-      idempotency_key: idempotencyKey,
-      operation_type: 'transfer',
-      execution_context: { planId, sequence: instructionSequence },
-      transaction_id: result.transactionId,
-    }, asset.assetType);
   }
 }
