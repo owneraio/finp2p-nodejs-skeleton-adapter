@@ -47,15 +47,42 @@ function requireSettlementOrgId(value: string | undefined, side: string): string
   return value;
 }
 
-async function unwrap(client: FinP2PClient, result: any, label: string): Promise<any> {
+type FetchResult = { data?: unknown; error?: unknown };
+
+/**
+ * Resolve an openapi-fetch result to its success body, polling through any
+ * async (cid-bearing) `operationBase` response so the synchronous and
+ * deferred paths produce the same shape. Throws on `.error` or empty data.
+ *
+ * `T` is the **post-completion** body shape — pass it explicitly because
+ * openapi-fetch's `data` type unions the 200 success shape with the 202
+ * `operationBase`, and we want the caller to commit to the success
+ * variant. For example:
+ *
+ *   const res = await unwrap<{ id: string }>(client, result, 'createAsset');
+ *   const id = res.id;
+ */
+async function unwrap<T>(
+  client: FinP2PClient,
+  result: FetchResult,
+  label: string,
+): Promise<T> {
   if (result.error) {
     throw new Error(`${label}: ${JSON.stringify(result.error)}`);
   }
   const data = result.data;
-  if (data?.cid && !data.id) {
-    return client.waitForOperationCompletion(data.cid, OP_TIMEOUT);
+  if (data == null) {
+    throw new Error(`${label}: empty response`);
   }
-  return data;
+  const pending = data as { cid?: string; id?: string };
+  if (pending.cid && !pending.id) {
+    // Async: the API returned an `operationBase` (cid only). Poll until the
+    // operation completes and unwrap the nested `.response` so the polled
+    // path produces the same shape as the synchronous path.
+    const completed = await client.waitForOperationCompletion(pending.cid, OP_TIMEOUT);
+    return ((completed as { response?: unknown }).response ?? completed) as T;
+  }
+  return data as T;
 }
 
 // ── Asset creation ──
@@ -124,7 +151,7 @@ export interface UpdateAssetParams {
 
 export async function updateAsset(client: FinP2PClient, id: string, params: UpdateAssetParams): Promise<void> {
   const result = await client.updateAsset(id, params);
-  await unwrap(client, result, 'updateAsset');
+  await unwrap<unknown>(client, result, 'updateAsset');
 }
 
 export async function createAsset(client: FinP2PClient, params: CreateAssetParams): Promise<string> {
@@ -155,10 +182,9 @@ export async function createAsset(client: FinP2PClient, params: CreateAssetParam
     autoShare: params.autoShare,
   });
 
-  const res = await unwrap(client, result, 'createAsset');
-  const assetId = res?.id;
-  if (!assetId) throw new Error('Failed to create asset');
-  return assetId;
+  const res = await unwrap<{ id: string }>(client, result, 'createAsset');
+  if (!res.id) throw new Error('Failed to create asset');
+  return res.id;
 }
 
 // ── Intent creation ──
@@ -204,10 +230,9 @@ export async function createPrimarySale(client: FinP2PClient, params: PrimarySal
     },
   });
 
-  const res = await unwrap(client, result, 'createPrimarySale');
-  const intentId = res?.id;
-  if (!intentId) throw new Error('Failed to create primary sale intent');
-  return intentId;
+  const res = await unwrap<{ id: string }>(client, result, 'createPrimarySale');
+  if (!res.id) throw new Error('Failed to create primary sale intent');
+  return res.id;
 }
 
 export interface SellingIntentParams {
@@ -252,10 +277,9 @@ export async function createSellingIntent(client: FinP2PClient, params: SellingI
     },
   });
 
-  const res = await unwrap(client, result, 'createSellingIntent');
-  const intentId = res?.id;
-  if (!intentId) throw new Error('Failed to create selling intent');
-  return intentId;
+  const res = await unwrap<{ id: string }>(client, result, 'createSellingIntent');
+  if (!res.id) throw new Error('Failed to create selling intent');
+  return res.id;
 }
 
 export interface BuyingIntentParams {
@@ -300,10 +324,9 @@ export async function createBuyingIntent(client: FinP2PClient, params: BuyingInt
     },
   });
 
-  const res = await unwrap(client, result, 'createBuyingIntent');
-  const intentId = res?.id;
-  if (!intentId) throw new Error('Failed to create buying intent');
-  return intentId;
+  const res = await unwrap<{ id: string }>(client, result, 'createBuyingIntent');
+  if (!res.id) throw new Error('Failed to create buying intent');
+  return res.id;
 }
 
 export interface RedemptionIntentParams {
@@ -348,10 +371,9 @@ export async function createRedemptionIntent(client: FinP2PClient, params: Redem
     },
   });
 
-  const res = await unwrap(client, result, 'createRedemptionIntent');
-  const intentId = res?.id;
-  if (!intentId) throw new Error('Failed to create redemption intent');
-  return intentId;
+  const res = await unwrap<{ id: string }>(client, result, 'createRedemptionIntent');
+  if (!res.id) throw new Error('Failed to create redemption intent');
+  return res.id;
 }
 
 /** Loan-specific conditions (required when `loanInstruction` is provided). */
@@ -427,10 +449,9 @@ export async function createLoanIntent(client: FinP2PClient, params: LoanIntentP
     },
   });
 
-  const res = await unwrap(client, result, 'createLoanIntent');
-  const intentId = res?.id;
-  if (!intentId) throw new Error('Failed to create loan intent');
-  return intentId;
+  const res = await unwrap<{ id: string }>(client, result, 'createLoanIntent');
+  if (!res.id) throw new Error('Failed to create loan intent');
+  return res.id;
 }
 
 export interface RequestForTransferIntentParams {
@@ -483,10 +504,9 @@ export async function createRequestForTransferIntent(
     },
   });
 
-  const res = await unwrap(client, result, 'createRequestForTransferIntent');
-  const intentId = res?.id;
-  if (!intentId) throw new Error('Failed to create request-for-transfer intent');
-  return intentId;
+  const res = await unwrap<{ id: string }>(client, result, 'createRequestForTransferIntent');
+  if (!res.id) throw new Error('Failed to create request-for-transfer intent');
+  return res.id;
 }
 
 // ── Intent execution ──
@@ -560,10 +580,9 @@ export async function executePrimarySale(client: FinP2PClient, params: ExecutePr
     },
   });
 
-  const res = await unwrap(client, result, 'executePrimarySale');
-  const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
-  if (!planId) throw new Error('Failed to execute primary sale');
-  return planId;
+  const res = await unwrap<{ executionPlanId: string }>(client, result, 'executePrimarySale');
+  if (!res.executionPlanId) throw new Error('Failed to execute primary sale');
+  return res.executionPlanId;
 }
 
 export interface ExecuteSellingIntentParams {
@@ -627,10 +646,9 @@ export async function executeSellingIntent(client: FinP2PClient, params: Execute
     },
   });
 
-  const res = await unwrap(client, result, 'executeSellingIntent');
-  const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
-  if (!planId) throw new Error('Failed to execute selling intent');
-  return planId;
+  const res = await unwrap<{ executionPlanId: string }>(client, result, 'executeSellingIntent');
+  if (!res.executionPlanId) throw new Error('Failed to execute selling intent');
+  return res.executionPlanId;
 }
 
 export interface ExecuteBuyingIntentParams {
@@ -694,10 +712,9 @@ export async function executeBuyingIntent(client: FinP2PClient, params: ExecuteB
     },
   });
 
-  const res = await unwrap(client, result, 'executeBuyingIntent');
-  const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
-  if (!planId) throw new Error('Failed to execute buying intent');
-  return planId;
+  const res = await unwrap<{ executionPlanId: string }>(client, result, 'executeBuyingIntent');
+  if (!res.executionPlanId) throw new Error('Failed to execute buying intent');
+  return res.executionPlanId;
 }
 
 export interface ExecuteRedemptionIntentParams {
@@ -766,10 +783,9 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
     },
   });
 
-  const res = await unwrap(client, result, 'executeRedemptionIntent');
-  const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
-  if (!planId) throw new Error('Failed to execute redemption intent');
-  return planId;
+  const res = await unwrap<{ executionPlanId: string }>(client, result, 'executeRedemptionIntent');
+  if (!res.executionPlanId) throw new Error('Failed to execute redemption intent');
+  return res.executionPlanId;
 }
 
 export interface ExecuteLoanIntentParams {
@@ -828,10 +844,9 @@ export async function executeLoanIntent(client: FinP2PClient, params: ExecuteLoa
     },
   });
 
-  const res = await unwrap(client, result, 'executeLoanIntent');
-  const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
-  if (!planId) throw new Error('Failed to execute loan intent');
-  return planId;
+  const res = await unwrap<{ executionPlanId: string }>(client, result, 'executeLoanIntent');
+  if (!res.executionPlanId) throw new Error('Failed to execute loan intent');
+  return res.executionPlanId;
 }
 
 export interface ExecuteRequestForTransferIntentParams {
@@ -899,8 +914,7 @@ export async function executeRequestForTransferIntent(
     },
   });
 
-  const res = await unwrap(client, result, 'executeRequestForTransferIntent');
-  const planId = res?.executionPlanId ?? res?.response?.executionPlanId;
-  if (!planId) throw new Error('Failed to execute request-for-transfer intent');
-  return planId;
+  const res = await unwrap<{ executionPlanId: string }>(client, result, 'executeRequestForTransferIntent');
+  if (!res.executionPlanId) throw new Error('Failed to execute request-for-transfer intent');
+  return res.executionPlanId;
 }
