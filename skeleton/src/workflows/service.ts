@@ -208,22 +208,29 @@ export function createServiceProxy<T extends object>(
 ): T {
   const opMetadata: OperationMetadata | undefined = finP2PClient ? { responseStrategy: 'callback' } : undefined;
 
-  // Wait for migrations, then replay pending operations (crash recovery).
+  // Wait for migrations only. Crash recovery runs in the background after
+  // migration completes and does NOT block the ready gate — incoming requests
+  // can proceed as soon as the DB schema is up to date.
   const ready = migrationJob().then(() => {
-    methodsToProxy.forEach((m) => {
+    logger.debug('Migration complete, scheduling crash recovery', { methods: methodsToProxy.map(String) });
+    // Crash recovery: fire-and-forget per method. Does not block ready.
+    for (const m of methodsToProxy) {
       const raw = service[m];
-      if (typeof raw !== 'function') return;
+      if (typeof raw !== 'function') continue;
       const method = raw.bind(service);
 
       storage.getPendingOperations(String(m)).then(
         (operations) => {
+          if (operations.length > 0) {
+            logger.info(`Crash recovery: replaying ${operations.length} pending operation(s) for ${String(m)}`);
+          }
           for (const op of operations) {
             executeAndFinalize(method, op.inputs, op.method, op.cid, opMetadata, storage, finP2PClient);
           }
         },
-        (error) => logger.error('Failed to fetch pending operations', { error }),
+        (error) => logger.error('Failed to fetch pending operations', { method: String(m), error }),
       );
-    });
+    }
   });
 
   const getOperationStatusMethod: keyof CommonService = 'operationStatus';
