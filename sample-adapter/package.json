@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/sample-adapter",
-  "version": "0.28.0",
+  "version": "0.28.1",
   "description": "",
   "main": "./dist/index.js",
   "files": [
@@ -19,8 +19,8 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@owneraio/finp2p-client": "^0.28.0",
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.9",
+    "@owneraio/finp2p-client": "^0.28.10",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.15",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
     "express": "5.0.0",
