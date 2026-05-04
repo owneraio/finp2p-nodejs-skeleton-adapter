@@ -7,6 +7,7 @@ import {
   TokenService, ValidationError,
   failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { FinP2PClient } from '@owneraio/finp2p-client';
 import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { getLogger } from './logger';
@@ -22,6 +23,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     private assetDelegate?: AssetDelegate,
     private escrowDelegate?: EscrowDelegate,
     private omnibusDelegate?: OmnibusDelegate,
+    private finP2PClient?: FinP2PClient,
   ) {}
 
   // ─── TokenService ─────────────────────────────────────────────────────
@@ -406,6 +408,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'distribute',
     }, assetType);
+    await this.pushImportTx('issue', finId, assetId, amount);
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
@@ -413,6 +416,57 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'reclaim',
     }, assetType);
+    await this.pushImportTx('redeem', finId, assetId, amount);
+  }
+
+  /**
+   * Push an `issue`/`redeem` transaction to the router so the investor's
+   * balance projection on the FinP2P side reflects the local move. Best-effort:
+   * the local move already succeeded, so failures are logged but not thrown.
+   */
+  private async pushImportTx(
+    operationType: 'issue' | 'redeem',
+    finId: string,
+    assetId: string,
+    quantity: string,
+  ): Promise<void> {
+    if (!this.finP2PClient) return;
+    try {
+      const ossAsset = await this.finP2PClient.getAsset(assetId);
+      const ledgerIdentifier = ossAsset.ledgerAssetInfo.ledgerIdentifier;
+      if (!ledgerIdentifier) {
+        getLogger().warn(`Skipping ${operationType} import — asset ${assetId} has no ledgerIdentifier`);
+        return;
+      }
+      const txId = generateCid();
+      const finp2pAccount = {
+        account: { finId },
+        asset: {
+          id: assetId,
+          ledgerIdentifier: { assetIdentifierType: 'CAIP-19' as const, ...ledgerIdentifier },
+        },
+      };
+      const tx = {
+        id: txId,
+        quantity,
+        timestamp: Math.floor(Date.now() / 1000),
+        operationType,
+        transactionDetails: { transactionId: txId },
+        ...(operationType === 'issue'
+          ? { destination: { finp2pAccount } }
+          : { source: { finp2pAccount } }),
+      };
+      const result = await this.finP2PClient.importTransactions([tx]);
+      if ((result as any)?.error) {
+        getLogger().error(`importTransactions rejected for ${operationType}`, {
+          finId, assetId, quantity, error: (result as any).error,
+        });
+      }
+    } catch (err: any) {
+      getLogger().error(`importTransactions failed for ${operationType}`, {
+        finId, assetId, quantity, message: err?.message ?? String(err),
+      });
+    }
   }
 
   // ─── InboundTransferHook ─────────────────────────────────────────────
