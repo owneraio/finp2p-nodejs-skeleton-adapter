@@ -3,9 +3,19 @@ import {
   ExecutionPlan,
   InstructionResult, PlanFailureReason,
   PlanApprovalService, PlanProposal, InboundTransferHook,
-  PlanApprovalStatus, rejectedPlan, TransferInstruction,
+  PlanApprovalStatus, rejectedPlan, ReleaseInstruction, TransferInstruction,
 } from '../../models';
 import { FinP2PClient, OpComponents } from '@owneraio/finp2p-client';
+
+/**
+ * Extract the org prefix from a FinP2P resource id of the form
+ * `<orgId>:<type>:<uuid>`. Inlined here (rather than imported from
+ * finp2p-client) so the skeleton runtime doesn't pull in finp2p-client
+ * for a one-line operation — keeps the peer-dep purely typeful.
+ */
+function orgIdFromResource(resourceId: string): string {
+  return resourceId.split(':', 1)[0];
+}
 
 import { executionFromAPI } from './mapper';
 import { PluginManager } from '../../plugins';
@@ -97,9 +107,16 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
       }
 
       const { operation } = instruction;
-      if (operation.type === 'transfer') {
-        const transfer = instruction.operation as TransferInstruction;
-        if (transfer.destination.orgId === this.orgId) {
+      // Inbound hook fires for both `transfer` and `release` — both move value
+      // from a source account to a destination account on a single asset, and
+      // the adapter on the receiving side needs to observe either flavor.
+      // Gate by the destination *asset*'s org (extracted from its resourceId)
+      // rather than the destination account's orgId — the asset binding always
+      // belongs to the destination side's org by construction in v0.28
+      // cross-org DvP, and resourceId carries the prefix unconditionally.
+      if (operation.type === 'transfer' || operation.type === 'release') {
+        const op = operation as TransferInstruction | ReleaseInstruction;
+        if (orgIdFromResource(op.destinationAsset.assetId) === this.orgId) {
           const event = execution.instructionsCompletionEvents
             ?.find(e => e.instructionSequenceNumber === instructionSequence);
           const result = mapInstructionResult(event);
@@ -107,13 +124,13 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
             await this.inboundTransferHook.onInboundTransfer(idempotencyKey, {
               planId,
               instructionSequence,
-              sourceFinId: operation.source.finId,
+              sourceFinId: op.source.finId,
               // Use the destination-side asset binding: this hook fires only
               // when the adapter is on the receiving side, so the local
               // resource lives on `destination.finp2pAccount.asset`.
-              asset: operation.destinationAsset,
-              destinationFinId: operation.destination.finId,
-              amount: operation.amount,
+              asset: op.destinationAsset,
+              destinationFinId: op.destination.finId,
+              amount: op.amount,
               result,
             });
           } else {
@@ -189,7 +206,8 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
             const { asset, destinationAsset, source, destination, amount } = operation;
             // Hook fires only for the inbound side (we are the destination):
             // the adapter's local resource is on the destination's binding.
-            if (this.inboundTransferHook && destination.orgId === this.orgId) {
+            // Gate via the destination asset's org prefix.
+            if (this.inboundTransferHook && orgIdFromResource(destinationAsset.assetId) === this.orgId) {
               await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
                 planId, sourceFinId: source.finId, asset: destinationAsset,
                 destinationFinId: destination.finId, amount,
@@ -198,6 +216,21 @@ export class PlanApprovalServiceImpl implements PlanApprovalService {
             if (plugin) {
               return await plugin.validateTransfer(source.finId, destination.finId, asset, amount);
             }
+            break;
+          }
+
+          case 'release': {
+            const { destinationAsset, source, destination, amount } = operation;
+            // Same inbound-hook semantics as `transfer`: a release moves value
+            // from a held position on the source side to the destination
+            // account, so the destination's adapter needs to credit locally.
+            if (this.inboundTransferHook && orgIdFromResource(destinationAsset.assetId) === this.orgId) {
+              await this.inboundTransferHook.onPlannedInboundTransfer(idempotencyKey, {
+                planId, sourceFinId: source.finId, asset: destinationAsset,
+                destinationFinId: destination.finId, amount,
+              });
+            }
+            // No plugin call — release isn't a separately validated op.
             break;
           }
 
