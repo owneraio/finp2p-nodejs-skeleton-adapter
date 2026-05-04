@@ -7,10 +7,11 @@ import {
   TokenService, ValidationError,
   failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { FinP2PClient } from '@owneraio/finp2p-client';
 import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { getLogger } from './logger';
-import { buildReceipt, generateCid } from './utils';
+import { buildReceipt, generateCid, generateIdempotencyKey } from './utils';
 
 /** Well-known finId prefix for omnibus accounts in the local ledger. */
 const OMNIBUS_FIN_ID = '__omnibus__';
@@ -22,6 +23,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     private assetDelegate?: AssetDelegate,
     private escrowDelegate?: EscrowDelegate,
     private omnibusDelegate?: OmnibusDelegate,
+    private finP2PClient?: FinP2PClient,
   ) {}
 
   // ─── TokenService ─────────────────────────────────────────────────────
@@ -402,17 +404,19 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
   async distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
     await this.storage.ensureAccount(finId, assetId, assetType);
-    await this.storage.move(OMNIBUS_FIN_ID, finId, amount, assetId, {
-      idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
+    const { id: txId, created_at: createdAt } = await this.storage.move(OMNIBUS_FIN_ID, finId, amount, assetId, {
+      idempotency_key: generateIdempotencyKey(),
       operation_type: 'distribute',
     }, assetType);
+    await this.importTransaction('issue', finId, assetId, amount, txId, createdAt);
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {
-      idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
+    const { id: txId, created_at: createdAt } = await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {
+      idempotency_key: generateIdempotencyKey(),
       operation_type: 'reclaim',
     }, assetType);
+    await this.importTransaction('redeem', finId, assetId, amount, txId, createdAt);
   }
 
   // ─── InboundTransferHook ─────────────────────────────────────────────
@@ -447,5 +451,51 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       execution_context: { planId, sequence: instructionSequence },
       transaction_id: result.transactionId,
     }, asset.assetType);
+  }
+
+  private async importTransaction(
+    operationType: 'issue' | 'redeem',
+    finId: string,
+    assetId: string,
+    quantity: string,
+    txId: string,
+    createdAt: Date,
+  ): Promise<void> {
+    if (!this.finP2PClient) return;
+    try {
+      const ossAsset = await this.finP2PClient.getAsset(assetId);
+      const ledgerIdentifier = ossAsset.ledgerAssetInfo.ledgerIdentifier;
+      if (!ledgerIdentifier) {
+        getLogger().warn(`Skipping ${operationType} import — asset ${assetId} has no ledgerIdentifier`);
+        return;
+      }
+      const finp2pAccount = {
+        account: { finId },
+        asset: {
+          id: assetId,
+          ledgerIdentifier: { assetIdentifierType: 'CAIP-19' as const, ...ledgerIdentifier },
+        },
+      };
+      const tx = {
+        id: txId,
+        quantity,
+        timestamp: Math.floor(createdAt.getTime() / 1000),
+        operationType,
+        transactionDetails: { transactionId: txId },
+        ...(operationType === 'issue'
+          ? { destination: { finp2pAccount } }
+          : { source: { finp2pAccount } }),
+      };
+      const result = await this.finP2PClient.importTransactions([tx]);
+      if ((result as any)?.error) {
+        getLogger().error(`importTransactions rejected for ${operationType}`, {
+          finId, assetId, quantity, error: (result as any).error,
+        });
+      }
+    } catch (err: any) {
+      getLogger().error(`importTransactions failed for ${operationType}`, {
+        finId, assetId, quantity, message: err?.message ?? String(err),
+      });
+    }
   }
 }
