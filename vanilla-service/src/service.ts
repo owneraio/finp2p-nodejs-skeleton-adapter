@@ -175,6 +175,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
     const tx = await this.storage.lock(source.finId, quantity, asset.assetId, details, asset.assetType);
 
+    let extTransactionId: string | undefined;
     if (this.escrowDelegate) {
       const result = await this.escrowDelegate.hold(
         idempotencyKey, source, destination, asset, quantity, operationId, exCtx,
@@ -185,10 +186,11 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
         }, asset.assetType);
         return failedReceiptOperation(1, result.error);
       }
+      extTransactionId = result.transactionId;
     }
 
     const receipt = buildReceipt(
-      tx, asset, source, destination, quantity, 'hold', exCtx, operationId,
+      tx, asset, source, destination, quantity, 'hold', exCtx, operationId, extTransactionId,
     );
     return successfulReceiptOperation(receipt);
   }
@@ -200,6 +202,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   ): Promise<ReceiptOperation> {
     getLogger().info('Release operation', { source: source.finId, destination: destination.finId, quantity, operationId });
 
+    let extTransactionId: string | undefined;
     if (this.escrowDelegate) {
       const result = await this.escrowDelegate.release(
         idempotencyKey, source, destination, asset, quantity, operationId, exCtx,
@@ -207,6 +210,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       if (!result.success) {
         return failedReceiptOperation(1, result.error);
       }
+      extTransactionId = result.transactionId;
     }
 
     await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
@@ -219,7 +223,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       }, asset.assetType,
     );
     const receipt = buildReceipt(
-      tx, asset, source, destination, quantity, 'release', exCtx, operationId,
+      tx, asset, source, destination, quantity, 'release', exCtx, operationId, extTransactionId,
     );
     return successfulReceiptOperation(receipt);
   }
@@ -231,6 +235,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   ): Promise<ReceiptOperation> {
     getLogger().info('Rollback operation', { source: source.finId, quantity, operationId });
 
+    let extTransactionId: string | undefined;
     if (this.escrowDelegate) {
       const result = await this.escrowDelegate.rollback(
         idempotencyKey, source, asset, quantity, operationId, exCtx,
@@ -238,6 +243,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       if (!result.success) {
         return failedReceiptOperation(1, result.error);
       }
+      extTransactionId = result.transactionId;
     }
 
     const tx = await this.storage.unlock(source.finId, quantity, asset.assetId, {
@@ -248,7 +254,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     }, asset.assetType);
 
     const receipt = buildReceipt(
-      tx, asset, source, undefined, quantity, 'release', exCtx, operationId,
+      tx, asset, source, undefined, quantity, 'release', exCtx, operationId, extTransactionId,
     );
     return successfulReceiptOperation(receipt);
   }
