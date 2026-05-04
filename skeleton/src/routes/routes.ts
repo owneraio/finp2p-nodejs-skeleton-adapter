@@ -179,7 +179,7 @@ export const register = (app: Application,
       const dst = destinationFromAPI(destination);
       const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = executionContextOptFromAPI(executionContext, destination.asset?.resourceId);
 
       const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
 
@@ -222,7 +222,7 @@ export const register = (app: Application,
       const dst = destinationOptFromAPI(destination);
       const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = executionContextOptFromAPI(executionContext, destination?.asset?.resourceId);
 
       const rsp = await escrowService.hold(ik, nonce, src, dst, ast, quantity, sgn, operationId, exCtx);
       res.json(receiptOperationToAPI(rsp));
@@ -238,7 +238,7 @@ export const register = (app: Application,
       const src = sourceFromAPI(source);
       const dst = destinationFromAPI(destination);
       const ast = assetFromAPI(source.asset);
-      const exCtx = executionContextOptFromAPI(executionContext);
+      const exCtx = executionContextOptFromAPI(executionContext, destination.asset?.resourceId);
 
       const rsp = await escrowService.release(ik, src, dst, ast, quantity, operationId, exCtx);
 
