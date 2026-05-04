@@ -404,19 +404,19 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
   async distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
     await this.storage.ensureAccount(finId, assetId, assetType);
-    const tx = await this.storage.move(OMNIBUS_FIN_ID, finId, amount, assetId, {
+    const { id: txId, created_at: createdAt } = await this.storage.move(OMNIBUS_FIN_ID, finId, amount, assetId, {
       idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'distribute',
     }, assetType);
-    await this.importTransaction('issue', finId, assetId, amount, tx);
+    await this.importTransaction('issue', finId, assetId, amount, txId, createdAt);
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
-    const tx = await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {
+    const { id: txId, created_at: createdAt } = await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {
       idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'reclaim',
     }, assetType);
-    await this.importTransaction('redeem', finId, assetId, amount, tx);
+    await this.importTransaction('redeem', finId, assetId, amount, txId, createdAt);
   }
 
   /**
@@ -429,7 +429,8 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     finId: string,
     assetId: string,
     quantity: string,
-    ledgerTx: { id: string; created_at: Date },
+    txId: string,
+    createdAt: Date,
   ): Promise<void> {
     if (!this.finP2PClient) return;
     try {
@@ -447,11 +448,11 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
         },
       };
       const tx = {
-        id: ledgerTx.id,
+        id: txId,
         quantity,
-        timestamp: Math.floor(ledgerTx.created_at.getTime() / 1000),
+        timestamp: Math.floor(createdAt.getTime() / 1000),
         operationType,
-        transactionDetails: { transactionId: ledgerTx.id },
+        transactionDetails: { transactionId: txId },
         ...(operationType === 'issue'
           ? { destination: { finp2pAccount } }
           : { source: { finp2pAccount } }),
