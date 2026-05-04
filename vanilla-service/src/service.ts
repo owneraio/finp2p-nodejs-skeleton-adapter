@@ -11,7 +11,7 @@ import { FinP2PClient } from '@owneraio/finp2p-client';
 import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
 import { LedgerStorage } from './storage';
 import { getLogger } from './logger';
-import { buildReceipt, generateCid } from './utils';
+import { buildReceipt, generateCid, generateIdempotencyKey } from './utils';
 
 /** Well-known finId prefix for omnibus accounts in the local ledger. */
 const OMNIBUS_FIN_ID = '__omnibus__';
@@ -405,7 +405,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   async distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
     await this.storage.ensureAccount(finId, assetId, assetType);
     const { id: txId, created_at: createdAt } = await this.storage.move(OMNIBUS_FIN_ID, finId, amount, assetId, {
-      idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
+      idempotency_key: generateIdempotencyKey(),
       operation_type: 'distribute',
     }, assetType);
     await this.importTransaction('issue', finId, assetId, amount, txId, createdAt);
@@ -413,7 +413,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
     const { id: txId, created_at: createdAt } = await this.storage.move(finId, OMNIBUS_FIN_ID, amount, assetId, {
-      idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
+      idempotency_key: generateIdempotencyKey(),
       operation_type: 'reclaim',
     }, assetType);
     await this.importTransaction('redeem', finId, assetId, amount, txId, createdAt);
