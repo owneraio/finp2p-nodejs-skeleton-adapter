@@ -18,6 +18,10 @@ export class FinP2PClient {
 
   // ── Owner / Profile ──
 
+  async createOwner() {
+    return this.finAPIClient.createOwner();
+  }
+
   async createAsset(...args: Parameters<FinAPIClient['createAsset']>) {
     return this.finAPIClient.createAsset(...args);
   }
