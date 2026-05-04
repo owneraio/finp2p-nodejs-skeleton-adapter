@@ -458,13 +458,23 @@ export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt']
     proof,
     timestamp,
   } = receipt;
-  const apiAsset = assetToAPI(asset);
+  const sourceAsset = assetToAPI(asset);
+  // Cross-org DvP: each side binds the same on-chain token as its own FinP2P
+  // resource. The service receives the destination's binding via
+  // `exCtx.counterpartyAssetId` and lets it ride through on the in-memory
+  // receipt's tradeDetails.executionContext. Here we use it to populate the
+  // destination side of the wire account schema; the wire executionContext
+  // gets stripped to {planId, sequence} by `executionContextOptToAPI`.
+  const counterpartyAssetId = tradeDetails.executionContext?.counterpartyAssetId;
+  const destinationAsset = counterpartyAssetId
+    ? { ...sourceAsset, resourceId: counterpartyAssetId }
+    : sourceAsset;
   return {
     id,
     quantity,
     timestamp,
-    source: source ? { finId: source.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(source.account) } : undefined,
-    destination: destination ? { finId: destination.finId, asset: apiAsset, ledgerAccount: ledgerAccountToAPI(destination.account) } : undefined,
+    source: source ? { finId: source.finId, asset: sourceAsset, ledgerAccount: ledgerAccountToAPI(source.account) } : undefined,
+    destination: destination ? { finId: destination.finId, asset: destinationAsset, ledgerAccount: ledgerAccountToAPI(destination.account) } : undefined,
     operationType: operationType as components['schemas']['operationType'],
     tradeDetails: tradeDetailsToAPI(tradeDetails),
     transactionDetails: transactionDetailsToAPI(transactionDetails),
