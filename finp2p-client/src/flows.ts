@@ -121,12 +121,18 @@ export interface CreateAssetParams {
   intentTypes?: Array<'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent'>;
   /** Logical ledger name, must match the ledgerName registered via /ledger/bind */
   ledger: string;
+  /**
+   * On-chain bind triple. All three (`network`, `tokenId`, `standard`) must be
+   * supplied together to bind to an existing on-chain token; omit all three
+   * for a virtual asset where the ledger record is allocated server-side.
+   * Partial input throws.
+   */
   /** CAIP-2 chain id, e.g. 'eip155:11155111' (Sepolia) */
-  network: string;
+  network?: string;
   /** Token identifier on the ledger (e.g. ERC-20 contract address) */
-  tokenId: string;
+  tokenId?: string;
   /** Token standard, e.g. 'erc20' */
-  standard: string;
+  standard?: string;
   assetPolicies?: FinAPIComponents['schemas']['assetPolicies'];
   /** @deprecated use `metadata` instead */
   config?: string;
@@ -176,6 +182,13 @@ export async function updateAsset(client: FinP2PClient, id: string, params: Upda
 }
 
 export async function createAsset(client: FinP2PClient, params: CreateAssetParams): Promise<string> {
+  const { network, tokenId, standard } = params;
+  const hasAny = network || tokenId || standard;
+  const hasAll = network && tokenId && standard;
+  if (hasAny && !hasAll) {
+    throw new Error(`createAsset: bind requires all of network/tokenId/standard, got ${JSON.stringify({ network, tokenId, standard })}`);
+  }
+
   const res = await unwrapOperation<{ id: string }>(client, client.createAsset({
     name: params.name,
     type: params.type,
@@ -185,12 +198,14 @@ export async function createAsset(client: FinP2PClient, params: CreateAssetParam
     intentTypes: params.intentTypes,
     ledgerAssetBinding: {
       ledger: params.ledger,
-      bind: {
-        assetIdentifierType: 'CAIP-19' as const,
-        network: params.network,
-        tokenId: params.tokenId,
-        standard: params.standard,
-      },
+      ...(hasAll ? {
+        bind: {
+          assetIdentifierType: 'CAIP-19' as const,
+          network,
+          tokenId,
+          standard,
+        },
+      } : {}),
     },
     assetPolicies: params.assetPolicies,
     config: params.config,
