@@ -51,6 +51,7 @@ export type LedgerAccount = {
 export type ExecutionContext = {
   planId: string
   sequence: number
+  counterpartyAssetId?: string
 };
 
 export type ErrorDetails = {
