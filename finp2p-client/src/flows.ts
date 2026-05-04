@@ -769,8 +769,6 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
       nonce: hexNonce(),
       issuer: params.issuer.id,
       seller: params.seller.id,
-      // `redemptionIntentExecution.asset` requires both source (seller's holdings)
-      // and destination (optional account on issuer side, asset-only here).
       asset: {
         term: { amount: String(params.assetAmount) },
         instruction: {
@@ -780,6 +778,7 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
           },
           destinationAccount: {
             asset: finp2pAsset(params.asset),
+            account: finIdAccount(params.issuer.finId, assetOrgId, params.issuer.custodianOrgId),
           },
         },
       },
