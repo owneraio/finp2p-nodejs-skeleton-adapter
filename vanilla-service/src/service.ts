@@ -408,7 +408,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       idempotency_key: `distribute:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'distribute',
     }, assetType);
-    await this.pushImportTx('issue', finId, assetId, amount);
+    await this.importTransaction('issue', finId, assetId, amount);
   }
 
   async reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void> {
@@ -416,7 +416,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       idempotency_key: `reclaim:${finId}:${assetId}:${Date.now()}`,
       operation_type: 'reclaim',
     }, assetType);
-    await this.pushImportTx('redeem', finId, assetId, amount);
+    await this.importTransaction('redeem', finId, assetId, amount);
   }
 
   /**
@@ -424,7 +424,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
    * balance projection on the FinP2P side reflects the local move. Best-effort:
    * the local move already succeeded, so failures are logged but not thrown.
    */
-  private async pushImportTx(
+  private async importTransaction(
     operationType: 'issue' | 'redeem',
     finId: string,
     assetId: string,
