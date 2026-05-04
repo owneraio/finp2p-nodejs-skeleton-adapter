@@ -194,6 +194,7 @@ async function executeAndFinalize(
     const outputs: OperationStatus = await method(...args);
     await finalize(storage, finP2PClient, cid, dbStatus(outputs), outputs);
   } catch (error: any) {
+    logger.error('Operation failed', { method: methodName, cid, ...describeError(error) });
     const wrp = wrappedResponse(methodName, opMetadata, [cid, 1, String(error)]);
     await finalize(storage, finP2PClient, cid, 'failed', wrp);
   }
