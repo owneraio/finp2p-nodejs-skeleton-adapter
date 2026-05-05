@@ -134,4 +134,10 @@ export interface DistributionService {
   getDistributionStatus(assetId: string, assetType: AssetType): Promise<DistributionStatus>;
   distribute(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void>;
   reclaim(finId: string, assetId: string, assetType: AssetType, amount: string): Promise<void>;
+  /**
+   * Reclaim every per-investor account back to omnibus for the given asset.
+   * Each account is reclaimed sequentially (each reclaim emits its own
+   * router-side `redeem` import-tx) and the post-flush status is returned.
+   */
+  flushDistributions(assetId: string, assetType: AssetType): Promise<DistributionStatus>;
 }

@@ -8,6 +8,7 @@ import { DistributionService } from './interfaces';
  *   GET  /distribution/status      — read-only omnibus vs distributed balance
  *   POST /distribution/distribute  — allocate omnibus value to investor
  *   POST /distribution/reclaim     — return investor value to undistributed pool
+ *   POST /distribution/flush       — reclaim every per-investor account back to omnibus
  */
 export function registerDistributionRoutes(
   app: Application,
@@ -68,6 +69,21 @@ export function registerDistributionRoutes(
       }
       await distributionService.reclaim(finId, assetId, assetType ?? 'finp2p', amount);
       res.json({ status: 'ok' });
+    } catch (e: any) {
+      const code = e instanceof BusinessError ? 409 : 500;
+      res.status(code).json({ error: e.message });
+    }
+  });
+
+  app.post('/distribution/flush', async (req, res) => {
+    try {
+      const { assetId, assetType } = req.body;
+      if (!assetId) {
+        res.status(400).json({ error: 'assetId is required' });
+        return;
+      }
+      const status = await distributionService.flushDistributions(assetId, assetType ?? 'finp2p');
+      res.json(status);
     } catch (e: any) {
       const code = e instanceof BusinessError ? 409 : 500;
       res.status(code).json({ error: e.message });
