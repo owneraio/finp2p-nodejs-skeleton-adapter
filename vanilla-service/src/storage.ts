@@ -123,6 +123,24 @@ export class LedgerStorage {
   }
 
   /**
+   * Returns all per-investor accounts with positive balances for an asset,
+   * excluding the omnibus account itself. Used to enumerate what would be
+   * touched by a bulk flush back into omnibus.
+   */
+  async listDistributedAccounts(
+    omnibusFinId: string, assetId: string, assetType: string = 'finp2p',
+  ): Promise<{ finId: string; balance: string }[]> {
+    const result = await this.pool.query(
+      `SELECT fin_id AS "finId", balance::TEXT AS balance
+       FROM ${this.schema}.accounts
+       WHERE asset_id = $1 AND asset_type = $2 AND fin_id != $3 AND balance > 0
+       ORDER BY fin_id`,
+      [assetId, assetType, omnibusFinId],
+    );
+    return result.rows;
+  }
+
+  /**
    * Returns the sum of balances for all accounts matching the asset,
    * excluding a specific finId (e.g. the omnibus account).
    */

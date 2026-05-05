@@ -419,6 +419,15 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     await this.importTransaction('redeem', finId, assetId, amount, txId, createdAt);
   }
 
+  async flushDistributions(assetId: string, assetType: AssetType): Promise<DistributionStatus> {
+    const accounts = await this.storage.listDistributedAccounts(OMNIBUS_FIN_ID, assetId, assetType);
+    getLogger().info(`Flushing ${accounts.length} distributed accounts for asset ${assetId}`);
+    for (const { finId, balance } of accounts) {
+      await this.reclaim(finId, assetId, assetType, balance);
+    }
+    return this.getDistributionStatus(assetId, assetType);
+  }
+
   // ─── InboundTransferHook ─────────────────────────────────────────────
 
   async onPlannedInboundTransfer(_idempotencyKey: string, ctx: PlannedInboundTransferContext): Promise<void> {
