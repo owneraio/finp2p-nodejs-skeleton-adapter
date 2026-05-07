@@ -916,6 +916,14 @@ export interface ExecuteRedemptionIntentParams {
   sellerSettlementOrgId?: string;
   seller: { id: string; finId: string; custodianOrgId: string };
   issuer: { id: string; finId: string; custodianOrgId: string };
+
+  /**
+   * Must match the value passed to createRedemptionIntent. When true, the
+   * asset's `destinationAccount` is built without the issuer's `account`
+   * (burn shape, mirroring what was promised at create). Default false =
+   * transfer-to-issuer.
+   */
+  burn?: boolean;
 }
 
 export async function executeRedemptionIntent(client: FinP2PClient, params: ExecuteRedemptionIntentParams): Promise<string> {
@@ -941,10 +949,12 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
             asset: finp2pAsset(params.asset),
             account: finIdAccount(params.seller.finId, assetOrgId, params.seller.custodianOrgId),
           },
-          destinationAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.issuer.finId, assetOrgId, params.issuer.custodianOrgId),
-          },
+          destinationAccount: params.burn
+            ? { asset: finp2pAsset(params.asset) }
+            : {
+              asset: finp2pAsset(params.asset),
+              account: finIdAccount(params.issuer.finId, assetOrgId, params.issuer.custodianOrgId),
+            },
         },
       },
       settlement: {
