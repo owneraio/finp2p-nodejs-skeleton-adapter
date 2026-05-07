@@ -439,11 +439,26 @@ export interface RedemptionIntentParams {
   price: number;
   settlementOrgId: string;
   custodianOrgId: string;
+
+  /**
+   * When true, omit the issuer `account` from
+   * `assetInstruction.destinationAccount` so the asset is burned at
+   * execute time (supply decrement) instead of moved to the issuer's
+   * account. Default false = transfer-to-issuer.
+   */
+  burn?: boolean;
 }
 
 export async function createRedemptionIntent(client: FinP2PClient, params: RedemptionIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
   const { start, end } = intentWindow();
+
+  const destinationAccount = params.burn
+    ? { asset: finp2pAsset(params.asset) }
+    : {
+      asset: finp2pAsset(params.asset),
+      account: finIdAccount(params.issuerFinId, assetOrgId, params.custodianOrgId),
+    };
 
   const res = await unwrapOperation<{ id: string }>(client, client.createIntent(params.asset.id, {
     start, end,
@@ -452,12 +467,7 @@ export async function createRedemptionIntent(client: FinP2PClient, params: Redem
       issuer: params.issuerId,
       asset: {
         assetTerm: { amount: String(params.redemptionAmount) },
-        assetInstruction: {
-          destinationAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.issuerFinId, assetOrgId, params.custodianOrgId),
-          },
-        },
+        assetInstruction: { destinationAccount },
       },
       settlement: [{
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
@@ -758,6 +768,14 @@ export interface ExecutePrivateOfferIntentParams {
   sellerSettlementOrgId?: string;
   buyer: { id: string; finId: string; custodianOrgId: string };
   seller: { id: string; finId: string; custodianOrgId: string };
+
+  /**
+   * Must match the value passed to createPrivateOfferIntent. When true,
+   * the asset's `sourceAccount` is built without the seller's `account`
+   * (mint at execute time, same shape as executePrimarySale's asset
+   * source). Default false = transfer.
+   */
+  issuance?: boolean;
 }
 
 export async function executePrivateOfferIntent(client: FinP2PClient, params: ExecutePrivateOfferIntentParams): Promise<string> {
@@ -797,10 +815,12 @@ export async function executePrivateOfferIntent(client: FinP2PClient, params: Ex
       asset: {
         term: { amount: String(params.assetAmount) },
         instruction: {
-          sourceAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.seller.finId, assetOrgId, params.seller.custodianOrgId),
-          },
+          sourceAccount: params.issuance
+            ? { asset: finp2pAsset(params.asset) }
+            : {
+              asset: finp2pAsset(params.asset),
+              account: finIdAccount(params.seller.finId, assetOrgId, params.seller.custodianOrgId),
+            },
           destinationAccount: {
             asset: finp2pAsset(params.asset),
             account: finIdAccount(params.buyer.finId, assetOrgId, params.buyer.custodianOrgId),
