@@ -314,19 +314,58 @@ export async function createSellingIntent(client: FinP2PClient, params: SellingI
 
 export interface PrivateOfferIntentParams {
   asset: Finp2pAsset;
-  settlementAsset: Finp2pAsset;
   amount: number;
   buyerId: string;
   sellerId: string;
   sellerFinId: string;
-  price: number;
-  settlementOrgId: string;
   custodianOrgId: string;
+
+  /**
+   * Settlement leg, all-or-nothing. Provide all three to express a paid
+   * variant (transfer-with-settlement or issuance-with-settlement); omit
+   * all three for the issuance-without-settlement variant. Partial input
+   * throws — they're a triple, not independent.
+   */
+  settlementAsset?: Finp2pAsset;
+  price?: number;
+  settlementOrgId?: string;
+
+  /**
+   * When true, omit the seller's `account` from the asset source so the
+   * asset is minted to the buyer at execute time (issuance variants).
+   * When false/undefined, the seller's account is the source (transfer
+   * variant). Default false.
+   */
+  issuance?: boolean;
 }
 
 export async function createPrivateOfferIntent(client: FinP2PClient, params: PrivateOfferIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
   const { start, end } = intentWindow();
+
+  const settlementProvided = [params.settlementAsset, params.price, params.settlementOrgId].filter((v) => v !== undefined).length;
+  if (settlementProvided !== 0 && settlementProvided !== 3) {
+    throw new Error(`createPrivateOfferIntent: settlementAsset/price/settlementOrgId are a triple — provide all three or none, got ${JSON.stringify({ settlementAsset: !!params.settlementAsset, price: params.price, settlementOrgId: params.settlementOrgId })}`);
+  }
+
+  const sourceAccount = params.issuance
+    ? { asset: finp2pAsset(params.asset) }
+    : {
+      asset: finp2pAsset(params.asset),
+      account: finIdAccount(params.sellerFinId, assetOrgId, params.custodianOrgId),
+    };
+
+  const settlement = settlementProvided === 3
+    ? [{
+      settlementTerm: { type: 'partialSettlement' as const, unitValue: params.price!.toFixed(2) },
+      settlementInstruction: {
+        destinationAccount: {
+          asset: finp2pAsset(params.settlementAsset!),
+          account: finIdAccount(params.sellerFinId, params.settlementOrgId!, params.custodianOrgId),
+        },
+      },
+    }]
+    : undefined;
 
   const res = await unwrapOperation<{ id: string }>(client, client.createIntent(params.asset.id, {
     start, end,
@@ -336,22 +375,9 @@ export async function createPrivateOfferIntent(client: FinP2PClient, params: Pri
       seller: params.sellerId,
       asset: {
         assetTerm: { amount: String(params.amount) },
-        assetInstruction: {
-          sourceAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.sellerFinId, assetOrgId, params.custodianOrgId),
-          },
-        },
+        assetInstruction: { sourceAccount },
       },
-      settlement: [{
-        settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
-        settlementInstruction: {
-          destinationAccount: {
-            asset: finp2pAsset(params.settlementAsset),
-            account: finIdAccount(params.sellerFinId, params.settlementOrgId, params.custodianOrgId),
-          },
-        },
-      }],
+      settlement,
       signaturePolicy: { type: 'manualPolicy' },
     },
   }));
@@ -721,7 +747,8 @@ export interface ExecutePrivateOfferIntentParams {
   executionId: string;
   asset: Finp2pAsset;
   assetAmount: number;
-  paymentAmount: number;
+  /** Omit to express the no-settlement variant. */
+  paymentAmount?: number;
   settlementAsset?: Finp2pAsset;
   settlementOrgId?: string;
   /** Bilateral overrides — see ExecutePrimarySaleParams. */
@@ -735,10 +762,28 @@ export interface ExecutePrivateOfferIntentParams {
 
 export async function executePrivateOfferIntent(client: FinP2PClient, params: ExecutePrivateOfferIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
-  const buyerSettlementAsset  = requireSettlementAsset(params.buyerSettlementAsset  ?? params.settlementAsset,  'buyer');
-  const sellerSettlementAsset = requireSettlementAsset(params.sellerSettlementAsset ?? params.settlementAsset, 'seller');
-  const buyerSettlementOrgId  = requireSettlementOrgId(params.buyerSettlementOrgId  ?? params.settlementOrgId,  'buyer');
-  const sellerSettlementOrgId = requireSettlementOrgId(params.sellerSettlementOrgId ?? params.settlementOrgId, 'seller');
+
+  const settlement = params.paymentAmount !== undefined
+    ? (() => {
+      const buyerSettlementAsset  = requireSettlementAsset(params.buyerSettlementAsset  ?? params.settlementAsset,  'buyer');
+      const sellerSettlementAsset = requireSettlementAsset(params.sellerSettlementAsset ?? params.settlementAsset, 'seller');
+      const buyerSettlementOrgId  = requireSettlementOrgId(params.buyerSettlementOrgId  ?? params.settlementOrgId,  'buyer');
+      const sellerSettlementOrgId = requireSettlementOrgId(params.sellerSettlementOrgId ?? params.settlementOrgId, 'seller');
+      return {
+        term: { amount: String(params.paymentAmount) },
+        instruction: {
+          sourceAccount: {
+            asset: finp2pAsset(buyerSettlementAsset),
+            account: finIdAccount(params.buyer.finId, buyerSettlementOrgId, params.buyer.custodianOrgId),
+          },
+          destinationAccount: {
+            asset: finp2pAsset(sellerSettlementAsset),
+            account: finIdAccount(params.seller.finId, sellerSettlementOrgId, params.seller.custodianOrgId),
+          },
+        },
+      };
+    })()
+    : undefined;
 
   const res = await unwrapOperation<{ executionPlanId: string }>(client, client.executeIntent({
     user: params.seller.id,
@@ -762,19 +807,7 @@ export async function executePrivateOfferIntent(client: FinP2PClient, params: Ex
           },
         },
       },
-      settlement: {
-        term: { amount: String(params.paymentAmount) },
-        instruction: {
-          sourceAccount: {
-            asset: finp2pAsset(buyerSettlementAsset),
-            account: finIdAccount(params.buyer.finId, buyerSettlementOrgId, params.buyer.custodianOrgId),
-          },
-          destinationAccount: {
-            asset: finp2pAsset(sellerSettlementAsset),
-            account: finIdAccount(params.seller.finId, sellerSettlementOrgId, params.seller.custodianOrgId),
-          },
-        },
-      },
+      settlement,
     },
   }));
   if (!res.executionPlanId) throw new Error('Failed to execute private offer intent');
