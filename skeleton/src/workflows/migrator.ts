@@ -4,7 +4,7 @@ import path from 'node:path';
 import { URL } from 'node:url';
 import { logger } from '../helpers';
 import { MigrationConfig } from './config';
-import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from '../storage/config';
+import { assertValidPostgresIdentifier, DEFAULT_SCHEMA_NAME } from '../storage/config';
 
 interface ProcessResult {
   stdout: string;
@@ -57,12 +57,10 @@ function executeProcess(
 }
 
 async function runGooseMigrations(
-  config: MigrationConfig,
+  config: Omit<MigrationConfig, 'schemaName'> & { schemaName: string }, // schemaName is not optional here
   tableName: string,
   migrationsDir: string,
 ): Promise<void> {
-  const schemaName = config.schemaName ?? DEFAULT_SCHEMA_NAME;
-  assertValidSchemaName(schemaName);
   const result = await executeProcess(
     config.gooseExecutablePath,
     ['-table', tableName, '-dir', migrationsDir, 'up'],
@@ -71,7 +69,7 @@ async function runGooseMigrations(
         GOOSE_DBSTRING: config.connectionString,
         GOOSE_DRIVER: 'postgres',
         LEDGER_ADAPTER_USER: config.storageUser,
-        LEDGER_SCHEMA: schemaName,
+        LEDGER_SCHEMA: config.schemaName,
       },
     },
   );
@@ -83,17 +81,26 @@ async function runGooseMigrations(
 }
 
 export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
+  // Validate every identifier the migration will splice into SQL/CLI args
+  // before spawning goose, so a bad name fails fast instead of mid-run.
+  const schemaName = config.schemaName ?? DEFAULT_SCHEMA_NAME;
+  assertValidPostgresIdentifier(schemaName);
+  assertValidPostgresIdentifier(config.migrationListTableName);
+  for (const additional of config.additionalMigrations ?? []) {
+    assertValidPostgresIdentifier(additional.tableName);
+  }
+
   const url = new URL(config.connectionString);
   logger.debug(`running migration tool goose at: ${config.gooseExecutablePath} db at: ${url.protocol}://${url.hostname}:${url.port}`);
 
   // Run skeleton migrations
   const skeletonDir = path.join(__dirname, '..', '..', 'migrations');
-  await runGooseMigrations(config, config.migrationListTableName, skeletonDir);
+  await runGooseMigrations({ ...config, schemaName }, config.migrationListTableName, skeletonDir);
 
   // Run additional migration sets (e.g. vanilla-service)
   if (config.additionalMigrations) {
     for (const additional of config.additionalMigrations) {
-      await runGooseMigrations(config, additional.tableName, additional.migrationsDir);
+      await runGooseMigrations({ ...config, schemaName }, additional.tableName, additional.migrationsDir);
     }
   }
 }
