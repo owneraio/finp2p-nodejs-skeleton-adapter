@@ -4,6 +4,7 @@ import { ClientError } from '../utils/error';
 import { OpenAPIValidator } from '../utils/openapi-validator';
 import { sleep } from '../utils/utils';
 import { ClientBase } from './base';
+import { MappingLedgerAPI } from './mapping';
 
 export class TokensLedgerAPI extends ClientBase {
 
@@ -94,6 +95,8 @@ export class LedgerAPIClient {
 
   public readonly common: CommonLedgerAPI;
 
+  public readonly mapping: MappingLedgerAPI;
+
   public readonly callbackServer: CallbackServer | undefined;
 
   constructor(host: string, callbackServer?: CallbackServer) {
@@ -102,6 +105,7 @@ export class LedgerAPIClient {
     this.payments = new PaymentsLedgerAPI(host);
     this.plan = new PlanLedgerAPI(host);
     this.common = new CommonLedgerAPI(host);
+    this.mapping = new MappingLedgerAPI(host);
     this.callbackServer = callbackServer;
   }
 

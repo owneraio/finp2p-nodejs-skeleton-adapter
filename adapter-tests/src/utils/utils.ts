@@ -1,5 +1,6 @@
 import * as secp256k1 from 'secp256k1';
 import * as crypto from 'crypto';
+import { computeAddress } from 'ethers';
 
 export const ASSET = 102;
 
@@ -42,3 +43,12 @@ export const randomResourceId = (orgId: string, resourceType: number) => {
 };
 
 export const generateIdempotencyKey = () => crypto.randomUUID();
+
+/**
+ * Derive an Ethereum address from a finId, treating the finId hex as a
+ * compressed secp256k1 pubkey. Used only by test fixtures whose actors are
+ * constructed via `createCrypto()` and therefore have a finId that IS their
+ * pubkey. This derivation does NOT belong in production adapter code — see
+ * the AccountMappingService / `ledgerAccountId` binding for that.
+ */
+export const finIdToAddress = (finId: string): string => computeAddress(`0x${finId}`);
