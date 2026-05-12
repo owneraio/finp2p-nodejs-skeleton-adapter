@@ -15,7 +15,7 @@ export function insufficientBalanceTest() {
 
     beforeAll(async () => {
       // @ts-ignore
-      client = new LedgerAPIClient(global.serverAddress, global.callbackServer);
+      client = new LedgerAPIClient(global.serverAddress, global.callbackServer, global.serverBaseAddress);
       // @ts-ignore
       orgId = global.orgId;
 
