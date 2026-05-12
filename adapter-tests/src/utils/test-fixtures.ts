@@ -89,11 +89,6 @@ export class TestFixtures {
       asset: LedgerAPI['schemas']['asset'];
       receipt: LedgerAPI['schemas']['receipt'];
     }> {
-    // Register finId → ledgerAccountId mappings so signature verification finds
-    // a credential for buyer and issuer.
-    await this.ensureOwnerMappingRegistered(params.buyer);
-    await this.ensureOwnerMappingRegistered(params.issuer);
-
     // Create asset
     await TestHelpers.createAssetAndWait(
       this.client,
@@ -135,9 +130,6 @@ export class TestFixtures {
       balance: number;
     }> {
     const asset = this.builder.buildFiatAsset(params.fiatCode);
-
-    // Register owner's finId → ledgerAccountId mapping.
-    await this.ensureOwnerMappingRegistered(params.owner);
 
     // Create asset
     await TestHelpers.createAssetAndWait(
@@ -195,10 +187,6 @@ export class TestFixtures {
     }> {
     const operationId = params.operationId || generateId();
 
-    // Register finId → ledgerAccountId mappings for both sides.
-    await this.ensureOwnerMappingRegistered(params.source);
-    await this.ensureOwnerMappingRegistered(params.destination);
-
     const holdRequest = await this.builder.buildSignedHoldRequest({
       source: params.source,
       destination: params.destination,
@@ -234,10 +222,6 @@ export class TestFixtures {
       asset: LedgerAPI['schemas']['asset'];
       issueAmount: number;
     }> {
-    // Register finId → ledgerAccountId mappings for investor and issuer.
-    await this.ensureOwnerMappingRegistered(params.investor);
-    await this.ensureOwnerMappingRegistered(params.issuer);
-
     // Create asset
     await TestHelpers.createAssetAndWait(
       this.client,

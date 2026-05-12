@@ -18,15 +18,15 @@ export function tokenLifecycleTests() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS);
+      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
       fixtures = new TestFixtures(client, builder);
     });
 
     test('should issue, transfer, and verify balances', async () => {
       // Setup: Create actors and asset
-      const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-      const primaryBuyer = builder.buildActor('primaryBuyer');
-      const secondaryBuyer = builder.buildActor('secondaryBuyer');
+      const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
+      const primaryBuyer = await builder.buildActor('primaryBuyer');
+      const secondaryBuyer = await builder.buildActor('secondaryBuyer');
       const asset = builder.buildFinP2PAsset();
 
       const scenario = SCENARIOS.ISSUE_TRANSFER_REDEEM;

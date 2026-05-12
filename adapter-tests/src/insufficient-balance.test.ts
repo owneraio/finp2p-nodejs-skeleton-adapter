@@ -19,15 +19,15 @@ export function insufficientBalanceTest() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS);
+      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
       fixtures = new TestFixtures(client, builder);
     });
 
     describe('Transfer Insufficient Balance', () => {
       test('should fail when transferring more tokens than available balance', async () => {
         // Setup: Create issuer with limited balance
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
         const asset = builder.buildFinP2PAsset();
 
         const initialBalance = 100;
@@ -35,7 +35,7 @@ export function insufficientBalanceTest() {
         // Issue tokens to issuer
         await fixtures.setupIssuedTokens({
           issuer,
-          buyer: builder.buildActor('primaryBuyer'),
+          buyer: await builder.buildActor('primaryBuyer'),
           asset,
           amount: initialBalance,
           settlementAmount: 1000,
@@ -68,8 +68,8 @@ export function insufficientBalanceTest() {
       });
 
       test('should fail when transferring exact balance plus one', async () => {
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
         const asset = builder.buildFinP2PAsset();
 
         const exactBalance = 500;
@@ -77,7 +77,7 @@ export function insufficientBalanceTest() {
         // Issue exact balance
         await fixtures.setupIssuedTokens({
           issuer: seller,
-          buyer: builder.buildActor('primaryBuyer'),
+          buyer: await builder.buildActor('primaryBuyer'),
           asset,
           amount: exactBalance,
           settlementAmount: 5000,
@@ -105,8 +105,8 @@ export function insufficientBalanceTest() {
 
     describe('Redeem Insufficient Balance', () => {
       test('should fail when redeeming more tokens than available', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+        const investor = await builder.buildActor(ACTOR_NAMES.INVESTOR);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
         const asset = builder.buildFinP2PAsset();
 
         const initialBalance = 100;
@@ -146,8 +146,8 @@ export function insufficientBalanceTest() {
       });
 
       test('should fail when redeeming from zero balance', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+        const investor = await builder.buildActor(ACTOR_NAMES.INVESTOR);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
         const asset = builder.buildFinP2PAsset();
 
         // Create asset but don't issue any tokens to investor
@@ -184,8 +184,8 @@ export function insufficientBalanceTest() {
 
     describe('Hold Insufficient Balance', () => {
       test('should fail when holding more fiat than available balance', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const initialBalance = 1000;
 
@@ -224,8 +224,8 @@ export function insufficientBalanceTest() {
       });
 
       test('should fail when holding from zero balance', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         // Create fiat asset with zero balance
         const { asset } = await fixtures.setupFiatAssetWithBalance({
@@ -261,8 +261,8 @@ export function insufficientBalanceTest() {
       });
 
       test('should fail when holding after partial consumption of balance', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const initialBalance = 1000;
         const firstHoldAmount = 800;
@@ -315,9 +315,9 @@ export function insufficientBalanceTest() {
 
     describe('Multiple Operations - Insufficient Balance', () => {
       test('should fail when combined operations exceed balance', async () => {
-        const owner = builder.buildActor('owner');
-        const recipient1 = builder.buildActor('recipient1');
-        const recipient2 = builder.buildActor('recipient2');
+        const owner = await builder.buildActor('owner');
+        const recipient1 = await builder.buildActor('recipient1');
+        const recipient2 = await builder.buildActor('recipient2');
         const asset = builder.buildFinP2PAsset();
 
         const totalBalance = 100;
@@ -325,7 +325,7 @@ export function insufficientBalanceTest() {
         // Setup owner with limited balance
         await fixtures.setupIssuedTokens({
           issuer: owner,
-          buyer: builder.buildActor('primaryBuyer'),
+          buyer: await builder.buildActor('primaryBuyer'),
           asset,
           amount: totalBalance,
           settlementAmount: 1000,

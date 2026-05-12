@@ -19,14 +19,14 @@ export function businessLogicTests() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS);
+      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
       fixtures = new TestFixtures(client, builder);
     });
 
     describe('Rollback Operations', () => {
       test('should rollback held funds and restore balance', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const initialBalance = 1000;
         const holdAmount = 500;
@@ -67,7 +67,7 @@ export function businessLogicTests() {
       });
 
       test('should fail when rolling back non-existent hold', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
 
         const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
@@ -90,8 +90,8 @@ export function businessLogicTests() {
       });
 
       test('should fail when rolling back already released hold', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const initialBalance = 1000;
         const holdAmount = 500;
@@ -140,8 +140,8 @@ export function businessLogicTests() {
       });
 
       test('should fail when rolling back already redeemed hold', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+        const investor = await builder.buildActor(ACTOR_NAMES.INVESTOR);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
         const asset = builder.buildFinP2PAsset();
 
         const initialBalance = 100;
@@ -184,8 +184,8 @@ export function businessLogicTests() {
 
     describe('Double Operation Prevention', () => {
       test('should fail when trying to release twice', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const initialBalance = 1000;
         const holdAmount = 500;
@@ -226,8 +226,8 @@ export function businessLogicTests() {
       });
 
       test('should fail when trying to redeem twice', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+        const investor = await builder.buildActor(ACTOR_NAMES.INVESTOR);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
         const asset = builder.buildFinP2PAsset();
 
         await fixtures.setupRedemptionScenario({
@@ -259,8 +259,8 @@ export function businessLogicTests() {
       });
 
       test('should fail when trying to rollback twice', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
@@ -297,8 +297,8 @@ export function businessLogicTests() {
 
     describe('Invalid Operation ID Tests', () => {
       test('should fail release with non-existent operationId', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
@@ -321,8 +321,8 @@ export function businessLogicTests() {
       });
 
       test('should fail redeem with non-existent operationId', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+        const investor = await builder.buildActor(ACTOR_NAMES.INVESTOR);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
         const asset = builder.buildFinP2PAsset();
 
         await fixtures.setupRedemptionScenario({
@@ -348,8 +348,8 @@ export function businessLogicTests() {
       });
 
       test('should fail redeem with mismatched operationId', async () => {
-        const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+        const investor = await builder.buildActor(ACTOR_NAMES.INVESTOR);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
         const asset = builder.buildFinP2PAsset();
 
         await fixtures.setupRedemptionScenario({
@@ -390,7 +390,7 @@ export function businessLogicTests() {
 
     describe('Asset Lifecycle Tests', () => {
       test('should not allow operations on non-existent asset', async () => {
-        const actor = builder.buildActor('actor');
+        const actor = await builder.buildActor('actor');
         const nonExistentAsset = builder.buildFinP2PAsset();
 
         // Try to issue tokens for non-existent asset
@@ -409,7 +409,7 @@ export function businessLogicTests() {
       });
 
       test('should successfully create asset before issuing tokens', async () => {
-        const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
         const asset = builder.buildFinP2PAsset();
 
         // Create asset first
@@ -432,14 +432,14 @@ export function businessLogicTests() {
       });
 
       test('should handle multiple assets independently', async () => {
-        const owner = builder.buildActor('owner');
+        const owner = await builder.buildActor('owner');
         const asset1 = builder.buildFinP2PAsset();
         const asset2 = builder.buildFinP2PAsset();
 
         // Setup first asset with tokens
         await fixtures.setupIssuedTokens({
           issuer: owner,
-          buyer: builder.buildActor('buyer1'),
+          buyer: await builder.buildActor('buyer1'),
           asset: asset1,
           amount: 100,
           settlementAmount: 1000,
@@ -448,7 +448,7 @@ export function businessLogicTests() {
         // Setup second asset with tokens
         await fixtures.setupIssuedTokens({
           issuer: owner,
-          buyer: builder.buildActor('buyer2'),
+          buyer: await builder.buildActor('buyer2'),
           asset: asset2,
           amount: 200,
           settlementAmount: 2000,
@@ -462,15 +462,15 @@ export function businessLogicTests() {
 
     describe('Zero Amount Tests', () => {
       test('should handle transfer of zero tokens', async () => {
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
         const asset = builder.buildFinP2PAsset();
 
         const initialBalance = 100;
 
         await fixtures.setupIssuedTokens({
           issuer: seller,
-          buyer: builder.buildActor('primaryBuyer'),
+          buyer: await builder.buildActor('primaryBuyer'),
           asset,
           amount: initialBalance,
           settlementAmount: 1000,
@@ -499,8 +499,8 @@ export function businessLogicTests() {
       });
 
       test('should handle hold of zero amount', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
@@ -533,9 +533,9 @@ export function businessLogicTests() {
 
     describe('Wrong Actor Tests', () => {
       test('should fail when releasing with wrong source', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
-        const attacker = builder.buildActor('attacker');
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
+        const attacker = await builder.buildActor('attacker');
 
         const { asset } = await fixtures.setupFiatAssetWithBalance({
           owner: buyer,
@@ -571,15 +571,15 @@ export function businessLogicTests() {
       });
 
       test('should fail when transferring from wrong account', async () => {
-        const owner = builder.buildActor('owner');
-        const attacker = builder.buildActor('attacker');
-        const recipient = builder.buildActor('recipient');
+        const owner = await builder.buildActor('owner');
+        const attacker = await builder.buildActor('attacker');
+        const recipient = await builder.buildActor('recipient');
         const asset = builder.buildFinP2PAsset();
 
         // Setup owner with tokens
         await fixtures.setupIssuedTokens({
           issuer: owner,
-          buyer: builder.buildActor('buyer'),
+          buyer: await builder.buildActor('buyer'),
           asset,
           amount: 100,
           settlementAmount: 1000,
@@ -608,8 +608,8 @@ export function businessLogicTests() {
 
     describe('Partial Release Tests', () => {
       test('should allow partial release of held funds', async () => {
-        const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-        const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+        const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+        const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
         const initialBalance = 1000;
         const holdAmount = 500;

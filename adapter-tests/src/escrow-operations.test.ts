@@ -18,14 +18,14 @@ describe('Escrow Operations', () => {
     // @ts-ignore
     orgId = global.orgId;
 
-    builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS);
+    builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
     fixtures = new TestFixtures(client, builder);
   });
 
   test('should hold and release funds', async () => {
     // Setup: Create actors and fiat asset with balance
-    const buyer = builder.buildActor(ACTOR_NAMES.BUYER);
-    const seller = builder.buildActor(ACTOR_NAMES.SELLER);
+    const buyer = await builder.buildActor(ACTOR_NAMES.BUYER);
+    const seller = await builder.buildActor(ACTOR_NAMES.SELLER);
 
     const scenario = SCENARIOS.ESCROW_HOLD_RELEASE;
 
@@ -87,8 +87,8 @@ describe('Escrow Operations', () => {
 
   test('should hold and redeem tokens', async () => {
     // Setup: Create actors and asset
-    const investor = builder.buildActor(ACTOR_NAMES.INVESTOR);
-    const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
+    const investor = await builder.buildActor(ACTOR_NAMES.INVESTOR);
+    const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
     const asset = builder.buildFinP2PAsset();
 
     const scenario = SCENARIOS.ESCROW_HOLD_REDEEM;
