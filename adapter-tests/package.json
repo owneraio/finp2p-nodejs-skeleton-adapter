@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/adapter-tests",
-  "version": "0.28.2",
+  "version": "0.28.7",
   "description": "",
   "main": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,6 +17,7 @@
   "dependencies": {
     "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.10",
     "axios": "^1.12.2",
+    "ethers": "^6.11.1",
     "secp256k1": "^3.7.1",
     "yaml": "^2.8.1",
     "zod": "^4.1.12"

@@ -4,6 +4,7 @@ import { ClientError } from '../utils/error';
 import { OpenAPIValidator } from '../utils/openapi-validator';
 import { sleep } from '../utils/utils';
 import { ClientBase } from './base';
+import { MappingLedgerAPI } from './mapping';
 
 export class TokensLedgerAPI extends ClientBase {
 
@@ -94,14 +95,28 @@ export class LedgerAPIClient {
 
   public readonly common: CommonLedgerAPI;
 
+  public readonly mapping: MappingLedgerAPI;
+
   public readonly callbackServer: CallbackServer | undefined;
 
-  constructor(host: string, callbackServer?: CallbackServer) {
+  /**
+   * @param host        Base URL the DLT adapter API lives at (e.g. `http://host:port/api`).
+   *                    Used by tokens / escrow / payments / plan / common.
+   * @param callbackServer Optional CallbackServer for async-callback flows.
+   * @param baseAddress Optional separate base URL for mapping endpoints
+   *                    (e.g. `http://host:port` with no `/api` suffix).
+   *                    Defaults to `host`. The mapping mount point can sit
+   *                    outside the DLT adapter API base path; sample-adapter
+   *                    exposes both `global.serverAddress` and
+   *                    `global.serverBaseAddress` for that reason.
+   */
+  constructor(host: string, callbackServer?: CallbackServer, baseAddress?: string) {
     this.tokens = new TokensLedgerAPI(host);
     this.escrow = new EscrowLedgerAPI(host);
     this.payments = new PaymentsLedgerAPI(host);
     this.plan = new PlanLedgerAPI(host);
     this.common = new CommonLedgerAPI(host);
+    this.mapping = new MappingLedgerAPI(baseAddress ?? host);
     this.callbackServer = callbackServer;
   }
 

@@ -1,5 +1,6 @@
-import { createCrypto, generateNonce, randomResourceId, ASSET } from './utils';
+import { createCrypto, finIdToAddress, generateNonce, randomResourceId, ASSET } from './utils';
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { LedgerAPIClient } from '../api/api';
 import { eip712Signature } from '../api/mapper';
 import {
   EIP712PrimarySaleMessage,
@@ -35,18 +36,34 @@ export class TestDataBuilder {
     private orgId: string,
     private chainId: number,
     private verifyingContract: string,
+    private client?: LedgerAPIClient,
   ) {}
 
   // ========== Data Builders (creates supporting objects) ==========
 
   /**
-   * Creates a test actor with generated keys and account
-   * @example const alice = builder.buildActor('alice');
+   * Creates a test actor with generated keys and account, and registers the
+   * actor's `finId → ledgerAccountId` binding with the adapter (idempotent)
+   * when the builder is constructed with a `LedgerAPIClient`.
+   *
+   * Registering at construction time means downstream tests don't have to
+   * remember to call `TestFixtures.ensureOwnerMappingRegistered(...)` after
+   * spinning up an ad-hoc actor — every actor minted via `buildActor` is
+   * known to the adapter the moment it exists.
+   *
+   * @example const alice = await builder.buildActor('alice');
    */
-  buildActor(name: string = 'actor'): TestActor {
+  async buildActor(name: string = 'actor'): Promise<TestActor> {
     const { private: privateKeyBytes, public: publicKey } = createCrypto();
     const privateKey = privateKeyBytes.toString('hex');
     const finIdStr = publicKey.toString('hex');
+
+    if (this.client) {
+      await this.client.mapping.createOwnerMapping({
+        finId: finIdStr,
+        accountMappings: { ledgerAccountId: finIdToAddress(finIdStr) },
+      });
+    }
 
     return {
       name,

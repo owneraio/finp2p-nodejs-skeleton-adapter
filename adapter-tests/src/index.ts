@@ -12,9 +12,9 @@ export interface AdapterTestConfig {
 
 export function runAdapterTests(config?: AdapterTestConfig) {
   describe('FinP2P Adapter Test Suite', () => {
-    businessLogicTests();
-    tokenLifecycleTests();
-    insufficientBalanceTest();
+    businessLogicTests(config);
+    tokenLifecycleTests(config);
+    insufficientBalanceTest(config);
     if (config?.mapping) {
       mappingOperationsTests();
     }

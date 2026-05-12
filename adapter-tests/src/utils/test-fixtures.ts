@@ -2,7 +2,7 @@ import { LedgerAPIClient } from '../api/api';
 import { TestActor, TestDataBuilder } from './test-builders';
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { TestHelpers } from './test-assertions';
-import { generateId } from './utils';
+import { generateId, finIdToAddress } from './utils';
 
 /**
  * High-level test fixtures for common test scenarios
@@ -14,6 +14,25 @@ export class TestFixtures {
     private client: LedgerAPIClient,
     private builder: TestDataBuilder,
   ) {}
+
+  /**
+   * Register the test actor's finId → ledgerAccountId mapping with the adapter.
+   *
+   * Test actors are built with `createCrypto()`, so their finId IS their
+   * compressed secp256k1 pubkey — derive the Ethereum address from it
+   * directly via `finIdToAddress`. The derivation only belongs in the
+   * test framework; production adapters look up the binding from the
+   * AccountMappingService instead of deriving.
+   *
+   * The mapping endpoint is idempotent on `(finId, ledgerAccountId)` so
+   * it's safe to call multiple times across overlapping fixture calls.
+   */
+  async ensureOwnerMappingRegistered(actor: TestActor): Promise<void> {
+    await this.client.mapping.createOwnerMapping({
+      finId: actor.finId,
+      accountMappings: { ledgerAccountId: finIdToAddress(actor.finId) },
+    });
+  }
 
   /**
    * Sets up an asset with an initial balance for an actor

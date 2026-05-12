@@ -4,7 +4,7 @@ import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
 
-export function tokenLifecycleTests() {
+export function tokenLifecycleTests(config: { mapping?: boolean } = {}) {
   describe('Token Lifecycle', () => {
 
     let client: LedgerAPIClient;
@@ -14,19 +14,19 @@ export function tokenLifecycleTests() {
 
     beforeAll(async () => {
       // @ts-ignore
-      client = new LedgerAPIClient(global.serverAddress, global.callbackServer);
+      client = new LedgerAPIClient(global.serverAddress, global.callbackServer, global.serverBaseAddress);
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS);
+      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, config.mapping ? client : undefined);
       fixtures = new TestFixtures(client, builder);
     });
 
     test('should issue, transfer, and verify balances', async () => {
       // Setup: Create actors and asset
-      const issuer = builder.buildActor(ACTOR_NAMES.ISSUER);
-      const primaryBuyer = builder.buildActor('primaryBuyer');
-      const secondaryBuyer = builder.buildActor('secondaryBuyer');
+      const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
+      const primaryBuyer = await builder.buildActor('primaryBuyer');
+      const secondaryBuyer = await builder.buildActor('secondaryBuyer');
       const asset = builder.buildFinP2PAsset();
 
       const scenario = SCENARIOS.ISSUE_TRANSFER_REDEEM;
