@@ -34,18 +34,20 @@ function toAPIMappingResponse(m: AccountMapping): APIMappingResponse {
 }
 
 /**
- * Register operational mapping endpoints:
- *   POST /mapping/owners   — create/update owner mapping
- *   GET  /mapping/owners   — query mappings (optional ?finIds= filter)
- *   GET  /mapping/fields   — supported account mapping field metadata
+ * Register operational mapping endpoints under the same `basePath` as the
+ * rest of the DLT adapter API (default `api`):
+ *   POST /{basePath}/mapping/owners — create/update owner mapping
+ *   GET  /{basePath}/mapping/owners — query mappings (optional ?finIds= filter)
+ *   GET  /{basePath}/mapping/fields — supported account mapping field metadata
  */
 export function registerMappingRoutes(
   app: Application,
   config: AccountMappingConfig,
   mappingService: AccountMappingService,
+  basePath: string = 'api',
 ): void {
 
-  app.post('/mapping/owners', async (req, res) => {
+  app.post(`/${basePath}/mapping/owners`, async (req, res) => {
     try {
       const body: CreateOwnerMappingRequest = req.body;
       const { finId, accountMappings, status } = body;
@@ -115,7 +117,7 @@ export function registerMappingRoutes(
     }
   });
 
-  app.get('/mapping/owners', async (req, res) => {
+  app.get(`/${basePath}/mapping/owners`, async (req, res) => {
     try {
       const finIdsParam = req.query.finIds as string | undefined;
       const finIds = finIdsParam
@@ -134,7 +136,7 @@ export function registerMappingRoutes(
     }
   });
 
-  app.get('/mapping/fields', (_req, res) => {
+  app.get(`/${basePath}/mapping/fields`, (_req, res) => {
     const response: AccountMappingField[] = config.fields;
     res.json(response);
   });

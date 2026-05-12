@@ -314,7 +314,7 @@ export const register = (app: Application,
     });
 
   if (mappingConfig) {
-    registerMappingRoutes(app, mappingConfig, mappingService!);
+    registerMappingRoutes(app, mappingConfig, mappingService!, basePath);
   }
 
   app.use(errorHandler);
