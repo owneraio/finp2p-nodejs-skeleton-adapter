@@ -5,7 +5,7 @@ import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
 import { generateId } from './utils/utils';
 
-export function businessLogicTests() {
+export function businessLogicTests(config: { mapping?: boolean } = {}) {
   describe('Business Logic - Negative Tests', () => {
 
     let client: LedgerAPIClient;
@@ -19,7 +19,7 @@ export function businessLogicTests() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
+      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, config.mapping ? client : undefined);
       fixtures = new TestFixtures(client, builder);
     });
 

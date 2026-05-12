@@ -5,7 +5,7 @@ import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
 import { generateId } from './utils/utils';
 import { TestHelpers } from './utils/test-assertions';
 
-export function insufficientBalanceTest() {
+export function insufficientBalanceTest(config: { mapping?: boolean } = {}) {
   describe('Insufficient Balance - Negative Tests', () => {
 
     let client: LedgerAPIClient;
@@ -19,7 +19,7 @@ export function insufficientBalanceTest() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
+      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, config.mapping ? client : undefined);
       fixtures = new TestFixtures(client, builder);
     });
 
