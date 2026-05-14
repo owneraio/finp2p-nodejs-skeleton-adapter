@@ -4,7 +4,7 @@ import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
 
-export function tokenLifecycleTests(config: { mapping?: boolean } = {}) {
+export function tokenLifecycleTests() {
   describe('Token Lifecycle', () => {
 
     let client: LedgerAPIClient;
@@ -18,7 +18,7 @@ export function tokenLifecycleTests(config: { mapping?: boolean } = {}) {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, config.mapping ? client : undefined);
+      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
       fixtures = new TestFixtures(client, builder);
     });
 
