@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { URL } from 'node:url';
 import { logger } from '../helpers';
 import { MigrationConfig } from './config';
-import { assertValidPostgresIdentifier, DEFAULT_SCHEMA_NAME } from '../storage/config';
+import { assertValidPostgresIdentifier, DEFAULT_SCHEMA_NAME, MAX_POSTGRES_IDENTIFIER_LENGTH } from '../storage/config';
 
 interface ProcessResult {
   stdout: string;
@@ -78,6 +79,33 @@ async function runGooseMigrations(
     throw new Error(`Migration didn't finish successfully (${tableName}): ${result.stderr}`);
   }
   logger.info(`migration ran successfully: ${tableName}`);
+}
+
+/**
+ * Coerces an arbitrary string into a value that satisfies
+ * assertValidPostgresIdentifier — non-[A-Za-z0-9_] characters become `_`,
+ * a leading digit gets a `_` prefix. When the result exceeds
+ * MAX_POSTGRES_IDENTIFIER_LENGTH it is truncated and an 8-char md5 suffix
+ * derived from the original input is appended so distinct long inputs that
+ * share a prefix don't collapse onto the same identifier. Throws on empty
+ * input.
+ */
+export function toPostgresIdentifier(raw: string): string {
+  if (raw.length === 0) {
+    throw new Error('Cannot derive a Postgres identifier from an empty string.');
+  }
+  let sanitized = raw.replace(/[^A-Za-z0-9_]/g, '_');
+  if (/^[0-9]/.test(sanitized)) {
+    sanitized = `_${sanitized}`;
+  }
+  if (sanitized.length > MAX_POSTGRES_IDENTIFIER_LENGTH) {
+    const hashSuffixLength = 8;
+    const hashSuffix = createHash('md5').update(raw).digest('hex').slice(0, hashSuffixLength);
+    const prefixLength = MAX_POSTGRES_IDENTIFIER_LENGTH - hashSuffixLength - 1;
+    sanitized = `${sanitized.slice(0, prefixLength)}_${hashSuffix}`;
+  }
+  assertValidPostgresIdentifier(sanitized);
+  return sanitized;
 }
 
 export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
