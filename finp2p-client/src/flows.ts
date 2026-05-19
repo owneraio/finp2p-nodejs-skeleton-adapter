@@ -425,6 +425,12 @@ export interface LoanIntentParams {
   /** Epoch seconds */
   closeDate?: number;
   conditions?: LoanConditions;
+  /**
+   * Signature policy. Defaults to `{ type: 'presignedPolicy' }`. Required by
+   * finp2p-node — omitting it makes the proto conversion nil-deref and the
+   * handler crash with HTTP 502.
+   */
+  signaturePolicy?: { type: 'presignedPolicy' };
 }
 
 export async function createLoanIntent(client: FinP2PClient, params: LoanIntentParams): Promise<string> {
@@ -472,6 +478,7 @@ export async function createLoanIntent(client: FinP2PClient, params: LoanIntentP
         },
       }],
       loanInstruction,
+      signaturePolicy: params.signaturePolicy ?? { type: 'presignedPolicy' },
     },
   }));
   if (!res.id) throw new Error('Failed to create loan intent');
