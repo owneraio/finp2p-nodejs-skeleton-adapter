@@ -520,15 +520,6 @@ export async function createLoanIntent(client: FinP2PClient, params: LoanIntentP
   const assetOrgId = extractOrgId(params.asset.id);
   const { start, end } = intentWindow();
 
-  const borrowerAccount = (assetRef: Finp2pAsset) => ({
-    asset: finp2pAsset(assetRef),
-    account: finIdAccount(params.borrowerFinId, assetOrgId, params.custodianOrgId),
-  });
-  const lenderAccount = (assetRef: Finp2pAsset) => ({
-    asset: finp2pAsset(assetRef),
-    account: finIdAccount(params.lenderFinId, assetOrgId, params.custodianOrgId),
-  });
-
   // `loanInstruction.conditions` is required by the schema, so only include
   // `loanInstruction` when the caller supplied `conditions`.
   const loanInstruction = params.conditions
@@ -549,15 +540,27 @@ export async function createLoanIntent(client: FinP2PClient, params: LoanIntentP
       asset: {
         assetTerm: { amount: String(params.loanAmount) },
         assetInstruction: {
-          borrowerAccount: borrowerAccount(params.asset),
-          lenderAccount: lenderAccount(params.asset),
+          borrowerAccount: {
+            asset: finp2pAsset(params.asset),
+            account: finIdAccount(params.borrowerFinId, assetOrgId, params.custodianOrgId),
+          },
+          lenderAccount: {
+            asset: finp2pAsset(params.asset),
+            account: finIdAccount(params.lenderFinId, assetOrgId, params.custodianOrgId),
+          },
         },
       },
       settlement: [{
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
         settlementInstruction: {
-          borrowerAccount: borrowerAccount(params.settlementAsset),
-          lenderAccount: lenderAccount(params.settlementAsset),
+          borrowerAccount: {
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.borrowerFinId, params.settlementOrgId, params.custodianOrgId),
+          },
+          lenderAccount: {
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.lenderFinId, params.settlementOrgId, params.custodianOrgId),
+          },
         },
       }],
       loanInstruction,
