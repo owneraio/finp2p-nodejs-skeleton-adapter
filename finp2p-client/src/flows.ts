@@ -994,11 +994,33 @@ export interface ExecuteLoanIntentParams {
   executorType: 'borrower' | 'lender';
   borrower: { id: string; finId: string; custodianOrgId: string };
   lender: { id: string; finId: string; custodianOrgId: string };
+
+  /** Epoch seconds — required when `conditions` is supplied. */
+  openDate?: number;
+  /** Epoch seconds — required when `conditions` is supplied. */
+  closeDate?: number;
+  /**
+   * Loan-specific conditions. Mirror what was passed to `createLoanIntent`
+   * — the node panics on a nil `loanInstruction` if the intent type
+   * requires it.
+   */
+  conditions?: LoanConditions;
 }
 
 export async function executeLoanIntent(client: FinP2PClient, params: ExecuteLoanIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
   const user = params.executorType === 'borrower' ? params.borrower.id : params.lender.id;
+
+  // `loanInstruction.conditions` is required by the schema, so only include
+  // `loanInstruction` when the caller supplied `conditions` — same gating
+  // as createLoanIntent.
+  const loanInstruction = params.conditions
+    ? {
+      openDate: params.openDate!,
+      closeDate: params.closeDate!,
+      conditions: params.conditions,
+    }
+    : undefined;
 
   const res = await unwrapOperation<{ executionPlanId: string }>(client, client.executeIntent({
     user,
@@ -1036,6 +1058,7 @@ export async function executeLoanIntent(client: FinP2PClient, params: ExecuteLoa
           },
         },
       },
+      loanInstruction,
     },
   }));
   if (!res.executionPlanId) throw new Error('Failed to execute loan intent');
