@@ -312,6 +312,79 @@ export async function createSellingIntent(client: FinP2PClient, params: SellingI
   return res.id;
 }
 
+export interface PrivateOfferIntentParams {
+  asset: Finp2pAsset;
+  amount: number;
+  buyerId: string;
+  sellerId: string;
+  sellerFinId: string;
+  custodianOrgId: string;
+
+  /**
+   * Settlement leg, all-or-nothing. Provide all three to express a paid
+   * variant (transfer-with-settlement or issuance-with-settlement); omit
+   * all three for the issuance-without-settlement variant. Partial input
+   * throws — they're a triple, not independent.
+   */
+  settlementAsset?: Finp2pAsset;
+  price?: number;
+  settlementOrgId?: string;
+
+  /**
+   * When true, omit the seller's `account` from the asset source so the
+   * asset is minted to the buyer at execute time (issuance variants).
+   * When false/undefined, the seller's account is the source (transfer
+   * variant). Default false.
+   */
+  issuance?: boolean;
+}
+
+export async function createPrivateOfferIntent(client: FinP2PClient, params: PrivateOfferIntentParams): Promise<string> {
+  const assetOrgId = extractOrgId(params.asset.id);
+  const { start, end } = intentWindow();
+
+  const settlementProvided = [params.settlementAsset, params.price, params.settlementOrgId].filter((v) => v !== undefined).length;
+  if (settlementProvided !== 0 && settlementProvided !== 3) {
+    throw new Error(`createPrivateOfferIntent: settlementAsset/price/settlementOrgId are a triple — provide all three or none, got ${JSON.stringify({ settlementAsset: !!params.settlementAsset, price: params.price, settlementOrgId: params.settlementOrgId })}`);
+  }
+
+  const sourceAccount = params.issuance
+    ? { asset: finp2pAsset(params.asset) }
+    : {
+      asset: finp2pAsset(params.asset),
+      account: finIdAccount(params.sellerFinId, assetOrgId, params.custodianOrgId),
+    };
+
+  const settlement = settlementProvided === 3
+    ? [{
+      settlementTerm: { type: 'partialSettlement' as const, unitValue: params.price!.toFixed(2) },
+      settlementInstruction: {
+        destinationAccount: {
+          asset: finp2pAsset(params.settlementAsset!),
+          account: finIdAccount(params.sellerFinId, params.settlementOrgId!, params.custodianOrgId),
+        },
+      },
+    }]
+    : undefined;
+
+  const res = await unwrapOperation<{ id: string }>(client, client.createIntent(params.asset.id, {
+    start, end,
+    intent: {
+      type: 'privateOfferIntent',
+      buyer: params.buyerId,
+      seller: params.sellerId,
+      asset: {
+        assetTerm: { amount: String(params.amount) },
+        assetInstruction: { sourceAccount },
+      },
+      settlement,
+      signaturePolicy: { type: 'manualPolicy' },
+    },
+  }));
+  if (!res.id) throw new Error('Failed to create private offer intent');
+  return res.id;
+}
+
 export interface BuyingIntentParams {
   asset: Finp2pAsset;
   settlementAsset: Finp2pAsset;
@@ -366,11 +439,26 @@ export interface RedemptionIntentParams {
   price: number;
   settlementOrgId: string;
   custodianOrgId: string;
+
+  /**
+   * When true, omit the issuer `account` from
+   * `assetInstruction.destinationAccount` so the asset is burned at
+   * execute time (supply decrement) instead of moved to the issuer's
+   * account. Default false = transfer-to-issuer.
+   */
+  burn?: boolean;
 }
 
 export async function createRedemptionIntent(client: FinP2PClient, params: RedemptionIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
   const { start, end } = intentWindow();
+
+  const destinationAccount = params.burn
+    ? { asset: finp2pAsset(params.asset) }
+    : {
+      asset: finp2pAsset(params.asset),
+      account: finIdAccount(params.issuerFinId, assetOrgId, params.custodianOrgId),
+    };
 
   const res = await unwrapOperation<{ id: string }>(client, client.createIntent(params.asset.id, {
     start, end,
@@ -379,12 +467,7 @@ export async function createRedemptionIntent(client: FinP2PClient, params: Redem
       issuer: params.issuerId,
       asset: {
         assetTerm: { amount: String(params.redemptionAmount) },
-        assetInstruction: {
-          destinationAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.issuerFinId, assetOrgId, params.custodianOrgId),
-          },
-        },
+        assetInstruction: { destinationAccount },
       },
       settlement: [{
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
@@ -676,6 +759,88 @@ export async function executeSellingIntent(client: FinP2PClient, params: Execute
   return res.executionPlanId;
 }
 
+export interface ExecutePrivateOfferIntentParams {
+  intentId: string;
+  executionId: string;
+  asset: Finp2pAsset;
+  assetAmount: number;
+  /** Omit to express the no-settlement variant. */
+  paymentAmount?: number;
+  settlementAsset?: Finp2pAsset;
+  settlementOrgId?: string;
+  /** Bilateral overrides — see ExecutePrimarySaleParams. */
+  buyerSettlementAsset?: Finp2pAsset;
+  sellerSettlementAsset?: Finp2pAsset;
+  buyerSettlementOrgId?: string;
+  sellerSettlementOrgId?: string;
+  buyer: { id: string; finId: string; custodianOrgId: string };
+  seller: { id: string; finId: string; custodianOrgId: string };
+
+  /**
+   * Must match the value passed to createPrivateOfferIntent. When true,
+   * the asset's `sourceAccount` is built without the seller's `account`
+   * (mint at execute time, same shape as executePrimarySale's asset
+   * source). Default false = transfer.
+   */
+  issuance?: boolean;
+}
+
+export async function executePrivateOfferIntent(client: FinP2PClient, params: ExecutePrivateOfferIntentParams): Promise<string> {
+  const assetOrgId = extractOrgId(params.asset.id);
+
+  const settlement = params.paymentAmount !== undefined
+    ? (() => {
+      const buyerSettlementAsset  = requireSettlementAsset(params.buyerSettlementAsset  ?? params.settlementAsset,  'buyer');
+      const sellerSettlementAsset = requireSettlementAsset(params.sellerSettlementAsset ?? params.settlementAsset, 'seller');
+      const buyerSettlementOrgId  = requireSettlementOrgId(params.buyerSettlementOrgId  ?? params.settlementOrgId,  'buyer');
+      const sellerSettlementOrgId = requireSettlementOrgId(params.sellerSettlementOrgId ?? params.settlementOrgId, 'seller');
+      return {
+        term: { amount: String(params.paymentAmount) },
+        instruction: {
+          sourceAccount: {
+            asset: finp2pAsset(buyerSettlementAsset),
+            account: finIdAccount(params.buyer.finId, buyerSettlementOrgId, params.buyer.custodianOrgId),
+          },
+          destinationAccount: {
+            asset: finp2pAsset(sellerSettlementAsset),
+            account: finIdAccount(params.seller.finId, sellerSettlementOrgId, params.seller.custodianOrgId),
+          },
+        },
+      };
+    })()
+    : undefined;
+
+  const res = await unwrapOperation<{ executionPlanId: string }>(client, client.executeIntent({
+    user: params.seller.id,
+    intentId: params.intentId,
+    executionId: params.executionId,
+    intent: {
+      type: 'privateOfferIntentExecution',
+      nonce: hexNonce(),
+      buyer: params.buyer.id,
+      seller: params.seller.id,
+      asset: {
+        term: { amount: String(params.assetAmount) },
+        instruction: {
+          sourceAccount: params.issuance
+            ? { asset: finp2pAsset(params.asset) }
+            : {
+              asset: finp2pAsset(params.asset),
+              account: finIdAccount(params.seller.finId, assetOrgId, params.seller.custodianOrgId),
+            },
+          destinationAccount: {
+            asset: finp2pAsset(params.asset),
+            account: finIdAccount(params.buyer.finId, assetOrgId, params.buyer.custodianOrgId),
+          },
+        },
+      },
+      settlement,
+    },
+  }));
+  if (!res.executionPlanId) throw new Error('Failed to execute private offer intent');
+  return res.executionPlanId;
+}
+
 export interface ExecuteBuyingIntentParams {
   intentId: string;
   executionId: string;
@@ -758,6 +923,14 @@ export interface ExecuteRedemptionIntentParams {
   sellerSettlementOrgId?: string;
   seller: { id: string; finId: string; custodianOrgId: string };
   issuer: { id: string; finId: string; custodianOrgId: string };
+
+  /**
+   * Must match the value passed to createRedemptionIntent. When true, the
+   * asset's `destinationAccount` is built without the issuer's `account`
+   * (burn shape, mirroring what was promised at create). Default false =
+   * transfer-to-issuer.
+   */
+  burn?: boolean;
 }
 
 export async function executeRedemptionIntent(client: FinP2PClient, params: ExecuteRedemptionIntentParams): Promise<string> {
@@ -783,10 +956,12 @@ export async function executeRedemptionIntent(client: FinP2PClient, params: Exec
             asset: finp2pAsset(params.asset),
             account: finIdAccount(params.seller.finId, assetOrgId, params.seller.custodianOrgId),
           },
-          destinationAccount: {
-            asset: finp2pAsset(params.asset),
-            account: finIdAccount(params.issuer.finId, assetOrgId, params.issuer.custodianOrgId),
-          },
+          destinationAccount: params.burn
+            ? { asset: finp2pAsset(params.asset) }
+            : {
+              asset: finp2pAsset(params.asset),
+              account: finIdAccount(params.issuer.finId, assetOrgId, params.issuer.custodianOrgId),
+            },
         },
       },
       settlement: {
