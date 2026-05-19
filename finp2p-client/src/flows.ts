@@ -520,15 +520,6 @@ export async function createLoanIntent(client: FinP2PClient, params: LoanIntentP
   const assetOrgId = extractOrgId(params.asset.id);
   const { start, end } = intentWindow();
 
-  const borrowerAccount = (assetRef: Finp2pAsset) => ({
-    asset: finp2pAsset(assetRef),
-    account: finIdAccount(params.borrowerFinId, assetOrgId, params.custodianOrgId),
-  });
-  const lenderAccount = (assetRef: Finp2pAsset) => ({
-    asset: finp2pAsset(assetRef),
-    account: finIdAccount(params.lenderFinId, assetOrgId, params.custodianOrgId),
-  });
-
   // `loanInstruction.conditions` is required by the schema, so only include
   // `loanInstruction` when the caller supplied `conditions`.
   const loanInstruction = params.conditions
@@ -549,15 +540,27 @@ export async function createLoanIntent(client: FinP2PClient, params: LoanIntentP
       asset: {
         assetTerm: { amount: String(params.loanAmount) },
         assetInstruction: {
-          borrowerAccount: borrowerAccount(params.asset),
-          lenderAccount: lenderAccount(params.asset),
+          borrowerAccount: {
+            asset: finp2pAsset(params.asset),
+            account: finIdAccount(params.borrowerFinId, assetOrgId, params.custodianOrgId),
+          },
+          lenderAccount: {
+            asset: finp2pAsset(params.asset),
+            account: finIdAccount(params.lenderFinId, assetOrgId, params.custodianOrgId),
+          },
         },
       },
       settlement: [{
         settlementTerm: { type: 'partialSettlement', unitValue: params.price.toFixed(2) },
         settlementInstruction: {
-          borrowerAccount: borrowerAccount(params.settlementAsset),
-          lenderAccount: lenderAccount(params.settlementAsset),
+          borrowerAccount: {
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.borrowerFinId, params.settlementOrgId, params.custodianOrgId),
+          },
+          lenderAccount: {
+            asset: finp2pAsset(params.settlementAsset),
+            account: finIdAccount(params.lenderFinId, params.settlementOrgId, params.custodianOrgId),
+          },
         },
       }],
       loanInstruction,
@@ -994,11 +997,33 @@ export interface ExecuteLoanIntentParams {
   executorType: 'borrower' | 'lender';
   borrower: { id: string; finId: string; custodianOrgId: string };
   lender: { id: string; finId: string; custodianOrgId: string };
+
+  /** Epoch seconds — required when `conditions` is supplied. */
+  openDate?: number;
+  /** Epoch seconds — required when `conditions` is supplied. */
+  closeDate?: number;
+  /**
+   * Loan-specific conditions. Mirror what was passed to `createLoanIntent`
+   * — the node panics on a nil `loanInstruction` if the intent type
+   * requires it.
+   */
+  conditions?: LoanConditions;
 }
 
 export async function executeLoanIntent(client: FinP2PClient, params: ExecuteLoanIntentParams): Promise<string> {
   const assetOrgId = extractOrgId(params.asset.id);
   const user = params.executorType === 'borrower' ? params.borrower.id : params.lender.id;
+
+  // `loanInstruction.conditions` is required by the schema, so only include
+  // `loanInstruction` when the caller supplied `conditions` — same gating
+  // as createLoanIntent.
+  const loanInstruction = params.conditions
+    ? {
+      openDate: params.openDate!,
+      closeDate: params.closeDate!,
+      conditions: params.conditions,
+    }
+    : undefined;
 
   const res = await unwrapOperation<{ executionPlanId: string }>(client, client.executeIntent({
     user,
@@ -1036,6 +1061,7 @@ export async function executeLoanIntent(client: FinP2PClient, params: ExecuteLoa
           },
         },
       },
+      loanInstruction,
     },
   }));
   if (!res.executionPlanId) throw new Error('Failed to execute loan intent');
