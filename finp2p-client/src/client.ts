@@ -16,6 +16,16 @@ export class FinP2PClient {
     this.ossClient = new OssClient(ossUrl, authTokenResolver);
   }
 
+  /**
+   * Build a client from a single router base URL. Hides the `/finapi` and
+   * `/oss/query` suffix split so callers don't have to know the SDK's internal
+   * URL convention. Trailing slashes on `baseUrl` are stripped.
+   */
+  static fromBaseUrl(baseUrl: string, authTokenResolver?: (() => string)): FinP2PClient {
+    const base = baseUrl.replace(/\/+$/, '');
+    return new FinP2PClient(`${base}/finapi`, `${base}/oss/query`, authTokenResolver);
+  }
+
   // ── Owner / Profile ──
 
   async createOwner() {
@@ -115,6 +125,29 @@ export class FinP2PClient {
     return this.finAPIClient.updateLedger(...args);
   }
 
+  /**
+   * Bind a ledger, falling back to update when the router reports a 409
+   * (the name is already bound). Returns `"created"` for the bind path,
+   * `"updated"` for the conflict-fall-through. The update path uses the
+   * `name` from the bind body and the same body shape.
+   *
+   * Assumes the server uses HTTP 409 to signal "already bound" — if that
+   * contract changes, this helper will misclassify and silently fall back.
+   */
+  async upsertLedgerBinding(
+    body: Parameters<FinAPIClient['bindLedger']>[0],
+  ): Promise<'created' | 'updated'> {
+    const result = await this.finAPIClient.bindLedger(body);
+    if ((result as any)?.response?.status === 409) {
+      await (this.finAPIClient as any).updateLedger((body as any).name, body);
+      return 'updated';
+    }
+    if ((result as any)?.error) {
+      throw new Error(`upsertLedgerBinding: ${JSON.stringify((result as any).error)}`);
+    }
+    return 'created';
+  }
+
   // ── Custody provider management ──
 
   async bindCustodyProvider(...args: Parameters<FinAPIClient['bindCustodyProvider']>) {
@@ -123,6 +156,25 @@ export class FinP2PClient {
 
   async updateCustodyProvider(...args: Parameters<FinAPIClient['updateCustodyProvider']>) {
     return this.finAPIClient.updateCustodyProvider(...args);
+  }
+
+  /**
+   * Bind a custody provider, falling back to update when the router reports
+   * a 409 (the name is already bound). See `upsertLedgerBinding` for the
+   * same caveats around the 409 contract.
+   */
+  async upsertCustodyProvider(
+    body: Parameters<FinAPIClient['bindCustodyProvider']>[0],
+  ): Promise<'created' | 'updated'> {
+    const result = await this.finAPIClient.bindCustodyProvider(body);
+    if ((result as any)?.response?.status === 409) {
+      await (this.finAPIClient as any).updateCustodyProvider((body as any).name, body);
+      return 'updated';
+    }
+    if ((result as any)?.error) {
+      throw new Error(`upsertCustodyProvider: ${JSON.stringify((result as any).error)}`);
+    }
+    return 'created';
   }
 
   // ── Approval routing ──
@@ -323,6 +375,45 @@ export class FinP2PClient {
     }
 
     throw new Error(`Execution plan ${planId} did not complete within ${maxTimes * delay}ms`);
+  }
+
+  /**
+   * Poll an owner's holding for the given asset until the balance matches
+   * `expected` (within `delta`), or `maxTimes * delay`ms elapses.
+   *
+   * `kind` selects which fields must match:
+   *   - `'synced'` (default): the on-chain-synced view (`syncedBalance`).
+   *   - `'internal'`: the local ledger view (`balance`).
+   *   - `'both'`: both views must match.
+   *
+   * Resolves `true` on first match, `false` if the polling window runs out.
+   * Useful in e2e flows where the synced view trails the ledger move.
+   */
+  async waitForOwnerBalance(
+    ownerId: string,
+    assetId: string,
+    expected: number,
+    opts: { kind?: 'internal' | 'synced' | 'both'; delta?: number; delay?: number; maxTimes?: number } = {},
+  ): Promise<boolean> {
+    const { kind = 'synced', delta = 0.01, delay = 500, maxTimes = 30 } = opts;
+    for (let i = 0; i < maxTimes; i++) {
+      try {
+        const holdings = await this.ossClient.getOwnerHoldings(ownerId);
+        const holding = holdings.find((h) => h.asset.resourceId === assetId);
+        if (holding) {
+          const close = (v: string) => Math.abs(parseFloat(v) - expected) <= delta;
+          const internal = close(holding.balance);
+          const synced = close(holding.syncedBalance);
+          if (kind === 'internal' && internal) return true;
+          if (kind === 'synced' && synced) return true;
+          if (kind === 'both' && internal && synced) return true;
+        }
+      } catch {
+        // holding may not exist yet
+      }
+      await sleep(delay);
+    }
+    return false;
   }
 
   async waitForSyncedBalance(
