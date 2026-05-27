@@ -4,13 +4,16 @@ import { DocumentNode } from 'graphql';
 import OWNERS from './graphql/owners.graphql';
 import ORGANIZATIONS from './graphql/organization.graphql';
 import ASSETS from './graphql/assets.graphql';
+import USERS from './graphql/users.graphql';
 import LEDGERS from './graphql/ledgers.graphql';
 import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
 import PLANS from './graphql/plans.graphql';
 import RECEIPTS from './graphql/receipts.graphql';
-import { OssApprovalConfigNodes, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssReceipt, OssReceiptNodes } from './model';
+import { makeOssPage, OssApprovalConfigNodes, OssAsset, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssPage, OssPaginate, OssReceipt, OssReceiptNodes, OssUser, OssUserNodes } from './model';
 import { ItemNotFoundError } from './errors';
 import { normalizeBaseUrl } from '../finapi/utils';
+
+export type OssFilter = { key: string; operator: string; value: string };
 
 export class OssClient {
 
@@ -78,9 +81,26 @@ export class OssClient {
     return resp.users.nodes[0];
   }
 
-  async getAssets(filter?: { key: string; operator: string; value: string } | { key: string; operator: string; value: string }[]) {
-    const resp = await this.queryOss<OssAssetNodes>(ASSETS, filter ? { filter } : {});
-    return resp.assets.nodes;
+  async getAssets(
+    filter?: OssFilter | OssFilter[],
+    paginate?: OssPaginate,
+  ): Promise<OssPage<OssAsset>> {
+    const variables: Record<string, any> = {};
+    if (filter) variables.filter = filter;
+    if (paginate) variables.paginate = paginate;
+    const resp = await this.queryOss<OssAssetNodes>(ASSETS, variables);
+    return makeOssPage(resp.assets.nodes, resp.assets.pageInfo);
+  }
+
+  async getUsers(
+    filter?: OssFilter | OssFilter[],
+    paginate?: OssPaginate,
+  ): Promise<OssPage<OssUser>> {
+    const variables: Record<string, any> = {};
+    if (filter) variables.filter = filter;
+    if (paginate) variables.paginate = paginate;
+    const resp = await this.queryOss<OssUserNodes>(USERS, variables);
+    return makeOssPage(resp.users.nodes, resp.users.pageInfo);
   }
 
   async getAsset(assetId: string) {
