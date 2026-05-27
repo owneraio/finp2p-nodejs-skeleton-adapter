@@ -1,0 +1,16 @@
+query GetUsers($filter: [Filter!], $paginate: PaginateInput) {
+    users(filter: $filter, paginate: $paginate) {
+        pageInfo {
+            endCursor
+            hasNextPage
+            totalCount
+            totalLeft
+        }
+        nodes {
+            id
+            name
+            finIds
+            organizationId
+        }
+    }
+}

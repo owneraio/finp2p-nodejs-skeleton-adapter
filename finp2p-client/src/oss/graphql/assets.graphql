@@ -1,5 +1,11 @@
-query GetAssets($filter: [Filter!]) {
-    assets(filter: $filter) {
+query GetAssets($filter: [Filter!], $paginate: PaginateInput) {
+    assets(filter: $filter, paginate: $paginate) {
+        pageInfo {
+            endCursor
+            hasNextPage
+            totalCount
+            totalLeft
+        }
         nodes {
             id
             name

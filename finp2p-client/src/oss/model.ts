@@ -116,8 +116,34 @@ export type OssNetworkAccount = {
   wallet?: { type: string; address: string } | null
 };
 
+export type OssPageInfo = {
+  endCursor: string | null;
+  hasNextPage: boolean;
+  totalCount: number;
+  totalLeft: number;
+};
+
+export type OssPaginate = {
+  after?: string;
+  limit?: number;
+  skip?: number;
+};
+
+/**
+ * Paginated list result. Behaves as a plain `T[]` for backward compatibility
+ * (iteration, `.map`, `.filter`, indexing, `.length` all work) and additionally
+ * carries the optional `pageInfo` from the OSS GraphQL response.
+ */
+export type OssPage<T> = T[] & { pageInfo?: OssPageInfo };
+
+export const makeOssPage = <T>(nodes: ArrayLike<T>, pageInfo?: OssPageInfo): OssPage<T> => {
+  const page = Array.from(nodes) as OssPage<T>;
+  if (pageInfo) page.pageInfo = pageInfo;
+  return page;
+};
+
 export type OssAssetNodes = {
-  assets: { nodes: OssAsset[] }
+  assets: { nodes: OssAsset[]; pageInfo?: OssPageInfo }
 };
 
 export type OssOwner = {
@@ -149,7 +175,18 @@ export type OssOwner = {
 };
 
 export type OssOwnerNodes = {
-  users: { nodes: OssOwner[] }
+  users: { nodes: OssOwner[]; pageInfo?: OssPageInfo }
+};
+
+export type OssUser = {
+  id: string;
+  name: string;
+  finIds: string[];
+  organizationId: string;
+};
+
+export type OssUserNodes = {
+  users: { nodes: OssUser[]; pageInfo?: OssPageInfo }
 };
 
 export type OssOrganization = {

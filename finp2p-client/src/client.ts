@@ -215,8 +215,12 @@ export class FinP2PClient {
     return this.finAPIClient.updateCertificate(...args);
   }
 
-  async getAssets(filter?: Parameters<OssClient['getAssets']>[0]) {
-    return this.ossClient.getAssets(filter);
+  async getAssets(...args: Parameters<OssClient['getAssets']>) {
+    return this.ossClient.getAssets(...args);
+  }
+
+  async getUsers(...args: Parameters<OssClient['getUsers']>) {
+    return this.ossClient.getUsers(...args);
   }
 
   async getAsset(assetId: string) {
