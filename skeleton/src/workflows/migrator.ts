@@ -5,7 +5,6 @@ import path from 'node:path';
 import { URL } from 'node:url';
 import { logger } from '../helpers';
 import { MigrationConfig } from './config';
-import { assertValidPostgresIdentifier, DEFAULT_SCHEMA_NAME, MAX_POSTGRES_IDENTIFIER_LENGTH } from '../storage/config';
 
 interface ProcessResult {
   stdout: string;
@@ -58,7 +57,7 @@ function executeProcess(
 }
 
 async function runGooseMigrations(
-  config: Omit<MigrationConfig, 'schemaName'> & { schemaName: string }, // schemaName is not optional here
+  config: MigrationConfig,
   tableName: string,
   migrationsDir: string,
 ): Promise<void> {
@@ -79,6 +78,32 @@ async function runGooseMigrations(
     throw new Error(`Migration didn't finish successfully (${tableName}): ${result.stderr}`);
   }
   logger.info(`migration ran successfully: ${tableName}`);
+}
+
+/**
+ * Max byte length we allow for any identifier we splice into SQL. Postgres'
+ * raw limit is 63 bytes (NAMEDATALEN - 1), but it auto-derives suffixed
+ * identifiers from table names (`<table>_pkey`, `<table>_<col>_fkey`,
+ * `<table>_<col>_seq`, …); 50 bytes leaves ~13 bytes of headroom so those
+ * derivatives don't silently truncate with a NOTICE.
+ */
+const MAX_POSTGRES_IDENTIFIER_LENGTH = 50;
+
+/**
+ * Validates a Postgres identifier (schema, table, etc.) — identifiers are
+ * interpolated directly into SQL strings (Postgres parameterized queries can't
+ * bind identifiers), so we lock them down at construction time. Two checks:
+ * a strict ASCII regex (no spaces, quotes, or non-ASCII) and the byte cap
+ * documented on MAX_POSTGRES_IDENTIFIER_LENGTH.
+ */
+export function assertValidPostgresIdentifier(name: string): void {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error(`Invalid Postgres identifier: ${JSON.stringify(name)}. Must match /^[A-Za-z_][A-Za-z0-9_]*$/ (ASCII letter or underscore, then letters/digits/underscores).`);
+  }
+  const byteLength = Buffer.byteLength(name, 'utf8');
+  if (byteLength > MAX_POSTGRES_IDENTIFIER_LENGTH) {
+    throw new Error(`Invalid Postgres identifier: ${JSON.stringify(name)} is ${byteLength} bytes; capped at ${MAX_POSTGRES_IDENTIFIER_LENGTH} bytes to leave headroom for Postgres auto-derived identifiers (e.g. <name>_pkey, <name>_<col>_fkey, <name>_<col>_seq) within the 63-byte NAMEDATALEN limit.`);
+  }
 }
 
 /**
@@ -111,8 +136,7 @@ export function toPostgresIdentifier(raw: string): string {
 export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
   // Validate every identifier the migration will splice into SQL/CLI args
   // before spawning goose, so a bad name fails fast instead of mid-run.
-  const schemaName = config.schemaName ?? DEFAULT_SCHEMA_NAME;
-  assertValidPostgresIdentifier(schemaName);
+  assertValidPostgresIdentifier(config.schemaName);
   assertValidPostgresIdentifier(config.migrationListTableName);
   for (const additional of config.additionalMigrations ?? []) {
     assertValidPostgresIdentifier(additional.tableName);
@@ -123,12 +147,12 @@ export async function migrateIfNeeded(config: MigrationConfig): Promise<void> {
 
   // Run skeleton migrations
   const skeletonDir = path.join(__dirname, '..', '..', 'migrations');
-  await runGooseMigrations({ ...config, schemaName }, config.migrationListTableName, skeletonDir);
+  await runGooseMigrations(config, config.migrationListTableName, skeletonDir);
 
   // Run additional migration sets (e.g. vanilla-service)
   if (config.additionalMigrations) {
     for (const additional of config.additionalMigrations) {
-      await runGooseMigrations({ ...config, schemaName }, additional.tableName, additional.migrationsDir);
+      await runGooseMigrations(config, additional.tableName, additional.migrationsDir);
     }
   }
 }

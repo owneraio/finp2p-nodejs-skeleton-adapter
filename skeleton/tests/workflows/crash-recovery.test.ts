@@ -72,9 +72,10 @@ describe("Crash recovery tests", () => {
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
+      schemaName: "ledger_adapter",
     });
     pool = new Pool({ connectionString: container.connectionString });
-    storage = new WorkflowStorage(pool);
+    storage = new WorkflowStorage(pool, "ledger_adapter");
   });
 
   afterEach(async () => {
