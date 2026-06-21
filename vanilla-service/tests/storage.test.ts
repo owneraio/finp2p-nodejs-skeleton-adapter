@@ -14,7 +14,7 @@ describe('ledger storage', () => {
     const goosePath = await global.whichGoose();
     await runMigrations(goosePath, container.connectionString);
     pool = new Pool({ connectionString: container.connectionString });
-    storage = new LedgerStorage(pool);
+    storage = new LedgerStorage(pool, 'ledger_adapter');
   });
 
   afterEach(async () => {
@@ -501,5 +501,95 @@ describe('ledger storage', () => {
 
     const bal = await storage.getBalance('alice', assetId);
     expect(bal.balance).toBe(bigAmount);
+  });
+
+  test('ping succeeds against a live pool', async () => {
+    await expect(storage.ping()).resolves.toBeUndefined();
+  });
+
+  test('listDistributedAccounts excludes omnibus and zero-balance accounts', async () => {
+    await storage.setBalance('omnibus', assetId, '1000');
+    await storage.ensureAccount('alice', assetId, assetType);
+    await storage.ensureAccount('bob', assetId, assetType);
+    await storage.ensureAccount('zero-holder', assetId, assetType);
+    await storage.credit('alice', '200', assetId, nextDetails());
+    await storage.credit('bob', '300', assetId, nextDetails());
+
+    const accounts = await storage.listDistributedAccounts('omnibus', assetId);
+    const byFinId = Object.fromEntries(accounts.map(a => [a.finId, a.balance]));
+    expect(byFinId).toEqual({ alice: '200', bob: '300' });
+  });
+
+  test('listDistributedAccounts returns empty when nothing distributed', async () => {
+    await storage.setBalance('omnibus', assetId, '1000');
+    const accounts = await storage.listDistributedAccounts('omnibus', assetId);
+    expect(accounts).toEqual([]);
+  });
+
+  // ─── Account mappings ───────────────────────────────────────────────────
+
+  test('upsert + getAccountMappings round-trips a single mapping', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xabc');
+    const all = await storage.getAccountMappings(['alice']);
+    expect(all).toEqual([{ finId: 'alice', fields: { ledgerAccountId: '0xabc' } }]);
+  });
+
+  test('upsertAccountMapping overwrites an existing field value', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xold');
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xnew');
+    const all = await storage.getAccountMappings(['alice']);
+    expect(all[0].fields.ledgerAccountId).toBe('0xnew');
+  });
+
+  test('getAccountMappings aggregates multiple fields per finId', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xaaa');
+    await storage.upsertAccountMapping('alice', 'custodyAccountId', 'vault-1');
+    const [mapping] = await storage.getAccountMappings(['alice']);
+    expect(mapping.fields).toEqual({ ledgerAccountId: '0xaaa', custodyAccountId: 'vault-1' });
+  });
+
+  test('getAccountMappings without finIds returns every mapping', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xaaa');
+    await storage.upsertAccountMapping('bob', 'ledgerAccountId', '0xbbb');
+    const all = await storage.getAccountMappings();
+    expect(all.map(m => m.finId).sort()).toEqual(['alice', 'bob']);
+  });
+
+  test('getAccountMappings returns empty array for unknown finIds', async () => {
+    const all = await storage.getAccountMappings(['does-not-exist']);
+    expect(all).toEqual([]);
+  });
+
+  test('getAccountMappingsByFieldValue returns all fields for matched finIds', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xshared');
+    await storage.upsertAccountMapping('alice', 'custodyAccountId', 'vault-a');
+    await storage.upsertAccountMapping('bob', 'ledgerAccountId', '0xshared');
+    await storage.upsertAccountMapping('bob', 'custodyAccountId', 'vault-b');
+    await storage.upsertAccountMapping('charlie', 'ledgerAccountId', '0xother');
+
+    const matches = await storage.getAccountMappingsByFieldValue('ledgerAccountId', '0xshared');
+    expect(matches.map(m => m.finId).sort()).toEqual(['alice', 'bob']);
+    expect(matches.find(m => m.finId === 'alice')!.fields.custodyAccountId).toBe('vault-a');
+  });
+
+  test('getAccountMappingsByFieldValue is case-sensitive at the storage layer', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xabcdef');
+    const upper = await storage.getAccountMappingsByFieldValue('ledgerAccountId', '0xABCDEF');
+    expect(upper).toEqual([]);
+  });
+
+  test('deleteAccountMapping with fieldName drops only that field', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xaaa');
+    await storage.upsertAccountMapping('alice', 'custodyAccountId', 'vault-1');
+    await storage.deleteAccountMapping('alice', 'ledgerAccountId');
+    const [mapping] = await storage.getAccountMappings(['alice']);
+    expect(mapping.fields).toEqual({ custodyAccountId: 'vault-1' });
+  });
+
+  test('deleteAccountMapping without fieldName drops all fields for finId', async () => {
+    await storage.upsertAccountMapping('alice', 'ledgerAccountId', '0xaaa');
+    await storage.upsertAccountMapping('alice', 'custodyAccountId', 'vault-1');
+    await storage.deleteAccountMapping('alice');
+    expect(await storage.getAccountMappings(['alice'])).toEqual([]);
   });
 });

@@ -25,9 +25,8 @@ const cloneExcept = (obj: any, key: string): any => {
  * Workflow operation storage — handles idempotent async operations,
  * crash recovery, and status tracking.
  *
- * The schema name (qualifying the `operations` table) is configurable so
- * multiple adapters can share a database without colliding on the same
- * `ledger_adapter` schema.
+ * The schema name (qualifying the `operations` table) is required from the
+ * caller so multiple adapters can share a database without colliding.
  */
 export class WorkflowStorage {
   constructor(private pool: Pool, private readonly schemaName: string) {

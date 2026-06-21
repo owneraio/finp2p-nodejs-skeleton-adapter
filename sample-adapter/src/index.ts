@@ -2,7 +2,7 @@ import * as process from 'process';
 import { ConfigurationError } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { logger } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { FinP2PClient } from '@owneraio/finp2p-client';
-import createApp from './app';
+import createApp, { SAMPLE_ADAPTER_SCHEMA } from './app';
 
 const init = async () => {
   const port = process.env.PORT || '3000';
@@ -19,7 +19,8 @@ const init = async () => {
     logger.info('FinP2PClient initialized');
   }
 
-  const { app } = createApp(orgId, finP2PClient, undefined);
+  const schemaName = process.env.LEDGER_SCHEMA || SAMPLE_ADAPTER_SCHEMA;
+  const { app } = createApp(orgId, finP2PClient, { schemaName });
   app.listen(port, () => {
     logger.info(`listening at http://localhost:${port}`);
   });

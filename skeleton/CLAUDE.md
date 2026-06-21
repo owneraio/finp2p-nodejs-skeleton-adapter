@@ -82,7 +82,11 @@ A post-processor (`scripts/postprocess-model-gen.ts`) handles:
 
 ## Database
 
-When workflow persistence is enabled, the skeleton uses PostgreSQL with a `ledger_adapter` schema. Migrations:
+When workflow persistence is enabled, the skeleton uses PostgreSQL. The **PostgreSQL schema name is required from the consumer** &mdash; there is no default. Pass it explicitly to `migrateIfNeeded`, `WorkflowStorage`, `PgAccountStore`, and `PgAssetStore`. Adapters that share a database must pick an adapter-specific name (e.g. `sepolia`, `heder`) so they don't collide; operators can override at deploy time via the `LEDGER_SCHEMA` env var, but the adapter entry point must read it and feed it in &mdash; the skeleton no longer falls back to anything.
+
+The schema name is interpolated into SQL (Postgres can't parameter-bind identifiers), so it's validated with `assertValidPostgresIdentifier` (exported from `workflows`) at construction and before `migrateIfNeeded` runs goose. Use `toPostgresIdentifier` if you need to derive a valid name from arbitrary input.
+
+Migrations:
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 

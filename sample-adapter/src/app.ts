@@ -32,11 +32,13 @@ function configureLogging(app: ReturnType<typeof express>) {
 export interface AppConfig {
   connectionString?: string;
   /**
-   * PostgreSQL schema name for skeleton tables. Defaults to `'sample_adapter'`
-   * for the reference adapter; operators can override at deploy time via
-   * `LEDGER_SCHEMA` (handled by the entry point in `src/index.ts`).
+   * PostgreSQL schema name for skeleton tables. Required from the caller;
+   * the skeleton no longer falls back to a global default. The sample adapter
+   * uses `SAMPLE_ADAPTER_SCHEMA` ('sample_adapter') by convention; operators
+   * can override at deploy time via the `LEDGER_SCHEMA` env var (the entry
+   * point in `src/index.ts` reads it and feeds it in).
    */
-  schemaName?: string;
+  schemaName: string;
 }
 
 /** Default schema name baked into the sample adapter. Real adapters should
@@ -72,8 +74,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
   if (config?.connectionString) {
     pool = new Pool({ connectionString: config.connectionString });
 
-    const schemaName = config?.schemaName ?? SAMPLE_ADAPTER_SCHEMA;
-    const workflowStorage = new workflows.WorkflowStorage(pool, schemaName);
+    const workflowStorage = new workflows.WorkflowStorage(pool, config.schemaName);
     if (!finP2PClient) {
       logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');
     }
@@ -103,7 +104,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
     // method names so the proxy intercepts only operationStatus to read from the workflow store.
     tokenService = workflows.createServiceProxy(ready, workflowStorage, finP2PClient, tokenService);
 
-    const accountStore = new skeletonStorage.PgAccountStore(pool, schemaName);
+    const accountStore = new skeletonStorage.PgAccountStore(pool, config.schemaName);
     mappingService = new AccountMappingServiceImpl(accountStore);
     mappingConfig = {
       fields: [

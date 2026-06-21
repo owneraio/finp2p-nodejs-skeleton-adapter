@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { BusinessError, storage as skeletonStorage } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { AccountMapping, BusinessError, workflows } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { randomBytes } from 'node:crypto';
 import bs58 from 'bs58';
 
@@ -35,6 +35,25 @@ type Action = 'credit' | 'debit' | 'lock' | 'unlock' | 'move' | 'unlock-and-move
 
 const generateTxId = (): string => bs58.encode(Uint8Array.from(randomBytes(32)));
 
+interface AccountMappingRow {
+  fin_id: string;
+  field_name: string;
+  value: string;
+}
+
+function aggregateAccountMappings(rows: AccountMappingRow[]): AccountMapping[] {
+  const map = new Map<string, Record<string, string>>();
+  for (const row of rows) {
+    let fields = map.get(row.fin_id);
+    if (!fields) {
+      fields = {};
+      map.set(row.fin_id, fields);
+    }
+    fields[row.field_name] = row.value;
+  }
+  return Array.from(map.entries()).map(([finId, fields]) => ({ finId, fields }));
+}
+
 /**
  * Ledger storage backed by PostgreSQL.
  * Provides atomic balance operations with idempotency via CTE-based queries,
@@ -44,20 +63,15 @@ const generateTxId = (): string => bs58.encode(Uint8Array.from(randomBytes(32)))
  * so multiple adapters can share a database without colliding.
  */
 export class LedgerStorage {
-  private readonly schema: string;
-
-  /** Schema name this storage is bound to. Exposed so callers (e.g. the
-   *  service's account_mappings queries) can interpolate the same name. */
-  get schemaName(): string { return this.schema; }
-
-  constructor(private pool: Pool, schemaName: string = skeletonStorage.DEFAULT_SCHEMA_NAME) {
-    skeletonStorage.assertValidSchemaName(schemaName);
-    this.schema = schemaName;
+  constructor(private pool: Pool, private readonly schemaName: string) {
+    // schemaName is interpolated into SQL (Postgres can't parameter-bind
+    // identifiers); validate at construction to minimize injection risk.
+    workflows.assertValidPostgresIdentifier(schemaName);
   }
 
   async ensureAccount(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<void> {
     await this.pool.query(
-      `INSERT INTO ${this.schema}.accounts (fin_id, asset_id, asset_type)
+      `INSERT INTO ${this.schemaName}.accounts (fin_id, asset_id, asset_type)
        VALUES ($1, $2, $3)
        ON CONFLICT (fin_id, asset_id, asset_type) DO NOTHING`,
       [finId, assetId, assetType],
@@ -101,7 +115,7 @@ export class LedgerStorage {
   async getBalance(finId: string, assetId: string, assetType: string = 'finp2p'): Promise<LedgerBalance> {
     const result = await this.pool.query(
       `SELECT balance::TEXT, held::TEXT, (balance - held)::TEXT AS available
-       FROM ${this.schema}.accounts
+       FROM ${this.schemaName}.accounts
        WHERE fin_id = $1 AND asset_id = $2 AND asset_type = $3`,
       [finId, assetId, assetType],
     );
@@ -116,7 +130,7 @@ export class LedgerStorage {
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
               action, details, created_at
-       FROM ${this.schema}.transactions WHERE id = $1`,
+       FROM ${this.schemaName}.transactions WHERE id = $1`,
       [txId],
     );
     return result.rows[0];
@@ -132,7 +146,7 @@ export class LedgerStorage {
   ): Promise<{ finId: string; balance: string }[]> {
     const result = await this.pool.query(
       `SELECT fin_id AS "finId", balance::TEXT AS balance
-       FROM ${this.schema}.accounts
+       FROM ${this.schemaName}.accounts
        WHERE asset_id = $1 AND asset_type = $2 AND fin_id != $3 AND balance > 0
        ORDER BY fin_id`,
       [assetId, assetType, omnibusFinId],
@@ -147,7 +161,7 @@ export class LedgerStorage {
   async getSumBalanceExcluding(excludeFinId: string, assetId: string, assetType: string = 'finp2p'): Promise<string> {
     const result = await this.pool.query(
       `SELECT COALESCE(SUM(balance), 0)::TEXT AS total
-       FROM ${this.schema}.accounts
+       FROM ${this.schemaName}.accounts
        WHERE asset_id = $1 AND asset_type = $2 AND fin_id != $3`,
       [assetId, assetType, excludeFinId],
     );
@@ -166,10 +180,10 @@ export class LedgerStorage {
          COALESCE(d.total, 0)::TEXT   AS distributed,
          (COALESCE(o.balance, 0) + COALESCE(d.total, 0))::TEXT AS omnibus_balance
        FROM
-         (SELECT balance FROM ${this.schema}.accounts
+         (SELECT balance FROM ${this.schemaName}.accounts
           WHERE fin_id = $1 AND asset_id = $2 AND asset_type = $3) o
        FULL JOIN
-         (SELECT SUM(balance) AS total FROM ${this.schema}.accounts
+         (SELECT SUM(balance) AS total FROM ${this.schemaName}.accounts
           WHERE asset_id = $2 AND asset_type = $3 AND fin_id != $1) d ON TRUE`,
       [omnibusFinId, assetId, assetType],
     );
@@ -186,7 +200,7 @@ export class LedgerStorage {
       `WITH lock_asset AS (
          SELECT pg_advisory_xact_lock(hashtext($3), hashtext($4))
        )
-       UPDATE ${this.schema}.accounts
+       UPDATE ${this.schemaName}.accounts
        SET balance = $1::NUMERIC, updated_at = NOW()
        FROM lock_asset
        WHERE fin_id = $2 AND asset_id = $3 AND asset_type = $4`,
@@ -214,10 +228,10 @@ export class LedgerStorage {
        ),
        distributed AS (
          SELECT COALESCE(SUM(a.balance), 0) AS total
-         FROM ${this.schema}.accounts a, lock_asset
+         FROM ${this.schemaName}.accounts a, lock_asset
          WHERE a.asset_id = $2 AND a.asset_type = $3 AND a.fin_id != $1
        )
-       UPDATE ${this.schema}.accounts a
+       UPDATE ${this.schemaName}.accounts a
        SET balance = $4::NUMERIC - d.total, updated_at = NOW()
        FROM distributed d
        WHERE a.fin_id = $1 AND a.asset_id = $2 AND a.asset_type = $3
@@ -231,8 +245,61 @@ export class LedgerStorage {
     await this.pool.query('SELECT 1');
   }
 
-  async query(sql: string, params?: any[]): Promise<any> {
-    return this.pool.query(sql, params);
+  // ─── Account mappings ───────────────────────────────────────────────────
+  // Live in the skeleton-owned `account_mappings` table but are queried here
+  // so callers don't need to know the schema or shape of the underlying rows.
+
+  async getAccountMappings(finIds?: string[]): Promise<AccountMapping[]> {
+    if (finIds && finIds.length > 0) {
+      const result = await this.pool.query(
+        `SELECT fin_id, field_name, value FROM ${this.schemaName}.account_mappings
+         WHERE fin_id = ANY($1) ORDER BY fin_id ASC, field_name ASC`,
+        [finIds],
+      );
+      return aggregateAccountMappings(result.rows);
+    }
+    const result = await this.pool.query(
+      `SELECT fin_id, field_name, value FROM ${this.schemaName}.account_mappings
+       ORDER BY fin_id ASC, field_name ASC`,
+    );
+    return aggregateAccountMappings(result.rows);
+  }
+
+  async getAccountMappingsByFieldValue(fieldName: string, value: string): Promise<AccountMapping[]> {
+    const result = await this.pool.query(
+      `SELECT DISTINCT am.fin_id, am.field_name, am.value
+       FROM ${this.schemaName}.account_mappings am
+       WHERE am.fin_id IN (
+         SELECT fin_id FROM ${this.schemaName}.account_mappings
+         WHERE field_name = $1 AND value = $2
+       )
+       ORDER BY am.fin_id ASC, am.field_name ASC`,
+      [fieldName, value],
+    );
+    return aggregateAccountMappings(result.rows);
+  }
+
+  async upsertAccountMapping(finId: string, fieldName: string, value: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO ${this.schemaName}.account_mappings (fin_id, field_name, value)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (fin_id, field_name) DO UPDATE SET value = $3, updated_at = NOW()`,
+      [finId, fieldName, value],
+    );
+  }
+
+  async deleteAccountMapping(finId: string, fieldName?: string): Promise<void> {
+    if (fieldName) {
+      await this.pool.query(
+        `DELETE FROM ${this.schemaName}.account_mappings WHERE fin_id = $1 AND field_name = $2`,
+        [finId, fieldName],
+      );
+    } else {
+      await this.pool.query(
+        `DELETE FROM ${this.schemaName}.account_mappings WHERE fin_id = $1`,
+        [finId],
+      );
+    }
   }
 
   async findByOperationId(operationId: string): Promise<LedgerTransaction | undefined> {
@@ -240,7 +307,7 @@ export class LedgerStorage {
       `SELECT id, asset_id, asset_type, source, destination,
               amount::TEXT, source_held::TEXT, destination_held::TEXT,
               action, details, created_at
-       FROM ${this.schema}.transactions
+       FROM ${this.schemaName}.transactions
        WHERE details->>'operation_id' = $1`,
       [operationId],
     );
@@ -292,11 +359,11 @@ export class LedgerStorage {
           SELECT t.id, t.asset_id, t.asset_type, t.source, t.destination,
                  t.amount::TEXT, t.source_held::TEXT, t.destination_held::TEXT,
                  t.action, t.details, t.created_at
-          FROM ${this.schema}.transactions t, params p, lock_asset l
+          FROM ${this.schemaName}.transactions t, params p, lock_asset l
           WHERE t.details->>'idempotency_key' = p.details->>'idempotency_key'
         ),
         src_upd AS (
-          UPDATE ${this.schema}.accounts a
+          UPDATE ${this.schemaName}.accounts a
           SET balance = a.balance - p.amount,
               held = a.held + p.src_hold,
               updated_at = NOW()
@@ -308,7 +375,7 @@ export class LedgerStorage {
           RETURNING a.fin_id
         ),
         dst_upd AS (
-          UPDATE ${this.schema}.accounts a
+          UPDATE ${this.schemaName}.accounts a
           SET balance = a.balance + p.amount,
               held = a.held + p.dst_hold,
               updated_at = NOW()
@@ -320,7 +387,7 @@ export class LedgerStorage {
           RETURNING a.fin_id
         ),
         insert_tx AS (
-          INSERT INTO ${this.schema}.transactions
+          INSERT INTO ${this.schemaName}.transactions
             (id, asset_id, asset_type, source, destination, amount, source_held, destination_held, action, details)
           SELECT p.tx_id, p.asset_id, p.asset_type,
                  NULLIF(s.fin_id, ''), NULLIF(d.fin_id, ''),
