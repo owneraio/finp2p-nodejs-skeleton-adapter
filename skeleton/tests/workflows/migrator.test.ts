@@ -48,7 +48,8 @@ describe('Postgres migrator should work properly', () => {
         // @ts-ignore
         gooseExecutablePath: await global.whichGoose(),
         migrationListTableName: "js_migration_tables",
-        storageUser: container.storageUser
+        storageUser: container.storageUser,
+        schemaName: "ledger_adapter",
       })
     ).resolves.toBeUndefined()
 

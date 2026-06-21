@@ -16,11 +16,12 @@ describe("storage instance methods", () => {
       // @ts-ignore
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
-      storageUser: container.storageUser
+      storageUser: container.storageUser,
+      schemaName: "ledger_adapter",
     })
     pool = new Pool({ connectionString: container.connectionString });
-    workflowStorage = new WorkflowStorage(pool)
-    assetStore = new PgAssetStore(pool);
+    workflowStorage = new WorkflowStorage(pool, "ledger_adapter")
+    assetStore = new PgAssetStore(pool, "ledger_adapter");
   })
   afterEach(async () => {
     await pool.end();

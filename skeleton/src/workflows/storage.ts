@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Pool } from 'pg';
 import bs58 from 'bs58';
-import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from '../storage/config';
+import { assertValidPostgresIdentifier } from './migrator';
 
 export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes(64)));
 
@@ -30,33 +30,32 @@ const cloneExcept = (obj: any, key: string): any => {
  * `ledger_adapter` schema.
  */
 export class WorkflowStorage {
-  private readonly schema: string;
-
-  constructor(private pool: Pool, schemaName: string = DEFAULT_SCHEMA_NAME) {
-    assertValidSchemaName(schemaName);
-    this.schema = schemaName;
+  constructor(private pool: Pool, private readonly schemaName: string) {
+    // schemaName is interpolated into SQL (Postgres can't parameter-bind
+    // identifiers); validate at construction to minimize injection risk.
+    assertValidPostgresIdentifier(schemaName);
   }
 
   async getOperations(): Promise<Operation[]> {
-    const result = await this.pool.query(`SELECT * FROM ${this.schema}.operations`);
+    const result = await this.pool.query(`SELECT * FROM ${this.schemaName}.operations`);
     return result.rows;
   }
 
   async getOperationByCid(cid: string): Promise<Operation | undefined> {
-    const result = await this.pool.query(`SELECT * FROM ${this.schema}.operations WHERE cid = $1`, [cid]);
+    const result = await this.pool.query(`SELECT * FROM ${this.schemaName}.operations WHERE cid = $1`, [cid]);
     return result.rows.at(0);
   }
 
   async getOperationByInputs(inputs: Iterable<any>): Promise<Operation | undefined> {
     const serialized: any[] = [];
     for (const el of inputs) serialized.push(el);
-    const result = await this.pool.query(`SELECT * FROM ${this.schema}.operations WHERE inputs = $1`, [JSON.stringify(serialized)]);
+    const result = await this.pool.query(`SELECT * FROM ${this.schemaName}.operations WHERE inputs = $1`, [JSON.stringify(serialized)]);
     return result.rows.at(0);
   }
 
   async getOperationByReceiptId(receiptId: string): Promise<Operation | undefined> {
     const result = await this.pool.query(
-      `SELECT * FROM ${this.schema}.operations
+      `SELECT * FROM ${this.schemaName}.operations
        WHERE outputs @> jsonb_build_object('receipt', jsonb_build_object('id', $1::text))
        LIMIT 1;`,
       [receiptId],
@@ -78,7 +77,7 @@ export class WorkflowStorage {
 
   private async getOperationsByMethodAndStatus(method: string, status: Operation['status']): Promise<Operation[]> {
     const result = await this.pool.query(
-      `SELECT * FROM ${this.schema}.operations WHERE status = $1 AND method = $2;`,
+      `SELECT * FROM ${this.schemaName}.operations WHERE status = $1 AND method = $2;`,
       [status, method],
     );
     return result.rows;
@@ -88,13 +87,13 @@ export class WorkflowStorage {
     ix: Omit<Operation, 'created_at' | 'updated_at'>,
   ): Promise<[Operation, boolean]> {
     const result = await this.pool.query(
-      `INSERT INTO ${this.schema}.operations (cid, method, status, inputs, outputs)
+      `INSERT INTO ${this.schemaName}.operations (cid, method, status, inputs, outputs)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT(method, inputs) DO UPDATE
       -- no-op
-      SET inputs = ${this.schema}.operations.inputs
+      SET inputs = ${this.schemaName}.operations.inputs
       RETURNING
-        ${this.schema}.operations.*,
+        ${this.schemaName}.operations.*,
         (xmax = 0) AS __inserted;
       `,
       [
@@ -120,7 +119,7 @@ export class WorkflowStorage {
     outputs: Operation['outputs'],
   ): Promise<Operation> {
     const result = await this.pool.query(
-      `UPDATE ${this.schema}.operations
+      `UPDATE ${this.schemaName}.operations
       SET status = $1, outputs = $2, updated_at = NOW()
       WHERE cid = $3
       RETURNING *;`,
