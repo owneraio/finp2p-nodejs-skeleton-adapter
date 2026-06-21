@@ -52,7 +52,7 @@ describe('vanilla services', () => {
     const goosePath = await global.whichGoose();
     await runMigrations(goosePath, container.connectionString);
     pool = new Pool({ connectionString: container.connectionString });
-    storage = new LedgerStorage(pool);
+    storage = new LedgerStorage(pool, "ledger_adapter");
     service = new VanillaServiceImpl(storage, mockDelegate);
 
     payoutCalls = [];

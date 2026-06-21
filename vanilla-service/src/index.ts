@@ -23,6 +23,7 @@ export const migrationsTableName = 'finp2p_vanilla_service_migrations';
 
 export interface LedgerConfig {
   connectionString: string;
+  schemaName: string;
 }
 
 export interface VanillaServices {
@@ -56,7 +57,7 @@ export function createVanillaServices(delegates: VanillaDelegates, config: Ledge
     setLogger(logger);
   }
   const pool = new Pool({ connectionString: config.connectionString });
-  const storage = new LedgerStorage(pool);
+  const storage = new LedgerStorage(pool, config.schemaName);
   const service = new VanillaServiceImpl(storage, delegates.transfer, delegates.asset, delegates.escrow, delegates.omnibus);
   return {
     tokenService: service,
