@@ -599,7 +599,8 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
       const { correlationId: cid, metadata } = op;
       return { isCompleted: false, cid, operationMetadata: metadataOptToAPI(metadata) };
     case 'failure':
-      // const { code, message } = op.error;
+      const { code, message } = op.error;
+      console.log({ code, message})
       return {
         isCompleted: true,
         cid: '',
