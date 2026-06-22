@@ -14,6 +14,7 @@ import {
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
+import { logger } from '../helpers';
 
 export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
   const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
@@ -600,11 +601,11 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
       return { isCompleted: false, cid, operationMetadata: metadataOptToAPI(metadata) };
     case 'failure':
       const { code, message } = op.error;
-      console.log({ code, message})
+      logger.error('Deposit failed', { code, message });
       return {
         isCompleted: true,
         cid: '',
-        error: {},
+        error: { code, message },
       };
     case 'success':
       const { instruction } = op;

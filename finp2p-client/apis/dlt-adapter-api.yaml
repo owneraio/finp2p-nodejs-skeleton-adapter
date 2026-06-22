@@ -960,7 +960,14 @@ components:
               $ref: '#/components/schemas/depositInstruction'
     depositOperationErrorInformation:
       type: object
-      properties: {}
+      properties:
+        code:
+          type: integer
+          format: uint32
+        message:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
     createAssetOperationErrorInformation:
       type: object
       properties:
