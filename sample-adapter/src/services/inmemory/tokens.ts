@@ -7,6 +7,7 @@ import {
   TokenService,
   Asset, ExecutionContext,
   Signature,
+  workflows
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
@@ -61,17 +62,31 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   }
 
   public async issue(idempotencyKey: string, asset: Asset, destinationFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
-    logger.info(`Issuing ${quantity} of ${asset.assetId} to ${destinationFinId}`);
+    return workflows.resumableWorkflow(
+      {
+        arguments,
+        start: async () => {
+          logger.info(`Issuing ${quantity} of ${asset.assetId} to ${destinationFinId}`);
+          this.storage.credit(destinationFinId, quantity, asset.assetId);
+          const destination: Destination = { finId: destinationFinId };
+          const tx = new Transaction(quantity, asset, undefined, destination, exCtx, 'issue', undefined);
+          this.storage.registerTransaction(tx);
+          return tx.id
+        }
+      },
+      {
+        then: async txId => {
+          const tx = await this.storage.getTransaction(txId)
+          if (!tx) { throw new Error(`Tx with id: ${txId} not found`) }
 
-    this.storage.credit(destinationFinId, quantity, asset.assetId);
-    const destination: Destination = { finId: destinationFinId };
-    const tx = new Transaction(quantity, asset, undefined, destination, exCtx, 'issue', undefined);
-    this.storage.registerTransaction(tx);
-    let receipt = tx.toReceipt();
-    if (this.proofProvider) {
-      receipt = await this.proofProvider.ledgerProof(receipt);
-    }
-    return successfulReceiptOperation(receipt);
+          let receipt = tx.toReceipt();
+          if (this.proofProvider) {
+            receipt = await this.proofProvider.ledgerProof(receipt);
+          }
+          return successfulReceiptOperation(receipt);
+        }
+      }
+    )
   }
 
   public async transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination,
