@@ -13,6 +13,13 @@ export interface Operation {
   status: 'in_progress' | 'succeeded' | 'failed';
   inputs: any;
   outputs: any;
+  /**
+   * Ordered checkpoints for resumable workflows (see `resumableWorkflow`).
+   * Each entry is an opaque string the consumer serialized itself. Empty for
+   * operations that don't use intermediate states. Filled by
+   * {@link WorkflowStorage.appendIntermediateState}.
+   */
+  intermediate_states: string[];
 }
 
 const cloneExcept = (obj: any, key: string): any => {
@@ -85,7 +92,7 @@ export class WorkflowStorage {
   }
 
   async saveOperation(
-    ix: Omit<Operation, 'created_at' | 'updated_at'>,
+    ix: Omit<Operation, 'created_at' | 'updated_at' | 'intermediate_states'>,
   ): Promise<[Operation, boolean]> {
     const result = await this.pool.query(
       `INSERT INTO ${this.schema}.operations (cid, method, status, inputs, outputs)
@@ -130,6 +137,26 @@ export class WorkflowStorage {
     );
     if (result.rows.length === 0)
       throw new Error('It seems like operation did not complete');
+
+    return result.rows[0];
+  }
+
+  /**
+   * Append a single checkpoint to the operation's `intermediate_states` array.
+   * Used by `resumableWorkflow` after each stage that returns a string, so a
+   * restarted operation can skip the stages it already completed. Does not
+   * touch status/outputs — that lifecycle stays with the proxy.
+   */
+  async appendIntermediateState(cid: string, state: string): Promise<Operation> {
+    const result = await this.pool.query(
+      `UPDATE ${this.schema}.operations
+      SET intermediate_states = array_append(intermediate_states, $1), updated_at = NOW()
+      WHERE cid = $2
+      RETURNING *;`,
+      [state, cid],
+    );
+    if (result.rows.length === 0)
+      throw new Error(`Cannot append intermediate state: no operation with cid ${cid}`);
 
     return result.rows[0];
   }

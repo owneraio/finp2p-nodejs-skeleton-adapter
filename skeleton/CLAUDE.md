@@ -27,7 +27,8 @@ The goal is to narrow the scope of building a new adapter to **just implementing
 Provides **idempotent async operation persistence** backed by PostgreSQL:
 
 - **`config.ts`** &mdash; Configuration interfaces: `MigrationConfig`, `StorageConfig`, `ProxyConfig` (callback support), `Config`
-- **`storage.ts`** &mdash; PostgreSQL-based operation store. Tracks operations by correlation ID (`cid`), with status (`in_progress` / `succeeded` / `failed`), inputs (for idempotency), and outputs. Also provides asset storage for adapters that need it.
+- **`storage.ts`** &mdash; PostgreSQL-based operation store. Tracks operations by correlation ID (`cid`), with status (`in_progress` / `succeeded` / `failed`), inputs (for idempotency), outputs, and `intermediate_states` (an ordered `TEXT[]` of opaque checkpoint strings used by resumable workflows, default empty). Also provides asset storage for adapters that need it.
+- **`resumable.ts`** &mdash; `setGlobalPool()` + `resumableWorkflow()` &mdash; opt-in checkpointing layer on top of `createServiceProxy`. Inside a proxied method, `resumableWorkflow({ arguments, start }, { then }, …)` runs a chain of stages; a stage that returns a **string** is appended to `intermediate_states` as a checkpoint, a stage that returns **anything else** is the final result. On a proxy replay (in_progress operation re-run after a restart), it reads `intermediate_states` and skips the stages that already completed, resuming from the last checkpoint. It only manages `intermediate_states`; the proxy still owns row creation, status, outputs, and replay. Adopt per-method &mdash; the plain proxy path is unchanged. `setGlobalPool(pool)` must be called once on startup.
 - **`service.ts`** &mdash; `createServiceProxy()` &mdash; the key abstraction. Wraps any service interface in a `Proxy` that:
   1. Generates a correlation ID for each new operation
   2. Stores the pending operation in PostgreSQL (deduplicates by input hash)
@@ -85,6 +86,11 @@ A post-processor (`scripts/postprocess-model-gen.ts`) handles:
 When workflow persistence is enabled, the skeleton uses PostgreSQL with a `ledger_adapter` schema. Migrations:
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
+- `20260629071946_add_intermediate_states.sql` &mdash; adds `operations.intermediate_states TEXT[] NOT NULL DEFAULT '{}'` for resumable-workflow checkpoints
+
+(Other migrations between these evolve the idempotency key, account mappings, and asset columns &mdash; see `migrations/`.)
+
+New migrations must be created with `goose -dir migrations create <name> sql` so they get a correct timestamped filename; never edit a migration that has already shipped.
 
 Migrations run automatically on startup via goose.
 
