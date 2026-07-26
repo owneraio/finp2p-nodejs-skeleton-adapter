@@ -144,8 +144,6 @@ export interface CreateAssetParams {
   | { assetIdentifierType: 'ISIN'; assetIdentifierValue: string }
   | { assetIdentifierType: 'ISO4217'; assetIdentifierValue: string }
   | { assetIdentifierType: 'NONE' };
-  /** Org's on-chain settlement wallet for this asset ({ type, address }). */
-  orgSettlementAccount?: FinAPIComponents['schemas']['walletAccount'];
   /** Whether to fall back to a default policy when none matches. Defaults to true server-side. */
   allowPolicyDefaultFallback?: boolean;
   /** Decimal places the asset supports (0–18). */
@@ -161,7 +159,7 @@ export interface CreateAssetParams {
  *
  * Fields that are **immutable** post-creation and therefore not on this
  * shape: type, issuerId, denomination, ledgerAssetBinding,
- * financialIdentifier, intentTypes, orgSettlementAccount, decimalPlaces.
+ * financialIdentifier, intentTypes, decimalPlaces.
  * Intent allow-list changes go through dedicated routes under
  * `/profiles/asset/{id}/intent[/...]`.
  */
@@ -212,7 +210,6 @@ export async function createAsset(client: FinP2PClient, params: CreateAssetParam
     metadata: params.metadata,
     verifiers: params.verifiers,
     financialIdentifier: params.financialIdentifier,
-    orgSettlementAccount: params.orgSettlementAccount,
     allowPolicyDefaultFallback: params.allowPolicyDefaultFallback,
     decimalPlaces: params.decimalPlaces,
     autoShare: params.autoShare,

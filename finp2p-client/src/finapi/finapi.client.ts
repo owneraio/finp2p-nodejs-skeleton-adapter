@@ -16,7 +16,7 @@ type OpRequestBody<P extends keyof OpPaths, M extends keyof OpPaths[P]> =
  *
  * Required: name, type, denomination, ledgerAssetBinding.
  * Optional: symbol, issuerId, intentTypes, assetPolicies, config (deprecated),
- *           metadata, verifiers, financialIdentifier, orgSettlementAccount,
+ *           metadata, verifiers, financialIdentifier,
  *           allowPolicyDefaultFallback, decimalPlaces, autoShare.
  */
 export type CreateAssetOptions = RequestBody<'/profiles/asset', 'post'>;
@@ -28,7 +28,7 @@ export type CreateAssetOptions = RequestBody<'/profiles/asset', 'post'>;
  * name, symbol, assetPolicies, allowPolicyDefaultFallback, autoShare.
  *
  * Immutable post-creation (not in this body): type, issuerId, denomination,
- * ledgerAssetBinding, financialIdentifier, intentTypes, orgSettlementAccount,
+ * ledgerAssetBinding, financialIdentifier, intentTypes,
  * decimalPlaces. Intent allow-list changes have their own dedicated routes
  * under `/profiles/asset/{id}/intent[/...]`.
  */
