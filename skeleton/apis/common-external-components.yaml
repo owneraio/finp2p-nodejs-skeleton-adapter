@@ -1,5 +1,13 @@
 components:
   schemas:
+    customMetadata:
+      type: object
+      description: >
+        Optional. A map of key:value string pairs for custom tracing,
+        reconciliation, and business context. Opaque to the Router.
+      additionalProperties:
+        type: string
+        minLength: 1
     APIError:
       type: object
       required: [code, message]
@@ -152,6 +160,10 @@ components:
           enum: ['plan']
     ApiErrorClient4XX:
       type: object
+      deprecated: true
+      description: |
+        **Deprecated.** Use the standard `APIErrors` schema instead. All 4xx error
+        responses now follow the shared error format with Ownera error codes.
       required: [status, errors, type]
       properties:
         type:
@@ -191,6 +203,10 @@ components:
           enum: ['Asset metadata and config cannot be provided at the same time']
     ApiErrorServer5XX:
       type: object
+      deprecated: true
+      description: |
+        **Deprecated.** Use the standard `APIErrors` schema instead. All 5xx error
+        responses now follow the shared error format with Ownera error codes.
       required: [status, errors, type]
       properties:
         type:
@@ -217,6 +233,10 @@ components:
           type: string
           enum: ['General server error']
     ApiAnyError:
+      deprecated: true
+      description: |
+        **Deprecated.** Use the standard `APIErrors` schema instead. All error
+        responses now follow the shared error format with Ownera error codes.
       allOf:
         - oneOf:
             - $ref: '#/components/schemas/ApiErrorClient4XX'
@@ -409,7 +429,7 @@ components:
           discriminator:
             propertyName: type
             mapping:
-              random: '#/components/schemas/pollingResultsStrategy'
+              random: '#/components/schemas/randomPollingInterval'
               absolute: '#/components/schemas/absolutePollingInterval'
               relative: '#/components/schemas/relativePollingInterval'
     relativePollingInterval:
@@ -652,12 +672,16 @@ components:
           x-autoMinLength: true
     noneAccount:
         type: object
+        additionalProperties: false
     networkAccount:
       oneOf:
         - $ref: '#/components/schemas/walletAccount'
         - $ref: '#/components/schemas/noneAccount'
 
     financialAssetIdentifier:
+      description: >
+        Globally recognized code identifying the asset across networks, routers, and counterparties.
+        Used for balance aggregation and cross-router asset recognition. Format is validated for structure only.
       oneOf:
         - $ref: '#/components/schemas/financialAssetIdentifierTypeISIN'
         - $ref: '#/components/schemas/financialAssetIdentifierTypeISO4217'
@@ -669,6 +693,7 @@ components:
           ISO4217: '#/components/schemas/financialAssetIdentifierTypeISO4217'
           NONE: '#/components/schemas/financialAssetIdentifierTypeNONE'
     financialAssetIdentifierTypeISIN:
+      description: Financial instruments (equities, bonds, funds, etc.). 12-character ISO 6166 code.
       type: object
       required: [assetIdentifierType, assetIdentifierValue]
       properties:
@@ -682,6 +707,7 @@ components:
           pattern: '^[A-Z]{2}[A-Z0-9]{10}$'
           x-autoMinLength: true
     financialAssetIdentifierTypeNONE:
+      description: Asset is not registered under a global identification scheme.
       type: object
       required: [assetIdentifierType]
       properties:
@@ -690,6 +716,7 @@ components:
           enum: [NONE]
           description: Classification type standards
     financialAssetIdentifierTypeISO4217:
+      description: Fiat currencies.
       type: object
       required: [assetIdentifierType, assetIdentifierValue]
       properties:
@@ -710,7 +737,7 @@ components:
           CAIP-19: '#/components/schemas/ledgerAssetIdentifierTypeCAIP-19'
     ledgerAssetIdentifierTypeCAIP-19:
       type: object
-      required: [assetIdentifierType, network, tokenId, standard]
+      required: [assetIdentifierType, tokenId]
       properties:
         assetIdentifierType:
           type: string
@@ -787,6 +814,13 @@ components:
           $ref: '#/components/schemas/finIdAccount'
         asset:
           $ref: '#/components/schemas/finp2pAsset'
+        networkAccount:
+          $ref: '#/components/schemas/networkAccount'
+          description: |
+            Optional. Investor network account to use for this leg. Must have been
+            previously bound via `POST /profiles/investor/{investorId}/account`.
+            Whitelist-validated against `investor.data.accounts[org][asset]`
+            before forwarding to the LA. Failure → error code 7351 (AccountNotWhitelistedErr, 400).
     finp2pAssetWithNoAccount:
       type: object
       description: 'describes asset information'
@@ -821,6 +855,13 @@ components:
           $ref: '#/components/schemas/finIdAccount'
         asset:
           $ref: '#/components/schemas/finp2pAsset'
+        networkAccount:
+          $ref: '#/components/schemas/networkAccount'
+          description: |
+            Optional. Investor network account to use for this leg. Must have been
+            previously bound via `POST /profiles/investor/{investorId}/account`.
+            Whitelist-validated against `investor.data.accounts[org][asset]`
+            before forwarding to the LA. Failure → error code 7351 (AccountNotWhitelistedErr, 400).
     importTxAccount:
         type: object
         required:
@@ -924,7 +965,7 @@ components:
     # Intent Schemas
     intentType:
       type: string
-      enum: ['primarySale', 'buyingIntent', 'sellingIntent', 'loanIntent', 'redemptionIntent', 'privateOfferIntent', 'requestForTransferIntent']
+      enum: ['primarySale', 'buyingIntent', 'sellingIntent', 'loanIntent', 'redemptionIntent', 'privateOfferIntent', 'requestForTransferIntent', 'moveIntent']
     intent:
       type: object
       oneOf:
@@ -935,6 +976,7 @@ components:
         - $ref: '#/components/schemas/redemptionIntent'
         - $ref: '#/components/schemas/privateOfferIntent'
         - $ref: '#/components/schemas/requestForTransferIntent'
+        - $ref: '#/components/schemas/moveIntent'
       discriminator:
         propertyName: type
         mapping:
@@ -945,6 +987,7 @@ components:
           redemptionIntent: '#/components/schemas/redemptionIntent'
           privateOfferIntent: '#/components/schemas/privateOfferIntent'
           requestForTransferIntent: '#/components/schemas/requestForTransferIntent'
+          moveIntent: '#/components/schemas/moveIntent'
     primarySale:
       type: object
       required: [type, issuer, asset, settlement]
@@ -960,7 +1003,7 @@ components:
           $ref: '#/components/schemas/sellingSettlements'
     buyingIntent:
       type: object
-      required: [type, buyer, asset]
+      required: [type, buyer, asset, settlement]
       properties:
         type:
           type: string
@@ -1007,7 +1050,7 @@ components:
               manualPolicy: '#/components/schemas/manualSignaturePolicy'
     loanIntent:
       type: object
-      required: [type, creatorType, borrower, lender, asset]
+      required: [type, creatorType, borrower, lender, asset, settlement]
       properties:
         type:
           type: string
@@ -1034,7 +1077,7 @@ components:
               presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
     redemptionIntent:
       type: object
-      required: [type, issuer, asset]
+      required: [type, issuer, asset, settlement]
       properties:
         type:
           type: string
@@ -1054,11 +1097,11 @@ components:
           discriminator:
             propertyName: type
             mapping:
-              preSignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+              presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
               manualPolicy: '#/components/schemas/manualSignaturePolicy'
     privateOfferIntent:
       type: object
-      required: [type, buyer, seller, asset]
+      required: [type, buyer, seller, asset, settlement]
       properties:
         type:
           type: string
@@ -1080,6 +1123,54 @@ components:
             mapping:
               presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
               manualPolicy: '#/components/schemas/manualSignaturePolicy'
+    moveIntent:
+      type: object
+      # A Move intent carries no issuer — it is an org-level migration declared by
+      # the source asset's own organization (creation is restricted to that org).
+      required: [ type, asset ]
+      properties:
+        type:
+          type: string
+          enum: [ moveIntent ]
+        asset:
+          $ref: '#/components/schemas/moveAsset'
+        signaturePolicy:
+          oneOf:
+            - $ref: '#/components/schemas/presignedSignaturePolicy'
+            - $ref: '#/components/schemas/manualSignaturePolicy'
+          discriminator:
+            propertyName: type
+            mapping:
+              presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+              manualPolicy: '#/components/schemas/manualSignaturePolicy'
+    moveDestination:
+      type: object
+      description: 'a Move destination asset. Superset of finp2pAsset (same required id + ledgerIdentifier), plus an optional pre-funded pool the Transfer drains into the destination for the hold-transfer-* variants.'
+      required: [ id, ledgerIdentifier ]
+      properties:
+        id:
+          $ref: '#/components/schemas/resourceId'
+        ledgerIdentifier:
+          $ref: '#/components/schemas/ledgerAssetIdentifier'
+        fromSegregatedAccount:
+          $ref: '#/components/schemas/finIdAccount'
+        fromSegregatedAccountOwner:
+          description: 'owner of the pre-funded pool account — the Transfer seller (debited party) for receipts and regulation. Required when fromSegregatedAccount is set.'
+          $ref: '#/components/schemas/resourceId'
+    moveAsset:
+      type: object
+      description: 'asset-level migration path declared by the source asset''s organization; source + one-or-more destination assets (no quantity). Optional sourceToSegregatedAccount receives held source tokens on release (instead of burning); each destination may carry a pre-funded fromSegregatedAccount pool for the hold-transfer-* variants. The executor picks one destination at execution.'
+      required: [ sourceAsset, destinationAssets ]
+      properties:
+        sourceAsset:
+          $ref: '#/components/schemas/finp2pAsset'
+        destinationAssets:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/moveDestination'
+        sourceToSegregatedAccount:
+          $ref: '#/components/schemas/finIdAccount'
     requestForTransferIntent:
       type: object
       required: [type, sender, receiver, asset]
@@ -1188,7 +1279,7 @@ components:
         $ref: '#/components/schemas/sellingSettlementBase'
     sellingSettlementBase:
       type: object
-      required: [settlementTerm, settlementInstruction]
+      required: [settlementTerm]
       properties:
         settlementTerm:
           $ref: '#/components/schemas/settlementTerm'
@@ -1201,7 +1292,7 @@ components:
         $ref: '#/components/schemas/buyingSettlementBase'
     buyingSettlementBase:
       type: object
-      required: [settlementInstruction, settlementTerm]
+      required: [settlementTerm]
       properties:
         settlementTerm:
           $ref: '#/components/schemas/settlementTerm'
@@ -1214,7 +1305,7 @@ components:
         $ref: '#/components/schemas/loanIntentSettlementBase'
     loanIntentSettlementBase:
       type: object
-      required: [settlementInstruction, settlementTerm]
+      required: [settlementTerm]
       properties:
         settlementTerm:
           $ref: '#/components/schemas/settlementTerm'

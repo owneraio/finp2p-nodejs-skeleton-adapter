@@ -191,6 +191,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assets/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Asset Token Move
+         * @description Move existing asset token to another ledger
+         */
+        post: operations["moveAssets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/assets/transfer": {
         parameters: {
             query?: never;
@@ -206,6 +226,84 @@ export interface paths {
          */
         post: operations["transferAsset"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create or bind an investor account on this LA (Phase 1)
+         * @description Single LA-side endpoint covering both flows:
+         *
+         *     - **Create new** — `bindInfo` is absent. The LA generates a fresh wallet on the
+         *       asset's network.
+         *     - **Bind existing** — `bindInfo` carries the caller-supplied `networkAccount`
+         *       and `ownershipSignature` (proof-of-ownership hint).
+         *
+         *     The LA issues a **challenge** (signatureTemplate / walletConnect / deposit /
+         *     fireblocksApproval / …) which the user must fulfill. Two response shapes:
+         *
+         *     - `207 Multi-Status` — challenge ready immediately; body has `challenge` and
+         *       `operationResponseStrategy`.
+         *     - `202 Accepted` — LA needs more time; body has `cid` and
+         *       `operationResponseStrategy`. Asset node polls or awaits callback per strategy;
+         *       the challenge arrives via `GET /operations/status/{cid}`.
+         *
+         *     The `ledger.accounts.wallets` jsonb column is updated **only after challenge verification**.
+         */
+        post: operations["createAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{cid}/proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit signature proof for a signatureTemplate challenge (Phase 1)
+         * @description Used only when the challenge `type` is `signatureTemplate`. The asset node forwards
+         *     the client's signature; the LA verifies it against the challenge payload. Verification
+         *     outcome is reported via the workflow's normal response strategy.
+         */
+        post: operations["submitAccountProof"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{accountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Unbind an investor account (Phase 1)
+         * @description Removes the account entry from the `ledger.accounts.wallets` jsonb column. Async; cid in response.
+         */
+        delete: operations["removeAccount"];
         options?: never;
         head?: never;
         patch?: never;
@@ -431,6 +529,17 @@ export interface components {
             executionContext?: components["schemas"]["executionContext"];
         };
         TransferAssetResponse: components["schemas"]["receiptOperation"];
+        MoveAssetsRequest: {
+            nonce: components["schemas"]["nonce"];
+            operationId?: string;
+            source: components["schemas"]["account"];
+            destination: components["schemas"]["account"];
+            /** @description How many units of the asset tokens */
+            quantity: string;
+            signature: components["schemas"]["signature"];
+            executionContext?: components["schemas"]["executionContext"];
+        };
+        MoveAssetsResponse: components["schemas"]["receiptOperation"];
         GetReceiptResponse: components["schemas"]["receiptOperation"];
         HoldOperationRequest: {
             nonce: components["schemas"]["nonce"];
@@ -522,6 +631,117 @@ export interface components {
             error?: components["schemas"]["receiptOperationErrorInformation"];
             response?: components["schemas"]["receipt"];
         };
+        /**
+         * @description Body for `POST /accounts/create`. Single LA-side endpoint covering both create-new
+         *     and bind-existing flows.
+         *
+         *     - **Create new** — omit `bindInfo`. The LA generates a wallet on the asset's network.
+         *     - **Bind existing** — populate `bindInfo` with the caller-supplied wallet and a
+         *       proof-of-ownership signature hint. The LA still issues a challenge for final verification.
+         *
+         *     The response is either `207` (challenge ready) or `202` (challenge pending) — see the
+         *     endpoint definition.
+         */
+        CreateAccountRequest: {
+            organizationId: string;
+            assetId: string;
+            bindInfo?: components["schemas"]["BindInfo"];
+        };
+        /** @description Bind-info block. When present in `CreateAccountRequest`, signals the bind-existing flow. */
+        BindInfo: {
+            networkAccount: components["schemas"]["networkAccount"];
+            /**
+             * @description Proof-of-ownership hint over the network account. The LA may verify this upfront,
+             *     but the authoritative ownership proof is the challenge-fulfillment step.
+             */
+            ownershipSignature: components["schemas"]["signature"];
+        };
+        /** @description Body for `POST /accounts/{cid}/proof`. Used only for `signatureTemplate` challenges. */
+        SubmitAccountProofRequest: {
+            /** @description Signature over the LA's `signatureTemplate` challenge payload. */
+            ownershipSignature: components["schemas"]["signature"];
+        };
+        /**
+         * @description Returned for `202` and for `200` from `proof` / `delete`. When `isCompleted` is
+         *     false, the result is not yet available and `cid` lets the asset node poll
+         *     `/operations/status/{cid}` or receive a callback per `operationResponseStrategy`.
+         *     When the adapter completes the operation synchronously, `isCompleted` is true and
+         *     exactly one of `response` (the account it created) or `error` is present.
+         */
+        AccountOperationAccepted: components["schemas"]["OperationBase"] & {
+            operationMetadata?: components["schemas"]["OperationMetadata"];
+            response?: components["schemas"]["networkAccountRecord"];
+            error?: components["schemas"]["networkAccountOperationErrorInformation"];
+            /**
+             * Format: int64
+             * @description Onboarding deadline the ledger adapter grants for this create/bind, in
+             *     seconds from now. The asset node arms the workflow's whole-process timeout
+             *     from this value (set once, at acceptance). Omitted/zero => no auto-expiry.
+             */
+            expiresInSeconds?: number;
+        };
+        /**
+         * @description Returned for `207` from `POST /accounts/create`. Structurally a superset of
+         *     AccountOperationAccepted (the router decodes both create responses into this
+         *     one type), adding the LA-issued challenge.
+         */
+        AccountOperationChallenge: components["schemas"]["AccountOperationAccepted"] & {
+            challenge: components["schemas"]["AccountChallenge"];
+        };
+        /**
+         * @description LA-issued challenge that the user must fulfill. Discriminated by `type`. New variants
+         *     can be added without breaking existing clients.
+         */
+        AccountChallenge: components["schemas"]["AccountChallengeWalletConnect"] | components["schemas"]["AccountChallengeSignatureTemplate"] | components["schemas"]["AccountChallengeDeposit"] | components["schemas"]["AccountChallengeFireblocksApproval"];
+        AccountChallengeWalletConnect: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "walletConnect";
+            /** @description WalletConnect URI or QR-encodable payload. */
+            uri: string;
+        };
+        AccountChallengeSignatureTemplate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "signatureTemplate";
+            /**
+             * @description Hex-encoded data the client must sign with the wallet's private key and submit via
+             *     `POST /accounts/{cid}/proof`.
+             */
+            payload: string;
+        };
+        AccountChallengeDeposit: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deposit";
+            /** @description Address claimed by the user. */
+            fromAddress: string;
+            /** @description Destination address the LA watches. */
+            toAddress: string;
+            /** @description Required deposit amount (string for precision). */
+            amount: string;
+        };
+        AccountChallengeFireblocksApproval: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "fireblocksApproval";
+            /** @description Fireblocks-side request id; user approves in the Fireblocks app. */
+            fireblocksRequestId: string;
+        };
+        /** @description Canonical account record returned on workflow completion via `GET /operations/status/{cid}`. */
+        networkAccountRecord: {
+            /** @description LA-assigned account identifier. */
+            id: string;
+            networkAccount: components["schemas"]["networkAccount"];
+        };
         createAssetOperation: components["schemas"]["OperationBase"] & {
             error?: components["schemas"]["createAssetOperationErrorInformation"];
             response?: components["schemas"]["assetCreateResponse"];
@@ -533,11 +753,7 @@ export interface components {
             error?: components["schemas"]["depositOperationErrorInformation"];
             response?: components["schemas"]["depositInstruction"];
         };
-        depositOperationErrorInformation: {
-            /** Format: uint32 */
-            code?: number;
-            message?: string;
-        };
+        depositOperationErrorInformation: Record<string, never>;
         createAssetOperationErrorInformation: {
             /** Format: uint32 */
             code?: number;
@@ -562,7 +778,7 @@ export interface components {
              */
             instructionSequenceNumber: number;
         };
-        operationStatus: components["schemas"]["operationStatusCreateAsset"] | components["schemas"]["operationStatusDeposit"] | components["schemas"]["operationStatusReceipt"] | components["schemas"]["operationStatusApproval"];
+        operationStatus: components["schemas"]["operationStatusCreateAsset"] | components["schemas"]["operationStatusDeposit"] | components["schemas"]["operationStatusReceipt"] | components["schemas"]["operationStatusApproval"] | components["schemas"]["operationStatusAccount"];
         operationStatusCreateAsset: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -595,6 +811,39 @@ export interface components {
             type: "approval";
             operation: components["schemas"]["ExecutionPlanApprovalOperation"];
         };
+        operationStatusAccount: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "account";
+            operation: components["schemas"]["networkAccountOperation"];
+        };
+        /**
+         * @description Status of an investor network-account create/bind/unbind operation, polled via
+         *     `GET /operations/status/{cid}`. While a challenge is outstanding, `challenge` is
+         *     present; on completion `response` carries the canonical `{ id, wallet }`; on failure
+         *     `error` carries the LA-level code/message.
+         */
+        networkAccountOperation: components["schemas"]["OperationBase"] & {
+            challenge?: components["schemas"]["AccountChallenge"];
+            response?: components["schemas"]["networkAccountRecord"];
+            error?: components["schemas"]["networkAccountOperationErrorInformation"];
+            /**
+             * Format: int64
+             * @description Onboarding deadline the ledger adapter grants, in seconds from now, when it
+             *     supplies (or revises) one on this status — e.g. alongside a challenge delivered
+             *     via callback in proxy mode, where the adapter's own deadline could not ride the
+             *     proxy's immediate acceptance. The asset node re-arms the workflow deadline from
+             *     a non-zero value. Omitted/zero => previously armed deadline stands.
+             */
+            expiresInSeconds?: number;
+        };
+        networkAccountOperationErrorInformation: {
+            /** Format: uint32 */
+            code: number;
+            message: string;
+        };
         /** @description represent a signature template information */
         signature: {
             /** @description hex representation of the signature */
@@ -613,6 +862,8 @@ export interface components {
             hashGroups: components["schemas"]["hashGroup"][];
             /** @description hex representation of the combined hash groups hash value */
             hash: string;
+            /** @description Template shape version. When omitted, the verifier resolves the version from the signature proof context. */
+            templateVersion?: number;
         };
         hashGroup: {
             /** @description hex representation of the hash group hash value */
@@ -666,6 +917,8 @@ export interface components {
             primaryType: string;
             /** @description hex representation of template hash */
             hash: string;
+            /** @description Template shape version. When omitted, the verifier resolves the version from the signature proof context. */
+            templateVersion?: number;
         };
         EIP712TypeString: string;
         EIP712TypeByte: string;
@@ -721,7 +974,7 @@ export interface components {
             operationId?: string;
         };
         /** @enum {string} */
-        operationType: "issue" | "transfer" | "hold" | "release" | "redeem";
+        operationType: "issue" | "transfer" | "hold" | "release" | "redeem" | "move";
         ledgerAssetInfo: {
             ledgerIdentifier: components["schemas"]["ledgerAssetIdentifier"];
             ledgerReference?: components["schemas"]["contractDetails"];
@@ -807,13 +1060,12 @@ export interface components {
                 id: string;
             };
         };
-        pollingResultsStrategy: {
+        randomPollingInterval: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             type: "random";
-            polling: components["schemas"]["randomPollingInterval"] | components["schemas"]["absolutePollingInterval"] | components["schemas"]["relativePollingInterval"];
         };
         absolutePollingInterval: {
             /**
@@ -836,12 +1088,13 @@ export interface components {
              */
             duration: string;
         };
-        randomPollingInterval: {
+        pollingResultsStrategy: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "randomPollingInterval";
+            type: "poll";
+            polling: components["schemas"]["randomPollingInterval"] | components["schemas"]["absolutePollingInterval"] | components["schemas"]["relativePollingInterval"];
         };
         callbackEndpoint: {
             /**
@@ -923,6 +1176,15 @@ export interface components {
         };
         ExecutionPlanApprovalOperation: components["schemas"]["OperationBase"] & components["schemas"]["PlanApprovalResponse"];
         ApproveExecutionPlanResponse: components["schemas"]["ExecutionPlanApprovalOperation"];
+        APIError: {
+            /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference). */
+            code: number;
+            /** @description A descriptive message providing context about the error. */
+            message: string;
+        };
+        APIErrors: {
+            errors: components["schemas"]["APIError"][];
+        };
         executionPlanCancellationProposal: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1094,9 +1356,9 @@ export interface components {
              * @enum {string}
              */
             assetIdentifierType: "CAIP-19";
-            network: string;
+            network?: string;
             tokenId: string;
-            standard: string;
+            standard?: string;
         };
         ledgerAssetIdentifier: components["schemas"]["ledgerAssetIdentifierTypeCAIP-19"];
         /** @description describes asset information */
@@ -1143,6 +1405,8 @@ export interface components {
             /** @description Unique code identifying the denomination asset type */
             code: string;
         };
+        noneAccount: Record<string, never>;
+        networkAccount: components["schemas"]["walletAccount"] | components["schemas"]["noneAccount"];
     };
     responses: never;
     parameters: never;
@@ -1174,19 +1438,43 @@ export interface operations {
                     "application/json": components["schemas"]["ApproveExecutionPlanResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1212,19 +1500,43 @@ export interface operations {
                     "application/json": components["schemas"]["ApproveExecutionPlanResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1255,19 +1567,43 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1296,19 +1632,43 @@ export interface operations {
                     "application/json": components["schemas"]["DepositInstructionResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1337,19 +1697,43 @@ export interface operations {
                     "application/json": components["schemas"]["PayoutResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1375,19 +1759,62 @@ export interface operations {
                     "application/json": components["schemas"]["GetAssetBalanceResponse"];
                 };
             };
-            /** @description Owner not found */
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1100,
+                     *           "message": "Resource not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1416,19 +1843,43 @@ export interface operations {
                     "application/json": components["schemas"]["CreateAssetResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1457,19 +1908,43 @@ export interface operations {
                     "application/json": components["schemas"]["IssueAssetsResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1498,19 +1973,108 @@ export interface operations {
                     "application/json": components["schemas"]["RedeemAssetsResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+        };
+    };
+    moveAssets: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MoveAssetsRequest"];
+            };
+        };
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoveAssetsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1539,19 +2103,135 @@ export interface operations {
                     "application/json": components["schemas"]["TransferAssetResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+        };
+    };
+    createAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Challenge will be issued asynchronously; poll `/operations/status/{cid}`. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOperationAccepted"];
+                };
+            };
+            /** @description Challenge issued immediately as part of the response. */
+            207: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOperationChallenge"];
+                };
+            };
+        };
+    };
+    submitAccountProof: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description Correlation id of the account workflow. */
+                cid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAccountProofRequest"];
+            };
+        };
+        responses: {
+            /** @description Proof accepted; verification continues per response strategy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOperationAccepted"];
+                };
+            };
+        };
+    };
+    removeAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description LA-assigned account identifier. */
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description successful operation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOperationAccepted"];
+                };
             };
         };
     };
@@ -1576,19 +2256,43 @@ export interface operations {
                     "application/json": components["schemas"]["GetReceiptResponse"];
                 };
             };
-            /** @description Transaction not found */
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1100,
+                     *           "message": "Resource not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1617,19 +2321,62 @@ export interface operations {
                     "application/json": components["schemas"]["HoldOperationResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1100,
+                     *           "message": "Resource not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1658,19 +2405,43 @@ export interface operations {
                     "application/json": components["schemas"]["ReleaseOperationResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1699,19 +2470,43 @@ export interface operations {
                     "application/json": components["schemas"]["RollbackOperationResponse"];
                 };
             };
-            /** @description Invalid Input */
+            /** @description Bad Request */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1736,19 +2531,43 @@ export interface operations {
                     "application/json": components["schemas"]["GetOperationStatusResponse"];
                 };
             };
-            /** @description Transaction not found */
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1100,
+                     *           "message": "Resource not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
@@ -1774,19 +2593,62 @@ export interface operations {
                     "application/json": components["schemas"]["AssetBalanceInfoResponse"];
                 };
             };
-            /** @description Owner not found */
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
+            };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1100,
+                     *           "message": "Resource not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
-            /** @description System error */
+            /** @description Internal Server Error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["APIErrors"];
+                };
             };
         };
     };
