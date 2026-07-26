@@ -206,9 +206,9 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
     case 'polling':
       return {
         operationResponseStrategy: {
-          type: 'random',
+          type: 'poll',
           polling: {
-            type: 'randomPollingInterval',
+            type: 'random',
           },
         },
       };
@@ -605,7 +605,8 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
       return {
         isCompleted: true,
         cid: '',
-        error: { code, message },
+        // depositOperationErrorInformation is an empty object per spec; details go to the log
+        error: {},
       };
     case 'success':
       const { instruction } = op;

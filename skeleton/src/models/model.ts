@@ -12,9 +12,9 @@ export type LedgerAssetIdentifier = Caip19LedgerAssetIdentifier;
 
 export type Caip19LedgerAssetIdentifier = {
   assetIdentifierType: 'CAIP-19';
-  network: string;
+  network?: string;
   tokenId: string;
-  standard: string;
+  standard?: string;
 };
 
 // Per API spec, deposit assets are limited to 'finp2p' or 'custom' variants (no ledgerIdentifier)
@@ -69,8 +69,8 @@ export type Balance = {
 
 export type TokenIdentifier = {
   tokenId: string
-  network: string
-  standard: string
+  network?: string
+  standard?: string
 };
 
 
@@ -105,7 +105,8 @@ export type IntentType =
   | 'loanIntent'
   | 'redemptionIntent'
   | 'privateOfferIntent'
-  | 'requestForTransferIntent';
+  | 'requestForTransferIntent'
+  | 'moveIntent';
 
 
 
