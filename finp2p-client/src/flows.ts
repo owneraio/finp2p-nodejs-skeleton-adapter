@@ -365,7 +365,7 @@ export async function createPrivateOfferIntent(client: FinP2PClient, params: Pri
         },
       },
     }]
-    : undefined;
+    : [{ settlementTerm: { type: 'noSettlement' as const } }];
 
   const res = await unwrapOperation<{ id: string }>(client, client.createIntent(params.asset.id, {
     start, end,

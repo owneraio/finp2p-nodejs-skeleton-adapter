@@ -42,6 +42,8 @@ enum IntentTypes {
     LOAN
     PRIVATE_OFFER
     REQUEST_FOR_TRANSFER
+    MOVE
+    REDEMPTION
 }
 
 
@@ -106,9 +108,6 @@ type Asset implements Profile  {
 
     "whether the asset is auto-shared"
     autoShare: Boolean!
-
-    "omnibus account for the asset, if applicable"
-    orgSettlementAccount: NetworkAccount
 }
 
 type LedgerAssetInfo {
@@ -388,6 +387,9 @@ type User implements Profile  {
 
     accounts(filter: [Filter!]): [FinP2PAccount!]
 
+    "Investor network accounts (LA-managed wallets) bound to a specific organization and asset."
+    networkAccounts(filter: [Filter!]): [InvestorNetworkAccount!]
+
     "User's associated messages"
     #    inbox(filter : [Filter!]): [IncomingMessage!]!
     inbox(filter : [Filter!]): Messages!
@@ -512,7 +514,13 @@ type Custodian {
 type TokenBalance {
     userId: String!
     assetId: String!
-    quantity: String!
+    quantity: String! ## calculated balance based on asset's receipt
+    availableQuantity: String! ## calculated available balance based on asset's receipt
+    heldQuantity: String! ## calculated held balance based on asset's receipt
+    syncedQuantity: String! ## balance synced from ledger
+    syncedAvailableQuantity: String! ## available balance synced from ledger
+    syncedHeldQuantity: String! ## held balance synced from ledger
+    syncedQuantityTimestamp: Int! ## epoch seconds timestamp of last balance synchronization
     transactionsDetails: [TransactionDetails!]
 }
 
@@ -577,6 +585,8 @@ type Signature {
     signature: String!
     hashFunction: String!
     templateType: templateType!
+    "Template shape version. Defaults to 1 when the producer is on a pre-versioning finp2p-core release."
+    templateVersion: Int!
 }
 
 enum templateType {
@@ -613,6 +623,7 @@ enum OperationType {
     Release
     Hold
     Redeem
+    Move
 }
 
 type TradeDetails {
@@ -655,6 +666,11 @@ type Certificate {
 }
 
 
+type KeyValuePair {
+    key: String!
+    value: String!
+}
+
 "Represent an Asset's Transaction Intent occasion in which the Asset's tokens are issued."
 type Intent {
     id: String!
@@ -676,6 +692,9 @@ type Intent {
 
     "Intent data"
     intent: IntentDetails
+
+    "Custom key-value metadata for tracing and reconciliation"
+    customMetadata: [KeyValuePair!]
 
     "Profile metadata, contains ACL information of the profile."
     metadata: ProfileMetadata!
@@ -739,6 +758,21 @@ type NetworkAccount {
     wallet: WalletAccount
 }
 
+"An investor's LA-managed network account bound to a specific organization and asset."
+type InvestorNetworkAccount {
+    "Organization that manages this network account."
+    organizationId: String!
+
+    "Asset the network account is bound to."
+    assetId: String!
+
+    "LA-assigned account identifier."
+    id: String!
+
+    "The bound network identity — a union of variants (wallet today; caip10/custodial when projected). Exactly one variant is set."
+    account: NetworkAccount
+}
+
 "Wallet account for blockchain wallets"
 type WalletAccount {
     "Type of wallet (e.g., ethereum)"
@@ -760,9 +794,9 @@ type FinP2PAsset {
 "CAIP-19 format ledger identifier"
 type Caip19Identifier {
     "CAIP-2 network identifier (e.g., eip155:1, solana:mainnet)"
-    network: String!
+    network: String
     "Token standard (e.g., erc20, erc721)"
-    standard: String!
+    standard: String
     "Token ID or contract address"
     tokenId: String!
 }
@@ -862,6 +896,9 @@ type ExecutionPlan {
     "list of plan approvals"
     approvals: [PlanApproval]!
 
+    "Plan-level workflows: workflows scoped to the plan itself (e.g. plan_approval, and plan-scoped signature_request) — NOT the per-instruction workflows, which are under instructions.workflows. Fully populated (state, health, availableActions, references, metadata), same as the top-level `workflows` query."
+    workflows: [Workflow!]!
+
     "plan creation (timestamp in sec)"
     creationTimestamp: Int!
 
@@ -870,6 +907,9 @@ type ExecutionPlan {
 
     "version of the execution plan"
     version: Int!
+
+    "Custom key-value metadata for tracing and reconciliation"
+    customMetadata: [KeyValuePair!]
 }
 
 type ExecutionPlanContract {
@@ -891,7 +931,7 @@ enum InvestorRole {
 }
 
 union ExecutionPlanContractDetails = IssuanceContractDetails | BuyingContractDetails | SellingContractDetails | LoanContractDetails
-    | TransferContractDetails | RedemptionContractDetails | PrivateOfferContractDetails | RequestForTransferContractDetails
+    | TransferContractDetails | RedemptionContractDetails | PrivateOfferContractDetails | RequestForTransferContractDetails | MoveContractDetails
 
 type IssuanceContractDetails {
     asset: AssetOrder!
@@ -915,6 +955,10 @@ type LoanContractDetails {
 }
 
 type TransferContractDetails {
+    asset: AssetOrder!
+}
+
+type MoveContractDetails {
     asset: AssetOrder!
 }
 
@@ -982,7 +1026,7 @@ type InstructionApproval {
     reason: String!
 }
 
-union InstructionDetails = IssueInstruction | TransferInstruction | HoldInstruction | ReleaseInstruction | RevertHoldInstruction | AwaitInstruction | RedeemInstruction
+union InstructionDetails = IssueInstruction | TransferInstruction | HoldInstruction | ReleaseInstruction | RevertHoldInstruction | AwaitInstruction | RedeemInstruction | MoveInstruction
 
 union InstructionCompletionState = UnknownState | ErrorState | SuccessState
 
@@ -1088,6 +1132,17 @@ type RedeemInstruction {
     amount: String!
 }
 
+type MoveInstruction {
+    "source account information"
+    source: LedgerAccountAsset!
+
+    "destination account information"
+    destination: LedgerAccountAsset!
+
+    "asset's move amount"
+    amount: String!
+}
+
 type ExecutionPlanInstructions {
     nodes: [ExecutionPlanInstruction!]
 }
@@ -1141,7 +1196,7 @@ enum ActionType {
 }
 
 
-union IntentDetails = PrimarySale | BuyingIntent | SellingIntent | LoanIntent | RedemptionIntent | PrivateOfferIntent | RequestForTransferIntent
+union IntentDetails = PrimarySale | BuyingIntent | SellingIntent | LoanIntent | RedemptionIntent | PrivateOfferIntent | RequestForTransferIntent | MoveIntent
 
 type PrimarySale  {
     "Issuer id"
@@ -1156,7 +1211,7 @@ type PrimarySale  {
     "Settlement term"
     settlementTerm: SettlementTerm
 
-    sellingSettlementInstruction: SellingSettlementInstruction!
+    sellingSettlementInstruction: SellingSettlementInstruction
 }
 
 type RedemptionIntent  {
@@ -1208,6 +1263,10 @@ type PresignedRequestForTransferIntentSignaturePolicy{
     _ignore: Boolean
 }
 
+type PresignedMoveIntentSignaturePolicy{
+    _ignore: Boolean
+}
+
 type PresignedPrivateOfferIntentSignaturePolicy{
     _ignore: Boolean
 }
@@ -1218,6 +1277,7 @@ union LoanSignaturePolicy = PresignedLoanIntentSignaturePolicy
 union RedemptionSignaturePolicy = PresignedRedemptionIntentSignaturePolicy | ManualIntentSignaturePolicy
 union PrivateOfferSignaturePolicy = PresignedPrivateOfferIntentSignaturePolicy | ManualIntentSignaturePolicy
 union RequestForTransferSignaturePolicy = PresignedRequestForTransferIntentSignaturePolicy | ManualIntentSignaturePolicy
+union MoveSignaturePolicy = PresignedMoveIntentSignaturePolicy | ManualIntentSignaturePolicy
 
 type BuyingIntent{
     "resource id of the buyer"
@@ -1235,7 +1295,7 @@ type BuyingIntent{
     "Signature policy type"
     signaturePolicyType: SignaturePolicyType!
     signaturePolicy: BuyingSignaturePolicy!
-    settlementInstruction: BuyingSettlementInstruction!
+    settlementInstruction: BuyingSettlementInstruction
 }
 
 type SellingIntent{
@@ -1254,7 +1314,7 @@ type SellingIntent{
     "Signature policy type"
     signaturePolicyType: SignaturePolicyType!
     signaturePolicy: SellingSignaturePolicy!
-    sellingSettlementInstruction: SellingSettlementInstruction!
+    sellingSettlementInstruction: SellingSettlementInstruction
 }
 
 type PrivateOfferIntent{
@@ -1276,7 +1336,7 @@ type PrivateOfferIntent{
     "Signature policy type"
     signaturePolicyType: SignaturePolicyType!
     signaturePolicy: PrivateOfferSignaturePolicy!
-    sellingSettlementInstruction: SellingSettlementInstruction!
+    sellingSettlementInstruction: SellingSettlementInstruction
 }
 
 type RequestForTransferIntent{
@@ -1310,6 +1370,33 @@ type RequestForTransferRequestInstruction {
     receiverAccount: FinP2PAssetAccount
 }
 
+"A Move destination asset. Superset of FinP2PAsset (same resourceId + ledgerIdentifier), plus an optional pre-funded pool the Transfer drains into the destination for the hold-transfer-* variants."
+type MoveDestination{
+    "Resource ID of the destination FinP2P asset"
+    resourceId: String!
+
+    "Ledger identifier for the destination asset"
+    ledgerIdentifier: LedgerIdentifier
+
+    "Optional pre-funded pool account drained into this destination by the hold-transfer-* variants (null otherwise)"
+    fromSegregatedAccount: FinP2PAccount
+}
+
+type MoveIntent{
+    "Source asset of the migration path (resourceId + ledgerIdentifier; accounts are supplied per-owner at execution)"
+    sourceAsset: FinP2PAsset
+
+    "Allowed destination assets of the migration path (the executor picks one at execution)"
+    destinationAssets: [MoveDestination!]
+
+    "Optional segregated account that receives released source tokens for the hold-*-release variants (instead of burning via Redeem)"
+    sourceToSegregatedAccount: FinP2PAccount
+
+    "Signature policy type"
+    signaturePolicyType: SignaturePolicyType!
+    signaturePolicy: MoveSignaturePolicy!
+}
+
 type LoanIntent{
     "resource id of the borrower"
     borrower: String!
@@ -1328,7 +1415,7 @@ type LoanIntent{
     settlementTerm: SettlementTerm
 
     "Signature policy type"
-    loanSettlementInstruction: LoanSettlementInstruction!
+    loanSettlementInstruction: LoanSettlementInstruction
     loanInstruction: LoanInstruction!
     signaturePolicyType: SignaturePolicyType!
     signaturePolicy: LoanSignaturePolicy!
@@ -1629,11 +1716,23 @@ type Subscription {
     userHoldingAdded: User!
     userHoldingChanged(fieldNames: [HoldingFields!]!): User!
     assetDataChanged(identifierType: AssetDataIdentifierType, identifierValue: String, dataTypes: [DataType!]): AssetDataItem!
+
+    "Fires when a new intent is committed. Filters AND together; if a filter is omitted it matches everything. ownerOrgIds matches the org ids OSS derives for the intent. For Move this is the source asset's org; for two-sided intents like RequestForTransfer and Loan it may include both sides."
+    intentAdded(intentTypes: [IntentTypes!], assetIds: [String!], ownerOrgIds: [String!]): Intent!
+
+    "Fires when an intent field listed in fieldNames changes. Same filter semantics as intentAdded."
+    intentChanged(fieldNames: [IntentField!]!, intentTypes: [IntentTypes!], assetIds: [String!], ownerOrgIds: [String!]): Intent!
 }
 
 "Fields to subscribe on"
 enum PlanField {
     Status
+}
+
+"Fields to subscribe on"
+enum IntentField {
+    Status
+    RemainingQuantity
 }
 
 "Fields to subscribe on"
@@ -1757,6 +1856,7 @@ enum SignatureTemplate {
 type SignatureProofPolicy {
     verifyingKey: String!
     signatureTemplate: SignatureTemplate!
+    templateVersion: Int!
 }
 
 type NoProofPolicy {
@@ -1767,7 +1867,7 @@ enum FinancialIdentifierType {
     UNSPECIFIED
     ISIN
     ISO4217
-    CUSTOM
+    NONE
 }
 
 type FinancialIdentifier {
@@ -1790,6 +1890,9 @@ type WorkflowMetadata {
 
     currentStateRetry: Int!
 
+    "Non-resetting retry aggregate across all states (never-give-up visibility, core #1251)"
+    cumulativeRetries: Int!
+
     traceId: String!
 
     correlationIds: [String!]
@@ -1808,7 +1911,10 @@ type Workflow {
     "Name of the workflow"
     name: String!
 
-    "Current transition id of the workflow"
+    "Current state of the workflow (always populated; the state machine's current node, e.g. the initial state before any transition is applied)"
+    state: String!
+
+    "Id of the last applied transition (empty until the first transition; use `state` for the workflow's current position)"
     transitionId: String!
 
     "Current status of the workflow"
@@ -1837,6 +1943,9 @@ type Workflow {
 
     "Workflow creation timestamp"
     creationTimestamp: Int!
+
+    "Workflow last-modified timestamp (epoch millis)"
+    lastModified: Int!
 }
 
 "Health status of a workflow"
@@ -1863,6 +1972,8 @@ enum WorkflowHealthStatus {
     STALE
     STUCK
     UNHEALTHY
+    "Actively retrying but still working (durable signal, core #1251) — not an error state"
+    RETRYING
 }
 
 "Additional health assessment metadata"
@@ -1907,6 +2018,8 @@ enum WorkflowOrderField {
     REFERENCE_ID
     HEALTH_STATUS
     CORRELATION_ID
+    CREATION_TIMESTAMP
+    LAST_MODIFIED
 }
 
 input WorkflowOrder {

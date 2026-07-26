@@ -1,98 +1,127 @@
-openapi: 3.0.1
+openapi: '3.0.1'
 info:
-  title: Custody Adapter Specification
-  description: This is the API specification for the Custody Adapter, it provides abstraction on top of various industry key management/custody solutions.
+  title: 'Custody Adapter Specification'
+  description: 'This is the API specification for the Custody Adapter, it provides abstraction on top of various industry key management/custody solutions.'
   termsOfService: 'https://ownera.io/terms/'
   contact:
-    email: support@ownera.io
-  version: x.x.x
+    email: 'support@ownera.io'
+  version: 'x.x.x'
 tags:
-  - name: accounts
-    description: Account Management
-  - name: signatures
-    description: Signature management
+  - name: 'accounts'
+    description: 'Account Management'
+  - name: 'signatures'
+    description: 'Signature management'
 paths:
   /plan/approve:
     post:
       tags:
-        - execution
-      summary: Approve execution plan
-      description: Expects a ledger to approve the upcoming execution plan
-      operationId: approveExecutionPlan
+        - 'execution'
+      summary: 'Approve execution plan'
+      description: 'Expects a ledger to approve the upcoming execution plan'
+      operationId: 'approveExecutionPlan'
       parameters:
-        - in: header
-          name: Idempotency-Key
-          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+        - in: 'header'
+          name: 'Idempotency-Key'
+          description: 'hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)'
           schema:
-            type: string
+            type: 'string'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanRequest'
       responses:
         '200':
-          description: successful operation
+          description: 'successful operation'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/PlanApprovalResponse'
+                $ref: 'common-external-components.yaml#/components/schemas/ExecutionPlanApprovalOperation'
         '202':
-          description: Operation is pending
+          description: 'Operation is pending'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         '400':
-          description: Invalid Input
+          description: 'Bad Request'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
         '401':
-          description: Unauthorized
+          description: 'Unauthorized'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '403':
-          description: Forbidden
+          description: 'Forbidden'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '404':
-          description: Not found
+          description: 'Not found'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
         '409':
-          description: Conflict
+          description: 'Conflict'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
         '500':
-          description: Internal Server Error
+          description: 'Internal Server Error'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
         '502':
-          description: Bad Gateway
+          description: 'Bad Gateway'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '503':
-          description: Service Unavailable
+          description: 'Service Unavailable'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '504':
-          description: Gateway Timeout
+          description: 'Gateway Timeout'
           content:
             application/json:
               schema:
@@ -100,66 +129,136 @@ paths:
   /plan/proposal:
     post:
       tags:
-        - execution
-      summary: Approve a plan proposal plan
-      description: Request adapter approval or rejection to a proposal in an execution plan
-      operationId: executionPlanProposal
+        - 'execution'
+      summary: 'Approve a plan proposal plan'
+      description: 'Request adapter approval or rejection to a proposal in an execution plan'
+      operationId: 'executionPlanProposal'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: 'common-external-components.yaml#/components/schemas/executionPlanProposalRequest'
       responses:
         '200':
-          description: successful operation
+          description: 'successful operation'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
         '400':
-          description: Invalid Input
-          content: {}
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
         '500':
-          description: System error
-          content: {}
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
   /plan/proposal/status:
     post:
       tags:
-        - execution
-      summary: Notify the adapter on the agreement status (Approve/Rejected) for a specific proposal
-      description: notify the adapter on proposal status
-      operationId: executionPlanProposalStatus
+        - 'execution'
+      summary: 'Notify the adapter on the agreement status (Approve/Rejected) for a specific proposal'
+      description: 'notify the adapter on proposal status'
+      operationId: 'executionPlanProposalStatus'
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: 'common-external-components.yaml#/components/schemas/executionPlanProposalStatusRequest'
       responses:
         '200':
-          description: successful operation
+          description: 'successful operation'
           content: {}
         '204':
-          description: successful operation
+          description: 'successful operation'
           content: {}
         '400':
-          description: Invalid Input
-          content: {}
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
         '500':
-          description: System error
-          content: {}
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
   /accounts:
     post:
       tags:
-        - accounts
-      summary: create account
-      description: create an account, allocates a cryptographic private/public key
-      operationId: createAccount
+        - 'accounts'
+      summary: 'create account'
+      description: 'create an account, allocates a cryptographic private/public key'
+      operationId: 'createAccount'
       parameters:
-        - in: header
-          name: Idempotency-Key
-          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+        - in: 'header'
+          name: 'Idempotency-Key'
+          description: 'hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)'
           schema:
-            type: string
+            type: 'string'
       requestBody:
         content:
           application/json:
@@ -168,84 +267,186 @@ paths:
         required: true
       responses:
         '200':
-          description: successful operation
+          description: 'successful operation'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/accountResponse'
         '202':
-          description: Operation is pending
+          description: 'Operation is pending'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         '400':
-          description: Invalid Input
+          description: 'Bad Request'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
         '401':
-          description: Unauthorized
+          description: 'Unauthorized'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '403':
-          description: Forbidden
+          description: 'Forbidden'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '404':
-          description: Not found
+          description: 'Not Found'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1101
+                    message: 'Resource id not found: "example-id-123"'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
         '409':
-          description: Conflict
+          description: 'Conflict'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1205
+                    message: 'Idempotency key expired'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
         '500':
-          description: Internal Server Error
+          description: 'Internal Server Error'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
         '502':
-          description: Bad Gateway
+          description: 'Bad Gateway'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2201
+                    message: 'External service failure'
         '503':
-          description: Service Unavailable
+          description: 'Service Unavailable'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '504':
-          description: Gateway Timeout
+          description: 'Gateway Timeout'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+    get:
+      responses:
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 4001
+                    message: 'Missing required field: "ExampleName"'
+        '404':
+          description: 'Not Found'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1101
+                    message: 'Resource id not found: "example-id-123"'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
+        '502':
+          description: 'Bad Gateway'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2201
+                    message: 'External service failure'
   /signatures:
     post:
       tags:
-        - signatures
-      summary: create a signing request
+        - 'signatures'
+      summary: 'create a signing request'
       description: 'create a signature request to sign the payload hash'
-      operationId: createSignatureRequest
+      operationId: 'createSignatureRequest'
       parameters:
-        - in: header
-          name: Idempotency-Key
-          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+        - in: 'header'
+          name: 'Idempotency-Key'
+          description: 'hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)'
           schema:
-            type: string
+            type: 'string'
       requestBody:
         content:
           application/json:
@@ -254,199 +455,331 @@ paths:
         required: true
       responses:
         '200':
-          description: successful operation
+          description: 'successful operation'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/signatureResponse'
         '202':
-          description: Operation is pending
+          description: 'Operation is pending'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         '400':
-          description: Invalid Input
+          description: 'Bad Request'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
         '401':
-          description: Unauthorized
+          description: 'Unauthorized'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '403':
-          description: Forbidden
+          description: 'Forbidden'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '404':
-          description: Not found
+          description: 'Not Found'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1101
+                    message: 'Resource id not found: "example-id-123"'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
         '409':
-          description: Conflict
+          description: 'Conflict'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1205
+                    message: 'Idempotency key expired'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
         '500':
-          description: Internal Server Error
+          description: 'Internal Server Error'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
         '502':
-          description: Bad Gateway
+          description: 'Bad Gateway'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2201
+                    message: 'External service failure'
         '503':
-          description: Service Unavailable
+          description: 'Service Unavailable'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '504':
-          description: Gateway Timeout
+          description: 'Gateway Timeout'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+    get:
+      responses:
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 4001
+                    message: 'Missing required field: "ExampleName"'
+        '404':
+          description: 'Not Found'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1101
+                    message: 'Resource id not found: "example-id-123"'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
+        '502':
+          description: 'Bad Gateway'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2201
+                    message: 'External service failure'
   /operations/status/{cid}:
     get:
       tags:
-        - operations
+        - 'operations'
       summary: 'Get Operation Status'
       description: 'Get the operation status by an operation correlation id'
-      operationId: getOperation
+      operationId: 'getOperation'
       parameters:
-        - name: cid
-          in: path
+        - name: 'cid'
+          in: 'path'
           description: 'correlation id of an operation'
           required: true
           schema:
-            type: string
+            type: 'string'
             x-allowEmpty: true
       responses:
         '200':
-          description: successful operation
+          description: 'successful operation'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetOperationStatusResponse'
         '400':
-          description: Invalid Input
+          description: 'Bad Request'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 4001
+                    message: 'Missing required field: "ExampleName"'
         '401':
-          description: Unauthorized
+          description: 'Unauthorized'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '403':
-          description: Forbidden
+          description: 'Forbidden'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '404':
-          description: Not found
+          description: 'Not Found'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1101
+                    message: 'Resource id not found: "example-id-123"'
+        '405':
+          description: 'Method Not Allowed'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1006
+                    message: 'Method not allowed'
         '409':
-          description: Conflict
+          description: 'Conflict'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+        '415':
+          description: 'Unsupported Media Type'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1005
+                    message: 'Unsupported media type'
         '500':
-          description: Internal Server Error
+          description: 'Internal Server Error'
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
         '502':
-          description: Bad Gateway
+          description: 'Bad Gateway'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '503':
-          description: Service Unavailable
+          description: 'Service Unavailable'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
         '504':
-          description: Gateway Timeout
+          description: 'Gateway Timeout'
           content:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApiAnyError'
   /health:
     get:
-      summary: Health check
-      description: Returns the health status of the service.
-      operationId: getHealth
+      summary: 'Health check'
+      description: 'Returns the health status of the service.'
+      operationId: 'getHealth'
       tags:
-        - health
+        - 'health'
       responses:
         '200':
-          description: Service is healthy
+          description: 'Service is healthy'
           content:
             application/json:
               schema:
-                type: object
+                type: 'object'
                 properties:
                   status:
-                    type: string
-                    example: ok
-                    pattern: .*\S.*
+                    type: 'string'
+                    example: 'ok'
+                    pattern: '.*\S.*'
                     x-autoMinLength: true
         '503':
-          description: Service is unavailable
+          description: 'Service is unavailable'
           content:
             application/json:
               schema:
-                type: object
+                type: 'object'
                 properties:
                   status:
-                    type: string
-                    example: unavailable
-                    pattern: .*\S.*
+                    type: 'string'
+                    example: 'unavailable'
+                    pattern: '.*\S.*'
                     x-autoMinLength: true
 components:
   schemas:
     GetOperationStatusResponse:
       $ref: '#/components/schemas/operationStatus'
     operationStatus:
-      type: object
-      required:
-        - type
-        - operation
+      type: 'object'
+      required: ['type', 'operation']
       properties:
         type:
-          type: string
-          enum: [createAccountOperation, signatureRequestOperation, planApprovalOperation]
+          type: 'string'
+          enum: ['createAccountOperation', 'signatureRequestOperation', 'planApprovalOperation']
         operation:
           oneOf:
             - $ref: '#/components/schemas/createAccountOperation'
             - $ref: '#/components/schemas/signatureRequestOperation'
             - $ref: '#/components/schemas/planApprovalOperation'
           discriminator:
-            propertyName: type
+            propertyName: 'type'
             mapping:
               createAccountOperation: '#/components/schemas/createAccountOperation'
               signatureRequestOperation: '#/components/schemas/signatureRequestOperation'
@@ -455,197 +788,177 @@ components:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - $ref: '#/components/schemas/createAccountOperationResponse'
-        - type: object
-          required:
-            - type
+        - type: 'object'
+          required: ['type']
           properties:
             type:
               $ref: '#/components/schemas/createAccountOperationType'
-    
     createAccountOperationType:
-      type: string
-      enum: [createAccountOperation]
-              
+      type: 'string'
+      enum: ['createAccountOperation']
     createAccountOperationResponse:
-      type: object
+      type: 'object'
       properties:
         account:
           oneOf:
             - $ref: '#/components/schemas/generalErrorArray'
             - $ref: '#/components/schemas/accountResponse'
           discriminator:
-            propertyName: type
+            propertyName: 'type'
             mapping:
               generalErrorArray: '#/components/schemas/generalErrorArray'
               accountResponse: '#/components/schemas/accountResponse'
     accountResponse:
-      type: object
-      required:
-        - finId
-        - type
+      type: 'object'
+      required: ['finId', 'type']
       properties:
         finId:
-          $ref: "common-external-components.yaml#/components/schemas/finId"
+          $ref: 'common-external-components.yaml#/components/schemas/finId'
         type:
-          type: string
-          enum: [accountResponse]
+          type: 'string'
+          enum: ['accountResponse']
     generalErrorArray:
-      type: object
-      required:
-        - type
-        - errors
+      type: 'object'
+      required: ['type', 'errors']
       properties:
         errors:
-          type: array
+          type: 'array'
           items:
             $ref: 'common-external-components.yaml#/components/schemas/CustomError'
         type:
-          type: string
-          enum: [generalErrorArray]
+          type: 'string'
+          enum: ['generalErrorArray']
     accountResponseErrorInformation:
-      type: object
-      required:
-        - code
-        - message
+      type: 'object'
+      required: ['code', 'message']
       properties:
         code:
-          type: integer
-          format: uint32
+          type: 'integer'
+          format: 'uint32'
         message:
-          type: string
-          pattern: .*\S.*
+          type: 'string'
+          pattern: '.*\S.*'
           x-autoMinLength: true
         details:
-          type: object
+          type: 'object'
     signatureRequestOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - $ref: '#/components/schemas/signatureRequestOperationResponse'
-        - type: object
-          required:
-            - type
+        - type: 'object'
+          required: ['type']
           properties:
             type:
               $ref: '#/components/schemas/signatureRequestOperationType'
-
     signatureRequestOperationType:
-      type: string
-      enum: [signatureRequestOperation]
-
+      type: 'string'
+      enum: ['signatureRequestOperation']
     signatureRequestOperationResponse:
-      type: object
+      type: 'object'
       properties:
         signature:
           oneOf:
             - $ref: '#/components/schemas/generalErrorArray'
             - $ref: '#/components/schemas/signatureResponse'
           discriminator:
-            propertyName: type
+            propertyName: 'type'
             mapping:
               generalErrorArray: '#/components/schemas/generalErrorArray'
               signatureResponse: '#/components/schemas/signatureResponse'
     signatureResponse:
-      type: object
-      required:
-        - signature
-        - type
+      type: 'object'
+      required: ['signature', 'type']
       properties:
         signature:
-          type: string
-          description: the hex representation of the signature
+          type: 'string'
+          description: 'the hex representation of the signature'
           x-allowEmpty: true
         type:
-          type: string
-          enum: [signatureResponse]
+          type: 'string'
+          enum: ['signatureResponse']
     planApprovalOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
-        - type: object
-          required:
-            - type
+        - type: 'object'
+          required: ['type']
           properties:
             type:
               $ref: '#/components/schemas/planApprovalOperationType'
-
     planApprovalOperationType:
-      type: string
-      enum: [planApprovalOperation]
-
+      type: 'string'
+      enum: ['planApprovalOperation']
     signatureTemplate:
-      type: object
+      type: 'object'
       oneOf:
         - $ref: '#/components/schemas/hashListTemplate'
         - $ref: '#/components/schemas/EIP712Template'
       discriminator:
-        propertyName: type
+        propertyName: 'type'
         mapping:
           hashList: '#/components/schemas/hashListTemplate'
           EIP712: '#/components/schemas/EIP712Template'
     hashListTemplate:
       description: 'ordered list of hash groups'
-      required: [type, hashGroups, hash]
-      type: object
+      required: ['type', 'hashGroups', 'hash']
+      type: 'object'
       properties:
         type:
-          type: string
-          enum: ["hashList"]
+          type: 'string'
+          enum: ['hashList']
         hashGroups:
-          type: array
+          type: 'array'
           items:
             $ref: '#/components/schemas/hashGroup'
         hash:
-          type: string
+          type: 'string'
           description: 'hex representation of the combined hash groups hash value'
           x-allowEmpty: true
     hashGroup:
-      type: object
-      required: [fields, hash]
+      type: 'object'
+      required: ['fields', 'hash']
       properties:
         hash:
-          type: string
+          type: 'string'
           description: 'hex representation of the hash group hash value'
           x-allowEmpty: true
         fields:
           description: 'list of fields by order they appear in the hash group'
-          type: array
+          type: 'array'
           items:
             $ref: '#/components/schemas/field'
     field:
-      type: object
-      required:
-        - name
-        - type
-        - value
+      type: 'object'
+      required: ['name', 'type', 'value']
       description: 'describing a field in the hash group'
       properties:
         name:
-          type: string
+          type: 'string'
           description: 'name of field'
-          pattern: .*\S.*
+          pattern: '.*\S.*'
           x-autoMinLength: true
         type:
-          type: string
-          enum: ["string", "int"]
+          type: 'string'
+          enum: ['string', 'int', 'bytes']
           description: 'type of field'
         value:
-          type: string
+          type: 'string'
           description: 'hex representation of the field value'
           x-allowEmpty: true
     EIP712Domain:
-      type: object
+      type: 'object'
       properties:
         name:
-          type: string
+          type: 'string'
           x-allowEmpty: true
         version:
-          type: string
+          type: 'string'
           x-allowEmpty: true
         chainId:
-          type: integer
-          format: uint64
+          type: 'integer'
+          format: 'uint64'
         verifyingContract:
-          type: string
-          format: address
+          type: 'string'
+          format: 'address'
           x-allowEmpty: true
     EIP712TypedValue:
       oneOf:
@@ -656,116 +969,111 @@ components:
         - $ref: '#/components/schemas/EIP712TypeObject'
         - $ref: '#/components/schemas/EIP712TypeArray'
     EIP712Types:
-      type: object
+      type: 'object'
       properties:
         definitions:
-          type: array
+          type: 'array'
           items:
             $ref: '#/components/schemas/EIP712TypeDefinition'
     EIP712TypeDefinition:
-      type: object
+      type: 'object'
       properties:
         name:
-          type: string
+          type: 'string'
           x-allowEmpty: true
         fields:
-          type: array
+          type: 'array'
           items:
             $ref: '#/components/schemas/EIP712FieldDefinition'
     EIP712FieldDefinition:
-      type: object
+      type: 'object'
       properties:
         name:
-          type: string
+          type: 'string'
           x-allowEmpty: true
         type:
-          type: string
+          type: 'string'
           x-allowEmpty: true
     EIP712Template:
-      required: [type, domain, message, primaryType, types, hash]
-      type: object
+      required: ['type', 'domain', 'message', 'primaryType', 'types', 'hash']
+      type: 'object'
       properties:
         type:
-          type: string
-          enum: ["EIP712"]
+          type: 'string'
+          enum: ['EIP712']
         domain:
           $ref: '#/components/schemas/EIP712Domain'
         message:
-          type: object
+          type: 'object'
           additionalProperties:
             $ref: '#/components/schemas/EIP712TypedValue'
         types:
           $ref: '#/components/schemas/EIP712Types'
         primaryType:
-          type: string
+          type: 'string'
           x-allowEmpty: true
         hash:
-          type: string
+          type: 'string'
           description: 'hex representation of template hash'
           x-allowEmpty: true
     signatureRequestReference:
-      type: object
+      type: 'object'
       oneOf:
         - $ref: '#/components/schemas/ExecutionPlanReference'
       discriminator:
-        propertyName: type
+        propertyName: 'type'
         mapping:
           executionPlanRef: '#/components/schemas/ExecutionPlanReference'
     ExecutionPlanReference:
-      type: object
-      required:
-        - type
-        - id
+      type: 'object'
+      required: ['type', 'id']
       properties:
         type:
-          type: string
-          enum: [executionPlanRef]
+          type: 'string'
+          enum: ['executionPlanRef']
         id:
-          type: string
-          description: execution plan resource id
-          pattern: .*\S.*
+          type: 'string'
+          description: 'execution plan resource id'
+          pattern: '.*\S.*'
           x-autoMinLength: true
     CreateAccountRequest:
-      required:
-        - ownerId
+      required: ['ownerId']
       properties:
         ownerId:
           $ref: '#/components/schemas/ownerId'
     CreateSignatureRequest:
-      required:
-        - finId
-        - template
-      type: object
+      required: ['finId', 'template']
+      type: 'object'
       properties:
         finId:
-          $ref: "common-external-components.yaml#/components/schemas/finId"
+          $ref: 'common-external-components.yaml#/components/schemas/finId'
         template:
           $ref: '#/components/schemas/signatureTemplate'
         reference:
           $ref: '#/components/schemas/signatureRequestReference'
     ownerId:
-      type: string
+      type: 'string'
       description: 'ID of the owner profile'
       pattern: '^[^:](?:.+):101:(?:.+)'
       example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
     EIP712TypeString:
-      type: string
+      type: 'string'
       pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
       x-allowEmpty: true
     EIP712TypeByte:
-      type: string
+      type: 'string'
       pattern: '^0x[0-9a-fA-F]+$' # matches hexadecimal string starting with '0x'
       minLength: 3
       maxLength: 320
     EIP712TypeInteger:
-      type: integer
+      type: 'integer'
     EIP712TypeBool:
-      type: boolean
+      type: 'boolean'
     EIP712TypeObject:
-      type: object
+      type: 'object'
       additionalProperties:
         $ref: '#/components/schemas/EIP712TypedValue'
     EIP712TypeArray:
-      type: array
+      type: 'array'
       items:
         $ref: '#/components/schemas/EIP712TypedValue'
