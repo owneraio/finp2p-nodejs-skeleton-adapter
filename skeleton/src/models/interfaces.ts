@@ -7,6 +7,7 @@ import {
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping,
+  AccountOperation, BindInfo, NetworkAccount,
 } from './model';
 
 
@@ -33,12 +34,12 @@ export interface TokenService {
 
   balance(asset: Asset, finId: string): Promise<Balance>;
 
-  issue(idempotencyKey: string, asset: Asset, destinationFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
+  issue(idempotencyKey: string, asset: Asset, destination: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
   transfer(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
-  redeem(idempotencyKey: string, nonce: string, sourceFinId: string, asset: Asset, quantity: string, operationId: string | undefined,
+  redeem(idempotencyKey: string, nonce: string, source: Source, asset: Asset, quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
@@ -89,6 +90,39 @@ export interface AccountMappingService {
   saveAccount(finId: string, fields: Record<string, string>): Promise<AccountMapping>
 
   deleteAccount(finId: string, fieldName?: string): Promise<void>
+}
+
+/**
+ * Investor network-account onboarding (bind / unbind), sync trust model: the
+ * caller-supplied wallet is recorded without an ownership challenge — the same
+ * trust the old finId->wallet mapping API extended.
+ *
+ * Replaces the finId->wallet mapping API: the adapter never learns the investor's
+ * finId at onboarding time — the investor<->wallet association lives router-side,
+ * and the wallet reaches the adapter per operation on the instruction leg
+ * (`Source.account` / `Destination.account`). Requests carry no investor identity,
+ * so the same address may be bound many times (omnibus); only a re-sent request
+ * (same idempotency key) replays.
+ *
+ * Both methods are single-call and terminal, so implementations may be wrapped
+ * in the workflow `createServiceProxy` like any other service.
+ */
+export interface NetworkAccountService {
+
+  /** Bind a caller-supplied investor account (bindInfo absent = create-new mode). */
+  createAccount(idempotencyKey: string, organizationId: string, assetId: string,
+    bindInfo: BindInfo | undefined): Promise<AccountOperation>
+
+  /** Unbind a previously bound account by its LA-assigned id. */
+  removeAccount(idempotencyKey: string, accountId: string): Promise<AccountOperation>
+}
+
+/**
+ * Optional pre-bind validator for network accounts (e.g. ledger address shape).
+ * Throw AccountInvalidShapeError to reject the binding.
+ */
+export interface NetworkAccountValidator {
+  validate(account: NetworkAccount): Promise<void>
 }
 
 /**

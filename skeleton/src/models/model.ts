@@ -504,7 +504,74 @@ export const pendingDepositOperation = (correlationId: string, metadata: Operati
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus;
+export type NetworkAccount = {
+  type: 'wallet';
+  address: string;
+} | {
+  type: 'none';
+};
+
+/** Canonical account record returned on onboarding completion. `id` is the LA-assigned
+ *  account identifier, later used by `DELETE /accounts/{accountId}`. */
+export type NetworkAccountRecord = {
+  id: string;
+  account: NetworkAccount;
+};
+
+export type BindInfo = {
+  account: NetworkAccount;
+  /** Proof-of-ownership hint supplied by the caller. Not verified in the trust
+   *  model — kept so implementations can log or opportunistically check it. */
+  ownershipSignature: Signature;
+};
+
+export type PendingAccountOperation = {
+  operation: 'account',
+  type: 'pending';
+  correlationId: string;
+  metadata: OperationMetadata | undefined;
+};
+
+export type SuccessfulAccountOperation = {
+  operation: 'account',
+  type: 'success';
+  correlationId: string;
+  record: NetworkAccountRecord;
+};
+
+export type FailedAccountOperation = {
+  operation: 'account',
+  type: 'failure';
+  correlationId: string;
+  error: ErrorDetails;
+};
+
+export type AccountOperation = PendingAccountOperation | SuccessfulAccountOperation | FailedAccountOperation;
+
+export const pendingAccountOperation = (correlationId: string, metadata: OperationMetadata | undefined): AccountOperation => ({
+  operation: 'account',
+  type: 'pending',
+  correlationId,
+  metadata,
+});
+
+export const successfulAccountOperation = (correlationId: string, record: NetworkAccountRecord): AccountOperation => ({
+  operation: 'account',
+  type: 'success',
+  correlationId,
+  record,
+});
+
+export const failedAccountOperation = (correlationId: string, code: number, message: string): AccountOperation => ({
+  operation: 'account',
+  type: 'failure',
+  correlationId,
+  error: { code, message },
+});
+
+// -------------------------------------------------------------------
+
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation;
 
 
 // -------------------------------------------------------------------

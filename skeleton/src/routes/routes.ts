@@ -5,6 +5,8 @@ import {
   EscrowService,
   HealthService,
   AccountMappingService,
+  NetworkAccountService,
+  NotSupportedError,
   PaymentService,
   PlanApprovalService,
   Source,
@@ -13,9 +15,11 @@ import {
 import { Application } from 'express';
 import { errorHandler } from './errors';
 import {
+  accountOperationToAPI,
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
   balanceToAPI,
+  bindInfoOptFromAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
   depositOperationToAPI,
@@ -33,6 +37,11 @@ import { AccountMappingConfig, registerMappingRoutes } from './operational';
 
 const basePath = 'api';
 
+export interface RegisterOptions {
+  mappingConfig?: AccountMappingConfig;
+  mappingService?: AccountMappingService;
+}
+
 export const register = (app: Application,
   tokenService: TokenService,
   escrowService: EscrowService,
@@ -40,9 +49,10 @@ export const register = (app: Application,
   healthService: HealthService,
   paymentService: PaymentService,
   planService: PlanApprovalService,
-  mappingConfig?: AccountMappingConfig,
-  mappingService?: AccountMappingService,
+  networkAccountService: NetworkAccountService,
+  options?: RegisterOptions,
 ): void => {
+  const { mappingConfig, mappingService } = options ?? {};
   if (mappingConfig && !mappingService) {
     throw new Error('mappingConfig requires a mappingService. Construct AccountMappingServiceImpl(store) and pass it in.');
   }
@@ -163,7 +173,7 @@ export const register = (app: Application,
       const ast = assetFromAPI(asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.issue(ik, ast, destination.finId, quantity, exCtx);
+      const rsp = await tokenService.issue(ik, ast, destinationFromAPI(destination), quantity, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -197,7 +207,7 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.redeem(ik, nonce, source.finId, ast, quantity, operationId, sgn, exCtx);
+      const rsp = await tokenService.redeem(ik, nonce, sourceFromAPI(source), ast, quantity, operationId, sgn, exCtx);
       res.json(receiptOperationToAPI(rsp));
     });
 
@@ -303,6 +313,37 @@ export const register = (app: Application,
         signatureOptFromAPI(signature),
       );
       res.json(receiptOperationToAPI(receiptOp));
+    });
+
+  app.post<{},
+  LedgerAPI['schemas']['AccountOperationAccepted'],
+  LedgerAPI['schemas']['CreateAccountRequest']>(
+    `/${basePath}/accounts/create`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { organizationId, assetId, bindInfo } = req.body;
+
+      const op = await networkAccountService.createAccount(ik, organizationId, assetId, bindInfoOptFromAPI(bindInfo));
+
+      res.status(202).json(accountOperationToAPI(op));
+    });
+
+  app.post(
+    `/${basePath}/accounts/:cid/proof`,
+    async () => {
+      throw new NotSupportedError('ownership challenges are not supported by this adapter');
+    });
+
+  app.delete<LedgerOperations['removeAccount']['parameters']['path'],
+  LedgerAPI['schemas']['AccountOperationAccepted'], {}>(
+    `/${basePath}/accounts/:accountId`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { accountId } = req.params;
+
+      const op = await networkAccountService.removeAccount(ik, accountId);
+
+      res.json(accountOperationToAPI(op));
     });
 
   app.get<LedgerOperations['getOperation']['parameters']['path'],

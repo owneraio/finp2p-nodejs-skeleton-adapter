@@ -1,3 +1,5 @@
+import { NetworkAccount } from '../models';
+
 export interface Account {
   finId: string;
   fields: Record<string, string>;
@@ -22,4 +24,27 @@ export interface AccountStore {
 export interface AssetStore {
   getAsset(assetId: string): Promise<Asset | undefined>;
   saveAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<Asset>;
+}
+
+/**
+ * One row per BINDING, not per address. The LA-side API carries no investor
+ * identity, so the same address can legitimately be bound many times (omnibus:
+ * one shared wallet whitelisted for many investors router-side).
+ */
+export interface NetworkAccountRow {
+  /** LA-assigned account identifier (used by `DELETE /accounts/{accountId}`). */
+  accountId: string;
+  /** Idempotency-Key of the create request; undefined when the header was absent. */
+  idempotencyKey: string | undefined;
+  organizationId: string;
+  assetId: string;
+  account: NetworkAccount;
+}
+
+export interface NetworkAccountStore {
+  insert(row: NetworkAccountRow): Promise<NetworkAccountRow>;
+  /** Transport-level retry lookup: hits only when the router re-sends the same request. */
+  getByIdempotencyKey(idempotencyKey: string): Promise<NetworkAccountRow | undefined>;
+  /** Delete by LA-assigned account id, returning the removed row (undefined if absent). */
+  remove(accountId: string): Promise<NetworkAccountRow | undefined>;
 }

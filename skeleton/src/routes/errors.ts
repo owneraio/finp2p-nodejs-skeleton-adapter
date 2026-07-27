@@ -1,6 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import { logger } from '../helpers';
-import { BusinessError, ValidationError } from '../models';
+import {
+  AccountAlreadyBoundError,
+  AccountInvalidShapeError,
+  AccountNotFoundError,
+  BusinessError,
+  NotSupportedError,
+  ValidationError,
+} from '../models';
 import { components } from './model-gen';
 
 function isErrorWithStatusAndMessage(err: any): err is { status: number, message: string } {
@@ -30,7 +37,21 @@ const failureResponse = (code: number, message: string): errorResponse => {
   };
 };
 
+const apiErrors = (code: number, message: string): components['schemas']['APIErrors'] => {
+  return { errors: [{ code, message }] };
+};
+
 export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof AccountAlreadyBoundError) {
+    return res.status(409).json(apiErrors(err.code, err.message));
+  } else if (err instanceof AccountInvalidShapeError) {
+    return res.status(400).json(apiErrors(err.code, err.message));
+  } else if (err instanceof AccountNotFoundError) {
+    return res.status(404).json(apiErrors(err.code, err.message));
+  } else if (err instanceof NotSupportedError) {
+    return res.status(501).json(apiErrors(0, err.message));
+  }
+
   if (err instanceof ValidationError) {
     const { message } = err;
     return res.status(400).json(failureResponse(1, message));

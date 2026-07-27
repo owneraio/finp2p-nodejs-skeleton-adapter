@@ -11,6 +11,7 @@ import {
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
   AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
+  NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -618,6 +619,64 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
   }
 };
 
+export const networkAccountFromAPI = (account: components['schemas']['networkAccount']): NetworkAccount => {
+  if ('type' in account && account.type === 'walletAccount') {
+    return { type: 'wallet', address: account.address };
+  }
+  return { type: 'none' };
+};
+
+export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
+  switch (account.type) {
+    case 'wallet':
+      return { type: 'walletAccount', address: account.address };
+    case 'none':
+      return {};
+  }
+};
+
+export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] | undefined): BindInfo | undefined => {
+  if (!bindInfo) {
+    return undefined;
+  }
+  return {
+    account: networkAccountFromAPI(bindInfo.networkAccount),
+    ownershipSignature: signatureFromAPI(bindInfo.ownershipSignature),
+  };
+};
+
+export const networkAccountRecordToAPI = (record: NetworkAccountRecord): components['schemas']['networkAccountRecord'] => {
+  return {
+    id: record.id,
+    networkAccount: networkAccountToAPI(record.account),
+  };
+};
+
+export const accountOperationToAPI = (op: AccountOperation): components['schemas']['networkAccountOperation'] => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId, metadata } = op;
+      return {
+        isCompleted: false,
+        cid: correlationId,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    case 'success':
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        response: networkAccountRecordToAPI(op.record),
+      };
+    case 'failure':
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        error: { code, message },
+      };
+  }
+};
+
 export const operationStatusToAPI = (op: OperationStatus): components['schemas']['operationStatus'] => {
   switch (op.operation) {
     case 'createAsset':
@@ -640,6 +699,12 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'approval',
         operation: planApprovalOperationToAPI(op),
+      };
+
+    case 'account':
+      return {
+        type: 'account',
+        operation: accountOperationToAPI(op),
       };
   }
 };
