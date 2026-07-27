@@ -639,9 +639,13 @@ export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] |
   if (!bindInfo) {
     return undefined;
   }
+  // The router forwards the caller's ownership hint as {signature, template: null}
+  // (finp2p-core builds Signature{Signature: hint} only) — it is unverified in the
+  // trust model, so anything signatureFromAPI can't parse maps to absent.
+  const { ownershipSignature } = bindInfo;
   return {
     account: networkAccountFromAPI(bindInfo.networkAccount),
-    ownershipSignature: signatureFromAPI(bindInfo.ownershipSignature),
+    ownershipSignature: ownershipSignature?.template ? signatureFromAPI(ownershipSignature) : undefined,
   };
 };
 

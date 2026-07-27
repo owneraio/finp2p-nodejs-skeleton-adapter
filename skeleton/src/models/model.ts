@@ -521,8 +521,10 @@ export type NetworkAccountRecord = {
 export type BindInfo = {
   account: NetworkAccount;
   /** Proof-of-ownership hint supplied by the caller. Not verified in the trust
-   *  model — kept so implementations can log or opportunistically check it. */
-  ownershipSignature: Signature;
+   *  model — kept so implementations can log or opportunistically check it.
+   *  Absent when the caller sent no signature or one without a template (the
+   *  router forwards the raw investor hint with `template: null`). */
+  ownershipSignature?: Signature;
 };
 
 export type PendingAccountOperation = {
