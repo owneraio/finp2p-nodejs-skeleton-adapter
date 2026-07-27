@@ -620,8 +620,10 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
 };
 
 export const networkAccountFromAPI = (account: components['schemas']['networkAccount']): NetworkAccount => {
-  if ('type' in account && account.type === 'walletAccount') {
-    return { type: 'wallet', address: account.address };
+  // the spec's discriminator names 'walletAccount', but finp2p-core forwards the
+  // investor-facing proto type 'wallet' verbatim — accept both spellings
+  if ('type' in account && ((account.type as string) === 'walletAccount' || (account.type as string) === 'wallet') && account.address) {
+    return { type: 'wallet', address: account.address, walletType: account.type };
   }
   return { type: 'none' };
 };
@@ -629,7 +631,8 @@ export const networkAccountFromAPI = (account: components['schemas']['networkAcc
 export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
   switch (account.type) {
     case 'wallet':
-      return { type: 'walletAccount', address: account.address };
+      // echo the wire type the caller bound with (see NetworkAccount.walletType)
+      return { type: (account.walletType ?? 'walletAccount') as 'walletAccount', address: account.address };
     case 'none':
       return {};
   }

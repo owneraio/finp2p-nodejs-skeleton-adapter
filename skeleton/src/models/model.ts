@@ -507,6 +507,11 @@ export const pendingDepositOperation = (correlationId: string, metadata: Operati
 export type NetworkAccount = {
   type: 'wallet';
   address: string;
+  /** Wire discriminator as received ('wallet' from finp2p-core, 'walletAccount'
+   *  per spec) — echoed back verbatim like the Go vanilla adapter: the router
+   *  persists the echoed record and later proto-compares it (exact type string)
+   *  against operation-leg wallets when whitelist-checking. */
+  walletType?: string;
 } | {
   type: 'none';
 };
