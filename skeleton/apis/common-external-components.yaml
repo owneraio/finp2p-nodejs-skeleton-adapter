@@ -663,8 +663,7 @@ components:
       properties:
         type:
           type: string
-          pattern: .*\S.*
-          x-autoMinLength: true
+          enum: ['walletAccount']
         address:
           type: string
           description: 'address of the wallet'
