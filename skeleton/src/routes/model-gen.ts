@@ -753,7 +753,15 @@ export interface components {
             error?: components["schemas"]["depositOperationErrorInformation"];
             response?: components["schemas"]["depositInstruction"];
         };
-        depositOperationErrorInformation: Record<string, never>;
+        depositOperationErrorInformation: {
+            /**
+             * Format: uint32
+             * @description 1 for failure in regApps validation, 4 failure in signature verification
+             */
+            code?: number;
+            message?: string;
+            regulationErrorDetails?: components["schemas"]["RegulationError"][];
+        };
         createAssetOperationErrorInformation: {
             /** Format: uint32 */
             code?: number;
