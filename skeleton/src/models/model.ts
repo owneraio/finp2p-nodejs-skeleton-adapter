@@ -505,7 +505,7 @@ export const pendingDepositOperation = (correlationId: string, metadata: Operati
 // -------------------------------------------------------------------
 
 export type NetworkAccount = {
-  type: 'wallet';
+  type: 'walletAccount';
   address: string;
 } | {
   type: 'none';

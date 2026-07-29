@@ -621,14 +621,14 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
 
 export const networkAccountFromAPI = (account: components['schemas']['networkAccount']): NetworkAccount => {
   if ('type' in account && account.type === 'walletAccount') {
-    return { type: 'wallet', address: account.address };
+    return { type: 'walletAccount', address: account.address };
   }
   return { type: 'none' };
 };
 
 export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
   switch (account.type) {
-    case 'wallet':
+    case 'walletAccount':
       return { type: 'walletAccount', address: account.address };
     case 'none':
       return {};
