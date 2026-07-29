@@ -1504,7 +1504,18 @@ components:
               $ref: '#/components/schemas/depositInstruction'
     depositOperationErrorInformation:
       type: 'object'
-      properties: {}
+      properties:
+        code:
+          type: 'integer'
+          format: 'uint32'
+          description: '1 for failure in regApps validation, 4 failure in signature verification'
+        message:
+          type: 'string'
+          x-allowEmpty: true
+        regulationErrorDetails:
+          type: 'array'
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/RegulationError'
     createAssetOperationErrorInformation:
       type: 'object'
       properties:

@@ -1644,7 +1644,21 @@ export interface components {
             type: "createAsset";
             operation: components["schemas"]["createAssetOperation"];
         };
-        depositOperationErrorInformation: Record<string, never>;
+        RegulationError: {
+            /** @description the type of regulation */
+            regulationType: string;
+            /** @description actionable details of the error */
+            details: string;
+        };
+        depositOperationErrorInformation: {
+            /**
+             * Format: uint32
+             * @description 1 for failure in regApps validation, 4 failure in signature verification
+             */
+            code?: number;
+            message?: string;
+            regulationErrorDetails?: components["schemas"]["RegulationError"][];
+        };
         /**
          * Format: finid
          * @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed
@@ -1785,12 +1799,6 @@ export interface components {
              */
             type: "deposit";
             operation: components["schemas"]["depositOperation"];
-        };
-        RegulationError: {
-            /** @description the type of regulation */
-            regulationType: string;
-            /** @description actionable details of the error */
-            details: string;
         };
         receiptOperationErrorInformation: {
             /**
