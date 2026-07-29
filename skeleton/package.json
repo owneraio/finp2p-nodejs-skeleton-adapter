@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.28.25-onboard.5",
+  "version": "0.28.25-onboard.6",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
@@ -57,7 +57,7 @@
   "devDependencies": {
     "@babel/core": "^7.19.3",
     "@babel/preset-env": "^7.19.4",
-    "@owneraio/finp2p-client": "^0.28.23-onboard.2",
+    "@owneraio/finp2p-client": "^0.28.23-onboard.3",
     "@testcontainers/postgresql": "^11.8.0",
     "@types/express": "^4.17.13",
     "@types/jest": "^29.2.0",
