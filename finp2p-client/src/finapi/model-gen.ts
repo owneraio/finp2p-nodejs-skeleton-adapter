@@ -1977,7 +1977,8 @@ export interface components {
          */
         finId: string;
         walletAccount: {
-            type: string;
+            /** @enum {string} */
+            type: "walletAccount";
             /** @description address of the wallet */
             address: string;
         };
