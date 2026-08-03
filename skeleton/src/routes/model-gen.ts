@@ -652,10 +652,10 @@ export interface components {
              *     finId (hex-encoded compressed secp256k1 public key — the same identity that appears
              *     on this investor's ledger operation legs). Resolved by the asset node from the
              *     investor profile; lets the ledger adapter couple the resulting network account to
-             *     the investor so it can enforce wallet↔finId ownership on later operations. Optional
-             *     for backward compatibility; when omitted the adapter stores no coupling.
+             *     the investor so it can enforce wallet↔finId ownership on later operations. Required:
+             *     an investor without a resolvable finId cannot onboard a network account.
              */
-            finId?: components["schemas"]["finId"];
+            finId: components["schemas"]["finId"];
             bindInfo?: components["schemas"]["BindInfo"];
         };
         /** @description Bind-info block. When present in `CreateAccountRequest`, signals the bind-existing flow. */

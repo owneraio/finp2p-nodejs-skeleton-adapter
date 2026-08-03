@@ -1,9 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
 -- +goose ENVSUB ON
--- Investor finId the binding was created for. Should not be nullable — the
--- router marks it optional in the OAS "for backward compatibility" only;
--- NULL = binding recorded by a legacy router.
+-- Investor finId the binding was created for. Required on the API; nullable
+-- here only because rows recorded before this column existed have no value.
 ALTER TABLE ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts
   ADD COLUMN fin_id VARCHAR(255);
 -- +goose ENVSUB OFF

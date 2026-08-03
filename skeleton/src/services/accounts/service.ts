@@ -31,7 +31,7 @@ export class NetworkAccountServiceImpl implements NetworkAccountService {
   }
 
   async createAccount(idempotencyKey: string, organizationId: string, assetId: string,
-    finId: string | undefined, bindInfo: BindInfo | undefined): Promise<AccountOperation> {
+    finId: string, bindInfo: BindInfo | undefined): Promise<AccountOperation> {
     if (!bindInfo) {
       throw new NotSupportedError('create-new account mode is not supported by this adapter');
     }

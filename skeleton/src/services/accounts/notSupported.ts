@@ -13,7 +13,7 @@ import {
 export class NotSupportedNetworkAccountService implements NetworkAccountService {
 
   createAccount(_idempotencyKey: string, _organizationId: string, _assetId: string,
-    _finId: string | undefined, _bindInfo: BindInfo | undefined): Promise<AccountOperation> {
+    _finId: string, _bindInfo: BindInfo | undefined): Promise<AccountOperation> {
     throw new NotSupportedError('network accounts are not supported by this adapter');
   }
 

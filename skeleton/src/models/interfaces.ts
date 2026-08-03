@@ -111,14 +111,10 @@ export interface NetworkAccountService {
 
   /**
    * Bind a caller-supplied investor account (bindInfo absent = create-new mode).
-   *
-   * `finId` identifies the investor being onboarded. It should NOT be optional:
-   * the router marks it optional in the OAS "for backward compatibility" even
-   * though the feature is brand new — treat absence as a legacy-router quirk,
-   * not a supported mode.
+   * `finId` identifies the investor being onboarded.
    */
   createAccount(idempotencyKey: string, organizationId: string, assetId: string,
-    finId: string | undefined, bindInfo: BindInfo | undefined): Promise<AccountOperation>
+    finId: string, bindInfo: BindInfo | undefined): Promise<AccountOperation>
 
   /** Unbind a previously bound account by its LA-assigned id. */
   removeAccount(idempotencyKey: string, accountId: string): Promise<AccountOperation>

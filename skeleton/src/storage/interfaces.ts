@@ -38,8 +38,8 @@ export interface NetworkAccountRow {
   idempotencyKey: string | undefined;
   organizationId: string;
   assetId: string;
-  /** Investor finId. Should not be optional — the router marks it optional in
-   *  the OAS "for backward compatibility" only; undefined = legacy router. */
+  /** Investor finId. Mandatory on the API since it became required in the OAS;
+   *  undefined only when reading rows recorded before that. */
   finId: string | undefined;
   account: NetworkAccount;
 }
