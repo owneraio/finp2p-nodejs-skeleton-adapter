@@ -27,9 +27,9 @@ export interface AssetStore {
 }
 
 /**
- * One row per BINDING, not per address. The LA-side API carries no investor
- * identity, so the same address can legitimately be bound many times (omnibus:
- * one shared wallet whitelisted for many investors router-side).
+ * One row per BINDING, not per address. The same address can legitimately be
+ * bound many times (omnibus: one shared wallet whitelisted for many investors
+ * router-side); the finId tells the bindings apart per investor.
  */
 export interface NetworkAccountRow {
   /** LA-assigned account identifier (used by `DELETE /accounts/{accountId}`). */
@@ -38,6 +38,9 @@ export interface NetworkAccountRow {
   idempotencyKey: string | undefined;
   organizationId: string;
   assetId: string;
+  /** Investor finId. Should not be optional — the router marks it optional in
+   *  the OAS "for backward compatibility" only; undefined = legacy router. */
+  finId: string | undefined;
   account: NetworkAccount;
 }
 

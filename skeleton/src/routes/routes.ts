@@ -321,9 +321,9 @@ export const register = (app: Application,
     `/${basePath}/accounts/create`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { organizationId, assetId, bindInfo } = req.body;
+      const { organizationId, assetId, finId, bindInfo } = req.body;
 
-      const op = await networkAccountService.createAccount(ik, organizationId, assetId, bindInfoOptFromAPI(bindInfo));
+      const op = await networkAccountService.createAccount(ik, organizationId, assetId, finId, bindInfoOptFromAPI(bindInfo));
 
       res.status(202).json(accountOperationToAPI(op));
     });

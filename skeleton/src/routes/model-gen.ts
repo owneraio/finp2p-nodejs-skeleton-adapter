@@ -607,9 +607,11 @@ export interface components {
         account: {
             asset: components["schemas"]["asset"];
             finId: components["schemas"]["finId"];
-            ledgerAccount?: components["schemas"]["walletAccount"];
+            ledgerAccount?: components["schemas"]["walletAccount"] | components["schemas"]["caip10Account"] | components["schemas"]["custodialAccount"];
         };
         walletLedgerAccount: components["schemas"]["walletAccount"];
+        caip10LedgerAccount: components["schemas"]["caip10Account"];
+        custodialLedgerAccount: components["schemas"]["custodialAccount"];
         depositPayoutAccount: {
             finId: components["schemas"]["finId"];
             account: components["schemas"]["finIdAccountBase"];
@@ -645,6 +647,15 @@ export interface components {
         CreateAccountRequest: {
             organizationId: string;
             assetId: string;
+            /**
+             * @description The investor this account is being onboarded for, identified by their canonical
+             *     finId (hex-encoded compressed secp256k1 public key — the same identity that appears
+             *     on this investor's ledger operation legs). Resolved by the asset node from the
+             *     investor profile; lets the ledger adapter couple the resulting network account to
+             *     the investor so it can enforce wallet↔finId ownership on later operations. Optional
+             *     for backward compatibility; when omitted the adapter stores no coupling.
+             */
+            finId?: components["schemas"]["finId"];
             bindInfo?: components["schemas"]["BindInfo"];
         };
         /** @description Bind-info block. When present in `CreateAccountRequest`, signals the bind-existing flow. */
@@ -1387,6 +1398,30 @@ export interface components {
             /** @description address of the wallet */
             address: string;
         };
+        caip10Account: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "caip10Account";
+            /** @description CAIP-2 chain_id, e.g. "eip155:1", "solana:5eykt4...", "hedera:mainnet" (the same token used by the CAIP-19 asset identifier network) */
+            network: string;
+            /** @description CAIP-10 account_address (chain-native address) */
+            address: string;
+        };
+        custodialAccount: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custodialAccount";
+            /** @description Custody provider discriminator, e.g. "fireblocks" */
+            provider: string;
+            /** @description Provider-internal account identifier (e.g. a Fireblocks vault account id) */
+            vaultAccountId: string;
+            /** @description Optional. Narrows the custodial account to a specific asset/chain. */
+            assetId?: string;
+        };
         receiptExecutionContext: {
             executionPlanId: string;
             instructionSequenceNumber: number;
@@ -1414,7 +1449,7 @@ export interface components {
             code: string;
         };
         noneAccount: Record<string, never>;
-        networkAccount: components["schemas"]["walletAccount"] | components["schemas"]["noneAccount"];
+        networkAccount: components["schemas"]["walletAccount"] | components["schemas"]["caip10Account"] | components["schemas"]["custodialAccount"] | components["schemas"]["noneAccount"];
     };
     responses: never;
     parameters: never;

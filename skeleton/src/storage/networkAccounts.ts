@@ -8,6 +8,7 @@ interface DbRow {
   idempotency_key: string | null;
   organization_id: string;
   asset_id: string;
+  fin_id: string | null;
   account: NetworkAccount;
 }
 
@@ -16,6 +17,7 @@ const toRow = (db: DbRow): NetworkAccountRow => ({
   idempotencyKey: db.idempotency_key ?? undefined,
   organizationId: db.organization_id,
   assetId: db.asset_id,
+  finId: db.fin_id ?? undefined,
   account: db.account,
 });
 
@@ -28,13 +30,13 @@ export class PgNetworkAccountStore implements NetworkAccountStore {
   }
 
   async insert(row: NetworkAccountRow): Promise<NetworkAccountRow> {
-    const { accountId, idempotencyKey, organizationId, assetId, account } = row;
+    const { accountId, idempotencyKey, organizationId, assetId, finId, account } = row;
     const result = await this.pool.query(
       `INSERT INTO ${this.schema}.network_accounts
-         (account_id, idempotency_key, organization_id, asset_id, account)
-       VALUES ($1, $2, $3, $4, $5)
+         (account_id, idempotency_key, organization_id, asset_id, fin_id, account)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [accountId, idempotencyKey ?? null, organizationId, assetId, JSON.stringify(account)],
+      [accountId, idempotencyKey ?? null, organizationId, assetId, finId ?? null, JSON.stringify(account)],
     );
     return toRow(result.rows[0]);
   }

@@ -31,7 +31,7 @@ export class NetworkAccountServiceImpl implements NetworkAccountService {
   }
 
   async createAccount(idempotencyKey: string, organizationId: string, assetId: string,
-    bindInfo: BindInfo | undefined): Promise<AccountOperation> {
+    finId: string | undefined, bindInfo: BindInfo | undefined): Promise<AccountOperation> {
     if (!bindInfo) {
       throw new NotSupportedError('create-new account mode is not supported by this adapter');
     }
@@ -48,7 +48,7 @@ export class NetworkAccountServiceImpl implements NetworkAccountService {
     const row = await this.store.insert({
       accountId: randomUUID(),
       idempotencyKey: idempotencyKey || undefined,
-      organizationId, assetId, account,
+      organizationId, assetId, finId, account,
     });
     return successfulAccountOperation('', { id: row.accountId, account: row.account });
   }

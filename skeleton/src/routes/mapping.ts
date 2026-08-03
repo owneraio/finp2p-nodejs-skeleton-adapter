@@ -41,7 +41,12 @@ export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['d
 
 type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
 
-const ledgerAccountFromAPI = (ledgerAccount: components['schemas']['walletLedgerAccount']): LedgerAccount => {
+type LedgerAccountAPI =
+  components['schemas']['walletLedgerAccount']
+  | components['schemas']['caip10LedgerAccount']
+  | components['schemas']['custodialLedgerAccount'];
+
+const ledgerAccountFromAPI = (ledgerAccount: LedgerAccountAPI): LedgerAccount => {
   switch (ledgerAccount.type) {
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };

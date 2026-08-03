@@ -97,21 +97,28 @@ export interface AccountMappingService {
  * caller-supplied wallet is recorded without an ownership challenge — the same
  * trust the old finId->wallet mapping API extended.
  *
- * Replaces the finId->wallet mapping API: the adapter never learns the investor's
- * finId at onboarding time — the investor<->wallet association lives router-side,
- * and the wallet reaches the adapter per operation on the instruction leg
- * (`Source.account` / `Destination.account`). Requests carry no investor identity,
- * so the same address may be bound many times (omnibus); only a re-sent request
- * (same idempotency key) replays.
+ * Replaces the finId->wallet mapping API. The request carries the investor's
+ * finId, letting the adapter couple the binding to the investor and enforce
+ * wallet<->finId ownership on later operations; the wallet also still arrives
+ * per operation on the instruction leg (`Source.account` / `Destination.account`).
+ * The same address may be bound many times (omnibus: one shared wallet, many
+ * investors); only a re-sent request (same idempotency key) replays.
  *
  * Both methods are single-call and terminal, so implementations may be wrapped
  * in the workflow `createServiceProxy` like any other service.
  */
 export interface NetworkAccountService {
 
-  /** Bind a caller-supplied investor account (bindInfo absent = create-new mode). */
+  /**
+   * Bind a caller-supplied investor account (bindInfo absent = create-new mode).
+   *
+   * `finId` identifies the investor being onboarded. It should NOT be optional:
+   * the router marks it optional in the OAS "for backward compatibility" even
+   * though the feature is brand new — treat absence as a legacy-router quirk,
+   * not a supported mode.
+   */
   createAccount(idempotencyKey: string, organizationId: string, assetId: string,
-    bindInfo: BindInfo | undefined): Promise<AccountOperation>
+    finId: string | undefined, bindInfo: BindInfo | undefined): Promise<AccountOperation>
 
   /** Unbind a previously bound account by its LA-assigned id. */
   removeAccount(idempotencyKey: string, accountId: string): Promise<AccountOperation>

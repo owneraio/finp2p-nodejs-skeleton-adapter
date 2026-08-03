@@ -1276,12 +1276,20 @@ components:
         ledgerAccount:
           oneOf:
             - $ref: '#/components/schemas/walletLedgerAccount'
+            - $ref: '#/components/schemas/caip10LedgerAccount'
+            - $ref: '#/components/schemas/custodialLedgerAccount'
           discriminator:
             propertyName: 'type'
             mapping:
               walletAccount: '#/components/schemas/walletLedgerAccount'
+              caip10Account: '#/components/schemas/caip10LedgerAccount'
+              custodialAccount: '#/components/schemas/custodialLedgerAccount'
     walletLedgerAccount:
       $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
+    caip10LedgerAccount:
+      $ref: 'common-external-components.yaml#/components/schemas/caip10Account'
+    custodialLedgerAccount:
+      $ref: 'common-external-components.yaml#/components/schemas/custodialAccount'
     depositPayoutAccount:
       type: 'object'
       required: ['finId', 'account']
@@ -1347,6 +1355,15 @@ components:
           type: 'string'
           pattern: '.*\S.*'
           x-autoMinLength: true
+        finId:
+          $ref: 'common-external-components.yaml#/components/schemas/finId'
+          description: |
+            The investor this account is being onboarded for, identified by their canonical
+            finId (hex-encoded compressed secp256k1 public key — the same identity that appears
+            on this investor's ledger operation legs). Resolved by the asset node from the
+            investor profile; lets the ledger adapter couple the resulting network account to
+            the investor so it can enforce wallet↔finId ownership on later operations. Optional
+            for backward compatibility; when omitted the adapter stores no coupling.
         bindInfo:
           $ref: '#/components/schemas/BindInfo'
     BindInfo:
