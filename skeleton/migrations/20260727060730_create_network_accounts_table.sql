@@ -7,13 +7,13 @@ CREATE TABLE ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts(
   idempotency_key VARCHAR(255),
   organization_id VARCHAR(255) NOT NULL,
   asset_id VARCHAR(255) NOT NULL,
+  fin_id VARCHAR(255) NOT NULL,
   account JSONB NOT NULL,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX network_accounts_idempotency_key_idx
-  ON ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts(idempotency_key)
-  WHERE idempotency_key IS NOT NULL;
+CREATE UNIQUE INDEX network_accounts_org_asset_fin_id_idx
+  ON ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts(organization_id, asset_id, fin_id);
 -- +goose ENVSUB OFF
 -- +goose StatementEnd
 

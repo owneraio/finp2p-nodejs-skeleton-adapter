@@ -102,7 +102,8 @@ export interface AccountMappingService {
  * wallet<->finId ownership on later operations; the wallet also still arrives
  * per operation on the instruction leg (`Source.account` / `Destination.account`).
  * The same address may be bound many times (omnibus: one shared wallet, many
- * investors); only a re-sent request (same idempotency key) replays.
+ * investors), but one investor holds at most one binding per (org, asset):
+ * a repeat create for the same finId replays the recorded binding.
  *
  * Both methods are single-call and terminal, so implementations may be wrapped
  * in the workflow `createServiceProxy` like any other service.

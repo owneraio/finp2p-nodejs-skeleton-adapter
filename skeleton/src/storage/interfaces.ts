@@ -27,27 +27,25 @@ export interface AssetStore {
 }
 
 /**
- * One row per BINDING, not per address. The same address can legitimately be
- * bound many times (omnibus: one shared wallet whitelisted for many investors
- * router-side); the finId tells the bindings apart per investor.
+ * One binding per (organizationId, assetId, finId) — enforced by a unique
+ * index. The same address can still be bound many times (omnibus: one shared
+ * wallet whitelisted for many investors router-side); the finId tells the
+ * bindings apart per investor.
  */
 export interface NetworkAccountRow {
   /** LA-assigned account identifier (used by `DELETE /accounts/{accountId}`). */
   accountId: string;
-  /** Idempotency-Key of the create request; undefined when the header was absent. */
+  /** Idempotency-Key of the create request, kept for tracing only; replay
+   *  lookup is by finId. Undefined when the header was absent. */
   idempotencyKey: string | undefined;
   organizationId: string;
   assetId: string;
-  /** Investor finId. Mandatory on the API since it became required in the OAS;
-   *  undefined only when reading rows recorded before that. */
-  finId: string | undefined;
+  finId: string;
   account: NetworkAccount;
 }
 
 export interface NetworkAccountStore {
   insert(row: NetworkAccountRow): Promise<NetworkAccountRow>;
-  /** Transport-level retry lookup: hits only when the router re-sends the same request. */
-  getByIdempotencyKey(idempotencyKey: string): Promise<NetworkAccountRow | undefined>;
-  /** Delete by LA-assigned account id, returning the removed row (undefined if absent). */
+  getByFinId(organizationId: string, assetId: string, finId: string): Promise<NetworkAccountRow | undefined>;
   remove(accountId: string): Promise<NetworkAccountRow | undefined>;
 }

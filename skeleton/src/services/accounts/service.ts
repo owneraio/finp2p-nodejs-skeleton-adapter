@@ -16,11 +16,11 @@ import { NetworkAccountStore } from '../../storage';
  * single-call and terminal, so instances may be wrapped in the workflow
  * `createServiceProxy` like any other service.
  *
- * Every create with a fresh idempotency key records a NEW binding with its own
- * account id — even for an address that already has bindings (omnibus: one
- * shared wallet, many investors). A re-sent request (same idempotency key)
- * replays the recorded binding, which also keeps crash-recovery replays from
- * minting duplicates.
+ * One binding per investor per (organizationId, assetId): a repeat create for
+ * the same finId replays the recorded binding — even with a different wallet
+ * in the request; changing wallets is remove + create. Replay-by-finId also
+ * keeps crash-recovery replays from minting duplicates. Different investors
+ * may still bind the same address (omnibus: one shared wallet, many investors).
  */
 export class NetworkAccountServiceImpl implements NetworkAccountService {
 
@@ -38,11 +38,9 @@ export class NetworkAccountServiceImpl implements NetworkAccountService {
     const { account } = bindInfo;
     await this.validator?.validate(account);
 
-    if (idempotencyKey) {
-      const existing = await this.store.getByIdempotencyKey(idempotencyKey);
-      if (existing) {
-        return successfulAccountOperation('', { id: existing.accountId, account: existing.account });
-      }
+    const existing = await this.store.getByFinId(organizationId, assetId, finId);
+    if (existing) {
+      return successfulAccountOperation('', { id: existing.accountId, account: existing.account });
     }
 
     const row = await this.store.insert({

@@ -8,7 +8,7 @@ interface DbRow {
   idempotency_key: string | null;
   organization_id: string;
   asset_id: string;
-  fin_id: string | null;
+  fin_id: string;
   account: NetworkAccount;
 }
 
@@ -17,7 +17,7 @@ const toRow = (db: DbRow): NetworkAccountRow => ({
   idempotencyKey: db.idempotency_key ?? undefined,
   organizationId: db.organization_id,
   assetId: db.asset_id,
-  finId: db.fin_id ?? undefined,
+  finId: db.fin_id,
   account: db.account,
 });
 
@@ -36,15 +36,16 @@ export class PgNetworkAccountStore implements NetworkAccountStore {
          (account_id, idempotency_key, organization_id, asset_id, fin_id, account)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [accountId, idempotencyKey ?? null, organizationId, assetId, finId ?? null, JSON.stringify(account)],
+      [accountId, idempotencyKey ?? null, organizationId, assetId, finId, JSON.stringify(account)],
     );
     return toRow(result.rows[0]);
   }
 
-  async getByIdempotencyKey(idempotencyKey: string): Promise<NetworkAccountRow | undefined> {
+  async getByFinId(organizationId: string, assetId: string, finId: string): Promise<NetworkAccountRow | undefined> {
     const result = await this.pool.query(
-      `SELECT * FROM ${this.schema}.network_accounts WHERE idempotency_key = $1`,
-      [idempotencyKey],
+      `SELECT * FROM ${this.schema}.network_accounts
+       WHERE organization_id = $1 AND asset_id = $2 AND fin_id = $3`,
+      [organizationId, assetId, finId],
     );
     return result.rows.length > 0 ? toRow(result.rows[0]) : undefined;
   }
