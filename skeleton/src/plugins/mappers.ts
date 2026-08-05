@@ -10,7 +10,7 @@ import {
   Source,
 } from '../models';
 import { OpComponents } from '@owneraio/finp2p-client';
-import { contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
+import { accountOperationToAPI, contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
 
 const receiptToFinAPI = (receipt: Receipt): OpComponents['schemas']['receipt'] => {
   const { id, asset, source, destination, quantity, operationType, tradeDetails, transactionDetails, proof, timestamp } = receipt;
@@ -177,5 +177,10 @@ export const operationToFinAPI = (operationStatus: OperationStatus): OpComponent
       return planApprovalOperationToFinAPI(operationStatus);
     case 'receipt':
       return receiptOperationToFinAPI(operationStatus);
+    case 'account':
+      return {
+        type: 'account',
+        operation: accountOperationToAPI(operationStatus) as OpComponents['schemas']['networkAccountOperation'],
+      };
   }
 };

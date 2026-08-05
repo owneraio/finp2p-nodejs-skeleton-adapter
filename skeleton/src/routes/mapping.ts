@@ -11,10 +11,11 @@ import {
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
   AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
+  NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
+  AccountInvalidShapeError,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
-import { logger } from '../helpers';
 
 export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
   const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
@@ -41,7 +42,12 @@ export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['d
 
 type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
 
-const ledgerAccountFromAPI = (ledgerAccount: components['schemas']['walletLedgerAccount']): LedgerAccount => {
+type LedgerAccountAPI =
+  components['schemas']['walletLedgerAccount']
+  | components['schemas']['caip10LedgerAccount']
+  | components['schemas']['custodialLedgerAccount'];
+
+const ledgerAccountFromAPI = (ledgerAccount: LedgerAccountAPI): LedgerAccount => {
   switch (ledgerAccount.type) {
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };
@@ -206,9 +212,9 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
     case 'polling':
       return {
         operationResponseStrategy: {
-          type: 'random',
+          type: 'poll',
           polling: {
-            type: 'randomPollingInterval',
+            type: 'random',
           },
         },
       };
@@ -601,7 +607,6 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
       return { isCompleted: false, cid, operationMetadata: metadataOptToAPI(metadata) };
     case 'failure':
       const { code, message } = op.error;
-      logger.error('Deposit failed', { code, message });
       return {
         isCompleted: true,
         cid: '',
@@ -613,6 +618,83 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
         isCompleted: true,
         cid: '',
         response: depositInstructionToAPI(instruction),
+      };
+  }
+};
+
+export const networkAccountFromAPI = (account: components['schemas']['networkAccount']): NetworkAccount => {
+  // noneAccount is the empty object, so there is no discriminator to switch on.
+  if (!('type' in account)) {
+    return { type: 'none' };
+  }
+  switch (account.type) {
+    case 'walletAccount':
+      return { type: 'walletAccount', address: account.address };
+    default:
+      // caip10Account and custodialAccount are in the OAS union, but the domain
+      // model cannot represent them. Reject rather than degrade to `none`: a
+      // `none` binding is recorded and reported as success, the router
+      // whitelists it as `{}`, and every later operation naming the real
+      // account then fails 7351 AccountNotWhitelisted with nothing in the
+      // bind-time trail to explain why.
+      throw new AccountInvalidShapeError(`unsupported network account type: ${account.type}`);
+  }
+};
+
+export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
+  switch (account.type) {
+    case 'walletAccount':
+      return { type: 'walletAccount', address: account.address };
+    case 'none':
+      return {};
+  }
+};
+
+export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] | undefined): BindInfo | undefined => {
+  if (!bindInfo) {
+    return undefined;
+  }
+  // The router sends only the raw hex hint — core master models this as
+  // accountOwnershipSignature {signature}, with no template and no hash
+  // function, because there is nothing to template: only the challenge bytes
+  // are signed. Carry the hex through rather than routing it via
+  // signatureFromAPI, which requires a template and so discarded it every time
+  // against a real router.
+  const { ownershipSignature } = bindInfo;
+  return {
+    account: networkAccountFromAPI(bindInfo.networkAccount),
+    ownershipSignature: ownershipSignature?.signature || undefined,
+  };
+};
+
+export const networkAccountRecordToAPI = (record: NetworkAccountRecord): components['schemas']['networkAccountRecord'] => {
+  return {
+    id: record.id,
+    networkAccount: networkAccountToAPI(record.account),
+  };
+};
+
+export const accountOperationToAPI = (op: AccountOperation): components['schemas']['networkAccountOperation'] => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId, metadata } = op;
+      return {
+        isCompleted: false,
+        cid: correlationId,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    case 'success':
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        response: networkAccountRecordToAPI(op.record),
+      };
+    case 'failure':
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        error: { code, message },
       };
   }
 };
@@ -639,6 +721,12 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'approval',
         operation: planApprovalOperationToAPI(op),
+      };
+
+    case 'account':
+      return {
+        type: 'account',
+        operation: accountOperationToAPI(op),
       };
   }
 };
