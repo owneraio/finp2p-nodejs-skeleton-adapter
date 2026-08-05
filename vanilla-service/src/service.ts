@@ -477,11 +477,20 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
         getLogger().warn(`Skipping ${operationType} import — asset ${assetId} has no ledgerIdentifier`);
         return;
       }
+      // OSS reports CAIP-19 network/standard as nullable (only tokenId is
+      // non-null upstream), while the transaction-import API accepts
+      // `string | undefined`. Drop nulls here rather than forward them.
+      const { network, standard, tokenId } = ledgerIdentifier;
       const finp2pAccount = {
         account: { finId },
         asset: {
           id: assetId,
-          ledgerIdentifier: { assetIdentifierType: 'CAIP-19' as const, ...ledgerIdentifier },
+          ledgerIdentifier: {
+            assetIdentifierType: 'CAIP-19' as const,
+            tokenId,
+            ...(network ? { network } : {}),
+            ...(standard ? { standard } : {}),
+          },
         },
       };
       const tx = {
