@@ -108,6 +108,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/execution/approvalsConfig': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+         * Set approvals config
+         * @description Sets the approvals configuration for the router. Defines which approvers are required for each router category (tokenization, payments, investor, custodian).
+         */
+    put: operations['setApprovalsConfig'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+         * Update approvals config
+         * @description Updates the approvals configuration for the router. Allows partial updates to approvers per router category (tokenization, payments, investor, custodian).
+         */
+    patch: operations['updateApprovalsConfig'];
+    trace?: never;
+  };
   '/execution/proposals': {
     parameters: {
       query?: never;
@@ -117,19 +141,21 @@ export interface paths {
     };
     get?: never;
     /**
-         * Override approvals config
-         * @description Override approvals config
+         * Set approvals config
+         * @deprecated
+         * @description Deprecated. Use /execution/approvalsConfig. Sets the approvals configuration for the router. Defines which approvers are required for each router category (tokenization, payments, investor, custodian).
          */
-    put: operations['Override approvals config'];
+    put: operations['setProposalsConfig'];
     post?: never;
     delete?: never;
     options?: never;
     head?: never;
     /**
          * Update approvals config
-         * @description Update approvals config
+         * @deprecated
+         * @description Deprecated. Use /execution/approvalsConfig. Updates the approvals configuration for the router. Allows partial updates to approvers per router category (tokenization, payments, investor, custodian).
          */
-    patch: operations['update approvals config'];
+    patch: operations['updateProposalsConfig'];
     trace?: never;
   };
   '/discovery/pinning_config': {
@@ -436,10 +462,86 @@ export interface paths {
     patch: operations['update data provider binding'];
     trace?: never;
   };
+  '/capabilities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+         * Get node capabilities
+         * @description Returns this node's effective protocol capabilities, derived from its configured trading policies plus a code-level baseline. Served from a cache (rebuilt on a cold cache); read-only.
+         */
+    get: operations['getNodeCapabilities'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** @description The set of protocol features this node supports. Static capability ids are the protocol enum names (e.g. SERVICE_NODE, INTENT_BUYING); per-intent capabilities (incl. signing) are carried under intentCapabilities. */
+    nodeCapabilities: {
+      /**
+             * Format: int64
+             * @description The protocol version this node currently speaks.
+             */
+      protocolVersion?: number;
+      /**
+             * Format: int64
+             * @description The oldest protocol version this node can interoperate with.
+             */
+      minProtocolVersion?: number;
+      /** @description Supported P2P service capability ids. */
+      services?: string[];
+      /** @description Supported execution-plan capability ids. */
+      execution?: string[];
+      /** @description Supported async operation capability ids. */
+      operations?: string[];
+      custodySigning?: components['schemas']['signatureCapability'];
+      /** @description Policy-derived per-intent capabilities. */
+      intentCapabilities?: components['schemas']['intentCapability'][];
+    };
+    /** @description A supported intent and the per-intent capabilities the node handles for it. */
+    intentCapability: {
+      /** @description Intent capability id (e.g. INTENT_BUYING). */
+      id?: string;
+      /** @description Per-intent feature ids (e.g. INTENT_FEATURE_SETTLEMENT_FULL); empty means the base intent with no optional features. */
+      features?: string[];
+      /** @description Instruction capability ids used by this intent's policies. */
+      instructions?: string[];
+      signing?: components['schemas']['signatureCapabilities'];
+    };
+    /** @description Signing capabilities grouped by signing kind. */
+    signatureCapabilities: {
+      investor?: components['schemas']['signatureCapability'];
+      receiptProof?: components['schemas']['signatureCapability'];
+    };
+    /** @description The signing menu for one kind. */
+    signatureCapability: {
+      /** @description Public-key algorithm enum names. */
+      algorithms?: 'ECDSA_SECP256K1'[];
+      /** @description Supported signature templates. */
+      templates?: components['schemas']['templateSupport'][];
+    };
+    /** @description One signature template with its supported versions and hash functions. */
+    templateSupport: {
+      /**
+             * @description Template type (HashList | EIP712).
+             * @enum {string}
+             */
+      type?: 'HashList' | 'EIP712';
+      /** @description Supported template versions (back-compat). */
+      versions?: number[];
+      /** @description Hash function enum names valid for this template. */
+      hashFunctions?: ('SHA_3_256' | 'BLAKE2B' | 'KECCAK_256')[];
+    };
     dataProviderResponse: {
       /**
              * Format: uuid
@@ -536,7 +638,10 @@ export interface components {
       disabled: boolean;
       /** Format: address */
       endpoint: string;
-      /** Format: duration */
+      /**
+             * Format: duration
+             * @description Approver timeout in Go duration format (e.g. `90s`, `1m30s`, `1h`). Values are normalized on write, so the value read back may differ from what was written (e.g. `90s` may be returned as `1m30s`).
+             */
       timeout?: string;
       proposals?: components['schemas']['proposalsApprovalConfig'];
     };
@@ -583,6 +688,18 @@ export interface components {
              *     ]
              */
       transientFailureCodes: string[] | null;
+    };
+    /** @description Per-binding retry policy for the external adapter's WORKFLOW-layer handling of transient (technical) errors. When omitted, the service falls back to the global retry defaults (prior behavior). transientErrorsMaxRetries and transientErrorsUnlimitedRetries are mutually exclusive; set at most one. */
+    adapterRetryStrategy: {
+      /** @description Number of times the workflow re-drives the handler after a transient error before hanging. Omit to use the global default (flow_handler_retries_on_technical_error). Ignored when transientErrorsUnlimitedRetries is true. */
+      transientErrorsMaxRetries?: number;
+      /**
+             * @description Retry transient errors indefinitely, overriding transientErrorsMaxRetries and all stop-limits. Business errors are unaffected and still terminate the workflow.
+             * @default false
+             */
+      transientErrorsUnlimitedRetries: boolean;
+      /** @description Cumulative technical-retry count at which the saturation alert fires, followed by dampened periodic re-alerts. Omit to use the engine default. */
+      alertAfter?: number;
     };
     /** @description List of authentication mechanisms supported by this ledger */
     adapterAuthOptions: (components['schemas']['adapterOAuthOptions'] | components['schemas']['adapterMtlsOptions'] | components['schemas']['adapterApiKeyOptions'])[];
@@ -735,7 +852,7 @@ export interface components {
       destination?: components['schemas']['importTxLedgerAssetAccount'];
       transactionDetails: components['schemas']['transactionDetails'];
       /** @enum {string} */
-      operationType?: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem';
+      operationType?: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move';
       proof?: components['schemas']['proofPolicy'];
     };
     /** @description Additional input and output details for UTXO supporting DLTs */
@@ -781,6 +898,7 @@ export interface components {
       instructions: components['schemas']['executionInstruction'][];
       participants: components['schemas']['executionParticipant'][];
       contract: components['schemas']['contract'];
+      metadata?: components['schemas']['customMetadata'];
     };
     contract: {
       investors?: components['schemas']['investor'][];
@@ -987,6 +1105,12 @@ export interface components {
              * @enum {string}
              */
       type: 'hashList';
+      /**
+             * @description This version identifies the HashList template specification revision.
+             *     When omitted, the verifier resolves the version from the
+             *     router/ledger/asset-profile resolver chain.
+             */
+      templateVersion?: number;
       hashGroups: components['schemas']['hashGroup'][];
       /** @description hex representation of the combined hash groups hash value */
       hash: string;
@@ -1040,6 +1164,14 @@ export interface components {
              * @enum {string}
              */
       type: 'EIP712';
+      /**
+             * @description Template shape version. When omitted, the verifier resolves the
+             *     version from the router/ledger/asset-profile resolver chain.
+             *     Not to be confused with EIP712Domain.version (the EIP-712
+             *     contract domain version). See pkg/signature/specs/eip712/ for
+             *     versioned specs.
+             */
+      templateVersion?: number;
       domain: components['schemas']['EIP712Domain'];
       message: {
         [key: string]: components['schemas']['EIP712TypedValue'];
@@ -1069,7 +1201,7 @@ export interface components {
       tradeDetails?: components['schemas']['receiptTradeDetails'];
       details: components['schemas']['receiptAssetDetails'];
       /** @enum {string} */
-      operationType?: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'unknown';
+      operationType?: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'move' | 'unknown';
       operationRef?: string;
       timestamp: number;
       proof?: components['schemas']['proofPolicy'];
@@ -1154,6 +1286,12 @@ export interface components {
       assetMatchingCriteria?: components['schemas']['assetMatchingCriteria'];
       constraints?: components['schemas']['constraints'];
       settlementStrategy?: components['schemas']['settlementStrategyType'][];
+      signingCapabilities?: components['schemas']['signatureCapabilities'];
+      /**
+             * Format: uint32
+             * @description minimum FinP2P protocol version required to execute this policy's instruction graph; absent or 0 = protocol baseline (version 1)
+             */
+      requiredProtocolVersion?: number;
     };
     createPolicyRequest: {
       /** @description unique policy id */
@@ -1172,6 +1310,12 @@ export interface components {
       assetMatchingCriteria?: components['schemas']['assetMatchingCriteria'];
       constraints?: components['schemas']['constraints'];
       settlementStrategy?: components['schemas']['settlementStrategyType'][];
+      signingCapabilities?: components['schemas']['signatureCapabilities'];
+      /**
+             * Format: uint32
+             * @description minimum FinP2P protocol version required to execute this policy's instruction graph; absent or 0 = protocol baseline (version 1)
+             */
+      requiredProtocolVersion?: number;
     };
     updatePolicyRequest: {
       /** @description unique policy id */
@@ -1182,7 +1326,7 @@ export interface components {
              */
       priority: number;
       /** @enum {string} */
-      intent: 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent';
+      intent: 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent' | 'moveIntent';
       /** @description description of the policy */
       description: string;
       /** @description whether policy should be applied to all assets */
@@ -1196,6 +1340,12 @@ export interface components {
              */
       version: number;
       settlementStrategy?: components['schemas']['settlementStrategyType'][];
+      signingCapabilities?: components['schemas']['signatureCapabilities'];
+      /**
+             * Format: uint32
+             * @description minimum FinP2P protocol version required to execute this policy's instruction graph; absent or 0 = protocol baseline (version 1)
+             */
+      requiredProtocolVersion?: number;
     };
     /**
          * @description type of settlement strategy
@@ -1211,6 +1361,13 @@ export interface components {
     assetMatchingCriteria: {
       assetNameRegexp?: string | null;
       assetCodes?: string[];
+      /**
+             * @description Optional allow-list of ledger names. When non-empty, the policy
+             *     attaches only to assets whose ledger binding name matches one of
+             *     the listed values (case-insensitive). Empty or omitted = no
+             *     constraint on the asset's ledger binding.
+             */
+      ledgerNames?: string[];
       ledgerAssetIdentifiers?: components['schemas']['ledgerAssetIdentifier'][];
       financialAssetIdentifiers?: components['schemas']['financialAssetIdentifier'][];
     } | null;
@@ -1237,7 +1394,7 @@ export interface components {
     };
     instruction: {
       /** @enum {string} */
-      instruction: 'Hold' | 'Transfer' | 'Release' | 'Await' | 'Issue' | 'RevertHold' | 'Redeem';
+      instruction: 'Hold' | 'Transfer' | 'Release' | 'Await' | 'Issue' | 'RevertHold' | 'Redeem' | 'Move';
       /** Format: uint32 */
       sequence: number;
       executors?: ('self' | 'counterparty')[];
@@ -1365,13 +1522,12 @@ export interface components {
     APIErrors: {
       errors: components['schemas']['APIError'][];
     };
-    pollingResultsStrategy: {
+    randomPollingInterval: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
       type: 'random';
-      polling: components['schemas']['randomPollingInterval'] | components['schemas']['absolutePollingInterval'] | components['schemas']['relativePollingInterval'];
     };
     absolutePollingInterval: {
       /**
@@ -1394,12 +1550,13 @@ export interface components {
              */
       duration: string;
     };
-    randomPollingInterval: {
+    pollingResultsStrategy: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-      type: 'randomPollingInterval';
+      type: 'poll';
+      polling: components['schemas']['randomPollingInterval'] | components['schemas']['absolutePollingInterval'] | components['schemas']['relativePollingInterval'];
     };
     callbackEndpoint: {
       /**
@@ -1445,9 +1602,9 @@ export interface components {
              * @enum {string}
              */
       assetIdentifierType: 'CAIP-19';
-      network: string;
+      network?: string;
       tokenId: string;
-      standard: string;
+      standard?: string;
     };
     ledgerAssetIdentifier: components['schemas']['ledgerAssetIdentifierTypeCAIP-19'];
     finP2PEVMOperatorDetails: {
@@ -1487,7 +1644,21 @@ export interface components {
       type: 'createAsset';
       operation: components['schemas']['createAssetOperation'];
     };
-    depositOperationErrorInformation: Record<string, never>;
+    RegulationError: {
+      /** @description the type of regulation */
+      regulationType: string;
+      /** @description actionable details of the error */
+      details: string;
+    };
+    depositOperationErrorInformation: {
+      /**
+             * Format: uint32
+             * @description 1 for failure in regApps validation, 4 failure in signature verification
+             */
+      code?: number;
+      message?: string;
+      regulationErrorDetails?: components['schemas']['RegulationError'][];
+    };
     /**
          * Format: finid
          * @description Existing owner hex representation of a secp256k1 public key 33 bytes compressed
@@ -1629,12 +1800,6 @@ export interface components {
       type: 'deposit';
       operation: components['schemas']['depositOperation'];
     };
-    RegulationError: {
-      /** @description the type of regulation */
-      regulationType: string;
-      /** @description actionable details of the error */
-      details: string;
-    };
     receiptOperationErrorInformation: {
       /**
              * Format: uint32
@@ -1660,10 +1825,34 @@ export interface components {
       /** @description address of the wallet */
       address: string;
     };
+    caip10Account: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'caip10Account';
+      /** @description CAIP-2 chain_id, e.g. "eip155:1", "solana:5eykt4...", "hedera:mainnet" (the same token used by the CAIP-19 asset identifier network) */
+      network: string;
+      /** @description CAIP-10 account_address (chain-native address) */
+      address: string;
+    };
+    custodialAccount: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'custodialAccount';
+      /** @description Custody provider discriminator, e.g. "fireblocks" */
+      provider: string;
+      /** @description Provider-internal account identifier (e.g. a Fireblocks vault account id) */
+      vaultAccountId: string;
+      /** @description Optional. Narrows the custodial account to a specific asset/chain. */
+      assetId?: string;
+    };
     account: {
       asset: components['schemas']['asset'];
       finId: components['schemas']['finId'];
-      ledgerAccount?: components['schemas']['walletAccount'];
+      ledgerAccount?: components['schemas']['walletAccount'] | components['schemas']['caip10Account'] | components['schemas']['custodialAccount'];
     };
     /** @description additional ledger specific */
     'schemas-transactionDetails': {
@@ -1673,7 +1862,7 @@ export interface components {
       operationId?: string;
     };
     /** @enum {string} */
-    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem';
+    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move';
     receiptExecutionContext: {
       executionPlanId: string;
       instructionSequenceNumber: number;
@@ -1682,6 +1871,19 @@ export interface components {
       intentId?: string;
       intentVersion?: string;
       executionContext?: components['schemas']['receiptExecutionContext'];
+    };
+    /** @description ordered list of hash groups */
+    'schemas-hashListTemplate': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hashList';
+      hashGroups: components['schemas']['hashGroup'][];
+      /** @description hex representation of the combined hash groups hash value */
+      hash: string;
+      /** @description Template shape version. When omitted, the verifier resolves the version from the signature proof context. */
+      templateVersion?: number;
     };
     'schemas-EIP712FieldDefinition': {
       name?: string;
@@ -1708,8 +1910,10 @@ export interface components {
       primaryType: string;
       /** @description hex representation of template hash */
       hash: string;
+      /** @description Template shape version. When omitted, the verifier resolves the version from the signature proof context. */
+      templateVersion?: number;
     };
-    'schemas-signatureTemplate': components['schemas']['hashListTemplate'] | components['schemas']['schemas-EIP712Template'];
+    'schemas-signatureTemplate': components['schemas']['schemas-hashListTemplate'] | components['schemas']['schemas-EIP712Template'];
     /** @description represent a signature template information */
     'schemas-signature': {
       /** @description hex representation of the signature */
@@ -1804,7 +2008,96 @@ export interface components {
       type: 'approval';
       operation: components['schemas']['ExecutionPlanApprovalOperation'];
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'];
+    AccountChallengeWalletConnect: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'walletConnect';
+      /** @description WalletConnect URI or QR-encodable payload. */
+      uri: string;
+    };
+    AccountChallengeSignatureTemplate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'signatureTemplate';
+      /**
+             * @description Hex-encoded data the client must sign with the wallet's private key and submit via
+             *     `POST /accounts/{cid}/proof`.
+             */
+      payload: string;
+    };
+    AccountChallengeDeposit: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'deposit';
+      /** @description Address claimed by the user. */
+      fromAddress: string;
+      /** @description Destination address the LA watches. */
+      toAddress: string;
+      /** @description Required deposit amount (string for precision). */
+      amount: string;
+    };
+    AccountChallengeFireblocksApproval: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'fireblocksApproval';
+      /** @description Fireblocks-side request id; user approves in the Fireblocks app. */
+      fireblocksRequestId: string;
+    };
+    /**
+         * @description LA-issued challenge that the user must fulfill. Discriminated by `type`. New variants
+         *     can be added without breaking existing clients.
+         */
+    AccountChallenge: components['schemas']['AccountChallengeWalletConnect'] | components['schemas']['AccountChallengeSignatureTemplate'] | components['schemas']['AccountChallengeDeposit'] | components['schemas']['AccountChallengeFireblocksApproval'];
+    noneAccount: Record<string, never>;
+    networkAccount: components['schemas']['walletAccount'] | components['schemas']['caip10Account'] | components['schemas']['custodialAccount'] | components['schemas']['noneAccount'];
+    /** @description Canonical account record returned on workflow completion via `GET /operations/status/{cid}`. */
+    networkAccountRecord: {
+      /** @description LA-assigned account identifier. */
+      id: string;
+      networkAccount: components['schemas']['networkAccount'];
+    };
+    networkAccountOperationErrorInformation: {
+      /** Format: uint32 */
+      code: number;
+      message: string;
+    };
+    /**
+         * @description Status of an investor network-account create/bind/unbind operation, polled via
+         *     `GET /operations/status/{cid}`. While a challenge is outstanding, `challenge` is
+         *     present; on completion `response` carries the canonical `{ id, wallet }`; on failure
+         *     `error` carries the LA-level code/message.
+         */
+    networkAccountOperation: components['schemas']['OperationBase'] & {
+      challenge?: components['schemas']['AccountChallenge'];
+      response?: components['schemas']['networkAccountRecord'];
+      error?: components['schemas']['networkAccountOperationErrorInformation'];
+      /**
+             * Format: int64
+             * @description Onboarding deadline the ledger adapter grants, in seconds from now, when it
+             *     supplies (or revises) one on this status — e.g. alongside a challenge delivered
+             *     via callback in proxy mode, where the adapter's own deadline could not ride the
+             *     proxy's immediate acceptance. The asset node re-arms the workflow deadline from
+             *     a non-zero value. Omitted/zero => previously armed deadline stands.
+             */
+      expiresInSeconds?: number;
+    };
+    operationStatusAccount: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'account';
+      operation: components['schemas']['networkAccountOperation'];
+    };
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'];
     CustomError: {
       code: number;
       message: string;
@@ -1897,8 +2190,6 @@ export interface components {
       account: components['schemas']['importTxAccount'];
       asset: components['schemas']['finp2pAsset'];
     };
-    noneAccount: Record<string, never>;
-    networkAccount: components['schemas']['walletAccount'] | components['schemas']['noneAccount'];
     /** @description describes account information */
     importTxLedgerAssetAccount: {
       finp2pAccount: components['schemas']['importTxAssetAccount'];
@@ -1930,6 +2221,13 @@ export interface components {
     finp2pAssetAccount: {
       account: components['schemas']['schemas-finIdAccount'];
       asset: components['schemas']['finp2pAsset'];
+      /**
+             * @description Optional. Investor network account to use for this leg. Must have been
+             *     previously bound via `POST /profiles/investor/{investorId}/account`.
+             *     Whitelist-validated against `investor.data.accounts[org][asset]`
+             *     before forwarding to the LA. Failure → error code 7351 (AccountNotWhitelistedErr, 400).
+             */
+      networkAccount?: components['schemas']['networkAccount'];
     };
     sourceAccountAssetInstruction: {
       sourceAccount: components['schemas']['finp2pAssetAccount'];
@@ -1969,7 +2267,7 @@ export interface components {
     };
     sellingSettlementBase: {
       settlementTerm: components['schemas']['settlementTerm'];
-      settlementInstruction: components['schemas']['destinationAccountAssetInstruction'];
+      settlementInstruction?: components['schemas']['destinationAccountAssetInstruction'];
     };
     sellingSettlements: components['schemas']['sellingSettlementBase'][];
     primarySale: {
@@ -1988,7 +2286,7 @@ export interface components {
     };
     buyingSettlementBase: {
       settlementTerm: components['schemas']['settlementTerm'];
-      settlementInstruction: components['schemas']['sourceAccountAssetInstruction'];
+      settlementInstruction?: components['schemas']['sourceAccountAssetInstruction'];
     };
     presignedSignaturePolicy: {
       /**
@@ -2014,7 +2312,7 @@ export interface components {
       /** @description resource id of the buyer */
       buyer: string;
       asset: components['schemas']['buyingAsset'];
-      settlement?: components['schemas']['buyingSettlementBase'];
+      settlement: components['schemas']['buyingSettlementBase'];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     sellingIntent: {
@@ -2038,7 +2336,7 @@ export interface components {
     };
     loanIntentSettlementBase: {
       settlementTerm: components['schemas']['settlementTerm'];
-      settlementInstruction: components['schemas']['borrowerLenderAccountAssetInstruction'];
+      settlementInstruction?: components['schemas']['borrowerLenderAccountAssetInstruction'];
     };
     loanIntentSettlements: components['schemas']['loanIntentSettlementBase'][];
     repaymentTerm: {
@@ -2093,7 +2391,7 @@ export interface components {
       borrower: components['schemas']['schemas-ownerId'];
       lender: components['schemas']['schemas-ownerId'];
       asset: components['schemas']['loanIntentAsset'];
-      settlement?: components['schemas']['loanIntentSettlements'];
+      settlement: components['schemas']['loanIntentSettlements'];
       loanInstruction?: components['schemas']['loanInstruction'];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'];
     };
@@ -2101,6 +2399,13 @@ export interface components {
     finp2pAssetAccountOptional: {
       account?: components['schemas']['schemas-finIdAccount'];
       asset: components['schemas']['finp2pAsset'];
+      /**
+             * @description Optional. Investor network account to use for this leg. Must have been
+             *     previously bound via `POST /profiles/investor/{investorId}/account`.
+             *     Whitelist-validated against `investor.data.accounts[org][asset]`
+             *     before forwarding to the LA. Failure → error code 7351 (AccountNotWhitelistedErr, 400).
+             */
+      networkAccount?: components['schemas']['networkAccount'];
     };
     optionalDestinationAccountAssetInstruction: {
       destinationAccount: components['schemas']['finp2pAssetAccountOptional'];
@@ -2125,7 +2430,7 @@ export interface components {
       type: 'redemptionIntent';
       issuer: components['schemas']['schemas-ownerId'];
       asset: components['schemas']['redemptionAsset'];
-      settlement?: components['schemas']['buyingSettlements'];
+      settlement: components['schemas']['buyingSettlements'];
       conditions?: components['schemas']['redemptionIntentConditions'];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
@@ -2145,7 +2450,7 @@ export interface components {
       buyer: components['schemas']['schemas-ownerId'];
       seller: components['schemas']['schemas-ownerId'];
       asset: components['schemas']['privateOfferIntentAsset'];
-      settlement?: components['schemas']['sellingSettlements'];
+      settlement: components['schemas']['sellingSettlements'];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     requestForTransferSendAssetInstruction: {
@@ -2180,7 +2485,30 @@ export interface components {
       asset: components['schemas']['requestForTransferIntentAsset'];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
-    intent: components['schemas']['primarySale'] | components['schemas']['buyingIntent'] | components['schemas']['sellingIntent'] | components['schemas']['loanIntent'] | components['schemas']['redemptionIntent'] | components['schemas']['privateOfferIntent'] | components['schemas']['requestForTransferIntent'];
+    /** @description a Move destination asset. Superset of finp2pAsset (same required id + ledgerIdentifier), plus an optional pre-funded pool the Transfer drains into the destination for the hold-transfer-* variants. */
+    moveDestination: {
+      id: components['schemas']['resourceId'];
+      ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
+      fromSegregatedAccount?: components['schemas']['schemas-finIdAccount'];
+      /** @description owner of the pre-funded pool account — the Transfer seller (debited party) for receipts and regulation. Required when fromSegregatedAccount is set. */
+      fromSegregatedAccountOwner?: components['schemas']['resourceId'];
+    };
+    /** @description asset-level migration path declared by the source asset's organization; source + one-or-more destination assets (no quantity). Optional sourceToSegregatedAccount receives held source tokens on release (instead of burning); each destination may carry a pre-funded fromSegregatedAccount pool for the hold-transfer-* variants. The executor picks one destination at execution. */
+    moveAsset: {
+      sourceAsset: components['schemas']['finp2pAsset'];
+      destinationAssets: components['schemas']['moveDestination'][];
+      sourceToSegregatedAccount?: components['schemas']['schemas-finIdAccount'];
+    };
+    moveIntent: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'moveIntent';
+      asset: components['schemas']['moveAsset'];
+      signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
+    };
+    intent: components['schemas']['primarySale'] | components['schemas']['buyingIntent'] | components['schemas']['sellingIntent'] | components['schemas']['loanIntent'] | components['schemas']['redemptionIntent'] | components['schemas']['privateOfferIntent'] | components['schemas']['requestForTransferIntent'] | components['schemas']['moveIntent'];
     /** @description describes account information */
     ledgerAccountAsset: {
       finp2pAccount: components['schemas']['finp2pAssetAccount'];
@@ -2202,6 +2530,10 @@ export interface components {
       assetTerm: components['schemas']['assetTerm'];
       assetInstruction: components['schemas']['BorrowerLenderAccountLedgerAssetInstruction'];
     };
+    /** @description Optional. A map of key:value string pairs for custom tracing, reconciliation, and business context. Opaque to the Router. */
+    customMetadata: {
+      [key: string]: string;
+    };
     /** @description Additional input and output details for UTXO supporting DLTs */
     receiptTransactionDetails: {
       /** @description Transaction id */
@@ -2213,7 +2545,8 @@ export interface components {
       transactionDetails: components['schemas']['receiptTransactionDetails'];
     };
     /** @enum {string} */
-    intentType: 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent';
+    intentType: 'primarySale' | 'buyingIntent' | 'sellingIntent' | 'loanIntent' | 'redemptionIntent' | 'privateOfferIntent' | 'requestForTransferIntent' | 'moveIntent';
+    /** @description Financial instruments (equities, bonds, funds, etc.). 12-character ISO 6166 code. */
     financialAssetIdentifierTypeISIN: {
       /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
@@ -2223,6 +2556,7 @@ export interface components {
       /** @description The classification standard used to identify the asset */
       assetIdentifierValue: string;
     };
+    /** @description Fiat currencies. */
     financialAssetIdentifierTypeISO4217: {
       /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
@@ -2232,6 +2566,7 @@ export interface components {
       /** @description The classification standard used to identify the asset */
       assetIdentifierValue: string;
     };
+    /** @description Asset is not registered under a global identification scheme. */
     financialAssetIdentifierTypeNONE: {
       /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
@@ -2239,6 +2574,7 @@ export interface components {
              */
       assetIdentifierType: 'NONE';
     };
+    /** @description Globally recognized code identifying the asset across networks, routers, and counterparties. Used for balance aggregation and cross-router asset recognition. Format is validated for structure only. */
     financialAssetIdentifier: components['schemas']['financialAssetIdentifierTypeISIN'] | components['schemas']['financialAssetIdentifierTypeISO4217'] | components['schemas']['financialAssetIdentifierTypeNONE'];
   };
   responses: never;
@@ -3150,7 +3486,7 @@ export interface operations {
       };
     };
   };
-  'Override approvals config': {
+  setApprovalsConfig: {
     parameters: {
       query?: never;
       header?: never;
@@ -3161,7 +3497,6 @@ export interface operations {
       content: {
         /**
                  * @example {
-                 *       "ownerId": "bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01",
                  *       "tokenization": {
                  *         "http-endpoint-1": {
                  *           "config_type": "http",
@@ -3244,7 +3579,160 @@ export interface operations {
       };
     };
   };
-  'update approvals config': {
+  updateApprovalsConfig: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['approvalConfigUpdate'];
+      };
+    };
+    responses: {
+      /** @description Configuration updated successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  setProposalsConfig: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+                 * @example {
+                 *       "tokenization": {
+                 *         "http-endpoint-1": {
+                 *           "config_type": "http",
+                 *           "endpoint": "http://approver-service.internal/approvals",
+                 *           "timeout": "45s",
+                 *           "proposals": [
+                 *             "reset",
+                 *             "cancel",
+                 *             "instruction"
+                 *           ]
+                 *         },
+                 *         "ledger-approver-1": {
+                 *           "config_type": "ledger",
+                 *           "name": "ledger-approver-1",
+                 *           "proposals": [
+                 *             "reset",
+                 *             "instruction"
+                 *           ]
+                 *         }
+                 *       },
+                 *       "payments": {
+                 *         "ledger-approver-2": {
+                 *           "config_type": "ledger",
+                 *           "name": "payments-ledger-approver",
+                 *           "proposals": [
+                 *             "instruction"
+                 *           ]
+                 *         }
+                 *       }
+                 *     }
+                 */
+        'application/json': components['schemas']['approvalConfig'];
+      };
+    };
+    responses: {
+      /** @description Created the new configuration successfully */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  updateProposalsConfig: {
     parameters: {
       query?: never;
       header?: never;
@@ -4045,9 +4533,11 @@ export interface operations {
   };
   findPolicies: {
     parameters: {
-      query: {
+      query?: {
         /** @description asset matching type */
-        assetMatchingType: string;
+        assetMatchingType?: string;
+        /** @description filter policies whose ledgerNames allow-list contains this ledger (or have no ledger constraint) */
+        ledgerName?: string;
       };
       header?: never;
       path?: never;
@@ -4765,23 +5255,15 @@ export interface operations {
           endpoint: string;
           auth?: components['schemas']['adapterAuthOptions'];
           idempotency?: components['schemas']['adapterIdempotencyOptions'];
+          retryStrategy?: components['schemas']['adapterRetryStrategy'];
           /** @description display name */
           displayName?: string;
-          /**
-                     * @description request timeout (e.g. 300s)
-                     * @default 300s
-                     */
-          requestTimeout?: string;
-          /**
-                     * @description backoff (e.g. 60s)
-                     * @default 60s
-                     */
-          backoff?: string;
-          /**
-                     * @description single request timeout (e.g. 90s)
-                     * @default 90s
-                     */
-          singleRequestTimeout?: string;
+          /** @description request timeout (e.g. 300s) */
+          requestTimeout: string;
+          /** @description backoff (e.g. 60s) */
+          backoff: string;
+          /** @description single request timeout (e.g. 90s) */
+          singleRequestTimeout: string;
         };
       };
     };
@@ -4792,6 +5274,44 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
       };
     };
   };
@@ -4814,6 +5334,7 @@ export interface operations {
           displayName?: string | null;
           auth?: components['schemas']['adapterAuthOptionsOpt'] | null;
           idempotency?: components['schemas']['adapterIdempotencyOptionsOpt'] | null;
+          retryStrategy?: components['schemas']['adapterRetryStrategy'] | null;
           /** @description request timeout (e.g. 300s) */
           requestTimeout?: string | null;
           /** @description backoff (e.g. 60s) */
@@ -4830,6 +5351,44 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
       };
     };
   };
@@ -4856,6 +5415,7 @@ export interface operations {
           singleRequestTimeout?: string | null;
           auth?: components['schemas']['adapterAuthOptionsOpt'] | null;
           idempotency?: components['schemas']['adapterIdempotencyOptionsOpt'] | null;
+          retryStrategy?: components['schemas']['adapterRetryStrategy'] | null;
           /** @description A human-readable name for the ledger that appears in user interfaces */
           displayName?: string | null;
           /**
@@ -4930,23 +5490,15 @@ export interface operations {
           endpoint: string;
           auth?: components['schemas']['adapterAuthOptions'];
           idempotency?: components['schemas']['adapterIdempotencyOptions'];
+          retryStrategy?: components['schemas']['adapterRetryStrategy'];
           /** @description A human-readable name for the ledger that appears in user interfaces */
           displayName?: string;
-          /**
-                     * @description The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error
-                     * @default 300s
-                     */
-          requestTimeout?: string;
-          /**
-                     * @description The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures
-                     * @default 60s
-                     */
-          backoff?: string;
-          /**
-                     * @description The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration
-                     * @default 90s
-                     */
-          singleRequestTimeout?: string;
+          /** @description The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error */
+          requestTimeout: string;
+          /** @description The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures */
+          backoff: string;
+          /** @description The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration */
+          singleRequestTimeout: string;
           /**
                      * @description Indicates whether balance synchronization is enabled for this ledger
                      * @default true
@@ -5044,6 +5596,44 @@ export interface operations {
           'application/json': components['schemas']['dataProviderResponse'];
         };
       };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
     };
   };
   'update data provider binding': {
@@ -5080,6 +5670,159 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['dataProviderResponse'];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  getNodeCapabilities: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['nodeCapabilities'];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 6102,
+                     *           "message": "Data mapping error"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2000,
+                     *           "message": "General server error"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Bad Gateway */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2300,
+                     *           "message": "An internal communication error"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2002,
+                     *           "message": "Service unavailable"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Gateway Timeout */
+      504: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2003,
+                     *           "message": "Gateway timeout"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
         };
       };
     };

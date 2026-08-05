@@ -1,7 +1,7 @@
 import createClient, { Client, Middleware } from 'openapi-fetch';
 import { components as FinAPIComponents, paths as FinAPIPaths } from './model-gen';
 import { components as OpComponents, paths as OpPaths } from './op-model-gen';
-import { normalizeBaseUrl, sleep } from './utils';
+import { generateNonce, normalizeBaseUrl, sleep } from './utils';
 
 // Helper: extract the request body type for a given path + method from openapi-fetch paths
 type RequestBody<P extends keyof FinAPIPaths, M extends keyof FinAPIPaths[P]> =
@@ -15,9 +15,10 @@ type OpRequestBody<P extends keyof OpPaths, M extends keyof OpPaths[P]> =
  * every spec field is available without hand-maintained signatures.
  *
  * Required: name, type, denomination, ledgerAssetBinding.
- * Optional: symbol, issuerId, intentTypes, assetPolicies, config (deprecated),
- *           metadata, verifiers, financialIdentifier, orgSettlementAccount,
- *           allowPolicyDefaultFallback, decimalPlaces, autoShare.
+ * Optional: assetId, symbol, issuerId, intentTypes, assetPolicies,
+ *           config (deprecated), metadata, verifiers, financialIdentifier,
+ *           signatureTemplate, allowPolicyDefaultFallback, decimalPlaces,
+ *           autoShare.
  */
 export type CreateAssetOptions = RequestBody<'/profiles/asset', 'post'>;
 
@@ -28,11 +29,68 @@ export type CreateAssetOptions = RequestBody<'/profiles/asset', 'post'>;
  * name, symbol, assetPolicies, allowPolicyDefaultFallback, autoShare.
  *
  * Immutable post-creation (not in this body): type, issuerId, denomination,
- * ledgerAssetBinding, financialIdentifier, intentTypes, orgSettlementAccount,
- * decimalPlaces. Intent allow-list changes have their own dedicated routes
- * under `/profiles/asset/{id}/intent[/...]`.
+ * financialIdentifier, intentTypes, decimalPlaces. `ledgerAssetBinding` and
+ * `financialIdentifier` accept one-time promotions only. Intent allow-list
+ * changes have their own dedicated routes under
+ * `/profiles/asset/{id}/intent[/...]`.
  */
 export type PatchAssetOptions = RequestBody<'/profiles/asset/{id}', 'patch'>;
+
+// ── Investor network accounts ──
+
+/** Body of `POST /profiles/investor/{investorId}/account/create` — `{ organizationId, assetId }`. */
+export type CreateInvestorAccountBody = RequestBody<'/profiles/investor/{investorId}/account/create', 'post'>;
+
+/**
+ * Body of `POST /profiles/investor/{investorId}/account/bind` —
+ * `{ organizationId, assetId, networkAccount, ownershipSignature }`.
+ *
+ * Note `ownershipSignature` is a bare hex string here. The adapter-facing spec
+ * wraps it in an object (`accountOwnershipSignature { signature }`), so the two
+ * sides are deliberately not the same type.
+ */
+export type BindInvestorAccountBody = RequestBody<'/profiles/investor/{investorId}/account/bind', 'post'>;
+
+/** Body of `POST /profiles/investor/{investorId}/account/proof` — `{ cid, ownershipSignature }`. */
+export type SubmitAccountProofBody = RequestBody<'/profiles/investor/{investorId}/account/proof', 'post'>;
+
+/**
+ * An investor network account: `walletAccount`, `caip10Account`,
+ * `custodialAccount`, or `noneAccount`, discriminated by `type`.
+ *
+ * The `walletAccount` discriminator must be exactly `'walletAccount'` — the
+ * router compares the adapter's onboarding echo byte-for-byte against the
+ * account named on an operation leg, so any other token (e.g. `'wallet'`)
+ * produces a spurious 7351 `AccountNotWhitelisted` on every operation after a
+ * successful bind.
+ */
+export type NetworkAccount = FinAPIComponents['schemas']['networkAccount'];
+
+/**
+ * Challenge issued by the ledger adapter while a network-account operation is
+ * parked. Present on `operationResponse` whenever `isCompleted` is false.
+ *
+ * Only `signatureTemplate` is fulfilled through `submitAccountProof`; the
+ * `walletConnect`, `deposit`, and `fireblocksApproval` variants are fulfilled
+ * out of band and the adapter reports verification directly to the asset node.
+ */
+export type NetworkAccountChallenge = FinAPIComponents['schemas']['networkAccountChallenge'];
+
+/**
+ * `Idempotency-Key` is **required** on all four investor-account endpoints —
+ * they are the only application-API routes where it is not optional. The value
+ * is a hex-encoded 32-byte nonce: 24 random bytes plus an 8-byte big-endian
+ * epoch-seconds suffix, which is what `generateNonce()` produces.
+ *
+ * A fresh key is minted per call, which is the right default for independent
+ * requests but provides no deduplication on retry: a caller that retries a
+ * timed-out request without passing its own key gets a new key, and the router
+ * treats it as a new operation. If you own the retry loop, generate one key and
+ * thread the same value through every attempt.
+ */
+function idempotencyHeader(idempotencyKey?: string) {
+  return { 'Idempotency-Key': idempotencyKey ?? generateNonce().toString('hex') };
+}
 
 export class FinAPIClient {
 
@@ -114,6 +172,67 @@ export class FinAPIClient {
     return this.apiClient.POST('/profiles/owner/{ownerId}/account', {
       params: { path: { ownerId } },
       body,
+    });
+  }
+
+  // ── Investor network accounts (onboarding) ──
+
+  /**
+   * Onboard a new adapter-generated network account for an investor. The ledger
+   * adapter creates the wallet on the asset's network and holds the keys.
+   *
+   * Returns `202 { cid }`; the adapter then issues a challenge. Poll
+   * `getOperationStatus(cid)` — while `isCompleted` is false the response
+   * carries `challenge`, and on completion it carries the canonical
+   * `{ id, networkAccount }` record.
+   */
+  async createInvestorAccount(investorId: string, body: CreateInvestorAccountBody, idempotencyKey?: string) {
+    return this.apiClient.POST('/profiles/investor/{investorId}/account/create', {
+      params: { path: { investorId }, header: idempotencyHeader(idempotencyKey) },
+      body,
+    });
+  }
+
+  /**
+   * Bind an investor's existing external network account. `ownershipSignature`
+   * is a proof-of-ownership hint over the account; the authoritative proof is
+   * fulfilling the challenge the adapter issues afterwards.
+   *
+   * Returns `202 { cid }`. Completion reports `WALLET_ALREADY_BOUND` (409) if
+   * the account is already bound — including to this same investor on the same
+   * `(org, asset)` pair — or `WALLET_BAD_SIGNATURE` (400) on a bad signature.
+   */
+  async bindInvestorAccount(investorId: string, body: BindInvestorAccountBody, idempotencyKey?: string) {
+    return this.apiClient.POST('/profiles/investor/{investorId}/account/bind', {
+      params: { path: { investorId }, header: idempotencyHeader(idempotencyKey) },
+      body,
+    });
+  }
+
+  /**
+   * Submit the investor's signature over a `signatureTemplate` challenge
+   * payload, advancing the workflow out of `AWAITING_PROOF_SUBMISSION`.
+   *
+   * Only for the `signatureTemplate` challenge variant — the out-of-band
+   * variants must not be routed here.
+   */
+  async submitAccountProof(investorId: string, body: SubmitAccountProofBody, idempotencyKey?: string) {
+    return this.apiClient.POST('/profiles/investor/{investorId}/account/proof', {
+      params: { path: { investorId }, header: idempotencyHeader(idempotencyKey) },
+      body,
+    });
+  }
+
+  /**
+   * Unbind a network account from an investor. Returns `202 { cid }`; the
+   * router's local mirror row is removed only once the adapter confirms.
+   *
+   * `accountId` is the adapter-assigned identifier from the onboarding
+   * completion payload, not the account address.
+   */
+  async removeInvestorAccount(investorId: string, accountId: string, idempotencyKey?: string) {
+    return this.apiClient.DELETE('/profiles/investor/{investorId}/account/{accountId}', {
+      params: { path: { investorId, accountId }, header: idempotencyHeader(idempotencyKey) },
     });
   }
 

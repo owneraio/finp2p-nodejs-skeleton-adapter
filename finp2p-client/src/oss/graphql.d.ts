@@ -107,8 +107,6 @@ export type Asset = Profile & {
   /** Profile metadata, contains ACL information of the profile. */
   metadata: ProfileMetadata;
   name: Scalars['String']['output'];
-  /** omnibus account for the asset, if applicable */
-  orgSettlementAccount?: Maybe<NetworkAccount>;
   /** Organization id to whom this profile is associated with. */
   organizationId: Scalars['String']['output'];
   /** Describe the policies active on the asset */
@@ -291,7 +289,7 @@ export type BuyingIntent = {
   buyer?: Maybe<Scalars['String']['output']>;
   /** Destination account - where buyer receives the asset */
   destination: FinP2PAssetAccount;
-  settlementInstruction: BuyingSettlementInstruction;
+  settlementInstruction?: Maybe<BuyingSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
   signaturePolicy: BuyingSignaturePolicy;
@@ -307,13 +305,22 @@ export type BuyingSettlementInstruction = {
 
 export type BuyingSignaturePolicy = ManualIntentSignaturePolicy | PresignedBuyingIntentSignaturePolicy;
 
+/** CAIP-10 chain-agnostic on-chain account */
+export type Caip10Account = {
+  __typename?: 'Caip10Account';
+  /** CAIP-10 account address (chain-native address) */
+  address: Scalars['String']['output'];
+  /** CAIP-2 chain_id, e.g. eip155:1 (the same token used by the CAIP-19 asset identifier network) */
+  network: Scalars['String']['output'];
+};
+
 /** CAIP-19 format ledger identifier */
 export type Caip19Identifier = {
   __typename?: 'Caip19Identifier';
   /** CAIP-2 network identifier (e.g., eip155:1, solana:mainnet) */
-  network: Scalars['String']['output'];
+  network?: Maybe<Scalars['String']['output']>;
   /** Token standard (e.g., erc20, erc721) */
-  standard: Scalars['String']['output'];
+  standard?: Maybe<Scalars['String']['output']>;
   /** Token ID or contract address */
   tokenId: Scalars['String']['output'];
 };
@@ -383,6 +390,17 @@ export type CryptoWalletAccount = {
   __typename?: 'CryptoWalletAccount';
   /** Wallet address represented as a hexadecimal string prefixed with 0x */
   address: Scalars['String']['output'];
+};
+
+/** Custodial account reference (e.g. a Fireblocks vault account) that is not a single on-chain address */
+export type CustodialAccount = {
+  __typename?: 'CustodialAccount';
+  /** Optional. Narrows the custodial account to a specific asset/chain. */
+  assetId?: Maybe<Scalars['String']['output']>;
+  /** Custody provider discriminator, e.g. fireblocks */
+  provider: Scalars['String']['output'];
+  /** Provider-internal account identifier (e.g. a Fireblocks vault account id) */
+  vaultAccountId: Scalars['String']['output'];
 };
 
 export type Custodian = {
@@ -562,6 +580,8 @@ export type ExecutionPlan = {
   contract: ExecutionPlanContract;
   /** plan creation (timestamp in sec) */
   creationTimestamp: Scalars['Int']['output'];
+  /** Custom key-value metadata for tracing and reconciliation */
+  customMetadata?: Maybe<Array<KeyValuePair>>;
   /** resource id of execution plan */
   id: Scalars['String']['output'];
   /** plan's list of instructions */
@@ -572,10 +592,21 @@ export type ExecutionPlan = {
   lastModified: Scalars['Int']['output'];
   /** organizations which participate in the execution plan */
   organizations: Array<ExecutionOrganization>;
+  /** All workflows related to this plan (plan-level and per-instruction) — the top-level `workflows` query pre-scoped to the plan, with the same filter/pagination/ordering. Use pageInfo.totalCount for the count and a filter (e.g. health_status EQ UNHEALTHY) for the problematic subset. Defaults to creationTimestamp ASC. */
+  relatedWorkflows: Workflows;
   /** lifecycle status of the execution plan */
   status: ExecutionPlanStatus;
   /** version of the execution plan */
   version: Scalars['Int']['output'];
+  /** Plan-level workflows: workflows scoped to the plan itself (e.g. plan_approval, and plan-scoped signature_request) — NOT the per-instruction workflows, which are under instructions.workflows. Fully populated (state, health, availableActions, references, metadata), same as the top-level `workflows` query. */
+  workflows: Array<Workflow>;
+};
+
+
+export type ExecutionPlanRelatedWorkflowsArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<WorkflowOrder>;
+  paginate?: InputMaybe<PaginateInput>;
 };
 
 export type ExecutionPlanContract = {
@@ -584,7 +615,7 @@ export type ExecutionPlanContract = {
   investors: Array<ExecutionPlanInvestor>;
 };
 
-export type ExecutionPlanContractDetails = BuyingContractDetails | IssuanceContractDetails | LoanContractDetails | PrivateOfferContractDetails | RedemptionContractDetails | RequestForTransferContractDetails | SellingContractDetails | TransferContractDetails;
+export type ExecutionPlanContractDetails = BuyingContractDetails | IssuanceContractDetails | LoanContractDetails | MoveContractDetails | PrivateOfferContractDetails | RedemptionContractDetails | RequestForTransferContractDetails | SellingContractDetails | TransferContractDetails;
 
 export type ExecutionPlanInstruction = {
   __typename?: 'ExecutionPlanInstruction';
@@ -753,9 +784,9 @@ export type FinancialIdentifier = {
 };
 
 export enum FinancialIdentifierType {
-  Custom = 'CUSTOM',
   Isin = 'ISIN',
   Iso4217 = 'ISO4217',
+  None = 'NONE',
   Unspecified = 'UNSPECIFIED',
 }
 
@@ -855,7 +886,7 @@ export type InstructionApprovals = {
 
 export type InstructionCompletionState = ErrorState | SuccessState | UnknownState;
 
-export type InstructionDetails = AwaitInstruction | HoldInstruction | IssueInstruction | RedeemInstruction | ReleaseInstruction | RevertHoldInstruction | TransferInstruction;
+export type InstructionDetails = AwaitInstruction | HoldInstruction | IssueInstruction | MoveInstruction | RedeemInstruction | ReleaseInstruction | RevertHoldInstruction | TransferInstruction;
 
 export type InstructionTransition = {
   __typename?: 'InstructionTransition';
@@ -867,6 +898,8 @@ export type InstructionTransition = {
 /** Represent an Asset's Transaction Intent occasion in which the Asset's tokens are issued. */
 export type Intent = {
   __typename?: 'Intent';
+  /** Custom key-value metadata for tracing and reconciliation */
+  customMetadata?: Maybe<Array<KeyValuePair>>;
   /** End time of the intent. */
   end: Scalars['Int']['output'];
   id: Scalars['String']['output'];
@@ -874,6 +907,8 @@ export type Intent = {
   intent?: Maybe<IntentDetails>;
   /** Profile metadata, contains ACL information of the profile. */
   metadata: ProfileMetadata;
+  /** Reason the intent was rejected, prefixed with the rejecting organization (owner side only). */
+  rejectReason?: Maybe<Scalars['String']['output']>;
   /** Remaining quantity in the transaction. */
   remainingQuantity: Scalars['String']['output'];
   /** Start time of the intent. */
@@ -886,7 +921,13 @@ export type Intent = {
   version: Scalars['String']['output'];
 };
 
-export type IntentDetails = BuyingIntent | LoanIntent | PrimarySale | PrivateOfferIntent | RedemptionIntent | RequestForTransferIntent | SellingIntent;
+export type IntentDetails = BuyingIntent | LoanIntent | MoveIntent | PrimarySale | PrivateOfferIntent | RedemptionIntent | RequestForTransferIntent | SellingIntent;
+
+/** Fields to subscribe on */
+export enum IntentField {
+  RemainingQuantity = 'RemainingQuantity',
+  Status = 'Status',
+}
 
 export enum IntentStatus {
   Active = 'ACTIVE',
@@ -900,8 +941,10 @@ export enum IntentStatus {
 export enum IntentTypes {
   Buying = 'BUYING',
   Loan = 'LOAN',
+  Move = 'MOVE',
   PrimarySale = 'PRIMARY_SALE',
   PrivateOffer = 'PRIVATE_OFFER',
+  Redemption = 'REDEMPTION',
   RequestForTransfer = 'REQUEST_FOR_TRANSFER',
   Selling = 'SELLING',
 }
@@ -923,6 +966,19 @@ export type InterestRate = {
 export type Investor = {
   __typename?: 'Investor';
   resourceId: Scalars['String']['output'];
+};
+
+/** An investor's LA-managed network account bound to a specific organization and asset. */
+export type InvestorNetworkAccount = {
+  __typename?: 'InvestorNetworkAccount';
+  /** The bound network identity — a union of variants (wallet today; caip10/custodial when projected). Exactly one variant is set. */
+  account?: Maybe<NetworkAccount>;
+  /** Asset the network account is bound to. */
+  assetId: Scalars['String']['output'];
+  /** LA-assigned account identifier. */
+  id: Scalars['String']['output'];
+  /** Organization that manages this network account. */
+  organizationId: Scalars['String']['output'];
 };
 
 export enum InvestorRole {
@@ -989,6 +1045,12 @@ export type Issuers = {
   nodes?: Maybe<Array<Issuer>>;
   /** Keeps pagination info in-case limit input wes provided */
   pageInfo?: Maybe<PageInfo>;
+};
+
+export type KeyValuePair = {
+  __typename?: 'KeyValuePair';
+  key: Scalars['String']['output'];
+  value: Scalars['String']['output'];
 };
 
 /** Ledger account asset - combines FinP2P account with optional network account */
@@ -1097,7 +1159,7 @@ export type LoanIntent = {
   lenderAccount: FinP2PAssetAccount;
   loanInstruction: LoanInstruction;
   /** Signature policy type */
-  loanSettlementInstruction: LoanSettlementInstruction;
+  loanSettlementInstruction?: Maybe<LoanSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
   signaturePolicy: LoanSignaturePolicy;
@@ -1158,12 +1220,49 @@ export type Messages = {
   nodes?: Maybe<Array<Message>>;
 };
 
-/** Network account - represents external network accounts like wallets */
-export type NetworkAccount = {
-  __typename?: 'NetworkAccount';
-  /** Wallet account if present */
-  wallet?: Maybe<WalletAccount>;
+export type MoveContractDetails = {
+  __typename?: 'MoveContractDetails';
+  asset: AssetOrder;
 };
+
+/** A Move destination asset. Superset of FinP2PAsset (same resourceId + ledgerIdentifier), plus an optional pre-funded pool the Transfer drains into the destination for the hold-transfer-* variants. */
+export type MoveDestination = {
+  __typename?: 'MoveDestination';
+  /** Optional pre-funded pool account drained into this destination by the hold-transfer-* variants (null otherwise) */
+  fromSegregatedAccount?: Maybe<FinP2PAccount>;
+  /** Ledger identifier for the destination asset */
+  ledgerIdentifier?: Maybe<LedgerIdentifier>;
+  /** Resource ID of the destination FinP2P asset */
+  resourceId: Scalars['String']['output'];
+};
+
+export type MoveInstruction = {
+  __typename?: 'MoveInstruction';
+  /** asset's move amount */
+  amount: Scalars['String']['output'];
+  /** destination account information */
+  destination: LedgerAccountAsset;
+  /** source account information */
+  source: LedgerAccountAsset;
+};
+
+export type MoveIntent = {
+  __typename?: 'MoveIntent';
+  /** Allowed destination assets of the migration path (the executor picks one at execution) */
+  destinationAssets?: Maybe<Array<MoveDestination>>;
+  signaturePolicy: MoveSignaturePolicy;
+  /** Signature policy type */
+  signaturePolicyType: SignaturePolicyType;
+  /** Source asset of the migration path (resourceId + ledgerIdentifier; accounts are supplied per-owner at execution) */
+  sourceAsset?: Maybe<FinP2PAsset>;
+  /** Optional segregated account that receives released source tokens for the hold-*-release variants (instead of burning via Redeem) */
+  sourceToSegregatedAccount?: Maybe<FinP2PAccount>;
+};
+
+export type MoveSignaturePolicy = ManualIntentSignaturePolicy | PresignedMoveIntentSignaturePolicy;
+
+/** Network account — exactly one variant, mirroring the proto NetworkAccount oneof. */
+export type NetworkAccount = Caip10Account | CustodialAccount | WalletAccount;
 
 export type NoProof = {
   __typename?: 'NoProof';
@@ -1198,6 +1297,7 @@ export type NotDelivered = {
 export enum OperationType {
   Hold = 'Hold',
   Issue = 'Issue',
+  Move = 'Move',
   Redeem = 'Redeem',
   Release = 'Release',
   Transfer = 'Transfer',
@@ -1394,6 +1494,11 @@ export type PresignedLoanIntentSignaturePolicy = {
   _ignore?: Maybe<Scalars['Boolean']['output']>;
 };
 
+export type PresignedMoveIntentSignaturePolicy = {
+  __typename?: 'PresignedMoveIntentSignaturePolicy';
+  _ignore?: Maybe<Scalars['Boolean']['output']>;
+};
+
 export type PresignedPrivateOfferIntentSignaturePolicy = {
   __typename?: 'PresignedPrivateOfferIntentSignaturePolicy';
   _ignore?: Maybe<Scalars['Boolean']['output']>;
@@ -1420,7 +1525,7 @@ export type PrimarySale = {
   assetTerm: AssetTerm;
   /** Issuer id */
   issuerId: Scalars['String']['output'];
-  sellingSettlementInstruction: SellingSettlementInstruction;
+  sellingSettlementInstruction?: Maybe<SellingSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
   /** Source account - issuer's account from which asset is sold */
@@ -1441,7 +1546,7 @@ export type PrivateOfferIntent = {
   buyer?: Maybe<Scalars['String']['output']>;
   /** resource id of the seller */
   seller?: Maybe<Scalars['String']['output']>;
-  sellingSettlementInstruction: SellingSettlementInstruction;
+  sellingSettlementInstruction?: Maybe<SellingSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
   signaturePolicy: PrivateOfferSignaturePolicy;
@@ -1817,7 +1922,7 @@ export type SellingIntent = {
   assetTerm: AssetTerm;
   /** resource id of the seller */
   seller?: Maybe<Scalars['String']['output']>;
-  sellingSettlementInstruction: SellingSettlementInstruction;
+  sellingSettlementInstruction?: Maybe<SellingSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
   signaturePolicy: SellingSignaturePolicy;
@@ -1860,6 +1965,8 @@ export type Signature = {
   signature: Scalars['String']['output'];
   template: Template;
   templateType: TemplateType;
+  /** Template shape version. Defaults to 1 when the producer is on a pre-versioning finp2p-core release. */
+  templateVersion: Scalars['Int']['output'];
 };
 
 export enum SignaturePolicyType {
@@ -1875,6 +1982,7 @@ export type SignatureProof = {
 export type SignatureProofPolicy = {
   __typename?: 'SignatureProofPolicy';
   signatureTemplate: SignatureTemplate;
+  templateVersion: Scalars['Int']['output'];
   verifyingKey: Scalars['String']['output'];
 };
 
@@ -1897,6 +2005,10 @@ export type StatusTransition = {
 export type Subscription = {
   __typename?: 'Subscription';
   assetDataChanged: AssetDataItem;
+  /** Fires when a new intent is committed. Filters AND together; if a filter is omitted it matches everything. ownerOrgIds matches the org ids OSS derives for the intent. For Move this is the source asset's org; for two-sided intents like RequestForTransfer and Loan it may include both sides. */
+  intentAdded: Intent;
+  /** Fires when an intent field listed in fieldNames changes. Same filter semantics as intentAdded. */
+  intentChanged: Intent;
   planAdded: ExecutionPlan;
   plansChangedBy: ExecutionPlan;
   receiptAdded: Receipt;
@@ -1909,6 +2021,21 @@ export type SubscriptionAssetDataChangedArgs = {
   dataTypes?: InputMaybe<Array<DataType>>;
   identifierType?: InputMaybe<AssetDataIdentifierType>;
   identifierValue?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type SubscriptionIntentAddedArgs = {
+  assetIds?: InputMaybe<Array<Scalars['String']['input']>>;
+  intentTypes?: InputMaybe<Array<IntentTypes>>;
+  ownerOrgIds?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+export type SubscriptionIntentChangedArgs = {
+  assetIds?: InputMaybe<Array<Scalars['String']['input']>>;
+  fieldNames: Array<IntentField>;
+  intentTypes?: InputMaybe<Array<IntentTypes>>;
+  ownerOrgIds?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
@@ -1934,7 +2061,13 @@ export type Template = Eip712Template | HashlistTemplate;
 export type TokenBalance = {
   __typename?: 'TokenBalance';
   assetId: Scalars['String']['output'];
+  availableQuantity: Scalars['String']['output'];
+  heldQuantity: Scalars['String']['output'];
   quantity: Scalars['String']['output'];
+  syncedAvailableQuantity: Scalars['String']['output'];
+  syncedHeldQuantity: Scalars['String']['output'];
+  syncedQuantity: Scalars['String']['output'];
+  syncedQuantityTimestamp: Scalars['Int']['output'];
   transactionsDetails?: Maybe<Array<TransactionDetails>>;
   userId: Scalars['String']['output'];
 };
@@ -2002,6 +2135,8 @@ export type User = Profile & {
   /** Profile metadata, contains ACL information of the profile. */
   metadata: ProfileMetadata;
   name: Scalars['String']['output'];
+  /** Investor network accounts (LA-managed wallets) bound to a specific organization and asset. */
+  networkAccounts?: Maybe<Array<InvestorNetworkAccount>>;
   /** Organization id to whom this profile is associated with. */
   organizationId: Scalars['String']['output'];
   /** user resource version */
@@ -2031,6 +2166,12 @@ export type UserHoldingsArgs = {
 
 /** Represents an User in the network. */
 export type UserInboxArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+};
+
+
+/** Represents an User in the network. */
+export type UserNetworkAccountsArgs = {
   filter?: InputMaybe<Array<Filter>>;
 };
 
@@ -2088,15 +2229,19 @@ export type Workflow = {
   health?: Maybe<WorkflowHealth>;
   /** Id of the workflow */
   id: Scalars['String']['output'];
+  /** Workflow last-modified timestamp (epoch millis) */
+  lastModified: Scalars['Int']['output'];
   /** metadata of the workflow */
   metadata: WorkflowMetadata;
   /** Name of the workflow */
   name: Scalars['String']['output'];
   /** list of reference information of the workflow */
   references: Array<Reference>;
+  /** Current state of the workflow (always populated; the state machine's current node, e.g. the initial state before any transition is applied) */
+  state: Scalars['String']['output'];
   /** Current status of the workflow */
   status: Scalars['String']['output'];
-  /** Current transition id of the workflow */
+  /** Id of the last applied transition (empty until the first transition; use `state` for the workflow's current position) */
   transitionId: Scalars['String']['output'];
   /** version of the workflow */
   version: Scalars['Int']['output'];
@@ -2152,6 +2297,8 @@ export type WorkflowHealthMetadata = {
 /** Health status enumeration */
 export enum WorkflowHealthStatus {
   Healthy = 'HEALTHY',
+  /** Actively retrying but still working (durable signal, core #1251) — not an error state */
+  Retrying = 'RETRYING',
   Stale = 'STALE',
   Stuck = 'STUCK',
   Unhealthy = 'UNHEALTHY',
@@ -2160,6 +2307,8 @@ export enum WorkflowHealthStatus {
 export type WorkflowMetadata = {
   __typename?: 'WorkflowMetadata';
   correlationIds?: Maybe<Array<Scalars['String']['output']>>;
+  /** Non-resetting retry aggregate across all states (never-give-up visibility, core #1251) */
+  cumulativeRetries: Scalars['Int']['output'];
   currentStateRetry: Scalars['Int']['output'];
   retry: Scalars['Int']['output'];
   traceId: Scalars['String']['output'];
@@ -2174,7 +2323,9 @@ export type WorkflowOrder = {
 
 export enum WorkflowOrderField {
   CorrelationId = 'CORRELATION_ID',
+  CreationTimestamp = 'CREATION_TIMESTAMP',
   HealthStatus = 'HEALTH_STATUS',
+  LastModified = 'LAST_MODIFIED',
   /** workflow order */
   Name = 'NAME',
   ReferenceId = 'REFERENCE_ID',

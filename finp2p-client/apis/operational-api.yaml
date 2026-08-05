@@ -571,18 +571,17 @@ paths:
                 errors:
                   - code: 2003
                     message: 'Gateway timeout'
-  /execution/proposals:
+  /execution/approvalsConfig:
     put:
       tags:
         - 'execution'
-      summary: 'Override approvals config'
-      description: 'Override approvals config'
-      operationId: 'Override approvals config'
+      summary: 'Set approvals config'
+      description: 'Sets the approvals configuration for the router. Defines which approvers are required for each router category (tokenization, payments, investor, custodian).'
+      operationId: 'setApprovalsConfig'
       requestBody:
         content:
           application/json:
             example:
-              ownerId: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
               tokenization:
                 http-endpoint-1:
                   config_type: 'http'
@@ -633,8 +632,8 @@ paths:
       tags:
         - 'execution'
       summary: 'Update approvals config'
-      description: 'Update approvals config'
-      operationId: 'update approvals config'
+      description: 'Updates the approvals configuration for the router. Allows partial updates to approvers per router category (tokenization, payments, investor, custodian).'
+      operationId: 'updateApprovalsConfig'
       requestBody:
         content:
           application/json:
@@ -642,7 +641,112 @@ paths:
               update-example-1:
                 summary: 'disable http-endpoint-1, change proposals of ledger-approver-1 and delete payments config'
                 value:
-                  ownerId: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+                  tokenization:
+                    http-endpoint-1:
+                      config_type: 'http'
+                      disabled: true
+                    ledger-approver-1:
+                      config_type: 'ledger'
+                      proposals:
+                        - 'cancel'
+                  payments: null
+            schema:
+              $ref: '#/components/schemas/approvalConfigUpdate'
+      responses:
+        '200':
+          description: 'Configuration updated successfully'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
+  /execution/proposals:
+    put:
+      deprecated: true
+      tags:
+        - 'execution'
+      summary: 'Set approvals config'
+      description: 'Deprecated. Use /execution/approvalsConfig. Sets the approvals configuration for the router. Defines which approvers are required for each router category (tokenization, payments, investor, custodian).'
+      operationId: 'setProposalsConfig'
+      requestBody:
+        content:
+          application/json:
+            example:
+              tokenization:
+                http-endpoint-1:
+                  config_type: 'http'
+                  endpoint: 'http://approver-service.internal/approvals'
+                  timeout: '45s'
+                  proposals:
+                    - 'reset'
+                    - 'cancel'
+                    - 'instruction'
+                ledger-approver-1:
+                  config_type: 'ledger'
+                  name: 'ledger-approver-1'
+                  proposals:
+                    - 'reset'
+                    - 'instruction'
+              payments:
+                ledger-approver-2:
+                  config_type: 'ledger'
+                  name: 'payments-ledger-approver'
+                  proposals:
+                    - 'instruction'
+            schema:
+              $ref: '#/components/schemas/approvalConfig'
+      responses:
+        '201':
+          description: 'Created the new configuration successfully'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
+    patch:
+      deprecated: true
+      tags:
+        - 'execution'
+      summary: 'Update approvals config'
+      description: 'Deprecated. Use /execution/approvalsConfig. Updates the approvals configuration for the router. Allows partial updates to approvers per router category (tokenization, payments, investor, custodian).'
+      operationId: 'updateProposalsConfig'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              update-example-1:
+                summary: 'disable http-endpoint-1, change proposals of ledger-approver-1 and delete payments config'
+                value:
                   tokenization:
                     http-endpoint-1:
                       config_type: 'http'
@@ -1186,11 +1290,19 @@ paths:
         - name: 'assetMatchingType'
           in: 'query'
           description: 'asset matching type'
-          required: true
+          required: false
           schema:
             type: 'string'
-            pattern: .*\S.*
-            x-autoMinLength: true
+            minLength: 1
+            maxLength: 255
+        - name: 'ledgerName'
+          in: 'query'
+          description: 'filter policies whose ledgerNames allow-list contains this ledger (or have no ledger constraint)'
+          required: false
+          schema:
+            type: 'string'
+            minLength: 1
+            maxLength: 255
       responses:
         '200':
           description: 'found some policies'
@@ -1603,7 +1715,7 @@ paths:
           application/json:
             schema:
               type: 'object'
-              required: ['name', 'endpoint']
+              required: ['name', 'endpoint', 'requestTimeout', 'backoff', 'singleRequestTimeout']
               properties:
                 name:
                   type: 'string'
@@ -1619,6 +1731,8 @@ paths:
                   $ref: '#/components/schemas/adapterAuthOptions'
                 idempotency:
                   $ref: '#/components/schemas/adapterIdempotencyOptions'
+                retryStrategy:
+                  $ref: '#/components/schemas/adapterRetryStrategy'
                 displayName:
                   type: 'string'
                   description: 'display name'
@@ -1626,28 +1740,42 @@ paths:
                   x-autoMinLength: true
                 requestTimeout:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'request timeout (e.g. 300s)'
-                  default: '300s'
                   minLength: 1
-                  x-autoMinLength: true
                 backoff:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'backoff (e.g. 60s)'
-                  default: '60s'
                   minLength: 1
-                  x-autoMinLength: true
                 singleRequestTimeout:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'single request timeout (e.g. 90s)'
-                  default: '90s'
                   minLength: 1
-                  x-autoMinLength: true
       responses:
         '200':
           description: 'successful operation'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
   /custody/{name}/update:
     patch:
       tags:
@@ -1694,33 +1822,52 @@ paths:
                     - $ref: '#/components/schemas/adapterIdempotencyOptionsOpt'
                   nullable: true
                   x-custom-format: 'nullable+idempotencyOptions'
+                retryStrategy:
+                  oneOf:
+                    - $ref: '#/components/schemas/adapterRetryStrategy'
+                  nullable: true
+                  x-custom-format: 'nullable+retryStrategy'
                 requestTimeout:
                   type: 'string'
                   description: 'request timeout (e.g. 300s)'
                   x-custom-format: 'nullable'
                   nullable: true
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
-                  minLength: 1
-                  x-autoMinLength: true
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                 backoff:
                   type: 'string'
                   description: 'backoff (e.g. 60s)'
                   x-custom-format: 'nullable'
                   nullable: true
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
-                  minLength: 1
-                  x-autoMinLength: true
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                 singleRequestTimeout:
                   type: 'string'
                   description: 'single request timeout (e.g. 90s)'
                   x-custom-format: 'nullable'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   nullable: true
-                  minLength: 1
-                  x-autoMinLength: true
       responses:
         '200':
           description: 'successful operation'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
   /ledger/{name}/update:
     patch:
       tags:
@@ -1755,25 +1902,19 @@ paths:
                   description: 'The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error'
                   x-custom-format: 'nullable'
                   nullable: true
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
-                  minLength: 1
-                  x-autoMinLength: true
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                 backoff:
                   type: 'string'
                   description: 'The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures'
                   x-custom-format: 'nullable'
                   nullable: true
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
-                  minLength: 1
-                  x-autoMinLength: true
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                 singleRequestTimeout:
                   type: 'string'
                   description: 'The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration'
                   x-custom-format: 'nullable'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   nullable: true
-                  minLength: 1
-                  x-autoMinLength: true
                 auth:
                   oneOf:
                     - $ref: '#/components/schemas/adapterAuthOptionsOpt'
@@ -1784,6 +1925,11 @@ paths:
                     - $ref: '#/components/schemas/adapterIdempotencyOptionsOpt'
                   nullable: true
                   x-custom-format: 'nullable+idempotencyOptions'
+                retryStrategy:
+                  oneOf:
+                    - $ref: '#/components/schemas/adapterRetryStrategy'
+                  nullable: true
+                  x-custom-format: 'nullable+retryStrategy'
                 displayName:
                   type: 'string'
                   description: 'A human-readable name for the ledger that appears in user interfaces'
@@ -1832,7 +1978,7 @@ paths:
           application/json:
             schema:
               type: 'object'
-              required: ['name', 'endpoint']
+              required: ['name', 'endpoint', 'requestTimeout', 'backoff', 'singleRequestTimeout']
               properties:
                 name:
                   type: 'string'
@@ -1848,6 +1994,8 @@ paths:
                   $ref: '#/components/schemas/adapterAuthOptions'
                 idempotency:
                   $ref: '#/components/schemas/adapterIdempotencyOptions'
+                retryStrategy:
+                  $ref: '#/components/schemas/adapterRetryStrategy'
                 displayName:
                   type: 'string'
                   description: 'A human-readable name for the ledger that appears in user interfaces'
@@ -1855,25 +2003,19 @@ paths:
                   x-autoMinLength: true
                 requestTimeout:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'The maximum time allowed for the entire request operation to complete, including all retry attempts. After this duration, the request will fail with a timeout error'
-                  default: '300s'
                   minLength: 1
-                  x-autoMinLength: true
                 backoff:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'The waiting period between consecutive retry attempts when a request fails. This delay helps prevent overwhelming the ledger adapter during temporary failures'
-                  default: '60s'
                   minLength: 1
-                  x-autoMinLength: true
                 singleRequestTimeout:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'The maximum time allowed for each individual request attempt. If a single attempt exceeds this duration, it will be retried according to the backoff configuration'
-                  default: '90s'
                   minLength: 1
-                  x-autoMinLength: true
                 balanceSyncAllowed:
                   type: 'boolean'
                   description: 'Indicates whether balance synchronization is enabled for this ledger'
@@ -1937,18 +2079,14 @@ paths:
                   x-autoMinLength: true
                 requestTimeout:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'The maximum time allowed for each request to the data provider adapter'
                   default: '30s'
-                  minLength: 1
-                  x-autoMinLength: true
                 backoff:
                   type: 'string'
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                   description: 'The waiting period between consecutive retry attempts when a request fails'
                   default: '5m'
-                  minLength: 1
-                  x-autoMinLength: true
       responses:
         '200':
           description: 'successful operation'
@@ -1956,6 +2094,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/dataProviderResponse'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
   /dataprovider/{name}/update:
     patch:
       tags:
@@ -2007,17 +2165,13 @@ paths:
                   description: 'The maximum time allowed for each request to the data provider adapter'
                   x-custom-format: 'nullable'
                   nullable: true
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
-                  minLength: 1
-                  x-autoMinLength: true
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
                 backoff:
                   type: 'string'
                   description: 'The waiting period between consecutive retry attempts when a request fails'
                   x-custom-format: 'nullable'
                   nullable: true
-                  pattern: '^-?(?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m)?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?(?:\d+(?:\.\d+)?(us|µs))?(?:\d+(?:\.\d+)?ns)?$'
-                  minLength: 1
-                  x-autoMinLength: true
+                  pattern: '^[1-9]\d*(?:\.\d+)?(h|m|s|ms|us|µs|ns)(\d+(?:\.\d+)?(h|m|s|ms|us|µs|ns))*$'
       responses:
         '200':
           description: 'successful operation'
@@ -2025,8 +2179,200 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/dataProviderResponse'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
+  /capabilities:
+    get:
+      tags:
+        - 'capabilities'
+      summary: 'Get node capabilities'
+      description: 'Returns this node''s effective protocol capabilities, derived from its configured trading policies plus a code-level baseline. Served from a cache (rebuilt on a cold cache); read-only.'
+      operationId: 'getNodeCapabilities'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/nodeCapabilities'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 6102
+                    message: 'Data mapping error'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2000
+                    message: 'General server error'
+        '502':
+          description: 'Bad Gateway'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2300
+                    message: 'An internal communication error'
+        '503':
+          description: 'Service Unavailable'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2002
+                    message: 'Service unavailable'
+        '504':
+          description: 'Gateway Timeout'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2003
+                    message: 'Gateway timeout'
 components:
   schemas:
+    nodeCapabilities:
+      type: 'object'
+      description: 'The set of protocol features this node supports. Static capability ids are the protocol enum names (e.g. SERVICE_NODE, INTENT_BUYING); per-intent capabilities (incl. signing) are carried under intentCapabilities.'
+      properties:
+        protocolVersion:
+          type: 'integer'
+          format: 'int64'
+          description: 'The protocol version this node currently speaks.'
+        minProtocolVersion:
+          type: 'integer'
+          format: 'int64'
+          description: 'The oldest protocol version this node can interoperate with.'
+        services:
+          type: 'array'
+          description: 'Supported P2P service capability ids.'
+          items:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+        execution:
+          type: 'array'
+          description: 'Supported execution-plan capability ids.'
+          items:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+        operations:
+          type: 'array'
+          description: 'Supported async operation capability ids.'
+          items:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+        custodySigning:
+          $ref: '#/components/schemas/signatureCapability'
+        intentCapabilities:
+          type: 'array'
+          description: 'Policy-derived per-intent capabilities.'
+          items:
+            $ref: '#/components/schemas/intentCapability'
+    intentCapability:
+      type: 'object'
+      description: 'A supported intent and the per-intent capabilities the node handles for it.'
+      properties:
+        id:
+          type: 'string'
+          description: 'Intent capability id (e.g. INTENT_BUYING).'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        features:
+          type: 'array'
+          description: 'Per-intent feature ids (e.g. INTENT_FEATURE_SETTLEMENT_FULL); empty means the base intent with no optional features.'
+          items:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+        instructions:
+          type: 'array'
+          description: 'Instruction capability ids used by this intent''s policies.'
+          items:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+        signing:
+          $ref: '#/components/schemas/signatureCapabilities'
+    signatureCapabilities:
+      type: 'object'
+      description: 'Signing capabilities grouped by signing kind.'
+      properties:
+        investor:
+          $ref: '#/components/schemas/signatureCapability'
+        receiptProof:
+          $ref: '#/components/schemas/signatureCapability'
+    signatureCapability:
+      type: 'object'
+      description: 'The signing menu for one kind.'
+      properties:
+        algorithms:
+          type: 'array'
+          description: 'Public-key algorithm enum names.'
+          items:
+            type: 'string'
+            enum: ['ECDSA_SECP256K1']
+        templates:
+          type: 'array'
+          description: 'Supported signature templates.'
+          items:
+            $ref: '#/components/schemas/templateSupport'
+    templateSupport:
+      type: 'object'
+      description: 'One signature template with its supported versions and hash functions.'
+      properties:
+        type:
+          type: 'string'
+          description: 'Template type (HashList | EIP712).'
+          enum: ['HashList', 'EIP712']
+        versions:
+          type: 'array'
+          description: 'Supported template versions (back-compat).'
+          items:
+            type: 'integer'
+            format: 'int64'
+        hashFunctions:
+          type: 'array'
+          description: 'Hash function enum names valid for this template.'
+          items:
+            type: 'string'
+            enum: ['SHA_3_256', 'BLAKE2B', 'KECCAK_256']
     dataProviderResponse:
       type: 'object'
       properties:
@@ -2304,7 +2650,10 @@ components:
         timeout:
           type: 'string'
           format: 'duration'
-          pattern: '^\d+(\.\d{1,9})?s$'
+          description: |
+            Approver timeout in Go duration format (e.g. `90s`, `1m30s`, `1h`). Values are normalized on write, so the value read back may differ from what was written (e.g. `90s` may be returned as `1m30s`).
+          minLength: 1
+          pattern: '^(\d+h)?(\d+m)?(\d+(\.\d{1,9})?s)?$'
         proposals:
           $ref: '#/components/schemas/proposalsApprovalConfig'
     httpEndpointRoleApprovalConfigUpdate:
@@ -2378,6 +2727,22 @@ components:
             type: 'string'
             pattern: '^([1-5][0-9]{2})$'
           nullable: true
+    adapterRetryStrategy:
+      type: 'object'
+      description: 'Per-binding retry policy for the external adapter''s WORKFLOW-layer handling of transient (technical) errors. When omitted, the service falls back to the global retry defaults (prior behavior). transientErrorsMaxRetries and transientErrorsUnlimitedRetries are mutually exclusive; set at most one.'
+      properties:
+        transientErrorsMaxRetries:
+          type: 'integer'
+          minimum: 0
+          description: 'Number of times the workflow re-drives the handler after a transient error before hanging. Omit to use the global default (flow_handler_retries_on_technical_error). Ignored when transientErrorsUnlimitedRetries is true.'
+        transientErrorsUnlimitedRetries:
+          type: 'boolean'
+          default: false
+          description: 'Retry transient errors indefinitely, overriding transientErrorsMaxRetries and all stop-limits. Business errors are unaffected and still terminate the workflow.'
+        alertAfter:
+          type: 'integer'
+          minimum: 1
+          description: 'Cumulative technical-retry count at which the saturation alert fires, followed by dampened periodic re-alerts. Omit to use the engine default.'
     adapterAuthOptions:
       type: 'array'
       description: 'List of authentication mechanisms supported by this ledger'
@@ -2656,7 +3021,7 @@ components:
           $ref: '#/components/schemas/transactionDetails'
         operationType:
           type: 'string'
-          enum: ['issue', 'transfer', 'hold', 'release', 'redeem']
+          enum: ['issue', 'transfer', 'hold', 'release', 'redeem', 'move']
         proof:
           $ref: '#/components/schemas/proofPolicy'
     transactionDetails:
@@ -2731,6 +3096,8 @@ components:
             $ref: '#/components/schemas/executionParticipant'
         contract:
           $ref: '#/components/schemas/contract'
+        metadata:
+          $ref: 'common-external-components.yaml#/components/schemas/customMetadata'
     contract:
       type: 'object'
       properties:
@@ -3080,6 +3447,13 @@ components:
         type:
           type: 'string'
           enum: ['hashList']
+        templateVersion:
+          type: 'integer'
+          minimum: 1
+          description: |
+            This version identifies the HashList template specification revision.
+            When omitted, the verifier resolves the version from the
+            router/ledger/asset-profile resolver chain.
         hashGroups:
           type: 'array'
           items:
@@ -3179,6 +3553,15 @@ components:
         type:
           type: 'string'
           enum: ['EIP712']
+        templateVersion:
+          type: 'integer'
+          minimum: 1
+          description: |
+            Template shape version. When omitted, the verifier resolves the
+            version from the router/ledger/asset-profile resolver chain.
+            Not to be confused with EIP712Domain.version (the EIP-712
+            contract domain version). See pkg/signature/specs/eip712/ for
+            versioned specs.
         domain:
           $ref: '#/components/schemas/EIP712Domain'
         message:
@@ -3241,7 +3624,7 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/receiptAssetDetails'
         operationType:
           type: 'string'
-          enum: ['hold', 'issue', 'redeem', 'release', 'transfer', 'unknown']
+          enum: ['hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'unknown']
         operationRef:
           type: 'string'
           pattern: .*\S.*
@@ -3371,6 +3754,12 @@ components:
           type: 'array'
           items:
             $ref: '#/components/schemas/settlementStrategyType'
+        signingCapabilities:
+          $ref: '#/components/schemas/signatureCapabilities'
+        requiredProtocolVersion:
+          type: 'integer'
+          format: 'uint32'
+          description: 'minimum FinP2P protocol version required to execute this policy''s instruction graph; absent or 0 = protocol baseline (version 1)'
     createPolicyRequest:
       type: 'object'
       required: ['policyId', 'description', 'priority', 'intent', 'instructions']
@@ -3409,6 +3798,12 @@ components:
           type: 'array'
           items:
             $ref: '#/components/schemas/settlementStrategyType'
+        signingCapabilities:
+          $ref: '#/components/schemas/signatureCapabilities'
+        requiredProtocolVersion:
+          type: 'integer'
+          format: 'uint32'
+          description: 'minimum FinP2P protocol version required to execute this policy''s instruction graph; absent or 0 = protocol baseline (version 1)'
     updatePolicyRequest:
       type: 'object'
       required: ['policyId', 'description', 'priority', 'intent', 'instructions', 'version', 'assetMatchingCriteria']
@@ -3426,7 +3821,7 @@ components:
           description: 'priority of the policy'
         intent:
           type: 'string'
-          enum: ['primarySale', 'buyingIntent', 'sellingIntent', 'loanIntent', 'redemptionIntent', 'privateOfferIntent', 'requestForTransferIntent']
+          enum: ['primarySale', 'buyingIntent', 'sellingIntent', 'loanIntent', 'redemptionIntent', 'privateOfferIntent', 'requestForTransferIntent', 'moveIntent']
         description:
           type: 'string'
           maxLength: 255
@@ -3452,6 +3847,12 @@ components:
           type: 'array'
           items:
             $ref: '#/components/schemas/settlementStrategyType'
+        signingCapabilities:
+          $ref: '#/components/schemas/signatureCapabilities'
+        requiredProtocolVersion:
+          type: 'integer'
+          format: 'uint32'
+          description: 'minimum FinP2P protocol version required to execute this policy''s instruction graph; absent or 0 = protocol baseline (version 1)'
     settlementStrategyType:
       type: 'string'
       enum: ['NOSETTLEMENT', 'PARTIAL', 'FULL']
@@ -3498,6 +3899,18 @@ components:
             type: 'string'
             maxLength: 255
             minLength: 2
+        ledgerNames:
+          description: |
+            Optional allow-list of ledger names. When non-empty, the policy
+            attaches only to assets whose ledger binding name matches one of
+            the listed values (case-insensitive). Empty or omitted = no
+            constraint on the asset's ledger binding.
+          nullable: false
+          type: 'array'
+          items:
+            type: 'string'
+            maxLength: 255
+            minLength: 1
         ledgerAssetIdentifiers:
           type: 'array'
           items:
@@ -3561,7 +3974,7 @@ components:
       properties:
         instruction:
           type: 'string'
-          enum: ['Hold', 'Transfer', 'Release', 'Await', 'Issue', 'RevertHold', 'Redeem']
+          enum: ['Hold', 'Transfer', 'Release', 'Await', 'Issue', 'RevertHold', 'Redeem', 'Move']
         sequence:
           type: 'integer'
           format: 'uint32'
