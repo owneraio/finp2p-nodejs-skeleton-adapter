@@ -115,6 +115,28 @@ export type OssNetworkAccount = {
   wallet?: { type: string; address: string } | null
 };
 
+/**
+ * One variant of the OSS `NetworkAccount` union, discriminated by `kind`
+ * (an alias of `__typename`; see the `networkAccount` fragment for why it
+ * isn't called `type`).
+ */
+export type OssNetworkAccountVariant =
+  | { kind: 'WalletAccount', type: string, address: string }
+  | { kind: 'Caip10Account', network: string, address: string }
+  | { kind: 'CustodialAccount', provider: string, vaultAccountId: string, assetId?: string | null };
+
+/**
+ * An investor's onboarded network account as projected into the OSS read
+ * model, scoped to one `(organizationId, assetId)` pair. `id` is the
+ * adapter-assigned identifier — the same one `removeInvestorAccount` takes.
+ */
+export type OssInvestorNetworkAccount = {
+  organizationId: string,
+  assetId: string,
+  id: string,
+  account: OssNetworkAccountVariant | null
+};
+
 export type OssPageInfo = {
   endCursor: string | null;
   hasNextPage: boolean;
@@ -168,6 +190,8 @@ export type OssOwner = {
       syncedBalance: string,
     }[]
   }
+  /** Only selected when the query is run with `includeNetworkAccounts: true`. */
+  networkAccounts?: OssInvestorNetworkAccount[] | null
   metadata: {
     acl: string[]
   }

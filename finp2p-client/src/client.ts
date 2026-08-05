@@ -70,6 +70,11 @@ export class FinP2PClient {
     return this.finAPIClient.removeInvestorAccount(...args);
   }
 
+  /** Read back an investor's onboarded network accounts from the OSS read model. */
+  async getOwnerNetworkAccounts(...args: Parameters<OssClient['getOwnerNetworkAccounts']>) {
+    return this.ossClient.getOwnerNetworkAccounts(...args);
+  }
+
   // ── Intent creation / execution ──
 
   async createIntent(...args: Parameters<FinAPIClient['createIntent']>) {

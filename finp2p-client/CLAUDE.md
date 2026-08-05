@@ -35,6 +35,8 @@ An investor can have an on-chain **network account** onboarded per `(organizatio
 
 All four return `202 { cid }`. The ledger adapter then issues a **challenge**; poll `getOperationStatus(cid)` &mdash; while `isCompleted` is false the response carries `challenge`, and on completion it carries `{ id, networkAccount }`. Only the `signatureTemplate` variant round-trips through `submitAccountProof`; `walletConnect`, `deposit`, and `fireblocksApproval` are fulfilled out of band and the adapter reports verification directly.
 
+Read the onboarded accounts back from the OSS side with `getOwnerNetworkAccounts(ownerId, { organizationId?, assetId? })`, which returns `OssInvestorNetworkAccount[]`. The `account` union is discriminated by `kind` (an alias of `__typename`) &mdash; not `type`, because `WalletAccount` already has a field called `type`.
+
 Two things to know:
 
 - **`Idempotency-Key` is required** on all four routes &mdash; they are the only application-API routes where it is not optional. The client defaults it to `generateNonce().toString('hex')`; every method takes an optional trailing `idempotencyKey` to override.
