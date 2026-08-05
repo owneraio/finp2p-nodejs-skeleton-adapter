@@ -110,9 +110,19 @@ fragment ledgerAccountAssetFields on LedgerAccountAsset {
         }
     }
     networkAccount {
-        wallet {
+        kind: __typename
+        ... on WalletAccount {
             type
             address
+        }
+        ... on Caip10Account {
+            network
+            address
+        }
+        ... on CustodialAccount {
+            provider
+            vaultAccountId
+            assetId
         }
     }
 }

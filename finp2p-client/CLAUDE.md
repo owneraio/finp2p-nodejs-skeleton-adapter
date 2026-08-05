@@ -63,16 +63,31 @@ await client.getAssetProofPolicy(assetCode, assetType, paymentOrgId);
 
 ## API spec management
 
-Specs are sourced from the FinP2P router repo (`apis/` directory):
+Specs come from **two** upstream repos &mdash; a frequent source of confusion:
+
+| File(s) | Source |
+|---------|--------|
+| `application-api.base.yaml`, `common-external-components.yaml`, `operational-api.yaml` (from `operational-api.gen.yaml`), `dlt-adapter-api.yaml`, `custody-adapter-api.yaml` | `owneraio/finp2p-core` &rarr; `api/` |
+| `ownership.graphql` | `owneraio/oss` &rarr; `graphql/ownership.graphql` |
 
 ```bash
 npm run api-generate       # application API types
 npm run op-api-generate    # operational API types (with post-processing)
-npm run graphql-gen        # GraphQL types from .graphql schema files
+npm run graphql-gen        # GraphQL types from the vendored schema
 npm run generate-all       # all of the above
+npm run validate:graphql   # validate OSS queries against the schema (no output)
+npm run smoke              # wire-level checks; needs `npm run build` first
 ```
 
 The operational API post-processor (`scripts/postprocess-model-gen.ts`) handles the same circular reference and export issues as the skeleton's post-processor.
+
+**Re-sync `ownership.graphql` wholesale; never hand-edit it to match a query.** It is the only thing that constrains the OSS queries, so a hand-patched schema silently legitimises a broken selection set. `prebuild` runs `validate:graphql`, which checks every document in `src/oss/graphql/` against it and fails the build with a file:line pointer &mdash; so `npm run build` (what CI runs) catches a query/schema mismatch. `graphqlvalidate.ts` must keep the same `schema` and `documents` as `grahpqlgen.ts`.
+
+`dlt-adapter-api.yaml` and `custody-adapter-api.yaml` are reference copies only &mdash; no script generates from them, so nothing detects their drift. Re-sync them by hand when consulting them.
+
+### OSS version floor
+
+The OSS `NetworkAccount` was an object with a `wallet` field until [oss#557](https://github.com/owneraio/oss/pull/557) (2026-07-29) turned it into a `union NetworkAccount = WalletAccount | Caip10Account | CustodialAccount`. The two forms are mutually exclusive, so the queries here **require OSS at or past that commit**; against an older deployment they fail with `Cannot query field ... on type "NetworkAccount"`. If you ever need to target a pre-#557 router, revert the vendored schema and all three selections together &mdash; `owners.graphql`, `receipts.graphql`, `plans.graphql` &mdash; not just one.
 
 ## Build & publish
 

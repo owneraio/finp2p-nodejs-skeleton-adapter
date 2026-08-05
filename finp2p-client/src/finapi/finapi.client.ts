@@ -81,6 +81,12 @@ export type NetworkAccountChallenge = FinAPIComponents['schemas']['networkAccoun
  * they are the only application-API routes where it is not optional. The value
  * is a hex-encoded 32-byte nonce: 24 random bytes plus an 8-byte big-endian
  * epoch-seconds suffix, which is what `generateNonce()` produces.
+ *
+ * A fresh key is minted per call, which is the right default for independent
+ * requests but provides no deduplication on retry: a caller that retries a
+ * timed-out request without passing its own key gets a new key, and the router
+ * treats it as a new operation. If you own the retry loop, generate one key and
+ * thread the same value through every attempt.
  */
 function idempotencyHeader(idempotencyKey?: string) {
   return { 'Idempotency-Key': idempotencyKey ?? generateNonce().toString('hex') };

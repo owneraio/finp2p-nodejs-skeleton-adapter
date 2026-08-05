@@ -4,9 +4,14 @@ export type LedgerAssetInfo = {
   ledgerReference?: LedgerReference
 };
 
+/**
+ * `network` and `standard` are nullable upstream (only `tokenId` is non-null in
+ * the OSS schema), so they are optional here rather than promising a string the
+ * server may not send.
+ */
 export type Caip19Identifier = {
-  network: string;
-  standard: string;
+  network?: string | null;
+  standard?: string | null;
   tokenId: string;
 };
 
@@ -109,10 +114,6 @@ export type OssAsset = {
     nodes: OssIntent[]
   }
   ledgerAssetInfo: LedgerAssetInfo
-};
-
-export type OssNetworkAccount = {
-  wallet?: { type: string; address: string } | null
 };
 
 /**
@@ -289,7 +290,7 @@ export type OssLedgerAccountAsset = {
       custodian?: { orgId: string } | null;
     } | null;
   };
-  networkAccount?: { wallet?: { type: string; address: string } | null } | null;
+  networkAccount?: OssNetworkAccountVariant | null;
 };
 
 export type OssAssetOrder = {
