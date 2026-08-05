@@ -22,6 +22,24 @@ REST client for the FinP2P router's application and operational APIs:
 - **`op-model-gen.ts`** &mdash; Types generated from the router's `operational-api.yaml` OpenAPI spec (includes the `operationStatus` type used for callbacks)
 - **`finapi.client.ts`** &mdash; `FinAPIClient` &mdash; HTTP client using `openapi-fetch`. Key methods: `createAsset`, `shareProfile`, `getOperationStatus`, `sendCallback`, `importTransactions`, `getExecutionPlan`, `waitForOperationCompletion`
 
+### Investor network accounts (onboarding)
+
+An investor can have an on-chain **network account** onboarded per `(organization, asset)`, which operation legs may then name explicitly via the optional `networkAccount` field on the shared account schemas.
+
+| Method | Route |
+|--------|-------|
+| `createInvestorAccount` | `POST /profiles/investor/{investorId}/account/create` &mdash; adapter generates the account and holds the keys |
+| `bindInvestorAccount` | `POST /profiles/investor/{investorId}/account/bind` &mdash; caller supplies an existing account + `ownershipSignature` |
+| `submitAccountProof` | `POST /profiles/investor/{investorId}/account/proof` &mdash; fulfils a `signatureTemplate` challenge |
+| `removeInvestorAccount` | `DELETE /profiles/investor/{investorId}/account/{accountId}` |
+
+All four return `202 { cid }`. The ledger adapter then issues a **challenge**; poll `getOperationStatus(cid)` &mdash; while `isCompleted` is false the response carries `challenge`, and on completion it carries `{ id, networkAccount }`. Only the `signatureTemplate` variant round-trips through `submitAccountProof`; `walletConnect`, `deposit`, and `fireblocksApproval` are fulfilled out of band and the adapter reports verification directly.
+
+Two things to know:
+
+- **`Idempotency-Key` is required** on all four routes &mdash; they are the only application-API routes where it is not optional. The client defaults it to `generateNonce().toString('hex')`; every method takes an optional trailing `idempotencyKey` to override.
+- **`walletAccount.type` must be exactly `'walletAccount'`.** The router compares the adapter's onboarding echo byte-for-byte against the account named on an operation leg, so any other token (e.g. `'wallet'`) causes a spurious 7351 `AccountNotWhitelisted` on every operation after a successful bind.
+
 ### OSS client (`src/oss/`)
 
 GraphQL client for the router's Object Storage Service:

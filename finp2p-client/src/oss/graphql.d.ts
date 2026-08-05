@@ -107,8 +107,6 @@ export type Asset = Profile & {
   /** Profile metadata, contains ACL information of the profile. */
   metadata: ProfileMetadata;
   name: Scalars['String']['output'];
-  /** omnibus account for the asset, if applicable */
-  orgSettlementAccount?: Maybe<NetworkAccount>;
   /** Organization id to whom this profile is associated with. */
   organizationId: Scalars['String']['output'];
   /** Describe the policies active on the asset */

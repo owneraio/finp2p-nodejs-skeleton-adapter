@@ -109,7 +109,6 @@ export type OssAsset = {
     nodes: OssIntent[]
   }
   ledgerAssetInfo: LedgerAssetInfo
-  orgSettlementAccount?: OssNetworkAccount | null
 };
 
 export type OssNetworkAccount = {

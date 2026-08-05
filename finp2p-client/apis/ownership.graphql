@@ -106,9 +106,6 @@ type Asset implements Profile  {
 
     "whether the asset is auto-shared"
     autoShare: Boolean!
-
-    "omnibus account for the asset, if applicable"
-    orgSettlementAccount: NetworkAccount
 }
 
 type LedgerAssetInfo {

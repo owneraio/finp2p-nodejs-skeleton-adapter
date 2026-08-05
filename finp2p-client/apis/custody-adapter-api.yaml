@@ -26,6 +26,7 @@ paths:
           schema:
             type: string
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -36,7 +37,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: 'common-external-components.yaml#/components/schemas/PlanApprovalResponse'
+                $ref: 'common-external-components.yaml#/components/schemas/ExecutionPlanApprovalOperation'
         '202':
           description: Operation is pending
           content:
@@ -105,6 +106,7 @@ paths:
       description: Request adapter approval or rejection to a proposal in an execution plan
       operationId: executionPlanProposal
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -116,12 +118,6 @@ paths:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /plan/proposal/status:
     post:
       tags:
@@ -130,6 +126,7 @@ paths:
       description: notify the adapter on proposal status
       operationId: executionPlanProposalStatus
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -140,12 +137,6 @@ paths:
           content: {}
         '204':
           description: successful operation
-          content: {}
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
           content: {}
   /accounts:
     post:
@@ -625,7 +616,7 @@ components:
           x-autoMinLength: true
         type:
           type: string
-          enum: ["string", "int"]
+          enum: ["string", "int", "bytes"]
           description: 'type of field'
         value:
           type: string

@@ -52,6 +52,24 @@ export class FinP2PClient {
     return this.finAPIClient.createOwnerAccount(...args);
   }
 
+  // ── Investor network accounts (onboarding) ──
+
+  async createInvestorAccount(...args: Parameters<FinAPIClient['createInvestorAccount']>) {
+    return this.finAPIClient.createInvestorAccount(...args);
+  }
+
+  async bindInvestorAccount(...args: Parameters<FinAPIClient['bindInvestorAccount']>) {
+    return this.finAPIClient.bindInvestorAccount(...args);
+  }
+
+  async submitAccountProof(...args: Parameters<FinAPIClient['submitAccountProof']>) {
+    return this.finAPIClient.submitAccountProof(...args);
+  }
+
+  async removeInvestorAccount(...args: Parameters<FinAPIClient['removeInvestorAccount']>) {
+    return this.finAPIClient.removeInvestorAccount(...args);
+  }
+
   // ── Intent creation / execution ──
 
   async createIntent(...args: Parameters<FinAPIClient['createIntent']>) {

@@ -41,12 +41,6 @@ paths:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /plan/proposal:
     post:
       tags:
@@ -66,12 +60,6 @@ paths:
             application/json:
               schema:
                 $ref: 'common-external-components.yaml#/components/schemas/ApproveExecutionPlanResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /plan/proposal/status:
     post:
       tags:
@@ -90,12 +78,6 @@ paths:
           content: {}
         '204':
           description: successful operation
-          content: {}
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
           content: {}
   /payments/depositInstruction:
     post:
@@ -123,12 +105,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DepositInstructionResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /payments/payout:
     post:
       tags:
@@ -155,12 +131,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PayoutResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /assets/getBalance:
     post:
       deprecated: true
@@ -181,12 +151,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetAssetBalanceResponse'
-        '404':
-          description: Owner not found
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /assets/create:
     post:
       tags:
@@ -213,12 +177,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateAssetResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /assets/issue:
     post:
       tags:
@@ -245,12 +203,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IssueAssetsResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /assets/redeem:
     post:
       tags:
@@ -277,12 +229,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RedeemAssetsResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
+  /assets/move:
+    post:
+      tags:
+        - transactions
+      summary: Asset Token Move
+      description: Move existing asset token to another ledger
+      operationId: moveAssets
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+          schema:
+            type: string
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveAssetsRequest'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveAssetsResponse'
   /assets/transfer:
     post:
       tags:
@@ -309,12 +281,123 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransferAssetResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
+  /accounts/create:
+    post:
+      tags:
+        - management
+      summary: Create or bind an investor account on this LA (Phase 1)
+      description: |
+        Single LA-side endpoint covering both flows:
+
+        - **Create new** — `bindInfo` is absent. The LA generates a fresh wallet on the
+          asset's network.
+        - **Bind existing** — `bindInfo` carries the caller-supplied `networkAccount`
+          and `ownershipSignature` (proof-of-ownership hint).
+
+        The LA issues a **challenge** (signatureTemplate / walletConnect / deposit /
+        fireblocksApproval / …) which the user must fulfill. Two response shapes:
+
+        - `207 Multi-Status` — challenge ready immediately; body has `challenge` and
+          `operationResponseStrategy`.
+        - `202 Accepted` — LA needs more time; body has `cid` and
+          `operationResponseStrategy`. Asset node polls or awaits callback per strategy;
+          the challenge arrives via `GET /operations/status/{cid}`.
+
+        The `ledger.accounts.wallets` jsonb column is updated **only after challenge verification**.
+      operationId: createAccount
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+          schema:
+            type: string
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+        required: true
+      responses:
+        '202':
+          description: Challenge will be issued asynchronously; poll `/operations/status/{cid}`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOperationAccepted'
+        '207':
+          description: Challenge issued immediately as part of the response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOperationChallenge'
+  /accounts/{cid}/proof:
+    post:
+      tags:
+        - management
+      summary: Submit signature proof for a signatureTemplate challenge (Phase 1)
+      description: |
+        Used only when the challenge `type` is `signatureTemplate`. The asset node forwards
+        the client's signature; the LA verifies it against the challenge payload. Verification
+        outcome is reported via the workflow's normal response strategy.
+      operationId: submitAccountProof
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+          schema:
+            type: string
+          required: true
+        - name: cid
+          in: path
+          required: true
+          description: Correlation id of the account workflow.
+          schema:
+            type: string
+            x-allowEmpty: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitAccountProofRequest'
+        required: true
+      responses:
+        '200':
+          description: Proof accepted; verification continues per response strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOperationAccepted'
+  /accounts/{accountId}:
+    delete:
+      tags:
+        - management
+      summary: Unbind an investor account (Phase 1)
+      description: |
+        Removes the account entry from the `ledger.accounts.wallets` jsonb column. Async; cid in response.
+      operationId: removeAccount
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)
+          schema:
+            type: string
+          required: true
+        - name: accountId
+          in: path
+          required: true
+          description: LA-assigned account identifier.
+          schema:
+            type: string
+            pattern: .*\S.*
+            x-autoMinLength: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOperationAccepted'
   /assets/receipts/{transactionId}:
     get:
       tags:
@@ -338,12 +421,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetReceiptResponse'
-        '404':
-          description: Transaction not found
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /assets/hold:
     post:
       tags:
@@ -370,12 +447,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HoldOperationResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /assets/release:
     post:
       tags:
@@ -402,12 +473,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReleaseOperationResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /assets/rollback:
     post:
       tags:
@@ -434,12 +499,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RollbackOperationResponse'
-        '400':
-          description: Invalid Input
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /operations/status/{cid}:
     get:
       tags:
@@ -462,12 +521,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetOperationStatusResponse'
-        '404':
-          description: Transaction not found
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /asset/balance:
     post:
       tags:
@@ -488,12 +541,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssetBalanceInfoResponse'
-        '404':
-          description: Owner not found
-          content: {}
-        '500':
-          description: System error
-          content: {}
   /health:
     get:
       summary: Health check
@@ -641,8 +688,7 @@ components:
         settlementRef:
           type: string
           description: 'Reference to the corresponding settlement operation'
-          pattern: .*\S.*
-          x-autoMinLength: true
+          x-allowEmpty: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
@@ -676,8 +722,7 @@ components:
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
-          pattern: .*\S.*
-          x-autoMinLength: true
+          x-allowEmpty: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
@@ -709,13 +754,44 @@ components:
         settlementRef:
           type: string
           description: 'Reference to the corresponding payment operation'
+          x-allowEmpty: true
+        signature:
+          $ref: '#/components/schemas/signature'
+        executionContext:
+          $ref: '#/components/schemas/executionContext'
+    TransferAssetResponse:
+      allOf:
+        - $ref: '#/components/schemas/receiptOperation'
+    MoveAssetsRequest:
+      type: object
+      required:
+        - nonce
+        - source
+        - destination
+        - quantity
+        - signature
+      properties:
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        operationId:
+          type: string
+          x-go-type-skip-optional-pointer: true
+          pattern: .*\S.*
+          x-autoMinLength: true
+        source:
+          $ref: '#/components/schemas/account'
+        destination:
+          $ref: '#/components/schemas/account'
+        quantity:
+          type: string
+          description: 'How many units of the asset tokens'
           pattern: .*\S.*
           x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-    TransferAssetResponse:
+    MoveAssetsResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
     GetReceiptResponse:
@@ -849,7 +925,7 @@ components:
           required: [ledgerIdentifier]
           properties:
             ledgerIdentifier:
-               $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+              $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
         - $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
     payoutAsset:
       $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
@@ -863,7 +939,6 @@ components:
           description: 'withdrawal description'
           pattern: .*\S.*
           x-autoMinLength: true
-
     account:
       type: object
       required:
@@ -877,14 +952,20 @@ components:
         ledgerAccount:
           oneOf:
             - $ref: '#/components/schemas/walletLedgerAccount'
+            - $ref: '#/components/schemas/caip10LedgerAccount'
+            - $ref: '#/components/schemas/custodialLedgerAccount'
           discriminator:
             propertyName: type
             mapping:
               walletAccount: '#/components/schemas/walletLedgerAccount'
-
+              caip10Account: '#/components/schemas/caip10LedgerAccount'
+              custodialAccount: '#/components/schemas/custodialLedgerAccount'
     walletLedgerAccount:
       $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
-
+    caip10LedgerAccount:
+      $ref: 'common-external-components.yaml#/components/schemas/caip10Account'
+    custodialLedgerAccount:
+      $ref: 'common-external-components.yaml#/components/schemas/custodialAccount'
     depositPayoutAccount:
       type: object
       required:
@@ -933,6 +1014,181 @@ components:
               $ref: '#/components/schemas/receiptOperationErrorInformation'
             response:
               $ref: '#/components/schemas/receipt'
+    # -------- Investor accounts (Phase 1) --------
+    CreateAccountRequest:
+      type: object
+      description: |
+        Body for `POST /accounts/create`. Single LA-side endpoint covering both create-new
+        and bind-existing flows.
+
+        - **Create new** — omit `bindInfo`. The LA generates a wallet on the asset's network.
+        - **Bind existing** — populate `bindInfo` with the caller-supplied wallet and a
+          proof-of-ownership signature hint. The LA still issues a challenge for final verification.
+
+        The response is either `207` (challenge ready) or `202` (challenge pending) — see the
+        endpoint definition.
+      required: [organizationId, assetId, finId]
+      properties:
+        organizationId:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        assetId:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        finId:
+          $ref: "common-external-components.yaml#/components/schemas/finId"
+          description: |
+            The investor this account is being onboarded for, identified by their canonical
+            finId (hex-encoded compressed secp256k1 public key — the same identity that appears
+            on this investor's ledger operation legs). Resolved by the asset node from the
+            investor profile; lets the ledger adapter couple the resulting network account to
+            the investor so it can enforce wallet↔finId ownership on later operations. Required:
+            an investor without a resolvable finId cannot onboard a network account.
+        bindInfo:
+          $ref: '#/components/schemas/BindInfo'
+    accountOwnershipSignature:
+      type: object
+      description: |
+        Proof-of-ownership signature for network-account onboarding — a raw signature over
+        the ledger adapter's challenge payload. Unlike a transaction `signature` it carries no
+        template or hash function: there is nothing to template, only the challenge bytes to sign.
+      required: [signature]
+      properties:
+        signature:
+          type: string
+          description: hex representation of the ownership signature
+          x-allowEmpty: true
+    BindInfo:
+      type: object
+      description: |
+        Bind-info block. When present in `CreateAccountRequest`, signals the bind-existing flow.
+      required: [networkAccount, ownershipSignature]
+      properties:
+        networkAccount:
+          $ref: 'common-external-components.yaml#/components/schemas/networkAccount'
+        ownershipSignature:
+          $ref: '#/components/schemas/accountOwnershipSignature'
+          description: |
+            Proof-of-ownership hint over the network account. The LA may verify this upfront,
+            but the authoritative ownership proof is the challenge-fulfillment step.
+    SubmitAccountProofRequest:
+      type: object
+      description: |
+        Body for `POST /accounts/{cid}/proof`. Used only for `signatureTemplate` challenges.
+      required: [ownershipSignature]
+      properties:
+        ownershipSignature:
+          $ref: '#/components/schemas/accountOwnershipSignature'
+          description: Signature over the LA's `signatureTemplate` challenge payload.
+    AccountOperationAccepted:
+      description: |
+        Returned for `202` and for `200` from `proof` / `delete`. When `isCompleted` is
+        false, the result is not yet available and `cid` lets the asset node poll
+        `/operations/status/{cid}` or receive a callback per `operationResponseStrategy`.
+        When the adapter completes the operation synchronously, `isCompleted` is true and
+        exactly one of `response` (the account it created) or `error` is present.
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - type: object
+          properties:
+            operationMetadata:
+              $ref: 'common-external-components.yaml#/components/schemas/OperationMetadata'
+            response:
+              $ref: '#/components/schemas/networkAccountRecord'
+            error:
+              $ref: '#/components/schemas/networkAccountOperationErrorInformation'
+            expiresInSeconds:
+              type: integer
+              format: int64
+              description: |
+                Onboarding deadline the ledger adapter grants for this create/bind, in
+                seconds from now. The asset node arms the workflow's whole-process timeout
+                from this value (set once, at acceptance). Omitted/zero => no auto-expiry.
+    AccountOperationChallenge:
+      description: |
+        Returned for `207` from `POST /accounts/create`. Structurally a superset of
+        AccountOperationAccepted (the router decodes both create responses into this
+        one type), adding the LA-issued challenge.
+      allOf:
+        - $ref: '#/components/schemas/AccountOperationAccepted'
+        - type: object
+          required: [challenge]
+          properties:
+            challenge:
+              $ref: '#/components/schemas/AccountChallenge'
+    AccountChallenge:
+      description: |
+        LA-issued challenge that the user must fulfill. Discriminated by `type`. New variants
+        can be added without breaking existing clients.
+      type: object
+      required: [type]
+      oneOf:
+        - $ref: '#/components/schemas/AccountChallengeWalletConnect'
+        - $ref: '#/components/schemas/AccountChallengeSignatureTemplate'
+        - $ref: '#/components/schemas/AccountChallengeDeposit'
+        - $ref: '#/components/schemas/AccountChallengeFireblocksApproval'
+      discriminator:
+        propertyName: type
+        mapping:
+          walletConnect: '#/components/schemas/AccountChallengeWalletConnect'
+          signatureTemplate: '#/components/schemas/AccountChallengeSignatureTemplate'
+          deposit: '#/components/schemas/AccountChallengeDeposit'
+          fireblocksApproval: '#/components/schemas/AccountChallengeFireblocksApproval'
+    AccountChallengeWalletConnect:
+      type: object
+      required: [type, uri]
+      properties:
+        type: {type: string, enum: [walletConnect]}
+        uri:
+          type: string
+          description: WalletConnect URI or QR-encodable payload.
+          pattern: .*\S.*
+          x-autoMinLength: true
+    AccountChallengeSignatureTemplate:
+      type: object
+      required: [type, payload]
+      properties:
+        type: {type: string, enum: [signatureTemplate]}
+        payload:
+          type: string
+          description: |
+            Hex-encoded data the client must sign with the wallet's private key and submit via
+            `POST /accounts/{cid}/proof`.
+          pattern: .*\S.*
+          x-autoMinLength: true
+    AccountChallengeDeposit:
+      type: object
+      required: [type, fromAddress, toAddress, amount]
+      properties:
+        type: {type: string, enum: [deposit]}
+        fromAddress: {type: string, description: Address claimed by the user., pattern: .*\S.*, x-autoMinLength: true}
+        toAddress: {type: string, description: Destination address the LA watches., pattern: .*\S.*, x-autoMinLength: true}
+        amount: {type: string, description: Required deposit amount (string for precision)., pattern: .*\S.*, x-autoMinLength: true}
+    AccountChallengeFireblocksApproval:
+      type: object
+      required: [type, fireblocksRequestId]
+      properties:
+        type: {type: string, enum: [fireblocksApproval]}
+        fireblocksRequestId:
+          type: string
+          description: Fireblocks-side request id; user approves in the Fireblocks app.
+          pattern: .*\S.*
+          x-autoMinLength: true
+    networkAccountRecord:
+      description: |
+        Canonical account record returned on workflow completion via `GET /operations/status/{cid}`.
+      type: object
+      required: [id, networkAccount]
+      properties:
+        id:
+          type: string
+          description: LA-assigned account identifier.
+          pattern: .*\S.*
+          x-autoMinLength: true
+        networkAccount:
+          $ref: 'common-external-components.yaml#/components/schemas/networkAccount'
     createAssetOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
@@ -964,10 +1220,14 @@ components:
         code:
           type: integer
           format: uint32
+          description: 1 for failure in regApps validation, 4 failure in signature verification
         message:
           type: string
-          pattern: .*\S.*
-          x-autoMinLength: true
+          x-allowEmpty: true
+        regulationErrorDetails:
+          type: array
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/RegulationError'
     createAssetOperationErrorInformation:
       type: object
       properties:
@@ -1021,6 +1281,7 @@ components:
         - $ref: '#/components/schemas/operationStatusDeposit'
         - $ref: '#/components/schemas/operationStatusReceipt'
         - $ref: '#/components/schemas/operationStatusApproval'
+        - $ref: '#/components/schemas/operationStatusAccount'
       discriminator:
         propertyName: type
         mapping:
@@ -1028,6 +1289,7 @@ components:
           deposit: '#/components/schemas/operationStatusDeposit'
           receipt: '#/components/schemas/operationStatusReceipt'
           approval: '#/components/schemas/operationStatusApproval'
+          account: '#/components/schemas/operationStatusAccount'
     operationStatusCreateAsset:
       type: object
       required:
@@ -1072,6 +1334,55 @@ components:
           enum: [approval]
         operation:
           $ref: 'common-external-components.yaml#/components/schemas/ExecutionPlanApprovalOperation'
+    operationStatusAccount:
+      type: object
+      required:
+        - type
+        - operation
+      properties:
+        type:
+          type: string
+          enum: [account]
+        operation:
+          $ref: '#/components/schemas/networkAccountOperation'
+    networkAccountOperation:
+      description: |
+        Status of an investor network-account create/bind/unbind operation, polled via
+        `GET /operations/status/{cid}`. While a challenge is outstanding, `challenge` is
+        present; on completion `response` carries the canonical `{ id, wallet }`; on failure
+        `error` carries the LA-level code/message.
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - type: object
+          properties:
+            challenge:
+              $ref: '#/components/schemas/AccountChallenge'
+            response:
+              $ref: '#/components/schemas/networkAccountRecord'
+            error:
+              $ref: '#/components/schemas/networkAccountOperationErrorInformation'
+            expiresInSeconds:
+              type: integer
+              format: int64
+              description: |
+                Onboarding deadline the ledger adapter grants, in seconds from now, when it
+                supplies (or revises) one on this status — e.g. alongside a challenge delivered
+                via callback in proxy mode, where the adapter's own deadline could not ride the
+                proxy's immediate acceptance. The asset node re-arms the workflow deadline from
+                a non-zero value. Omitted/zero => previously armed deadline stands.
+    networkAccountOperationErrorInformation:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: uint32
+        message:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
     signature:
       type: object
       required: [signature, template, hashFunc]
@@ -1080,8 +1391,7 @@ components:
         signature:
           type: string
           description: 'hex representation of the signature'
-          pattern: .*\S.*
-          x-autoMinLength: true
+          x-allowEmpty: true
         template:
           $ref: '#/components/schemas/signatureTemplate'
         hashFunc:
@@ -1112,6 +1422,9 @@ components:
           type: string
           description: 'hex representation of the combined hash groups hash value'
           x-allowEmpty: true
+        templateVersion:
+          type: integer
+          description: 'Template shape version. When omitted, the verifier resolves the version from the signature proof context.'
     hashGroup:
       type: object
       required:
@@ -1220,6 +1533,9 @@ components:
           type: string
           description: 'hex representation of template hash'
           x-allowEmpty: true
+        templateVersion:
+          type: integer
+          description: 'Template shape version. When omitted, the verifier resolves the version from the signature proof context.'
     EIP712TypeString:
       type: string
       pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
@@ -1331,13 +1647,13 @@ components:
           x-autoMinLength: true
     operationType:
       type: string
-      enum: ['issue', 'transfer', 'hold', 'release', 'redeem']
+      enum: ['issue', 'transfer', 'hold', 'release', 'redeem', 'move']
     ledgerAssetInfo:
       type: object
       required: [ledgerIdentifier]
       properties:
         ledgerIdentifier:
-           $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+          $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
         ledgerReference:
           oneOf:
             - $ref: '#/components/schemas/contractDetails'
