@@ -13,11 +13,12 @@ The goal is to narrow the scope of building a new adapter to **just implementing
 ### Route layer (`src/routes/`)
 
 - **`model-gen.ts`** &mdash; TypeScript types auto-generated from the DLT adapter API OpenAPI spec (`apis/dlt-adapter-api.yaml`). Generated via `npm run api-generate` using `openapi-typescript`, then post-processed by `scripts/postprocess-model-gen.ts` to handle circular references and export recursive types.
-- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point and is **pure routing**: it takes finalized service implementations and mounts them on HTTP endpoints. All wiring (workflow proxy wrapping, plugin construction, account-mapping store/service, FinP2P client) must happen in the caller before `register()` is invoked. Signature: `register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, mappingConfig?, mappingService?): void`. Endpoints:
+- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point and is **pure routing**: it takes finalized service implementations and mounts them on HTTP endpoints. All wiring (workflow proxy wrapping, plugin construction, account-mapping store/service, FinP2P client) must happen in the caller before `register()` is invoked. Signature: `register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, options?): void` where `options` is `{ mappingConfig?, mappingService? }`. Endpoints:
   - **Plan**: `POST /api/plan/approve`, `POST /api/plan/proposal`, `POST /api/plan/proposal/status`
   - **Tokens**: `POST /api/assets/create`, `POST /api/assets/issue`, `POST /api/assets/transfer`, `POST /api/assets/redeem`, `POST /api/assets/getBalance`, `POST /api/asset/balance`
   - **Escrow**: `POST /api/assets/hold`, `POST /api/assets/release`, `POST /api/assets/rollback`
   - **Payments**: `POST /api/payments/depositInstruction`, `POST /api/payments/payout`
+  - **Accounts**: `POST /api/accounts/create` (202), `DELETE /api/accounts/:accountId` &mdash; `networkAccountService` is required; adapters without ledger support pass `NotSupportedNetworkAccountService` (answers 501). `POST /api/accounts/:cid/proof` is a 501 stub: the sync trust model never issues challenges, so the router never has a proof to submit
   - **Common**: `GET /api/assets/receipts/:transactionId`, `GET /api/operations/status/:cid`
   - **Health**: `GET /health`, `GET /health/liveness`, `GET /health/readiness`
 - **`mapping.ts`** &mdash; Bidirectional mapping functions between OpenAPI-generated types and domain model types from `finp2p-adapter-models`. Converts API request payloads into service method arguments and service results back into API responses.
@@ -44,6 +45,7 @@ Default implementations that adapter developers can extend or replace:
 
 - **`plan/service.ts`** &mdash; `PlanApprovalServiceImpl` &mdash; default plan approval that auto-approves if no FinP2P client is configured. When a client is available, fetches the execution plan from the router and validates instructions via plugins. Proposal endpoints (cancel/reset/instruction) default to auto-approve.
 - **`payments/payments.ts`** &mdash; `PaymentsServiceImpl` &mdash; delegates deposit/payout to plugins (sync or async variants). Returns failure if no plugin is registered.
+- **`accounts/service.ts`** &mdash; `NetworkAccountServiceImpl` &mdash; investor account onboarding, **sync trust model**: the caller-supplied wallet is recorded as-is over a `NetworkAccountStore`, no ownership challenge (same trust the old finId&rarr;wallet mapping API extended). Optional `NetworkAccountValidator` hook for ledger address-shape checks. One binding per investor per (organizationId, assetId), keyed by the investor's `finId` carried on the request (required in the OAS): a repeat create for the same finId replays the recorded binding (even with a different wallet &mdash; changing wallets is remove + create). The same address may still be bound by many investors (omnibus &mdash; one shared wallet, many investors). Both methods are single-call and terminal &mdash; safe to wrap in `createServiceProxy`. The wallet also still arrives per operation on the instruction leg (`Source.account` / `Destination.account`). Challenge-based onboarding (signatureTemplate/walletConnect/deposit/fireblocksApproval, still present in the API spec) is deliberately not modeled &mdash; business requirements are unclear; add it when they firm up.
 - **`proof/provider.ts`** &mdash; `ProofProvider` &mdash; generates cryptographic proofs (EIP-712 or hash-list) for receipts, fetching proof policies from the FinP2P node.
 - **`verify.ts`** &mdash; Signature verification utilities.
 
@@ -64,8 +66,9 @@ Default implementations that adapter developers can extend or replace:
    - `EscrowService` for hold/release/rollback
    - Optionally register plugins for payments, plan approval, transaction hooks
 4. Construct your services. If you want PostgreSQL-backed async workflows, create a `pg.Pool`, build a `WorkflowStorage(pool)`, and wrap each service with `createServiceProxy(...)` before passing them to `register()`. The caller owns the pool lifecycle.
-5. If you want account mapping, construct an `AccountStore` (e.g. `PgAccountStore(pool)`) and an `AccountMappingServiceImpl(store)`, and pass them along with an `AccountMappingConfig` to `register()`.
-6. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, mappingConfig?, mappingService?)`.
+5. For investor account onboarding, construct `NetworkAccountServiceImpl(store, validator?)` backed by a `NetworkAccountStore` (e.g. `PgNetworkAccountStore(pool)`); if the ledger has no account support, use `NotSupportedNetworkAccountService`.
+6. If you want account mapping (deprecated, superseded by network accounts), construct an `AccountStore` (e.g. `PgAccountStore(pool)`) and an `AccountMappingServiceImpl(store)`, and pass them via `options`.
+7. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, { mappingConfig?, mappingService? })`.
 
 ## API spec management
 
@@ -85,6 +88,7 @@ A post-processor (`scripts/postprocess-model-gen.ts`) handles:
 When workflow persistence is enabled, the skeleton uses PostgreSQL with a `ledger_adapter` schema. Migrations:
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
+- `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb
 
 Migrations run automatically on startup via goose.
 

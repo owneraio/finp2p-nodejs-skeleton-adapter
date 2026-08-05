@@ -11,10 +11,10 @@ import {
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
   AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
+  NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
-import { logger } from '../helpers';
 
 export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
   const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
@@ -41,7 +41,12 @@ export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['d
 
 type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
 
-const ledgerAccountFromAPI = (ledgerAccount: components['schemas']['walletLedgerAccount']): LedgerAccount => {
+type LedgerAccountAPI =
+  components['schemas']['walletLedgerAccount']
+  | components['schemas']['caip10LedgerAccount']
+  | components['schemas']['custodialLedgerAccount'];
+
+const ledgerAccountFromAPI = (ledgerAccount: LedgerAccountAPI): LedgerAccount => {
   switch (ledgerAccount.type) {
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };
@@ -206,9 +211,9 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
     case 'polling':
       return {
         operationResponseStrategy: {
-          type: 'random',
+          type: 'poll',
           polling: {
-            type: 'randomPollingInterval',
+            type: 'random',
           },
         },
       };
@@ -601,7 +606,6 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
       return { isCompleted: false, cid, operationMetadata: metadataOptToAPI(metadata) };
     case 'failure':
       const { code, message } = op.error;
-      logger.error('Deposit failed', { code, message });
       return {
         isCompleted: true,
         cid: '',
@@ -613,6 +617,68 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
         isCompleted: true,
         cid: '',
         response: depositInstructionToAPI(instruction),
+      };
+  }
+};
+
+export const networkAccountFromAPI = (account: components['schemas']['networkAccount']): NetworkAccount => {
+  if ('type' in account && account.type === 'walletAccount') {
+    return { type: 'walletAccount', address: account.address };
+  }
+  return { type: 'none' };
+};
+
+export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
+  switch (account.type) {
+    case 'walletAccount':
+      return { type: 'walletAccount', address: account.address };
+    case 'none':
+      return {};
+  }
+};
+
+export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] | undefined): BindInfo | undefined => {
+  if (!bindInfo) {
+    return undefined;
+  }
+  // The router forwards the caller's ownership hint as {signature, template: null}
+  // (finp2p-core builds Signature{Signature: hint} only) — it is unverified in the
+  // trust model, so anything signatureFromAPI can't parse maps to absent.
+  const { ownershipSignature } = bindInfo;
+  return {
+    account: networkAccountFromAPI(bindInfo.networkAccount),
+    ownershipSignature: ownershipSignature?.template ? signatureFromAPI(ownershipSignature) : undefined,
+  };
+};
+
+export const networkAccountRecordToAPI = (record: NetworkAccountRecord): components['schemas']['networkAccountRecord'] => {
+  return {
+    id: record.id,
+    networkAccount: networkAccountToAPI(record.account),
+  };
+};
+
+export const accountOperationToAPI = (op: AccountOperation): components['schemas']['networkAccountOperation'] => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId, metadata } = op;
+      return {
+        isCompleted: false,
+        cid: correlationId,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    case 'success':
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        response: networkAccountRecordToAPI(op.record),
+      };
+    case 'failure':
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        error: { code, message },
       };
   }
 };
@@ -639,6 +705,12 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'approval',
         operation: planApprovalOperationToAPI(op),
+      };
+
+    case 'account':
+      return {
+        type: 'account',
+        operation: accountOperationToAPI(op),
       };
   }
 };

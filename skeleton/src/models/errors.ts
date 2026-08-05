@@ -26,3 +26,47 @@ export class ConfigurationError extends Error {
     this.name = 'ConfigurationError';
   }
 }
+
+/** Requested capability is not supported by this adapter. Mapped to HTTP 501. */
+export class NotSupportedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotSupportedError';
+  }
+}
+
+/** The (organization, asset, account) key is already bound. Mapped to HTTP 409. */
+export class AccountAlreadyBoundError extends Error {
+
+  code: number;
+
+  constructor(message: string, code: number = 0) {
+    super(message);
+    this.name = 'AccountAlreadyBoundError';
+    this.code = code;
+  }
+}
+
+/** The supplied network account does not match the ledger's address shape. Mapped to HTTP 400. */
+export class AccountInvalidShapeError extends Error {
+
+  code: number;
+
+  constructor(message: string, code: number = 0) {
+    super(message);
+    this.name = 'AccountInvalidShapeError';
+    this.code = code;
+  }
+}
+
+/** No account operation / record for the given identifier. Mapped to HTTP 404. */
+export class AccountNotFoundError extends Error {
+
+  code: number;
+
+  constructor(message: string, code: number = 0) {
+    super(message);
+    this.name = 'AccountNotFoundError';
+    this.code = code;
+  }
+}
