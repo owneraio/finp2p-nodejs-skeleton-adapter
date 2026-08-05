@@ -35,7 +35,14 @@ export class NotSupportedError extends Error {
   }
 }
 
-/** The (organization, asset, account) key is already bound. Mapped to HTTP 409. */
+/**
+ * The (organization, asset, account) key is already bound. Mapped to HTTP 409.
+ *
+ * Not thrown by `NetworkAccountServiceImpl` and cannot be: a repeat create for
+ * the same finId replays the recorded binding instead of conflicting. Part of
+ * the error vocabulary for adapter implementations that want strict
+ * already-bound semantics instead.
+ */
 export class AccountAlreadyBoundError extends Error {
 
   code: number;
@@ -59,7 +66,13 @@ export class AccountInvalidShapeError extends Error {
   }
 }
 
-/** No account operation / record for the given identifier. Mapped to HTTP 404. */
+/**
+ * No account operation / record for the given identifier. Mapped to HTTP 404.
+ *
+ * Not thrown by `NetworkAccountServiceImpl`, which treats removing an absent
+ * account as success so router retries don't fail. Part of the error vocabulary
+ * for adapter implementations that want strict remove semantics instead.
+ */
 export class AccountNotFoundError extends Error {
 
   code: number;

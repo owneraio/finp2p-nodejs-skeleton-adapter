@@ -29,16 +29,37 @@ export class PgNetworkAccountStore implements NetworkAccountStore {
     this.schema = schemaName;
   }
 
+  /**
+   * Insert the binding, or return the existing one for this
+   * (organization, asset, finId).
+   *
+   * `ON CONFLICT DO NOTHING` rather than a read-then-insert: two concurrent
+   * creates for the same triple would both see no row and both insert, and the
+   * unique index would reject the loser with 23505 — surfacing as a 500. The
+   * conflict target is `network_accounts_org_asset_fin_id_idx`, so the loser
+   * gets no row back and re-selects the winner's instead. This is also one
+   * round-trip fewer on the happy path.
+   */
   async insert(row: NetworkAccountRow): Promise<NetworkAccountRow> {
     const { accountId, idempotencyKey, organizationId, assetId, finId, account } = row;
     const result = await this.pool.query(
       `INSERT INTO ${this.schema}.network_accounts
          (account_id, idempotency_key, organization_id, asset_id, fin_id, account)
        VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (organization_id, asset_id, fin_id) DO NOTHING
        RETURNING *`,
       [accountId, idempotencyKey ?? null, organizationId, assetId, finId, JSON.stringify(account)],
     );
-    return toRow(result.rows[0]);
+    if (result.rows.length > 0) {
+      return toRow(result.rows[0]);
+    }
+    const existing = await this.getByFinId(organizationId, assetId, finId);
+    if (!existing) {
+      // Only reachable if the conflicting row was deleted between the insert
+      // and this re-select.
+      throw new Error(`failed to insert or locate network account for ${organizationId}/${assetId}/${finId}`);
+    }
+    return existing;
   }
 
   async getByFinId(organizationId: string, assetId: string, finId: string): Promise<NetworkAccountRow | undefined> {

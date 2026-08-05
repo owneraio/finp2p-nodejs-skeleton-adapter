@@ -18,10 +18,12 @@ The goal is to narrow the scope of building a new adapter to **just implementing
   - **Tokens**: `POST /api/assets/create`, `POST /api/assets/issue`, `POST /api/assets/transfer`, `POST /api/assets/redeem`, `POST /api/assets/getBalance`, `POST /api/asset/balance`
   - **Escrow**: `POST /api/assets/hold`, `POST /api/assets/release`, `POST /api/assets/rollback`
   - **Payments**: `POST /api/payments/depositInstruction`, `POST /api/payments/payout`
-  - **Accounts**: `POST /api/accounts/create` (202), `DELETE /api/accounts/:accountId` &mdash; `networkAccountService` is required; adapters without ledger support pass `NotSupportedNetworkAccountService` (answers 501). `POST /api/accounts/:cid/proof` is a 501 stub: the sync trust model never issues challenges, so the router never has a proof to submit
+  - **Accounts**: `POST /api/accounts/create` (202), `DELETE /api/accounts/:accountId` &mdash; `networkAccountService` defaults to `NotSupportedNetworkAccountService` (answers 501), so the account surface is opt-in and an existing adapter that passes nothing keeps compiling. `POST /api/accounts/:cid/proof` is a 501 stub: the sync trust model never issues challenges, so the router never has a proof to submit
   - **Common**: `GET /api/assets/receipts/:transactionId`, `GET /api/operations/status/:cid`
   - **Health**: `GET /health`, `GET /health/liveness`, `GET /health/readiness`
 - **`mapping.ts`** &mdash; Bidirectional mapping functions between OpenAPI-generated types and domain model types from `finp2p-adapter-models`. Converts API request payloads into service method arguments and service results back into API responses.
+
+  The OAS `networkAccount` union carries `caip10Account` and `custodialAccount` variants that the domain `NetworkAccount` cannot represent, so `networkAccountFromAPI` **rejects** them with `AccountInvalidShapeError` (400) rather than falling back to `none`. Degrading instead would report a successful bind while recording an empty account &mdash; the router whitelists `{}`, and every later operation naming the real account then fails 7351 `AccountNotWhitelisted` with nothing at bind time to explain it. Supporting those variants means extending the domain type, not relaxing the mapper.
 
 ### Workflow layer (`src/workflows/`)
 

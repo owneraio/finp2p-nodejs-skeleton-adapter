@@ -45,6 +45,11 @@ export interface NetworkAccountRow {
 }
 
 export interface NetworkAccountStore {
+  /**
+   * Insert the binding, or return the row that already exists for this
+   * (organization, asset, finId). Implementations must make this atomic —
+   * a read-then-insert races two concurrent creates for the same triple.
+   */
   insert(row: NetworkAccountRow): Promise<NetworkAccountRow>;
   getByFinId(organizationId: string, assetId: string, finId: string): Promise<NetworkAccountRow | undefined>;
   remove(accountId: string): Promise<NetworkAccountRow | undefined>;

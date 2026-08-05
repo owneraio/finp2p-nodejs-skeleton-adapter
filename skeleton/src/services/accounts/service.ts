@@ -38,11 +38,9 @@ export class NetworkAccountServiceImpl implements NetworkAccountService {
     const { account } = bindInfo;
     await this.validator?.validate(account);
 
-    const existing = await this.store.getByFinId(organizationId, assetId, finId);
-    if (existing) {
-      return successfulAccountOperation('', { id: existing.accountId, account: existing.account });
-    }
-
+    // insert() is atomic and returns the pre-existing row when one is already
+    // bound for this (organization, asset, finId), which is what makes a repeat
+    // create replay the recorded binding rather than race or duplicate it.
     const row = await this.store.insert({
       accountId: randomUUID(),
       idempotencyKey: idempotencyKey || undefined,

@@ -12,6 +12,7 @@ import {
   AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
   NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
+  AccountInvalidShapeError,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -622,10 +623,22 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
 };
 
 export const networkAccountFromAPI = (account: components['schemas']['networkAccount']): NetworkAccount => {
-  if ('type' in account && account.type === 'walletAccount') {
-    return { type: 'walletAccount', address: account.address };
+  // noneAccount is the empty object, so there is no discriminator to switch on.
+  if (!('type' in account)) {
+    return { type: 'none' };
   }
-  return { type: 'none' };
+  switch (account.type) {
+    case 'walletAccount':
+      return { type: 'walletAccount', address: account.address };
+    default:
+      // caip10Account and custodialAccount are in the OAS union, but the domain
+      // model cannot represent them. Reject rather than degrade to `none`: a
+      // `none` binding is recorded and reported as success, the router
+      // whitelists it as `{}`, and every later operation naming the real
+      // account then fails 7351 AccountNotWhitelisted with nothing in the
+      // bind-time trail to explain why.
+      throw new AccountInvalidShapeError(`unsupported network account type: ${account.type}`);
+  }
 };
 
 export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
@@ -641,13 +654,16 @@ export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] |
   if (!bindInfo) {
     return undefined;
   }
-  // The router forwards the caller's ownership hint as {signature, template: null}
-  // (finp2p-core builds Signature{Signature: hint} only) — it is unverified in the
-  // trust model, so anything signatureFromAPI can't parse maps to absent.
+  // The router sends only the raw hex hint — core master models this as
+  // accountOwnershipSignature {signature}, with no template and no hash
+  // function, because there is nothing to template: only the challenge bytes
+  // are signed. Carry the hex through rather than routing it via
+  // signatureFromAPI, which requires a template and so discarded it every time
+  // against a real router.
   const { ownershipSignature } = bindInfo;
   return {
     account: networkAccountFromAPI(bindInfo.networkAccount),
-    ownershipSignature: ownershipSignature?.template ? signatureFromAPI(ownershipSignature) : undefined,
+    ownershipSignature: ownershipSignature?.signature || undefined,
   };
 };
 

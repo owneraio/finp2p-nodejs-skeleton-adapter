@@ -12,6 +12,7 @@ import {
   Source,
   TokenService,
 } from '../models';
+import { NotSupportedNetworkAccountService } from '../services/accounts';
 import { Application } from 'express';
 import { errorHandler } from './errors';
 import {
@@ -49,7 +50,10 @@ export const register = (app: Application,
   healthService: HealthService,
   paymentService: PaymentService,
   planService: PlanApprovalService,
-  networkAccountService: NetworkAccountService,
+  // Defaulted so the account surface is opt-in: an existing adapter that does
+  // not pass one keeps compiling and its /accounts routes answer "not
+  // supported", instead of this patch bump breaking every out-of-repo caller.
+  networkAccountService: NetworkAccountService = new NotSupportedNetworkAccountService(),
   options?: RegisterOptions,
 ): void => {
   const { mappingConfig, mappingService } = options ?? {};
