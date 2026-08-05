@@ -51,19 +51,18 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async issue(
-    idempotencyKey: string, asset: Asset, destinationFinId: string,
+    idempotencyKey: string, asset: Asset, destination: Destination,
     quantity: string, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    getLogger().info(`Issuing ${quantity} of ${asset.assetId} to ${destinationFinId}`);
+    getLogger().info(`Issuing ${quantity} of ${asset.assetId} to ${destination.finId}`);
 
-    await this.storage.ensureAccount(destinationFinId, asset.assetId, asset.assetType);
-    const tx = await this.storage.credit(destinationFinId, quantity, asset.assetId, {
+    await this.storage.ensureAccount(destination.finId, asset.assetId, asset.assetType);
+    const tx = await this.storage.credit(destination.finId, quantity, asset.assetId, {
       idempotency_key: idempotencyKey,
       operation_type: 'issue',
       execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
     }, asset.assetType);
 
-    const destination: Destination = { finId: destinationFinId };
     const receipt = buildReceipt(
       tx, asset, undefined, destination, quantity, 'issue', exCtx, undefined,
     );
@@ -121,11 +120,11 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
   }
 
   async redeem(
-    idempotencyKey: string, nonce: string, sourceFinId: string, asset: Asset,
+    idempotencyKey: string, nonce: string, source: Source, asset: Asset,
     quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    getLogger().info(`Redeeming ${quantity} of ${asset.assetId} from ${sourceFinId}`);
+    getLogger().info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
 
     const details = {
       idempotency_key: idempotencyKey,
@@ -135,11 +134,11 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     };
 
     const tx = operationId
-      ? await this.storage.unlockAndDebit(sourceFinId, quantity, asset.assetId, details, asset.assetType)
-      : await this.storage.debit(sourceFinId, quantity, asset.assetId, details, asset.assetType);
+      ? await this.storage.unlockAndDebit(source.finId, quantity, asset.assetId, details, asset.assetType)
+      : await this.storage.debit(source.finId, quantity, asset.assetId, details, asset.assetType);
 
     const receipt = buildReceipt(
-      tx, asset, { finId: sourceFinId }, undefined, quantity, 'redeem', exCtx, operationId,
+      tx, asset, source, undefined, quantity, 'redeem', exCtx, operationId,
     );
     return successfulReceiptOperation(receipt);
   }
