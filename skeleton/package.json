@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.28.26-variants.0",
+  "version": "0.28.26-variants.1",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",

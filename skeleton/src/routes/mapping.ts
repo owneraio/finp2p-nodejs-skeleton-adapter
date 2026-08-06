@@ -81,6 +81,10 @@ const ledgerAccountToAPI = (ledgerAccount: LedgerAccount | undefined): LedgerAcc
         vaultAccountId: ledgerAccount.vaultAccountId,
         ...(ledgerAccount.assetId !== undefined ? { assetId: ledgerAccount.assetId } : {}),
       };
+    default:
+      // Without this, an unknown type returns undefined — which means "no
+      // account" here, so the receipt leg would silently lose it.
+      throw new Error(`unsupported ledger account type: ${(ledgerAccount as { type: string }).type}`);
   }
 };
 

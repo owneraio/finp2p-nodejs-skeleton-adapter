@@ -3,7 +3,7 @@ import { PgNetworkAccountStore } from '../../src/storage'
 import { NetworkAccountServiceImpl } from '../../src/services/accounts'
 import {
   networkAccountFromAPI, networkAccountToAPI, bindInfoOptFromAPI,
-  sourceFromAPI, destinationFromAPI,
+  sourceFromAPI, destinationFromAPI, receiptToAPI,
 } from '../../src/routes/mapping'
 import { AccountInvalidShapeError } from '../../src/models'
 import { Pool } from 'pg'
@@ -185,6 +185,38 @@ describe("network accounts", () => {
     test.each(legs.map((l) => [l.type, l] as const))("%s survives a destination leg", (_t, ledgerAccount) => {
       const destination = destinationFromAPI({ finId: 'fin-1', ledgerAccount } as any);
       expect(destination.account).toEqual(ledgerAccount);
+    });
+
+    const receiptWith = (account: any) => ({
+      id: 'r-1',
+      asset: { assetId: 'a-1', assetType: 'finp2p' as const },
+      source: { finId: 'fin-1', account },
+      destination: { finId: 'fin-2', account },
+      quantity: '1',
+      transactionDetails: { transactionId: 'tx-1' },
+      tradeDetails: {},
+      operationType: 'transfer' as const,
+      proof: undefined,
+      timestamp: 0,
+    });
+
+    test.each(legs.map((l) => [l.type, l] as const))("%s survives a receipt leg", (_t, account) => {
+      const receipt = receiptToAPI(receiptWith(account) as any);
+      expect(receipt.source?.ledgerAccount).toEqual(account);
+      expect(receipt.destination?.ledgerAccount).toEqual(account);
+    });
+
+    // A non-canonical discriminator used to throw, then briefly returned
+    // undefined — which means "no account", so the receipt shipped with the leg
+    // silently missing.
+    test("an unknown type throws rather than dropping the account", () => {
+      expect(() => receiptToAPI(receiptWith({ type: 'wallet', address: '0xAAA' }) as any))
+        .toThrow(/unsupported ledger account type: wallet/);
+    });
+
+    test("an absent account stays absent", () => {
+      const receipt = receiptToAPI(receiptWith(undefined) as any);
+      expect(receipt.source?.ledgerAccount).toBeUndefined();
     });
 
     test("the raw ownership hint survives mapping", () => {
