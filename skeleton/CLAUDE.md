@@ -23,7 +23,20 @@ The goal is to narrow the scope of building a new adapter to **just implementing
   - **Health**: `GET /health`, `GET /health/liveness`, `GET /health/readiness`
 - **`mapping.ts`** &mdash; Bidirectional mapping functions between OpenAPI-generated types and domain model types from `finp2p-adapter-models`. Converts API request payloads into service method arguments and service results back into API responses.
 
-  The OAS `networkAccount` union carries `caip10Account` and `custodialAccount` variants that the domain `NetworkAccount` cannot represent, so `networkAccountFromAPI` **rejects** them with `AccountInvalidShapeError` (400) rather than falling back to `none`. Degrading instead would report a successful bind while recording an empty account &mdash; the router whitelists `{}`, and every later operation naming the real account then fails 7351 `AccountNotWhitelisted` with nothing at bind time to explain it. Supporting those variants means extending the domain type, not relaxing the mapper.
+  **Account variants.** Every variant of the OAS `networkAccount` union is representable in the domain model, on both paths:
+
+  | Variant | Fields | Domain type |
+  |---------|--------|-------------|
+  | `walletAccount` | `address` | `WalletAccount` |
+  | `caip10Account` | `network`, `address` | `Caip10Account` |
+  | `custodialAccount` | `provider`, `vaultAccountId`, `assetId?` | `CustodialAccount` |
+  | `noneAccount` | &mdash; (empty object on the wire) | `{ type: 'none' }` |
+
+  The three bound variants are factored into `BoundAccount`, shared by `NetworkAccount` (onboarding, plus `none`) and `LedgerAccount` (per-operation leg, `Source.account` / `Destination.account`) so the two cannot drift.
+
+  **`custodialAccount` has no address** &mdash; switch on `type` rather than reaching for `.address`. A type outside the union still throws `AccountInvalidShapeError` (400) rather than degrading to `none`: degrading would report a successful bind while recording an empty account, the router whitelists `{}`, and every later operation naming the real account fails 7351 `AccountNotWhitelisted` with nothing at bind time to explain it.
+
+  Rejecting a variant the ledger cannot service belongs in a `NetworkAccountValidator`, which is adapter policy &mdash; not in the mapper, which must represent everything the OAS defines.
 
 ### Workflow layer (`src/workflows/`)
 

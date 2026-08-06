@@ -51,20 +51,36 @@ const ledgerAccountFromAPI = (ledgerAccount: LedgerAccountAPI): LedgerAccount =>
   switch (ledgerAccount.type) {
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };
+    case 'caip10Account':
+      return { type: ledgerAccount.type, network: ledgerAccount.network, address: ledgerAccount.address };
+    case 'custodialAccount':
+      return {
+        type: ledgerAccount.type,
+        provider: ledgerAccount.provider,
+        vaultAccountId: ledgerAccount.vaultAccountId,
+        ...(ledgerAccount.assetId !== undefined ? { assetId: ledgerAccount.assetId } : {}),
+      };
     default:
-      throw new Error(`unsupported ledger account type: ${ledgerAccount.type}`);
+      throw new Error(`unsupported ledger account type: ${(ledgerAccount as { type: string }).type}`);
   }
 };
 
-const ledgerAccountToAPI = (ledgerAccount: LedgerAccount | undefined): components['schemas']['walletLedgerAccount'] | undefined => {
+const ledgerAccountToAPI = (ledgerAccount: LedgerAccount | undefined): LedgerAccountAPI | undefined => {
   if (!ledgerAccount) {
     return undefined;
   }
   switch (ledgerAccount.type) {
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };
-    default:
-      throw new Error(`unsupported ledger account type: ${ledgerAccount.type}`);
+    case 'caip10Account':
+      return { type: ledgerAccount.type, network: ledgerAccount.network, address: ledgerAccount.address };
+    case 'custodialAccount':
+      return {
+        type: ledgerAccount.type,
+        provider: ledgerAccount.provider,
+        vaultAccountId: ledgerAccount.vaultAccountId,
+        ...(ledgerAccount.assetId !== undefined ? { assetId: ledgerAccount.assetId } : {}),
+      };
   }
 };
 
@@ -629,22 +645,36 @@ export const networkAccountFromAPI = (account: components['schemas']['networkAcc
   }
   switch (account.type) {
     case 'walletAccount':
-      return { type: 'walletAccount', address: account.address };
+      return { type: account.type, address: account.address };
+    case 'caip10Account':
+      return { type: account.type, network: account.network, address: account.address };
+    case 'custodialAccount':
+      return {
+        type: account.type,
+        provider: account.provider,
+        vaultAccountId: account.vaultAccountId,
+        ...(account.assetId !== undefined ? { assetId: account.assetId } : {}),
+      };
     default:
-      // caip10Account and custodialAccount are in the OAS union, but the domain
-      // model cannot represent them. Reject rather than degrade to `none`: a
-      // `none` binding is recorded and reported as success, the router
-      // whitelists it as `{}`, and every later operation naming the real
-      // account then fails 7351 AccountNotWhitelisted with nothing in the
-      // bind-time trail to explain why.
-      throw new AccountInvalidShapeError(`unsupported network account type: ${account.type}`);
+      // Never degrade to `none`: the router would whitelist `{}` and every later
+      // operation naming the real account would fail 7351.
+      throw new AccountInvalidShapeError(`unsupported network account type: ${(account as { type: string }).type}`);
   }
 };
 
 export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
   switch (account.type) {
     case 'walletAccount':
-      return { type: 'walletAccount', address: account.address };
+      return { type: account.type, address: account.address };
+    case 'caip10Account':
+      return { type: account.type, network: account.network, address: account.address };
+    case 'custodialAccount':
+      return {
+        type: account.type,
+        provider: account.provider,
+        vaultAccountId: account.vaultAccountId,
+        ...(account.assetId !== undefined ? { assetId: account.assetId } : {}),
+      };
     case 'none':
       return {};
   }
@@ -654,12 +684,8 @@ export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] |
   if (!bindInfo) {
     return undefined;
   }
-  // The router sends only the raw hex hint — core master models this as
-  // accountOwnershipSignature {signature}, with no template and no hash
-  // function, because there is nothing to template: only the challenge bytes
-  // are signed. Carry the hex through rather than routing it via
-  // signatureFromAPI, which requires a template and so discarded it every time
-  // against a real router.
+  // The router sends a bare hex hint (accountOwnershipSignature {signature}),
+  // so there is no template to route through signatureFromAPI.
   const { ownershipSignature } = bindInfo;
   return {
     account: networkAccountFromAPI(bindInfo.networkAccount),

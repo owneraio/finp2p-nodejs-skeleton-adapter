@@ -42,9 +42,19 @@ export type Destination = {
   account?: LedgerAccount
 };
 
+/** Note a custodialAccount has no address, so switch on `type`. */
 export type LedgerAccount = {
-  type: string;
+  type: 'walletAccount';
   address: string;
+} | {
+  type: 'caip10Account';
+  network: string;
+  address: string;
+} | {
+  type: 'custodialAccount';
+  provider: string;
+  vaultAccountId: string;
+  assetId?: string;
 };
 
 
@@ -504,10 +514,7 @@ export const pendingDepositOperation = (correlationId: string, metadata: Operati
 
 // -------------------------------------------------------------------
 
-export type NetworkAccount = {
-  type: 'walletAccount';
-  address: string;
-} | {
+export type NetworkAccount = LedgerAccount | {
   type: 'none';
 };
 
