@@ -123,7 +123,8 @@ export interface NetworkAccountService {
 
 /**
  * Optional pre-bind validator for network accounts (e.g. ledger address shape).
- * Throw AccountInvalidShapeError to reject the binding.
+ * Throw AccountInvalidShapeError to reject the binding — this is where an
+ * adapter refuses a variant its ledger cannot service.
  */
 export interface NetworkAccountValidator {
   validate(account: NetworkAccount): Promise<void>

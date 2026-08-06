@@ -1,7 +1,10 @@
 import { migrateIfNeeded } from '../../src/workflows'
 import { PgNetworkAccountStore } from '../../src/storage'
 import { NetworkAccountServiceImpl } from '../../src/services/accounts'
-import { networkAccountFromAPI, bindInfoOptFromAPI } from '../../src/routes/mapping'
+import {
+  networkAccountFromAPI, networkAccountToAPI, bindInfoOptFromAPI,
+  sourceFromAPI, destinationFromAPI, receiptToAPI,
+} from '../../src/routes/mapping'
 import { AccountInvalidShapeError } from '../../src/models'
 import { Pool } from 'pg'
 
@@ -47,10 +50,6 @@ describe("network accounts", () => {
     expect(row?.account).toEqual(wallet("0xAAA"));
   });
 
-  // The interface doc promises a repeat create replays the recorded binding.
-  // Nothing enforced that before, and the wallet in the second request is
-  // deliberately different to prove the stored one wins rather than being
-  // overwritten or duplicated.
   test("repeat create replays the existing binding, ignoring a different wallet", async () => {
     const first = await service.createAccount("ik-1", ORG, ASSET, FIN, { account: wallet("0xAAA") });
     const second = await service.createAccount("ik-2", ORG, ASSET, FIN, { account: wallet("0xBBB") });
@@ -63,8 +62,6 @@ describe("network accounts", () => {
     expect(row?.account).toEqual(wallet("0xAAA"));
   });
 
-  // Two concurrent creates for the same (org, asset, finId) must not race the
-  // unique index into a 23505. Both should observe the same winning row.
   test("concurrent creates for the same triple converge on one binding", async () => {
     const [a, b] = await Promise.all([
       service.createAccount("ik-a", ORG, ASSET, FIN, { account: wallet("0xAAA") }),
@@ -104,7 +101,6 @@ describe("network accounts", () => {
     expect(await store.getByFinId(ORG, ASSET, FIN)).toBeUndefined();
   });
 
-  // Removing something absent is a success so router retries don't fail.
   test("remove of an absent account is a success", async () => {
     const removed = await service.removeAccount("ik-1", "no-such-account");
     if (removed.type !== 'success') throw new Error(`expected success, got ${removed.type}`);
@@ -121,23 +117,108 @@ describe("network accounts", () => {
       expect(networkAccountFromAPI({})).toEqual({ type: 'none' });
     });
 
-    // Regression: these used to fall through to { type: 'none' }, so a bind
-    // reported success while recording an empty account — and every later
-    // operation naming the real account failed 7351 AccountNotWhitelisted with
-    // nothing at bind time to explain it.
-    test("caip10Account is rejected, not degraded to none", () => {
-      expect(() => networkAccountFromAPI(
-        { type: 'caip10Account', network: 'eip155:1', address: '0xAAA' },
-      )).toThrow(AccountInvalidShapeError);
+    test("caip10Account round-trips", () => {
+      const api = { type: 'caip10Account' as const, network: 'eip155:1', address: '0xAAA' };
+      const domain = networkAccountFromAPI(api);
+      expect(domain).toEqual(api);
+      expect(networkAccountToAPI(domain)).toEqual(api);
     });
 
-    test("custodialAccount is rejected, not degraded to none", () => {
-      expect(() => networkAccountFromAPI(
+    test("custodialAccount round-trips, with no address", () => {
+      const api = { type: 'custodialAccount' as const, provider: 'fireblocks', vaultAccountId: 'v7' };
+      const domain = networkAccountFromAPI(api);
+      expect(domain).toEqual(api);
+      expect(domain).not.toHaveProperty('address');
+      expect(networkAccountToAPI(domain)).toEqual(api);
+    });
+
+    test("custodialAccount carries the optional assetId when present", () => {
+      const api = {
+        type: 'custodialAccount' as const, provider: 'fireblocks', vaultAccountId: 'v7', assetId: 'ETH',
+      };
+      expect(networkAccountToAPI(networkAccountFromAPI(api))).toEqual(api);
+    });
+
+    test("an absent assetId is not materialized as undefined", () => {
+      const domain = networkAccountFromAPI(
         { type: 'custodialAccount', provider: 'fireblocks', vaultAccountId: 'v7' },
+      );
+      expect(Object.keys(domain).sort()).toEqual(['provider', 'type', 'vaultAccountId']);
+    });
+
+    test("an unknown type is rejected, not degraded to none", () => {
+      expect(() => networkAccountFromAPI(
+        { type: 'martianAccount', address: '0xAAA' } as any,
       )).toThrow(AccountInvalidShapeError);
     });
 
-    // The router sends a bare hex hint with no template; it used to be dropped.
+    test("all bound variants persist and read back", async () => {
+      const variants = [
+        { type: 'walletAccount' as const, address: '0xAAA' },
+        { type: 'caip10Account' as const, network: 'eip155:1', address: '0xBBB' },
+        { type: 'custodialAccount' as const, provider: 'fireblocks', vaultAccountId: 'v7' },
+      ];
+      for (const [i, account] of variants.entries()) {
+        const fin = `02fin${i}`;
+        const op = await service.createAccount(`ik-${i}`, ORG, ASSET, fin, { account });
+        if (op.type !== 'success') throw new Error(`expected success for ${account.type}`);
+        expect(op.record.account).toEqual(account);
+        expect((await store.getByFinId(ORG, ASSET, fin))?.account).toEqual(account);
+      }
+    });
+  });
+
+  // A custodial leg used to throw inside sourceFromAPI/destinationFromAPI,
+  // failing the operation itself — not just onboarding.
+  describe("operation leg account mapping", () => {
+    const legs = [
+      { type: 'walletAccount' as const, address: '0xAAA' },
+      { type: 'caip10Account' as const, network: 'eip155:1', address: '0xBBB' },
+      { type: 'custodialAccount' as const, provider: 'fireblocks', vaultAccountId: 'v7' },
+    ];
+
+    test.each(legs.map((l) => [l.type, l] as const))("%s survives a source leg", (_t, ledgerAccount) => {
+      const source = sourceFromAPI({ finId: 'fin-1', ledgerAccount } as any);
+      expect(source.account).toEqual(ledgerAccount);
+    });
+
+    test.each(legs.map((l) => [l.type, l] as const))("%s survives a destination leg", (_t, ledgerAccount) => {
+      const destination = destinationFromAPI({ finId: 'fin-1', ledgerAccount } as any);
+      expect(destination.account).toEqual(ledgerAccount);
+    });
+
+    const receiptWith = (account: any) => ({
+      id: 'r-1',
+      asset: { assetId: 'a-1', assetType: 'finp2p' as const },
+      source: { finId: 'fin-1', account },
+      destination: { finId: 'fin-2', account },
+      quantity: '1',
+      transactionDetails: { transactionId: 'tx-1' },
+      tradeDetails: {},
+      operationType: 'transfer' as const,
+      proof: undefined,
+      timestamp: 0,
+    });
+
+    test.each(legs.map((l) => [l.type, l] as const))("%s survives a receipt leg", (_t, account) => {
+      const receipt = receiptToAPI(receiptWith(account) as any);
+      expect(receipt.source?.ledgerAccount).toEqual(account);
+      expect(receipt.destination?.ledgerAccount).toEqual(account);
+    });
+
+    // A non-canonical discriminator used to throw, then briefly returned
+    // undefined — which means "no account", so the receipt shipped with the leg
+    // silently missing.
+    test("an unknown type throws rather than dropping the account", () => {
+      expect(() => receiptToAPI(receiptWith({ type: 'wallet', address: '0xAAA' }) as any))
+        .toThrow(/unsupported ledger account type: wallet/);
+    });
+
+    test("an absent account stays absent", () => {
+      const receipt = receiptToAPI(receiptWith(undefined) as any);
+      expect(receipt.source?.ledgerAccount).toBeUndefined();
+    });
+
     test("the raw ownership hint survives mapping", () => {
       const bindInfo = bindInfoOptFromAPI({
         networkAccount: { type: 'walletAccount', address: '0xAAA' },
