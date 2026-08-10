@@ -95,14 +95,19 @@ paths:
                 items:
                   $ref: '#/components/schemas/accountMappingField'
 
-  /whitelist/investors:
+  /investor/whitelist:
     post:
-      summary: Whitelist an investor for an asset
+      summary: Whitelist a party for an asset
       description: |
-        Adapter-internal. Records that the investor identified by `finId` is
-        permitted to transact the given `assetId`, together with an arbitrary
-        adapter-defined `config` object. Re-whitelisting the same
-        (finId, assetId) replaces the stored config.
+        Adapter-internal. Records that the party is permitted to transact the
+        given `assetId`, together with an arbitrary adapter-defined `config`.
+        Supply exactly one of `finId` or `address` — an escrow custody wallet has
+        no finId, and cleaning up a replaced mapping leaves only an address.
+        Re-whitelisting the same (party, asset) replaces the stored config.
+
+        Requires `Authorization: Bearer <token>` when the adapter registered these
+        routes with a token. This is a privileged surface: see the security note
+        on the DELETE operation.
       operationId: whitelistInvestor
       requestBody:
         required: true
@@ -112,7 +117,7 @@ paths:
               $ref: '#/components/schemas/whitelistInvestorRequest'
       responses:
         '200':
-          description: investor whitelisted
+          description: party whitelisted
           content:
             application/json:
               schema:
@@ -123,6 +128,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
+        '401':
+          description: missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '409':
+          description: |
+            Refused on policy grounds — the party stays blocked by mechanisms this
+            deployment does not operate, so onboarding must be completed
+            elsewhere. Distinct from 500, which means the adapter failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/whitelistRefusedResponse'
         '500':
           description: server error
           content:
@@ -130,25 +150,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/errorResponse'
     delete:
-      summary: Dewhitelist an investor
+      summary: Dewhitelist a party
       description: |
-        Adapter-internal. Removes the investor's whitelist entry. Omit `assetId`
-        to remove every entry for the investor. Removing an entry that does not
-        exist is a success, so retries are safe.
+        Adapter-internal. Removes the party's whitelist entry. Omit `assetId` to
+        remove every entry for the party. Removing an entry that does not exist is
+        a success, so retries are safe.
+
+        **Security.** This revokes access. Omitting `assetId` revokes the party
+        for every asset in one call, using whatever authority the adapter holds.
+        Register these routes with a token, or keep them behind a trusted network
+        boundary.
       operationId: dewhitelistInvestor
       parameters:
         - in: query
           name: finId
-          required: true
+          required: false
           schema:
             type: string
-          description: FinP2P identity (hex secp256k1 compressed public key)
+          description: FinP2P identity. Supply exactly one of finId or address.
+        - in: query
+          name: address
+          required: false
+          schema:
+            type: string
+          description: Raw ledger address. Supply exactly one of finId or address.
         - in: query
           name: assetId
           required: false
           schema:
             type: string
-          description: Asset resource id. Omit to remove all entries for the investor.
+          description: Asset resource id. Omit to remove all entries for the party.
       responses:
         '200':
           description: entries removed
@@ -162,6 +193,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
+        '401':
+          description: missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '409':
+          description: refused on policy grounds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/whitelistRefusedResponse'
         '500':
           description: server error
           content:
@@ -169,12 +212,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/errorResponse'
     get:
-      summary: Query investor whitelist entries
-      description: Adapter-internal. Optional `finId` and `assetId` filters.
+      summary: Query whitelist entries
+      description: |
+        Adapter-internal. Optional `finId` / `address` and `assetId` filters.
+
+        An implementation backed by ledger enforcement may not be able to report
+        the `config` originally submitted — only what the ledger can tell it.
       operationId: getInvestorWhitelist
       parameters:
         - in: query
           name: finId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: address
           required: false
           schema:
             type: string
@@ -192,6 +244,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/investorWhitelistEntry'
+        '401':
+          description: missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
         '500':
           description: server error
           content:
@@ -285,12 +343,14 @@ components:
     whitelistInvestorRequest:
       type: object
       required:
-        - finId
         - assetId
       properties:
         finId:
           type: string
-          description: FinP2P identity (hex secp256k1 compressed public key)
+          description: FinP2P identity (hex secp256k1 compressed public key). Supply exactly one of finId or address.
+        address:
+          type: string
+          description: Raw ledger address, for parties with no finId (e.g. an escrow custody wallet). Supply exactly one of finId or address.
         assetId:
           type: string
           description: Asset resource id
@@ -299,12 +359,15 @@ components:
     investorWhitelistEntry:
       type: object
       required:
-        - finId
         - assetId
         - config
       properties:
         finId:
           type: string
+          description: Present when the party is identified by finId.
+        address:
+          type: string
+          description: Present when the party is identified by a raw ledger address.
         assetId:
           type: string
         config:
@@ -312,17 +375,32 @@ components:
     dewhitelistInvestorResponse:
       type: object
       required:
-        - finId
         - removed
       properties:
         finId:
           type: string
+        address:
+          type: string
         assetId:
           type: string
-          description: Absent when every entry for the investor was removed.
+          description: Absent when every entry for the party was removed.
         removed:
           type: integer
           description: Number of entries removed.
+    whitelistRefusedResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+        mechanisms:
+          type: array
+          description: |
+            The mechanisms still blocking the party, which this deployment does
+            not operate. Onboarding must be completed through them.
+          items:
+            type: string
     errorResponse:
       type: object
       required:

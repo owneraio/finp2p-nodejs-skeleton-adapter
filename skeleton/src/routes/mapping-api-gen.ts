@@ -48,7 +48,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/whitelist/investors': {
+  '/investor/whitelist': {
     parameters: {
       query?: never;
       header?: never;
@@ -56,24 +56,37 @@ export interface paths {
       cookie?: never;
     };
     /**
-         * Query investor whitelist entries
-         * @description Adapter-internal. Optional `finId` and `assetId` filters.
+         * Query whitelist entries
+         * @description Adapter-internal. Optional `finId` / `address` and `assetId` filters.
+         *
+         *     An implementation backed by ledger enforcement may not be able to report
+         *     the `config` originally submitted — only what the ledger can tell it.
          */
     get: operations['getInvestorWhitelist'];
     put?: never;
     /**
-         * Whitelist an investor for an asset
-         * @description Adapter-internal. Records that the investor identified by `finId` is
-         *     permitted to transact the given `assetId`, together with an arbitrary
-         *     adapter-defined `config` object. Re-whitelisting the same
-         *     (finId, assetId) replaces the stored config.
+         * Whitelist a party for an asset
+         * @description Adapter-internal. Records that the party is permitted to transact the
+         *     given `assetId`, together with an arbitrary adapter-defined `config`.
+         *     Supply exactly one of `finId` or `address` — an escrow custody wallet has
+         *     no finId, and cleaning up a replaced mapping leaves only an address.
+         *     Re-whitelisting the same (party, asset) replaces the stored config.
+         *
+         *     Requires `Authorization: Bearer <token>` when the adapter registered these
+         *     routes with a token. This is a privileged surface: see the security note
+         *     on the DELETE operation.
          */
     post: operations['whitelistInvestor'];
     /**
-         * Dewhitelist an investor
-         * @description Adapter-internal. Removes the investor's whitelist entry. Omit `assetId`
-         *     to remove every entry for the investor. Removing an entry that does not
-         *     exist is a success, so retries are safe.
+         * Dewhitelist a party
+         * @description Adapter-internal. Removes the party's whitelist entry. Omit `assetId` to
+         *     remove every entry for the party. Removing an entry that does not exist is
+         *     a success, so retries are safe.
+         *
+         *     **Security.** This revokes access. Omitting `assetId` revokes the party
+         *     for every asset in one call, using whatever authority the adapter holds.
+         *     Register these routes with a token, or keep them behind a trusted network
+         *     boundary.
          */
     delete: operations['dewhitelistInvestor'];
     options?: never;
@@ -126,23 +139,37 @@ export interface components {
       [key: string]: unknown;
     };
     whitelistInvestorRequest: {
-      /** @description FinP2P identity (hex secp256k1 compressed public key) */
-      finId: string;
+      /** @description FinP2P identity (hex secp256k1 compressed public key). Supply exactly one of finId or address. */
+      finId?: string;
+      /** @description Raw ledger address, for parties with no finId (e.g. an escrow custody wallet). Supply exactly one of finId or address. */
+      address?: string;
       /** @description Asset resource id */
       assetId: string;
       config?: components['schemas']['whitelistConfig'];
     };
     investorWhitelistEntry: {
-      finId: string;
+      /** @description Present when the party is identified by finId. */
+      finId?: string;
+      /** @description Present when the party is identified by a raw ledger address. */
+      address?: string;
       assetId: string;
       config: components['schemas']['whitelistConfig'];
     };
     dewhitelistInvestorResponse: {
-      finId: string;
-      /** @description Absent when every entry for the investor was removed. */
+      finId?: string;
+      address?: string;
+      /** @description Absent when every entry for the party was removed. */
       assetId?: string;
       /** @description Number of entries removed. */
       removed: number;
+    };
+    whitelistRefusedResponse: {
+      error: string;
+      /**
+             * @description The mechanisms still blocking the party, which this deployment does
+             *     not operate. Onboarding must be completed through them.
+             */
+      mechanisms?: string[];
     };
     errorResponse: {
       /** @description Error message */
@@ -255,6 +282,7 @@ export interface operations {
     parameters: {
       query?: {
         finId?: string;
+        address?: string;
         assetId?: string;
       };
       header?: never;
@@ -270,6 +298,15 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['investorWhitelistEntry'][];
+        };
+      };
+      /** @description missing or invalid bearer token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
         };
       };
       /** @description server error */
@@ -296,7 +333,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description investor whitelisted */
+      /** @description party whitelisted */
       200: {
         headers: {
           [name: string]: unknown;
@@ -314,6 +351,28 @@ export interface operations {
           'application/json': components['schemas']['errorResponse'];
         };
       };
+      /** @description missing or invalid bearer token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /**
+             * @description Refused on policy grounds — the party stays blocked by mechanisms this
+             *     deployment does not operate, so onboarding must be completed
+             *     elsewhere. Distinct from 500, which means the adapter failed.
+             */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['whitelistRefusedResponse'];
+        };
+      };
       /** @description server error */
       500: {
         headers: {
@@ -327,10 +386,12 @@ export interface operations {
   };
   dewhitelistInvestor: {
     parameters: {
-      query: {
-        /** @description FinP2P identity (hex secp256k1 compressed public key) */
-        finId: string;
-        /** @description Asset resource id. Omit to remove all entries for the investor. */
+      query?: {
+        /** @description FinP2P identity. Supply exactly one of finId or address. */
+        finId?: string;
+        /** @description Raw ledger address. Supply exactly one of finId or address. */
+        address?: string;
+        /** @description Asset resource id. Omit to remove all entries for the party. */
         assetId?: string;
       };
       header?: never;
@@ -355,6 +416,24 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /** @description missing or invalid bearer token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /** @description refused on policy grounds */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['whitelistRefusedResponse'];
         };
       };
       /** @description server error */

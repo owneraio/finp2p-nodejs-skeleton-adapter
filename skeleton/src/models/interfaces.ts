@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry,
+  AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
 } from './model';
 
@@ -83,21 +83,34 @@ export interface PlanApprovalService {
 }
 
 /**
- * Investor whitelisting, adapter-internal: which investors may transact which
+ * Investor whitelisting, adapter-internal: which parties may transact which
  * asset, plus arbitrary adapter-defined config. Not part of the DLT adapter API
  * — the router never calls these; they are driven by the adapter's own
  * operators, like the account-mapping endpoints.
+ *
+ * Implementations are free to treat the ledger as the source of truth rather
+ * than storing anything: `isWhitelisted` may read on-chain enforcement, and
+ * `whitelist` may delegate to a token standard. In that case `getWhitelist` can
+ * only report what the chain can tell it, which may not include the `config`
+ * originally submitted — see {@link InvestorWhitelistEntry}.
+ *
+ * Do not mix a storing implementation with flows that mutate ledger state
+ * directly: the stored rows would drift from ledger truth. Pick one owner.
+ *
+ * Throw {@link WhitelistRefusedError} for a policy refusal (the party stays
+ * blocked by something this deployment does not operate) so it is not confused
+ * with a fault.
  */
 export interface InvestorWhitelistService {
-  whitelist(finId: string, assetId: string, config: Record<string, unknown>): Promise<InvestorWhitelistEntry>
+  whitelist(party: WhitelistParty, assetId: string, config: Record<string, unknown>): Promise<InvestorWhitelistEntry>
 
-  /** Omit assetId to dewhitelist the investor for every asset. Returns the
-   *  number of entries removed; removing nothing is not an error. */
-  dewhitelist(finId: string, assetId?: string): Promise<number>
+  /** Omit assetId to dewhitelist the party for every asset. Returns the number
+   *  of entries removed; removing nothing is not an error. */
+  dewhitelist(party: WhitelistParty, assetId?: string): Promise<number>
 
-  getWhitelist(finId?: string, assetId?: string): Promise<InvestorWhitelistEntry[]>
+  getWhitelist(party?: WhitelistParty, assetId?: string): Promise<InvestorWhitelistEntry[]>
 
-  isWhitelisted(finId: string, assetId: string): Promise<boolean>
+  isWhitelisted(party: WhitelistParty, assetId: string): Promise<boolean>
 }
 
 /**
@@ -105,7 +118,7 @@ export interface InvestorWhitelistService {
  * returned config is what gets stored, so it may also normalize.
  */
 export interface InvestorWhitelistValidator {
-  validate(finId: string, assetId: string, config: Record<string, unknown>): Promise<Record<string, unknown>>
+  validate(party: WhitelistParty, assetId: string, config: Record<string, unknown>): Promise<Record<string, unknown>>
 }
 
 export interface AccountMappingService {

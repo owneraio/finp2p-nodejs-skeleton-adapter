@@ -37,7 +37,7 @@ import {
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import {
   AccountMappingConfig, registerMappingRoutes,
-  registerWhitelistRoutes,
+  registerWhitelistRoutes, WhitelistRouteOptions,
 } from './operational';
 
 const basePath = 'api';
@@ -45,10 +45,14 @@ const basePath = 'api';
 export interface RegisterOptions {
   mappingConfig?: AccountMappingConfig;
   mappingService?: AccountMappingService;
-  /** Opt in to the investor-whitelist endpoints. Construct
-   *  InvestorWhitelistServiceImpl(store, validator?) — the validator lives on the
-   *  service so direct callers are guarded too, not just HTTP. */
+  /** Opt in to the investor-whitelist endpoints. The validator lives on the
+   *  service, not here, so direct callers are guarded too — construct
+   *  InvestorWhitelistServiceImpl(store, validator?) or your own implementation
+   *  over ledger enforcement. */
   whitelistService?: InvestorWhitelistService;
+  /** Bearer token for the whitelist routes. Strongly recommended: they grant and
+   *  revoke access, and DELETE without an assetId revokes a party everywhere. */
+  whitelistOptions?: WhitelistRouteOptions;
 }
 
 export const register = (app: Application,
@@ -64,7 +68,7 @@ export const register = (app: Application,
   networkAccountService: NetworkAccountService = new NotSupportedNetworkAccountService(),
   options?: RegisterOptions,
 ): void => {
-  const { mappingConfig, mappingService, whitelistService } = options ?? {};
+  const { mappingConfig, mappingService, whitelistService, whitelistOptions } = options ?? {};
   if (mappingConfig && !mappingService) {
     throw new Error('mappingConfig requires a mappingService. Construct AccountMappingServiceImpl(store) and pass it in.');
   }
@@ -371,7 +375,7 @@ export const register = (app: Application,
   }
 
   if (whitelistService) {
-    registerWhitelistRoutes(app, whitelistService);
+    registerWhitelistRoutes(app, whitelistService, whitelistOptions ?? {});
   }
 
   app.use(errorHandler);

@@ -2,9 +2,18 @@ import {
   InvestorWhitelistEntry,
   InvestorWhitelistService,
   InvestorWhitelistValidator,
+  WhitelistParty,
 } from '../../models';
 import { InvestorWhitelistStore } from '../../storage';
 
+/**
+ * Whitelist entries kept in the adapter's own store.
+ *
+ * Use this when whitelist state genuinely lives off-ledger. If the ledger
+ * enforces membership itself, implement `InvestorWhitelistService` against it
+ * instead and do not use this class — rows here would drift from ledger truth as
+ * soon as anything mutates the ledger directly.
+ */
 export class InvestorWhitelistServiceImpl implements InvestorWhitelistService {
 
   constructor(
@@ -13,24 +22,26 @@ export class InvestorWhitelistServiceImpl implements InvestorWhitelistService {
   ) {
   }
 
-  async whitelist(finId: string, assetId: string, config: Record<string, unknown>): Promise<InvestorWhitelistEntry> {
+  async whitelist(
+    party: WhitelistParty, assetId: string, config: Record<string, unknown>,
+  ): Promise<InvestorWhitelistEntry> {
     const validated = this.validator
-      ? await this.validator.validate(finId, assetId, config)
+      ? await this.validator.validate(party, assetId, config)
       : config;
-    const row = await this.store.upsert({ finId, assetId, config: validated });
-    return { finId: row.finId, assetId: row.assetId, config: row.config };
+    const row = await this.store.upsert({ party, assetId, config: validated });
+    return { party: row.party, assetId: row.assetId, config: row.config };
   }
 
-  async dewhitelist(finId: string, assetId?: string): Promise<number> {
-    return this.store.remove(finId, assetId);
+  async dewhitelist(party: WhitelistParty, assetId?: string): Promise<number> {
+    return this.store.remove(party, assetId);
   }
 
-  async getWhitelist(finId?: string, assetId?: string): Promise<InvestorWhitelistEntry[]> {
-    const rows = await this.store.list(finId, assetId);
-    return rows.map(r => ({ finId: r.finId, assetId: r.assetId, config: r.config }));
+  async getWhitelist(party?: WhitelistParty, assetId?: string): Promise<InvestorWhitelistEntry[]> {
+    const rows = await this.store.list(party, assetId);
+    return rows.map(r => ({ party: r.party, assetId: r.assetId, config: r.config }));
   }
 
-  async isWhitelisted(finId: string, assetId: string): Promise<boolean> {
-    return (await this.store.get(finId, assetId)) !== undefined;
+  async isWhitelisted(party: WhitelistParty, assetId: string): Promise<boolean> {
+    return (await this.store.get(party, assetId)) !== undefined;
   }
 }

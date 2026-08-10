@@ -2,13 +2,17 @@
 -- +goose StatementBegin
 -- +goose ENVSUB ON
 CREATE TABLE ${LEDGER_SCHEMA:-ledger_adapter}.investor_whitelist(
-  fin_id VARCHAR(255) NOT NULL,
+  -- a party is either an investor finId or a raw ledger address: an escrow
+  -- custody wallet has no finId, and cleaning up a replaced mapping leaves only
+  -- an address
+  party_type VARCHAR(16) NOT NULL CHECK (party_type IN ('finId', 'address')),
+  party_id VARCHAR(255) NOT NULL,
   asset_id VARCHAR(255) NOT NULL,
   -- arbitrary adapter-defined config, stored verbatim
   config JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (fin_id, asset_id)
+  PRIMARY KEY (party_type, party_id, asset_id)
 );
 -- +goose ENVSUB OFF
 -- +goose StatementEnd

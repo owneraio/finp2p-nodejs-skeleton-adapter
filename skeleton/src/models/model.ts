@@ -631,10 +631,28 @@ export type AccountMapping = {
   fields: Record<string, string>;
 };
 
-/** An investor permitted to transact an asset, with arbitrary adapter-defined
- *  config the skeleton stores verbatim and does not interpret. */
-export type InvestorWhitelistEntry = {
+/**
+ * The party a whitelist entry applies to. Usually an investor identified by
+ * finId, but some parties have no finId at all — an escrow custody wallet must
+ * be whitelisted or release fails, and cleaning up a replaced mapping leaves
+ * only an address — so a raw ledger address is a first-class alternative.
+ */
+export type WhitelistParty = {
+  type: 'finId';
   finId: string;
+} | {
+  type: 'address';
+  address: string;
+};
+
+/** Stable string form of a party, for storage keys and log lines. */
+export const whitelistPartyId = (party: WhitelistParty): string =>
+  (party.type === 'finId' ? party.finId : party.address);
+
+/** A party permitted to transact an asset, with arbitrary adapter-defined config
+ *  the skeleton stores verbatim and does not interpret. */
+export type InvestorWhitelistEntry = {
+  party: WhitelistParty;
   assetId: string;
   config: Record<string, unknown>;
 };
