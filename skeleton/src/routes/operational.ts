@@ -1,5 +1,9 @@
 import { Application } from 'express';
-import { AccountMappingService, AccountMappingValidator, AccountMapping, ValidationError } from '../models';
+import {
+  AccountMappingService, AccountMappingValidator, AccountMapping,
+  InvestorWhitelistService, InvestorWhitelistEntry,
+  ValidationError,
+} from '../models';
 import { logger } from '../helpers';
 import { components as MappingAPI } from './mapping-api-gen';
 
@@ -7,6 +11,9 @@ type APIMappingResponse = MappingAPI['schemas']['ownerMapping'];
 type CreateOwnerMappingRequest = MappingAPI['schemas']['createOwnerMappingRequest'];
 type CreateOwnerMappingResponse = MappingAPI['schemas']['createOwnerMappingResponse'];
 type AccountMappingField = MappingAPI['schemas']['accountMappingField'];
+type WhitelistInvestorRequest = MappingAPI['schemas']['whitelistInvestorRequest'];
+type InvestorWhitelistEntryAPI = MappingAPI['schemas']['investorWhitelistEntry'];
+type DewhitelistResponse = MappingAPI['schemas']['dewhitelistInvestorResponse'];
 
 const FIN_ID_HEX_PATTERN = /^[0-9a-fA-F]+$/;
 
@@ -137,5 +144,92 @@ export function registerMappingRoutes(
   app.get('/mapping/fields', (_req, res) => {
     const response: AccountMappingField[] = config.fields;
     res.json(response);
+  });
+}
+
+const toAPIWhitelistEntry = (e: InvestorWhitelistEntry): InvestorWhitelistEntryAPI => ({
+  finId: e.finId,
+  assetId: e.assetId,
+  config: e.config,
+});
+
+/**
+ * Register operational investor-whitelist endpoints:
+ *   POST   /whitelist/investors  — whitelist (finId, assetId, arbitrary config)
+ *   DELETE /whitelist/investors  — dewhitelist (?finId=, optional &assetId=)
+ *   GET    /whitelist/investors  — query (optional ?finId= and ?assetId=)
+ */
+export function registerWhitelistRoutes(
+  app: Application,
+  whitelistService: InvestorWhitelistService,
+): void {
+
+  app.post('/whitelist/investors', async (req, res) => {
+    try {
+      const body: WhitelistInvestorRequest = req.body;
+      const { finId, assetId } = body ?? {};
+
+      if (!finId || !assetId) {
+        res.status(400).json({ error: 'finId and assetId are required' });
+        return;
+      }
+      if (!FIN_ID_HEX_PATTERN.test(finId)) {
+        res.status(400).json({ error: 'finId must be a hexadecimal string' });
+        return;
+      }
+
+      logger.info('Investor whitelist requested', {
+        finId: finId.slice(0, 20), assetId, configKeys: Object.keys(body.config ?? {}),
+      });
+
+      const entry = await whitelistService.whitelist(finId, assetId, body.config ?? {});
+      res.json(toAPIWhitelistEntry(entry));
+    } catch (e: any) {
+      if (e instanceof ValidationError) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
+      logger.error('Investor whitelist failed', { error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete('/whitelist/investors', async (req, res) => {
+    try {
+      const finId = req.query.finId as string | undefined;
+      const assetId = req.query.assetId as string | undefined;
+
+      if (!finId) {
+        res.status(400).json({ error: 'finId is required' });
+        return;
+      }
+      if (!FIN_ID_HEX_PATTERN.test(finId)) {
+        res.status(400).json({ error: 'finId must be a hexadecimal string' });
+        return;
+      }
+
+      // Removing nothing is a success so operator retries don't fail.
+      const removed = await whitelistService.dewhitelist(finId, assetId);
+      logger.info('Investor dewhitelisted', { finId, assetId: assetId ?? 'all', removed });
+
+      const result: DewhitelistResponse = { finId, removed, ...(assetId ? { assetId } : {}) };
+      res.json(result);
+    } catch (e: any) {
+      logger.error('Investor dewhitelist failed', { error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/whitelist/investors', async (req, res) => {
+    try {
+      const finId = req.query.finId as string | undefined;
+      const assetId = req.query.assetId as string | undefined;
+
+      const entries = await whitelistService.getWhitelist(finId, assetId);
+      res.json(entries.map(toAPIWhitelistEntry));
+    } catch (e: any) {
+      logger.error('Investor whitelist query failed', { error: e.message });
+      res.status(500).json({ error: e.message });
+    }
   });
 }

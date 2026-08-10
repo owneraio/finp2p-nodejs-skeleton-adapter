@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  AssetBind, AssetDenomination, AccountMapping,
+  AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry,
   AccountOperation, BindInfo, NetworkAccount,
 } from './model';
 
@@ -80,6 +80,32 @@ export interface PlanApprovalService {
   proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus>
 
   proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void>
+}
+
+/**
+ * Investor whitelisting, adapter-internal: which investors may transact which
+ * asset, plus arbitrary adapter-defined config. Not part of the DLT adapter API
+ * — the router never calls these; they are driven by the adapter's own
+ * operators, like the account-mapping endpoints.
+ */
+export interface InvestorWhitelistService {
+  whitelist(finId: string, assetId: string, config: Record<string, unknown>): Promise<InvestorWhitelistEntry>
+
+  /** Omit assetId to dewhitelist the investor for every asset. Returns the
+   *  number of entries removed; removing nothing is not an error. */
+  dewhitelist(finId: string, assetId?: string): Promise<number>
+
+  getWhitelist(finId?: string, assetId?: string): Promise<InvestorWhitelistEntry[]>
+
+  isWhitelisted(finId: string, assetId: string): Promise<boolean>
+}
+
+/**
+ * Optional pre-whitelist validator. Throw ValidationError to reject; the
+ * returned config is what gets stored, so it may also normalize.
+ */
+export interface InvestorWhitelistValidator {
+  validate(finId: string, assetId: string, config: Record<string, unknown>): Promise<Record<string, unknown>>
 }
 
 export interface AccountMappingService {

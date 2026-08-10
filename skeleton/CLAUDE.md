@@ -21,6 +21,10 @@ The goal is to narrow the scope of building a new adapter to **just implementing
   - **Accounts**: `POST /api/accounts/create` (202), `DELETE /api/accounts/:accountId` &mdash; `networkAccountService` defaults to `NotSupportedNetworkAccountService` (answers 501), so the account surface is opt-in and an existing adapter that passes nothing keeps compiling. `POST /api/accounts/:cid/proof` is a 501 stub: the sync trust model never issues challenges, so the router never has a proof to submit
   - **Common**: `GET /api/assets/receipts/:transactionId`, `GET /api/operations/status/:cid`
   - **Health**: `GET /health`, `GET /health/liveness`, `GET /health/readiness`
+- **`operational.ts`** &mdash; **Adapter-internal** endpoints, outside the `/api` base path. The router never calls these; the adapter's own operators do. Typed from `apis/mapping-api.yaml`, which is skeleton-owned (not sourced from the router repo) &mdash; regenerate with `npm run mapping-api-generate`. Errors use a plain `{ error }` body with 400/500, not the DLT API envelopes.
+  - **Account mapping**: `POST /mapping/owners`, `GET /mapping/owners`, `GET /mapping/fields`. Opt in with `options.mappingConfig` + `options.mappingService`.
+  - **Investor whitelist**: `POST /whitelist/investors` (body `{ finId, assetId, config? }`), `DELETE /whitelist/investors?finId=&assetId=` (omit `assetId` to remove every entry for the investor), `GET /whitelist/investors?finId=&assetId=`. Opt in with `options.whitelistService` alone.
+
 - **`mapping.ts`** &mdash; Bidirectional mapping functions between OpenAPI-generated types and domain model types from `finp2p-adapter-models`. Converts API request payloads into service method arguments and service results back into API responses.
 
   **Account variants.** Every variant of the OAS `networkAccount` union is representable in the domain model, on both paths:
@@ -61,6 +65,7 @@ Default implementations that adapter developers can extend or replace:
 - **`plan/service.ts`** &mdash; `PlanApprovalServiceImpl` &mdash; default plan approval that auto-approves if no FinP2P client is configured. When a client is available, fetches the execution plan from the router and validates instructions via plugins. Proposal endpoints (cancel/reset/instruction) default to auto-approve.
 - **`payments/payments.ts`** &mdash; `PaymentsServiceImpl` &mdash; delegates deposit/payout to plugins (sync or async variants). Returns failure if no plugin is registered.
 - **`accounts/service.ts`** &mdash; `NetworkAccountServiceImpl` &mdash; investor account onboarding, **sync trust model**: the caller-supplied wallet is recorded as-is over a `NetworkAccountStore`, no ownership challenge (same trust the old finId&rarr;wallet mapping API extended). Optional `NetworkAccountValidator` hook for ledger address-shape checks. One binding per investor per (organizationId, assetId), keyed by the investor's `finId` carried on the request (required in the OAS): a repeat create for the same finId replays the recorded binding (even with a different wallet &mdash; changing wallets is remove + create). The same address may still be bound by many investors (omnibus &mdash; one shared wallet, many investors). Both methods are single-call and terminal &mdash; safe to wrap in `createServiceProxy`. The wallet also still arrives per operation on the instruction leg (`Source.account` / `Destination.account`). Challenge-based onboarding (signatureTemplate/walletConnect/deposit/fireblocksApproval, still present in the API spec) is deliberately not modeled &mdash; business requirements are unclear; add it when they firm up.
+- **`whitelist/service.ts`** &mdash; `InvestorWhitelistServiceImpl` &mdash; which investors may transact which asset, keyed by `(finId, assetId)`, plus an arbitrary adapter-defined `config` object stored verbatim as jsonb and never interpreted by the skeleton. Re-whitelisting the same pair **replaces** the config (unlike network-account onboarding, where a repeat create replays the existing binding &mdash; whitelisting is configuration, not an identity binding). Dewhitelisting something absent is a success so operator retries don't fail. Optional `InvestorWhitelistValidator` may reject (throw `ValidationError`) or normalize the config; it lives on the **service**, not the route config, so direct callers are guarded too.
 - **`proof/provider.ts`** &mdash; `ProofProvider` &mdash; generates cryptographic proofs (EIP-712 or hash-list) for receipts, fetching proof policies from the FinP2P node.
 - **`verify.ts`** &mdash; Signature verification utilities.
 
@@ -83,7 +88,8 @@ Default implementations that adapter developers can extend or replace:
 4. Construct your services. If you want PostgreSQL-backed async workflows, create a `pg.Pool`, build a `WorkflowStorage(pool)`, and wrap each service with `createServiceProxy(...)` before passing them to `register()`. The caller owns the pool lifecycle.
 5. For investor account onboarding, construct `NetworkAccountServiceImpl(store, validator?)` backed by a `NetworkAccountStore` (e.g. `PgNetworkAccountStore(pool)`); if the ledger has no account support, use `NotSupportedNetworkAccountService`.
 6. If you want account mapping (deprecated, superseded by network accounts), construct an `AccountStore` (e.g. `PgAccountStore(pool)`) and an `AccountMappingServiceImpl(store)`, and pass them via `options`.
-7. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, { mappingConfig?, mappingService? })`.
+7. For investor whitelisting, construct `InvestorWhitelistServiceImpl(store, validator?)` over a `InvestorWhitelistStore` (e.g. `PgInvestorWhitelistStore(pool)`) and pass it as `options.whitelistService`. Omit it and the whitelist endpoints simply aren't mounted.
+8. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, { mappingConfig?, mappingService?, whitelistService? })`.
 
 ## API spec management
 
@@ -104,6 +110,8 @@ When workflow persistence is enabled, the skeleton uses PostgreSQL with a `ledge
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb
+
+- `20260810090000_create_investor_whitelist_table.sql` &mdash; `investor_whitelist` table: primary key (fin_id, asset_id), arbitrary `config` jsonb
 
 Migrations run automatically on startup via goose.
 

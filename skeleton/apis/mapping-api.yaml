@@ -95,6 +95,110 @@ paths:
                 items:
                   $ref: '#/components/schemas/accountMappingField'
 
+  /whitelist/investors:
+    post:
+      summary: Whitelist an investor for an asset
+      description: |
+        Adapter-internal. Records that the investor identified by `finId` is
+        permitted to transact the given `assetId`, together with an arbitrary
+        adapter-defined `config` object. Re-whitelisting the same
+        (finId, assetId) replaces the stored config.
+      operationId: whitelistInvestor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/whitelistInvestorRequest'
+      responses:
+        '200':
+          description: investor whitelisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/investorWhitelistEntry'
+        '400':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '500':
+          description: server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+    delete:
+      summary: Dewhitelist an investor
+      description: |
+        Adapter-internal. Removes the investor's whitelist entry. Omit `assetId`
+        to remove every entry for the investor. Removing an entry that does not
+        exist is a success, so retries are safe.
+      operationId: dewhitelistInvestor
+      parameters:
+        - in: query
+          name: finId
+          required: true
+          schema:
+            type: string
+          description: FinP2P identity (hex secp256k1 compressed public key)
+        - in: query
+          name: assetId
+          required: false
+          schema:
+            type: string
+          description: Asset resource id. Omit to remove all entries for the investor.
+      responses:
+        '200':
+          description: entries removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dewhitelistInvestorResponse'
+        '400':
+          description: invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '500':
+          description: server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+    get:
+      summary: Query investor whitelist entries
+      description: Adapter-internal. Optional `finId` and `assetId` filters.
+      operationId: getInvestorWhitelist
+      parameters:
+        - in: query
+          name: finId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: assetId
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: whitelist entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/investorWhitelistEntry'
+        '500':
+          description: server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+
 components:
   schemas:
     ownerStatus:
@@ -171,6 +275,54 @@ components:
           type: string
           description: Example value for the field
 
+    whitelistConfig:
+      type: object
+      additionalProperties: true
+      description: |
+        Arbitrary adapter-defined configuration for the whitelist entry, stored
+        verbatim. The skeleton does not interpret it — validate it with a
+        InvestorWhitelistValidator if the adapter needs to.
+    whitelistInvestorRequest:
+      type: object
+      required:
+        - finId
+        - assetId
+      properties:
+        finId:
+          type: string
+          description: FinP2P identity (hex secp256k1 compressed public key)
+        assetId:
+          type: string
+          description: Asset resource id
+        config:
+          $ref: '#/components/schemas/whitelistConfig'
+    investorWhitelistEntry:
+      type: object
+      required:
+        - finId
+        - assetId
+        - config
+      properties:
+        finId:
+          type: string
+        assetId:
+          type: string
+        config:
+          $ref: '#/components/schemas/whitelistConfig'
+    dewhitelistInvestorResponse:
+      type: object
+      required:
+        - finId
+        - removed
+      properties:
+        finId:
+          type: string
+        assetId:
+          type: string
+          description: Absent when every entry for the investor was removed.
+        removed:
+          type: integer
+          description: Number of entries removed.
     errorResponse:
       type: object
       required:

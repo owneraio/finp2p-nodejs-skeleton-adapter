@@ -54,3 +54,19 @@ export interface NetworkAccountStore {
   getByFinId(organizationId: string, assetId: string, finId: string): Promise<NetworkAccountRow | undefined>;
   remove(accountId: string): Promise<NetworkAccountRow | undefined>;
 }
+
+export interface InvestorWhitelistRow {
+  finId: string;
+  assetId: string;
+  config: Record<string, unknown>;
+}
+
+export interface InvestorWhitelistStore {
+  /** Insert the entry, or replace the config of an existing (finId, assetId). */
+  upsert(row: InvestorWhitelistRow): Promise<InvestorWhitelistRow>;
+  get(finId: string, assetId: string): Promise<InvestorWhitelistRow | undefined>;
+  list(finId?: string, assetId?: string): Promise<InvestorWhitelistRow[]>;
+  /** Remove one entry, or every entry for the investor when assetId is omitted.
+   *  Returns the number of rows removed. */
+  remove(finId: string, assetId?: string): Promise<number>;
+}

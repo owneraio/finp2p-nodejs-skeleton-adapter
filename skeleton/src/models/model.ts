@@ -631,3 +631,11 @@ export type AccountMapping = {
   fields: Record<string, string>;
 };
 
+/** An investor permitted to transact an asset, with arbitrary adapter-defined
+ *  config the skeleton stores verbatim and does not interpret. */
+export type InvestorWhitelistEntry = {
+  finId: string;
+  assetId: string;
+  config: Record<string, unknown>;
+};
+

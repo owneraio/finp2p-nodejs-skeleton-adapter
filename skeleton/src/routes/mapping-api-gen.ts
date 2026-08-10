@@ -48,6 +48,39 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/whitelist/investors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+         * Query investor whitelist entries
+         * @description Adapter-internal. Optional `finId` and `assetId` filters.
+         */
+    get: operations['getInvestorWhitelist'];
+    put?: never;
+    /**
+         * Whitelist an investor for an asset
+         * @description Adapter-internal. Records that the investor identified by `finId` is
+         *     permitted to transact the given `assetId`, together with an arbitrary
+         *     adapter-defined `config` object. Re-whitelisting the same
+         *     (finId, assetId) replaces the stored config.
+         */
+    post: operations['whitelistInvestor'];
+    /**
+         * Dewhitelist an investor
+         * @description Adapter-internal. Removes the investor's whitelist entry. Omit `assetId`
+         *     to remove every entry for the investor. Removing an entry that does not
+         *     exist is a success, so retries are safe.
+         */
+    delete: operations['dewhitelistInvestor'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -83,6 +116,33 @@ export interface components {
       description: string;
       /** @description Example value for the field */
       exampleValue: string;
+    };
+    /**
+         * @description Arbitrary adapter-defined configuration for the whitelist entry, stored
+         *     verbatim. The skeleton does not interpret it — validate it with a
+         *     InvestorWhitelistValidator if the adapter needs to.
+         */
+    whitelistConfig: {
+      [key: string]: unknown;
+    };
+    whitelistInvestorRequest: {
+      /** @description FinP2P identity (hex secp256k1 compressed public key) */
+      finId: string;
+      /** @description Asset resource id */
+      assetId: string;
+      config?: components['schemas']['whitelistConfig'];
+    };
+    investorWhitelistEntry: {
+      finId: string;
+      assetId: string;
+      config: components['schemas']['whitelistConfig'];
+    };
+    dewhitelistInvestorResponse: {
+      finId: string;
+      /** @description Absent when every entry for the investor was removed. */
+      assetId?: string;
+      /** @description Number of entries removed. */
+      removed: number;
     };
     errorResponse: {
       /** @description Error message */
@@ -187,6 +247,123 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['accountMappingField'][];
+        };
+      };
+    };
+  };
+  getInvestorWhitelist: {
+    parameters: {
+      query?: {
+        finId?: string;
+        assetId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description whitelist entries */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['investorWhitelistEntry'][];
+        };
+      };
+      /** @description server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+    };
+  };
+  whitelistInvestor: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['whitelistInvestorRequest'];
+      };
+    };
+    responses: {
+      /** @description investor whitelisted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['investorWhitelistEntry'];
+        };
+      };
+      /** @description invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /** @description server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+    };
+  };
+  dewhitelistInvestor: {
+    parameters: {
+      query: {
+        /** @description FinP2P identity (hex secp256k1 compressed public key) */
+        finId: string;
+        /** @description Asset resource id. Omit to remove all entries for the investor. */
+        assetId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description entries removed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['dewhitelistInvestorResponse'];
+        };
+      };
+      /** @description invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /** @description server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
         };
       };
     };
