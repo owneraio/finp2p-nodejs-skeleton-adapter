@@ -155,29 +155,17 @@ const toAPIWhitelistEntry = (e: InvestorWhitelistEntry): InvestorWhitelistEntryA
 });
 
 export interface WhitelistRouteOptions {
-  /**
-   * Bearer token required on every whitelist route. These endpoints grant and
-   * revoke access using whatever authority the adapter holds, and a DELETE
-   * without an assetId revokes a party everywhere in one call — so set this
-   * unless the routes sit behind a trusted network boundary. Registration logs a
-   * warning when it is absent.
-   */
+  /** Bearer token required on every whitelist route. Set it unless the routes sit
+   *  behind a trusted boundary: a DELETE without an assetId revokes a party
+   *  everywhere. Registration warns when absent. */
   authToken?: string;
-  /**
-   * Failed auth attempts allowed per client within {@link authFailureWindowMs}
-   * before further attempts get 429. Defaults to 10; 0 disables throttling.
-   *
-   * This is a single-process, in-memory counter — enough to make a shared bearer
-   * token impractical to brute force through one replica, but it does not
-   * coordinate across replicas. A multi-replica deployment should rate-limit at
-   * the ingress as well.
-   */
+  /** Failed attempts per client before 429. Default 10, 0 disables. In-memory and
+   *  single-process, so multi-replica deployments still need ingress limiting. */
   maxAuthFailures?: number;
-  /** Window for {@link maxAuthFailures}. Defaults to 60_000ms. */
+  /** Window for maxAuthFailures. Default 60_000ms. */
   authFailureWindowMs?: number;
 }
 
-/** Exactly one of finId / address, so a party is never ambiguous. */
 const parseParty = (
   finId: string | undefined, address: string | undefined,
 ): WhitelistParty | { error: string } => {
@@ -201,7 +189,7 @@ const isPartyError = (p: WhitelistParty | { error: string }): p is { error: stri
  * Register operational investor-whitelist endpoints:
  *   POST   /investor/whitelist  — whitelist (finId | address, assetId, config)
  *   DELETE /investor/whitelist  — dewhitelist (?finId=|?address=, optional &assetId=)
- *   GET    /investor/whitelist  — query (optional party and ?assetId= filters)
+ *   GET    /investor/whitelist  — query
  */
 export function registerWhitelistRoutes(
   app: Application,
@@ -268,7 +256,6 @@ export function registerWhitelistRoutes(
       return;
     }
     if (e instanceof WhitelistRefusedError) {
-      // A policy refusal, not a fault — 409 so operators can tell the two apart.
       res.status(409).json({ error: e.message, mechanisms: e.mechanisms });
       return;
     }

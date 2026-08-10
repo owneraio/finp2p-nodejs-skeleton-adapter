@@ -45,13 +45,9 @@ const basePath = 'api';
 export interface RegisterOptions {
   mappingConfig?: AccountMappingConfig;
   mappingService?: AccountMappingService;
-  /** Opt in to the investor-whitelist endpoints. The validator lives on the
-   *  service, not here, so direct callers are guarded too — construct
-   *  InvestorWhitelistServiceImpl(store, validator?) or your own implementation
-   *  over ledger enforcement. */
+  /** Opt in to the investor-whitelist endpoints; the adapter supplies the
+   *  implementation. */
   whitelistService?: InvestorWhitelistService;
-  /** Bearer token for the whitelist routes. Strongly recommended: they grant and
-   *  revoke access, and DELETE without an assetId revokes a party everywhere. */
   whitelistOptions?: WhitelistRouteOptions;
 }
 

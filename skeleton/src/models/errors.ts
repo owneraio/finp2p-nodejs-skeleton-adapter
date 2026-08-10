@@ -84,14 +84,9 @@ export class AccountNotFoundError extends Error {
   }
 }
 
-/**
- * A whitelist mutation was refused on policy grounds rather than failing: the
- * party stays blocked by mechanisms this deployment does not operate, so the
- * caller must complete onboarding elsewhere. Mapped to HTTP 409.
- *
- * Distinct from a fault (mapped to 500) precisely so operators can tell a policy
- * refusal from an RPC outage. `mechanisms` names what is still blocking.
- */
+/** A policy refusal, not a fault: the party stays blocked by mechanisms this
+ *  deployment does not operate. Mapped to 409, so it is distinguishable from an
+ *  outage. Mapped to HTTP 409. */
 export class WhitelistRefusedError extends Error {
 
   mechanisms: string[];
