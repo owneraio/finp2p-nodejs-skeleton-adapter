@@ -93,9 +93,7 @@ export interface PlanApprovalService {
  * `whitelist` may delegate to a token standard. In that case `getWhitelist` can
  * only report what the chain can tell it, which may not include the `config`
  * originally submitted — see {@link InvestorWhitelistEntry}.
- *
- * Do not mix a storing implementation with flows that mutate ledger state
- * directly: the stored rows would drift from ledger truth. Pick one owner.
+
  *
  * Throw {@link WhitelistRefusedError} for a policy refusal (the party stays
  * blocked by something this deployment does not operate) so it is not confused

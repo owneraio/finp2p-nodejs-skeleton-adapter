@@ -1,4 +1,5 @@
 import { Application, Request, Response } from 'express';
+import { timingSafeEqual } from 'node:crypto';
 import {
   AccountMappingService, AccountMappingValidator, AccountMapping,
   InvestorWhitelistService, InvestorWhitelistEntry, WhitelistParty, whitelistPartyId,
@@ -162,6 +163,18 @@ export interface WhitelistRouteOptions {
    * warning when it is absent.
    */
   authToken?: string;
+  /**
+   * Failed auth attempts allowed per client within {@link authFailureWindowMs}
+   * before further attempts get 429. Defaults to 10; 0 disables throttling.
+   *
+   * This is a single-process, in-memory counter — enough to make a shared bearer
+   * token impractical to brute force through one replica, but it does not
+   * coordinate across replicas. A multi-replica deployment should rate-limit at
+   * the ingress as well.
+   */
+  maxAuthFailures?: number;
+  /** Window for {@link maxAuthFailures}. Defaults to 60_000ms. */
+  authFailureWindowMs?: number;
 }
 
 /** Exactly one of finId / address, so a party is never ambiguous. */
@@ -195,7 +208,7 @@ export function registerWhitelistRoutes(
   whitelistService: InvestorWhitelistService,
   options: WhitelistRouteOptions = {},
 ): void {
-  const { authToken } = options;
+  const { authToken, maxAuthFailures = 10, authFailureWindowMs = 60_000 } = options;
 
   if (!authToken) {
     logger.warning(
@@ -205,16 +218,48 @@ export function registerWhitelistRoutes(
     );
   }
 
+  const expected = Buffer.from(`Bearer ${authToken ?? ''}`);
+  const failures = new Map<string, { count: number, resetAt: number }>();
+
+  const tokenMatches = (header: string | undefined): boolean => {
+    const presented = Buffer.from(header ?? '');
+    // Length must be compared separately: timingSafeEqual throws on a mismatch.
+    // Not constant-time across differing lengths, which leaks only the length.
+    return presented.length === expected.length && timingSafeEqual(presented, expected);
+  };
+
   const authorized = (req: Request, res: Response): boolean => {
     if (!authToken) {
       return true;
     }
-    const header = req.headers.authorization;
-    if (header !== `Bearer ${authToken}`) {
-      res.status(401).json({ error: 'unauthorized' });
-      return false;
+    const client = req.ip ?? 'unknown';
+    const now = Date.now();
+    const record = failures.get(client);
+    if (record && record.resetAt <= now) {
+      failures.delete(client);
     }
-    return true;
+
+    if (maxAuthFailures > 0) {
+      const current = failures.get(client);
+      if (current && current.count >= maxAuthFailures) {
+        res.status(429).json({ error: 'too many failed authorization attempts' });
+        return false;
+      }
+    }
+
+    if (tokenMatches(req.headers.authorization)) {
+      failures.delete(client);
+      return true;
+    }
+
+    const current = failures.get(client);
+    failures.set(client, {
+      count: (current?.count ?? 0) + 1,
+      resetAt: current?.resetAt ?? now + authFailureWindowMs,
+    });
+    logger.warning('Whitelist authorization failed', { client });
+    res.status(401).json({ error: 'unauthorized' });
+    return false;
   };
 
   const fail = (res: Response, e: any, context: string): void => {

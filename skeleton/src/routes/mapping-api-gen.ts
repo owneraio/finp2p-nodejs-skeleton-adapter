@@ -309,6 +309,15 @@ export interface operations {
           'application/json': components['schemas']['errorResponse'];
         };
       };
+      /** @description too many failed authorization attempts */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
       /** @description server error */
       500: {
         headers: {
@@ -373,6 +382,15 @@ export interface operations {
           'application/json': components['schemas']['whitelistRefusedResponse'];
         };
       };
+      /** @description too many failed authorization attempts */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
       /** @description server error */
       500: {
         headers: {
@@ -434,6 +452,15 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['whitelistRefusedResponse'];
+        };
+      };
+      /** @description too many failed authorization attempts */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
         };
       };
       /** @description server error */

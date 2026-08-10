@@ -4,4 +4,3 @@ export * from './payments';
 export * from './accounts';
 export * from './verify';
 export * from './mapping';
-export * from './whitelist';

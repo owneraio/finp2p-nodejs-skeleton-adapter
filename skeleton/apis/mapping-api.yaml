@@ -143,6 +143,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/whitelistRefusedResponse'
+        '429':
+          description: too many failed authorization attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
         '500':
           description: server error
           content:
@@ -205,6 +211,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/whitelistRefusedResponse'
+        '429':
+          description: too many failed authorization attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
         '500':
           description: server error
           content:
@@ -246,6 +258,12 @@ paths:
                   $ref: '#/components/schemas/investorWhitelistEntry'
         '401':
           description: missing or invalid bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+        '429':
+          description: too many failed authorization attempts
           content:
             application/json:
               schema:

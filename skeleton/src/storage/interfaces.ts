@@ -1,4 +1,4 @@
-import { NetworkAccount, WhitelistParty } from '../models';
+import { NetworkAccount } from '../models';
 
 export interface Account {
   finId: string;
@@ -53,20 +53,4 @@ export interface NetworkAccountStore {
   insert(row: NetworkAccountRow): Promise<NetworkAccountRow>;
   getByFinId(organizationId: string, assetId: string, finId: string): Promise<NetworkAccountRow | undefined>;
   remove(accountId: string): Promise<NetworkAccountRow | undefined>;
-}
-
-export interface InvestorWhitelistRow {
-  party: WhitelistParty;
-  assetId: string;
-  config: Record<string, unknown>;
-}
-
-export interface InvestorWhitelistStore {
-  /** Insert the entry, or replace the config of an existing (party, assetId). */
-  upsert(row: InvestorWhitelistRow): Promise<InvestorWhitelistRow>;
-  get(party: WhitelistParty, assetId: string): Promise<InvestorWhitelistRow | undefined>;
-  list(party?: WhitelistParty, assetId?: string): Promise<InvestorWhitelistRow[]>;
-  /** Remove one entry, or every entry for the party when assetId is omitted.
-   *  Returns the number of rows removed. */
-  remove(party: WhitelistParty, assetId?: string): Promise<number>;
 }
