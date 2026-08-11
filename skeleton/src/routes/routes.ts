@@ -32,6 +32,8 @@ import {
   signatureFromAPI,
   signatureOptFromAPI,
   sourceFromAPI,
+  swapLegFromAPI,
+  swapOperationToAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import { AccountMappingConfig, registerMappingRoutes } from './operational';
@@ -198,6 +200,20 @@ export const register = (app: Application,
       const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
+    });
+
+  app.post<{},
+  LedgerAPI['schemas']['SwapAssetsResponse'],
+  LedgerAPI['schemas']['SwapAssetsRequest']>(
+    `/${basePath}/assets/swap`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { nonce, operationId, asset, settlement, deadline, executionContext } = req.body;
+      const exCtx = executionContextOptFromAPI(executionContext, settlement.source.asset?.resourceId);
+
+      const rsp = await tokenService.swap(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), deadline, exCtx);
+
+      res.json(swapOperationToAPI(rsp));
     });
 
   app.post<{},

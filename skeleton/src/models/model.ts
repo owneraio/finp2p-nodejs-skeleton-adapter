@@ -64,6 +64,21 @@ export type ExecutionContext = {
   counterpartyAssetId?: string
 };
 
+/**
+ * One leg of an atomic swap. Perspective-relative on the adapter API:
+ * the `asset` leg is always the one this adapter executes, the
+ * `settlement` leg is the binding counter-leg its party receives.
+ * `signature` is the leg owner's signature over the FULL swap terms
+ * (both legs); present on the counter-leg only in single-call execution.
+ */
+export type SwapLeg = {
+  asset: Asset
+  source: Source
+  destination: Destination
+  quantity: string
+  signature?: Signature
+};
+
 export type ErrorDetails = {
   code: number;
   message: string;
@@ -401,6 +416,52 @@ export const pendingReceiptOperation = (correlationId: string, metadata: Operati
 
 // -------------------------------------------------------------------
 
+export type SuccessSwapStatus = {
+  operation: 'swap',
+  type: 'success';
+  /** This adapter's own leg receipt — always present. */
+  asset: Receipt;
+  /** Optional counter-leg receipt attested from the settle tx. */
+  settlement?: Receipt;
+};
+
+export type FailedSwapStatus = {
+  operation: 'swap',
+  type: 'failure';
+  error: ErrorDetails
+};
+
+export type PendingSwapStatus = {
+  operation: 'swap',
+  type: 'pending';
+  correlationId: string;
+  metadata: OperationMetadata | undefined
+};
+
+export type SwapOperation = PendingSwapStatus | FailedSwapStatus | SuccessSwapStatus;
+
+export const successfulSwapOperation = (asset: Receipt, settlement?: Receipt): SwapOperation => ({
+  operation: 'swap',
+  type: 'success',
+  asset,
+  settlement,
+});
+
+export const failedSwapOperation = (code: number, message: string): SwapOperation => ({
+  operation: 'swap',
+  type: 'failure',
+  error: { code, message },
+});
+
+export const pendingSwapOperation = (correlationId: string, metadata: OperationMetadata | undefined): SwapOperation => ({
+  operation: 'swap',
+  type: 'pending',
+  correlationId,
+  metadata,
+});
+
+// -------------------------------------------------------------------
+
 
 export type IbanAccountDetails = {
   type: 'iban'
@@ -581,7 +642,7 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation;
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation;
 
 
 // -------------------------------------------------------------------

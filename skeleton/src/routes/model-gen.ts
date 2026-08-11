@@ -211,6 +211,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/assets/swap': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Atomic Asset Swap
+         * @description Atomically exchange two same-ledger assets. Legs are perspective-relative: `asset` is always the leg this adapter executes (what its party sends); `settlement` is the binding counter-leg its party receives, executed by the counterparty adapter.
+         */
+    post: operations['swapAssets'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/assets/transfer': {
     parameters: {
       query?: never;
@@ -540,6 +560,35 @@ export interface components {
       executionContext?: components['schemas']['executionContext'];
     };
     MoveAssetsResponse: components['schemas']['receiptOperation'];
+    SwapAssetsRequest: {
+      nonce: components['schemas']['nonce'];
+      /** @description Correlates the legs of one swap */
+      operationId: string;
+      /** @description The leg this adapter executes; its signature (its party's, over the FULL swap terms) is required */
+      asset: components['schemas']['swapLeg'];
+      /** @description The binding counter-leg: what must arrive, from whom, to where. Signature present only in single-call execution */
+      settlement: components['schemas']['swapLeg'];
+      /**
+             * Format: int64
+             * @description Absolute epoch seconds, identical on both legs; the adapter maps it to a chain-native expiry if needed. Refund path, no cancel
+             */
+      deadline: number;
+      executionContext?: components['schemas']['executionContext'];
+    };
+    swapLeg: {
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+      signature?: components['schemas']['signature'];
+    };
+    SwapAssetsResponse: components['schemas']['swapOperation'];
+    swapReceipts: {
+      /** @description This adapter's own leg receipt — always present */
+      asset: components['schemas']['receipt'];
+      /** @description Optional counter-leg receipt attested from the settle tx */
+      settlement?: components['schemas']['receipt'];
+    };
     GetReceiptResponse: components['schemas']['receiptOperation'];
     HoldOperationRequest: {
       nonce: components['schemas']['nonce'];
@@ -632,6 +681,10 @@ export interface components {
     receiptOperation: components['schemas']['OperationBase'] & {
       error?: components['schemas']['receiptOperationErrorInformation'];
       response?: components['schemas']['receipt'];
+    };
+    swapOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['swapReceipts'];
     };
     /**
          * @description Body for `POST /accounts/create`. Single LA-side endpoint covering both create-new
@@ -797,7 +850,7 @@ export interface components {
              */
       instructionSequenceNumber: number;
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'];
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
     operationStatusCreateAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -821,6 +874,14 @@ export interface components {
              */
       type: 'receipt';
       operation: components['schemas']['receiptOperation'];
+    };
+    operationStatusSwap: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swap';
+      operation: components['schemas']['swapOperation'];
     };
     operationStatusApproval: {
       /**
@@ -993,7 +1054,7 @@ export interface components {
       operationId?: string;
     };
     /** @enum {string} */
-    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move';
+    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move' | 'swap';
     ledgerAssetInfo: {
       ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
       ledgerReference?: components['schemas']['contractDetails'];
@@ -2079,6 +2140,71 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['MoveAssetsResponse'];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  swapAssets: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['SwapAssetsRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SwapAssetsResponse'];
         };
       };
       /** @description Bad Request */

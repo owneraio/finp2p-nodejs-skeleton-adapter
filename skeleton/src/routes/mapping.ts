@@ -13,6 +13,7 @@ import {
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
   NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
   AccountInvalidShapeError,
+  SwapLeg, SwapOperation,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -534,6 +535,45 @@ export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas
   }
 };
 
+export const swapLegFromAPI = (leg: components['schemas']['swapLeg']): SwapLeg => {
+  return {
+    asset: assetFromAPI(leg.source.asset),
+    source: sourceFromAPI(leg.source),
+    destination: destinationFromAPI(leg.destination),
+    quantity: leg.quantity,
+    signature: signatureOptFromAPI(leg.signature),
+  };
+};
+
+export const swapOperationToAPI = (op: SwapOperation): components['schemas']['swapOperation'] => {
+  switch (op.type) {
+    case 'pending': {
+      const { correlationId: cid, metadata } = op;
+      return {
+        isCompleted: false, cid,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    }
+    case 'failure': {
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: '',
+        error: { code, message },
+      };
+    }
+    case 'success':
+      return {
+        isCompleted: true,
+        cid: '',
+        response: {
+          asset: receiptToAPI(op.asset),
+          settlement: op.settlement ? receiptToAPI(op.settlement) : undefined,
+        },
+      };
+  }
+};
+
 export const wireDetailsToAPI = (details: WireDetails):
 components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'] => {
   switch (details.type) {
@@ -757,6 +797,12 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'account',
         operation: accountOperationToAPI(op),
+      };
+
+    case 'swap':
+      return {
+        type: 'swap',
+        operation: swapOperationToAPI(op),
       };
   }
 };

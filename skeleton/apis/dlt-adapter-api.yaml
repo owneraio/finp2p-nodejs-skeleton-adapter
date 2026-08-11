@@ -465,6 +465,52 @@ paths:
                 errors:
                   - code: 2202
                     message: 'Internal service failure'
+  /assets/swap:
+    post:
+      tags:
+        - 'transactions'
+      summary: 'Atomic Asset Swap'
+      description: 'Atomically exchange two same-ledger assets. Legs are perspective-relative: `asset` is always the leg this adapter executes (what its party sends); `settlement` is the binding counter-leg its party receives, executed by the counterparty adapter.'
+      operationId: 'swapAssets'
+      parameters:
+        - in: 'header'
+          name: 'Idempotency-Key'
+          description: 'hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)'
+          schema:
+            type: 'string'
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwapAssetsRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapAssetsResponse'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
   /assets/transfer:
     post:
       tags:
@@ -1135,6 +1181,57 @@ components:
     MoveAssetsResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
+    SwapAssetsRequest:
+      type: 'object'
+      required: ['nonce', 'operationId', 'asset', 'settlement', 'deadline']
+      properties:
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        operationId:
+          type: 'string'
+          description: 'Correlates the legs of one swap'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        asset:
+          $ref: '#/components/schemas/swapLeg'
+          description: 'The leg this adapter executes; its signature (its party''s, over the FULL swap terms) is required'
+        settlement:
+          $ref: '#/components/schemas/swapLeg'
+          description: 'The binding counter-leg: what must arrive, from whom, to where. Signature present only in single-call execution'
+        deadline:
+          type: 'integer'
+          format: 'int64'
+          description: 'Absolute epoch seconds, identical on both legs; the adapter maps it to a chain-native expiry if needed. Refund path, no cancel'
+        executionContext:
+          $ref: '#/components/schemas/executionContext'
+    swapLeg:
+      type: 'object'
+      required: ['source', 'destination', 'quantity']
+      properties:
+        source:
+          $ref: '#/components/schemas/account'
+        destination:
+          $ref: '#/components/schemas/account'
+        quantity:
+          type: 'string'
+          description: 'How many units of the asset tokens'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    SwapAssetsResponse:
+      allOf:
+        - $ref: '#/components/schemas/swapOperation'
+    swapReceipts:
+      type: 'object'
+      required: ['asset']
+      properties:
+        asset:
+          $ref: '#/components/schemas/receipt'
+          description: 'This adapter''s own leg receipt — always present'
+        settlement:
+          $ref: '#/components/schemas/receipt'
+          description: 'Optional counter-leg receipt attested from the settle tx'
     GetReceiptResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
@@ -1332,6 +1429,15 @@ components:
               $ref: '#/components/schemas/receiptOperationErrorInformation'
             response:
               $ref: '#/components/schemas/receipt'
+    swapOperation:
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - type: 'object'
+          properties:
+            error:
+              $ref: '#/components/schemas/receiptOperationErrorInformation'
+            response:
+              $ref: '#/components/schemas/swapReceipts'
     # -------- Investor accounts (Phase 1) --------
     CreateAccountRequest:
       type: 'object'
@@ -1583,6 +1689,7 @@ components:
         - $ref: '#/components/schemas/operationStatusReceipt'
         - $ref: '#/components/schemas/operationStatusApproval'
         - $ref: '#/components/schemas/operationStatusAccount'
+        - $ref: '#/components/schemas/operationStatusSwap'
       discriminator:
         propertyName: 'type'
         mapping:
@@ -1591,6 +1698,7 @@ components:
           receipt: '#/components/schemas/operationStatusReceipt'
           approval: '#/components/schemas/operationStatusApproval'
           account: '#/components/schemas/operationStatusAccount'
+          swap: '#/components/schemas/operationStatusSwap'
     operationStatusCreateAsset:
       type: 'object'
       required: ['type', 'operation']
@@ -1618,6 +1726,15 @@ components:
           enum: ['receipt']
         operation:
           $ref: '#/components/schemas/receiptOperation'
+    operationStatusSwap:
+      type: 'object'
+      required: ['type', 'operation']
+      properties:
+        type:
+          type: 'string'
+          enum: ['swap']
+        operation:
+          $ref: '#/components/schemas/swapOperation'
     operationStatusApproval:
       type: 'object'
       required: ['type', 'operation']
@@ -1920,7 +2037,7 @@ components:
           x-autoMinLength: true
     operationType:
       type: 'string'
-      enum: ['issue', 'transfer', 'hold', 'release', 'redeem', 'move']
+      enum: ['issue', 'transfer', 'hold', 'release', 'redeem', 'move', 'swap']
     ledgerAssetInfo:
       type: 'object'
       required: ['ledgerIdentifier']
