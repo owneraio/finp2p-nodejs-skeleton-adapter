@@ -670,7 +670,7 @@ export type TradeDetails = {
   executionContext: ExecutionContext | undefined
 };
 
-export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue';
+export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue' | 'swap';
 
 export type Receipt = {
   id: string,
