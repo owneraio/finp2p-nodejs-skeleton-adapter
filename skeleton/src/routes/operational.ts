@@ -157,7 +157,7 @@ const toAPIWhitelistEntry = (e: InvestorWhitelistEntry): InvestorWhitelistEntryA
 export interface WhitelistRouteOptions {
   /** Bearer token required on every whitelist route. Set it unless the routes sit
    *  behind a trusted boundary: a DELETE without an assetId revokes a party
-   *  everywhere. Registration warns when absent. */
+   *  everywhere. */
   authToken?: string;
   /** Failed attempts per client before 429. Default 10, 0 disables. In-memory and
    *  single-process, so multi-replica deployments still need ingress limiting. */
@@ -197,14 +197,6 @@ export function registerWhitelistRoutes(
   options: WhitelistRouteOptions = {},
 ): void {
   const { authToken, maxAuthFailures = 10, authFailureWindowMs = 60_000 } = options;
-
-  if (!authToken) {
-    logger.warning(
-      'Investor whitelist routes registered without an auth token — these endpoints grant and revoke '
-      + 'access, and DELETE without an assetId revokes a party for every asset. Pass '
-      + 'WhitelistRouteOptions.authToken or keep them behind a trusted network boundary.',
-    );
-  }
 
   const expected = Buffer.from(`Bearer ${authToken ?? ''}`);
   const failures = new Map<string, { count: number, resetAt: number }>();

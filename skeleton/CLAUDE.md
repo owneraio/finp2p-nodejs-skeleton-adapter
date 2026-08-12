@@ -13,7 +13,7 @@ The goal is to narrow the scope of building a new adapter to **just implementing
 ### Route layer (`src/routes/`)
 
 - **`model-gen.ts`** &mdash; TypeScript types auto-generated from the DLT adapter API OpenAPI spec (`apis/dlt-adapter-api.yaml`). Generated via `npm run api-generate` using `openapi-typescript`, then post-processed by `scripts/postprocess-model-gen.ts` to handle circular references and export recursive types.
-- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point and is **pure routing**: it takes finalized service implementations and mounts them on HTTP endpoints. All wiring (workflow proxy wrapping, plugin construction, account-mapping store/service, FinP2P client) must happen in the caller before `register()` is invoked. Signature: `register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, options?): void` where `options` is `{ mappingConfig?, mappingService? }`. Endpoints:
+- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point and is **pure routing**: it takes finalized service implementations and mounts them on HTTP endpoints. All wiring (workflow proxy wrapping, plugin construction, account-mapping store/service, FinP2P client) must happen in the caller before `register()` is invoked. Signature: `register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, options?): void` where `options` is `{ mappingConfig?, mappingService?, whitelistService?, whitelistOptions? }`. Endpoints:
   - **Plan**: `POST /api/plan/approve`, `POST /api/plan/proposal`, `POST /api/plan/proposal/status`
   - **Tokens**: `POST /api/assets/create`, `POST /api/assets/issue`, `POST /api/assets/transfer`, `POST /api/assets/redeem`, `POST /api/assets/getBalance`, `POST /api/asset/balance`
   - **Escrow**: `POST /api/assets/hold`, `POST /api/assets/release`, `POST /api/assets/rollback`
@@ -27,20 +27,20 @@ The goal is to narrow the scope of building a new adapter to **just implementing
     - The skeleton stores nothing and enforces nothing here: it exposes the routes and the `InvestorWhitelistService` contract, and the adapter supplies the implementation (typically delegating to on-ledger enforcement).
     - A **party** is either a `finId` or a raw ledger `address` &mdash; exactly one. Address parties exist because some parties have no finId at all: an escrow custody wallet must be whitelisted or release fails, and cleaning up a replaced mapping leaves only an address. They are distinct keys, so the same string as a finId and as an address are two entries.
     - **`409` is a policy refusal, not a fault.** Throw `WhitelistRefusedError(message, mechanisms)` when the party stays blocked by mechanisms this deployment does not operate; the route reports the mechanism list so operators can finish onboarding elsewhere. Anything else becomes a 500, so a refusal is never confused with an RPC outage.
-    - **Security.** These endpoints grant and revoke access, and a `DELETE` without `assetId` revokes a party for every asset in one call. Set `authToken` (checked as `Authorization: Bearer <token>` on all three routes) or keep them behind a trusted network boundary &mdash; registration logs a warning when it is unset.
+    - **Security.** These endpoints grant and revoke access, and a `DELETE` without `assetId` revokes a party for every asset in one call. Set `authToken` (checked as `Authorization: Bearer <token>` on all three routes) or keep them behind a trusted network boundary.
 
 - **`mapping.ts`** &mdash; Bidirectional mapping functions between OpenAPI-generated types and domain model types from `finp2p-adapter-models`. Converts API request payloads into service method arguments and service results back into API responses.
 
   **Account variants.** Every variant of the OAS `networkAccount` union is representable in the domain model, on both paths:
 
-  | Variant | Fields | Domain type |
-  |---------|--------|-------------|
-  | `walletAccount` | `address` | `WalletAccount` |
-  | `caip10Account` | `network`, `address` | `Caip10Account` |
-  | `custodialAccount` | `provider`, `vaultAccountId`, `assetId?` | `CustodialAccount` |
-  | `noneAccount` | &mdash; (empty object on the wire) | `{ type: 'none' }` |
+  | Variant | Fields |
+  |---------|--------|
+  | `walletAccount` | `address` |
+  | `caip10Account` | `network`, `address` |
+  | `custodialAccount` | `provider`, `vaultAccountId`, `assetId?` |
+  | `noneAccount` | &mdash; (empty object on the wire) |
 
-  The three bound variants are factored into `BoundAccount`, shared by `NetworkAccount` (onboarding, plus `none`) and `LedgerAccount` (per-operation leg, `Source.account` / `Destination.account`) so the two cannot drift.
+  `LedgerAccount` is the inline union of the three bound variants (per-operation leg, `Source.account` / `Destination.account`); `NetworkAccount` is `LedgerAccount | { type: 'none' }` (onboarding), so the two cannot drift.
 
   **`custodialAccount` has no address** &mdash; switch on `type` rather than reaching for `.address`. A type outside the union still throws `AccountInvalidShapeError` (400) rather than degrading to `none`: degrading would report a successful bind while recording an empty account, the router whitelists `{}`, and every later operation naming the real account fails 7351 `AccountNotWhitelisted` with nothing at bind time to explain it.
 
