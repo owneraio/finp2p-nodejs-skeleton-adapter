@@ -1,5 +1,4 @@
-import { Application, Request, Response } from 'express';
-import { timingSafeEqual } from 'node:crypto';
+import { Application, Response } from 'express';
 import {
   AccountMappingService, AccountMappingValidator, AccountMapping,
   InvestorWhitelistService, InvestorWhitelistEntry, WhitelistParty, whitelistPartyId,
@@ -154,18 +153,6 @@ const toAPIWhitelistEntry = (e: InvestorWhitelistEntry): InvestorWhitelistEntryA
   config: e.config,
 });
 
-export interface WhitelistRouteOptions {
-  /** Bearer token required on every whitelist route. Set it unless the routes sit
-   *  behind a trusted boundary: a DELETE without an assetId revokes a party
-   *  everywhere. */
-  authToken?: string;
-  /** Failed attempts per client before 429. Default 10, 0 disables. In-memory and
-   *  single-process, so multi-replica deployments still need ingress limiting. */
-  maxAuthFailures?: number;
-  /** Window for maxAuthFailures. Default 60_000ms. */
-  authFailureWindowMs?: number;
-}
-
 const parseParty = (
   finId: string | undefined, address: string | undefined,
 ): WhitelistParty | { error: string } => {
@@ -194,53 +181,7 @@ const isPartyError = (p: WhitelistParty | { error: string }): p is { error: stri
 export function registerWhitelistRoutes(
   app: Application,
   whitelistService: InvestorWhitelistService,
-  options: WhitelistRouteOptions = {},
 ): void {
-  const { authToken, maxAuthFailures = 10, authFailureWindowMs = 60_000 } = options;
-
-  const expected = Buffer.from(`Bearer ${authToken ?? ''}`);
-  const failures = new Map<string, { count: number, resetAt: number }>();
-
-  const tokenMatches = (header: string | undefined): boolean => {
-    const presented = Buffer.from(header ?? '');
-    // Length must be compared separately: timingSafeEqual throws on a mismatch.
-    // Not constant-time across differing lengths, which leaks only the length.
-    return presented.length === expected.length && timingSafeEqual(presented, expected);
-  };
-
-  const authorized = (req: Request, res: Response): boolean => {
-    if (!authToken) {
-      return true;
-    }
-    const client = req.ip ?? 'unknown';
-    const now = Date.now();
-    const record = failures.get(client);
-    if (record && record.resetAt <= now) {
-      failures.delete(client);
-    }
-
-    if (maxAuthFailures > 0) {
-      const current = failures.get(client);
-      if (current && current.count >= maxAuthFailures) {
-        res.status(429).json({ error: 'too many failed authorization attempts' });
-        return false;
-      }
-    }
-
-    if (tokenMatches(req.headers.authorization)) {
-      failures.delete(client);
-      return true;
-    }
-
-    const current = failures.get(client);
-    failures.set(client, {
-      count: (current?.count ?? 0) + 1,
-      resetAt: current?.resetAt ?? now + authFailureWindowMs,
-    });
-    logger.warning('Whitelist authorization failed', { client });
-    res.status(401).json({ error: 'unauthorized' });
-    return false;
-  };
 
   const fail = (res: Response, e: any, context: string): void => {
     if (e instanceof ValidationError) {
@@ -256,7 +197,6 @@ export function registerWhitelistRoutes(
   };
 
   app.post('/investor/whitelist', async (req, res) => {
-    if (!authorized(req, res)) return;
     try {
       const body: WhitelistInvestorRequest = req.body ?? {};
       const party = parseParty(body.finId, body.address);
@@ -284,7 +224,6 @@ export function registerWhitelistRoutes(
   });
 
   app.delete('/investor/whitelist', async (req, res) => {
-    if (!authorized(req, res)) return;
     try {
       const party = parseParty(req.query.finId as string | undefined, req.query.address as string | undefined);
       if (isPartyError(party)) {
@@ -311,7 +250,6 @@ export function registerWhitelistRoutes(
   });
 
   app.get('/investor/whitelist', async (req, res) => {
-    if (!authorized(req, res)) return;
     try {
       const finId = req.query.finId as string | undefined;
       const address = req.query.address as string | undefined;
