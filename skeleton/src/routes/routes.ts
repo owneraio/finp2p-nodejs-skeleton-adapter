@@ -32,8 +32,9 @@ import {
   signatureFromAPI,
   signatureOptFromAPI,
   sourceFromAPI,
-  swapLegFromAPI,
-  swapOperationToAPI,
+  swapAssetLegFromAPI,
+  swapReceiptOperationToAPI,
+  swapSettlementLegFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import { AccountMappingConfig, registerMappingRoutes } from './operational';
@@ -211,9 +212,9 @@ export const register = (app: Application,
       const { nonce, operationId, asset, settlement, deadline, executionContext } = req.body;
       const exCtx = executionContextOptFromAPI(executionContext, settlement.source.asset?.resourceId);
 
-      const rsp = await tokenService.swap(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), deadline, exCtx);
+      const rsp = await tokenService.swap(ik, nonce, operationId, swapAssetLegFromAPI(asset), swapSettlementLegFromAPI(settlement), deadline, exCtx);
 
-      res.json(swapOperationToAPI(rsp));
+      res.json(swapReceiptOperationToAPI(rsp));
     });
 
   app.post<{},

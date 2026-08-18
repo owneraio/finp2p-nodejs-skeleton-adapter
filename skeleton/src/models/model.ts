@@ -65,18 +65,29 @@ export type ExecutionContext = {
 };
 
 /**
- * One leg of an atomic swap. Perspective-relative on the adapter API:
- * the `asset` leg is always the one this adapter executes, the
- * `settlement` leg is the binding counter-leg its party receives.
- * `signature` is the leg owner's signature over the FULL swap terms
- * (both legs); present on the counter-leg only in single-call execution.
+ * The leg this adapter executes in an atomic swap (perspective-relative:
+ * always the `asset` leg on the cross-org endpoint). `signature` is the
+ * leg owner's signature over the FULL swap terms (both legs) and is
+ * mandatory.
  */
-export type SwapLeg = {
+export type SwapAssetLeg = {
   asset: Asset
   source: Source
   destination: Destination
   quantity: string
-  signature?: Signature
+  signature: Signature
+};
+
+/**
+ * The binding counter-leg the contract enforces, executed by the
+ * counterparty adapter. Deliberately unsigned on the cross-org endpoint:
+ * its integrity rests on verifying `asset.signature` over both hash groups.
+ */
+export type SwapSettlementLeg = {
+  asset: Asset
+  source: Source
+  destination: Destination
+  quantity: string
 };
 
 export type ErrorDetails = {
@@ -416,52 +427,6 @@ export const pendingReceiptOperation = (correlationId: string, metadata: Operati
 
 // -------------------------------------------------------------------
 
-export type SuccessSwapStatus = {
-  operation: 'swap',
-  type: 'success';
-  /** This adapter's own leg receipt — always present. */
-  asset: Receipt;
-  /** Optional counter-leg receipt attested from the settle tx. */
-  settlement?: Receipt;
-};
-
-export type FailedSwapStatus = {
-  operation: 'swap',
-  type: 'failure';
-  error: ErrorDetails
-};
-
-export type PendingSwapStatus = {
-  operation: 'swap',
-  type: 'pending';
-  correlationId: string;
-  metadata: OperationMetadata | undefined
-};
-
-export type SwapOperation = PendingSwapStatus | FailedSwapStatus | SuccessSwapStatus;
-
-export const successfulSwapOperation = (asset: Receipt, settlement?: Receipt): SwapOperation => ({
-  operation: 'swap',
-  type: 'success',
-  asset,
-  settlement,
-});
-
-export const failedSwapOperation = (code: number, message: string): SwapOperation => ({
-  operation: 'swap',
-  type: 'failure',
-  error: { code, message },
-});
-
-export const pendingSwapOperation = (correlationId: string, metadata: OperationMetadata | undefined): SwapOperation => ({
-  operation: 'swap',
-  type: 'pending',
-  correlationId,
-  metadata,
-});
-
-// -------------------------------------------------------------------
-
 
 export type IbanAccountDetails = {
   type: 'iban'
@@ -642,7 +607,7 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation;
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation;
 
 
 // -------------------------------------------------------------------

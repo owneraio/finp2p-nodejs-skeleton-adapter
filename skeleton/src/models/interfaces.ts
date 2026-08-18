@@ -8,7 +8,7 @@ import {
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping,
   AccountOperation, BindInfo, NetworkAccount,
-  SwapLeg, SwapOperation,
+  SwapAssetLeg, SwapSettlementLeg,
 } from './model';
 
 
@@ -45,13 +45,16 @@ export interface TokenService {
   ): Promise<ReceiptOperation>
 
   /**
-   * Atomically exchange two same-ledger assets. `asset` is the leg this
-   * adapter executes, `settlement` the binding counter-leg its party
-   * receives. `deadline` is absolute epoch seconds, identical on both legs.
+   * Atomically exchange two same-ledger assets (cross-org, called once per
+   * org). `asset` is the leg this adapter executes — its signature is
+   * mandatory and covers the FULL swap terms; `settlement` is the unsigned
+   * binding counter-leg its party receives, executed by the counterparty
+   * adapter. Completes with the single receipt of the executed leg.
+   * `deadline` is absolute epoch seconds, identical on both legs.
    */
-  swap(idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
+  swap(idempotencyKey: string, nonce: string, operationId: string, asset: SwapAssetLeg, settlement: SwapSettlementLeg,
     deadline: number, exCtx: ExecutionContext | undefined
-  ): Promise<SwapOperation>
+  ): Promise<ReceiptOperation>
 
 }
 

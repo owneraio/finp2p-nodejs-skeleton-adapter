@@ -470,7 +470,7 @@ paths:
       tags:
         - 'transactions'
       summary: 'Atomic Asset Swap'
-      description: 'Atomically exchange two same-ledger assets. Legs are perspective-relative: `asset` is always the leg this adapter executes (what its party sends); `settlement` is the binding counter-leg its party receives, executed by the counterparty adapter.'
+      description: 'Atomically exchange two same-ledger assets in a single ledger transaction. CROSS-ORG case, called once per org. Legs are perspective-relative: `asset` is always the leg this adapter executes (what its party sends); `settlement` is the binding counter-leg its party receives, executed by the counterparty adapter. The adapter executes only its own `asset` leg and a COMPLETED operation carries exactly one receipt; the counter-leg is reported by the counterparty adapter and assembled by the router. The signature MUST be verified by recomputing BOTH hash groups from `asset` AND `settlement`.'
       operationId: 'swapAssets'
       parameters:
         - in: 'header'
@@ -1193,20 +1193,19 @@ components:
           pattern: '.*\S.*'
           x-autoMinLength: true
         asset:
-          $ref: '#/components/schemas/swapLeg'
-          description: 'The leg this adapter executes; its signature (its party''s, over the FULL swap terms) is required'
+          $ref: '#/components/schemas/swapAssetLeg'
         settlement:
-          $ref: '#/components/schemas/swapLeg'
-          description: 'The binding counter-leg: what must arrive, from whom, to where. Signature present only in single-call execution'
+          $ref: '#/components/schemas/swapSettlementLeg'
         deadline:
           type: 'integer'
           format: 'int64'
           description: 'Absolute epoch seconds, identical on both legs; the adapter maps it to a chain-native expiry if needed. Refund path, no cancel'
         executionContext:
           $ref: '#/components/schemas/executionContext'
-    swapLeg:
+    swapAssetLeg:
       type: 'object'
-      required: ['source', 'destination', 'quantity']
+      description: 'The leg this adapter executes. Its signature is mandatory and covers the FULL swap terms (both legs).'
+      required: ['source', 'destination', 'quantity', 'signature']
       properties:
         source:
           $ref: '#/components/schemas/account'
@@ -1219,19 +1218,30 @@ components:
           x-autoMinLength: true
         signature:
           $ref: '#/components/schemas/signature'
+    swapSettlementLeg:
+      type: 'object'
+      description: 'The binding counter-leg the contract enforces: what must arrive, from whom, to where — executed by the COUNTERPARTY adapter. Deliberately unsigned: its integrity rests on the mandatory two-group verification of `asset.signature`.'
+      required: ['source', 'destination', 'quantity']
+      properties:
+        source:
+          $ref: '#/components/schemas/account'
+        destination:
+          $ref: '#/components/schemas/account'
+        quantity:
+          type: 'string'
+          description: 'How many units of the asset tokens'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
     SwapAssetsResponse:
       allOf:
-        - $ref: '#/components/schemas/swapOperation'
-    swapReceipts:
+        - $ref: '#/components/schemas/swapReceiptOperation'
+    swapReceipt:
       type: 'object'
-      required: ['asset']
+      description: 'The single receipt for the leg THIS adapter executed. The counter-leg is reported by the counterparty adapter and assembled by the router. Both receipts share one `transactionId` with distinct ids.'
+      required: ['receipt']
       properties:
-        asset:
+        receipt:
           $ref: '#/components/schemas/receipt'
-          description: 'This adapter''s own leg receipt — always present'
-        settlement:
-          $ref: '#/components/schemas/receipt'
-          description: 'Optional counter-leg receipt attested from the settle tx'
     GetReceiptResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
@@ -1429,7 +1439,7 @@ components:
               $ref: '#/components/schemas/receiptOperationErrorInformation'
             response:
               $ref: '#/components/schemas/receipt'
-    swapOperation:
+    swapReceiptOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - type: 'object'
@@ -1437,7 +1447,7 @@ components:
             error:
               $ref: '#/components/schemas/receiptOperationErrorInformation'
             response:
-              $ref: '#/components/schemas/swapReceipts'
+              $ref: '#/components/schemas/swapReceipt'
     # -------- Investor accounts (Phase 1) --------
     CreateAccountRequest:
       type: 'object'
@@ -1689,7 +1699,6 @@ components:
         - $ref: '#/components/schemas/operationStatusReceipt'
         - $ref: '#/components/schemas/operationStatusApproval'
         - $ref: '#/components/schemas/operationStatusAccount'
-        - $ref: '#/components/schemas/operationStatusSwap'
       discriminator:
         propertyName: 'type'
         mapping:
@@ -1698,7 +1707,6 @@ components:
           receipt: '#/components/schemas/operationStatusReceipt'
           approval: '#/components/schemas/operationStatusApproval'
           account: '#/components/schemas/operationStatusAccount'
-          swap: '#/components/schemas/operationStatusSwap'
     operationStatusCreateAsset:
       type: 'object'
       required: ['type', 'operation']
@@ -1726,15 +1734,6 @@ components:
           enum: ['receipt']
         operation:
           $ref: '#/components/schemas/receiptOperation'
-    operationStatusSwap:
-      type: 'object'
-      required: ['type', 'operation']
-      properties:
-        type:
-          type: 'string'
-          enum: ['swap']
-        operation:
-          $ref: '#/components/schemas/swapOperation'
     operationStatusApproval:
       type: 'object'
       required: ['type', 'operation']

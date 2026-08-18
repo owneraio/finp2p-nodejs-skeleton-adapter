@@ -222,7 +222,7 @@ export interface paths {
     put?: never;
     /**
          * Atomic Asset Swap
-         * @description Atomically exchange two same-ledger assets. Legs are perspective-relative: `asset` is always the leg this adapter executes (what its party sends); `settlement` is the binding counter-leg its party receives, executed by the counterparty adapter.
+         * @description Atomically exchange two same-ledger assets in a single ledger transaction. CROSS-ORG case, called once per org. Legs are perspective-relative: `asset` is always the leg this adapter executes (what its party sends); `settlement` is the binding counter-leg its party receives, executed by the counterparty adapter. The adapter executes only its own `asset` leg and a COMPLETED operation carries exactly one receipt; the counter-leg is reported by the counterparty adapter and assembled by the router. The signature MUST be verified by recomputing BOTH hash groups from `asset` AND `settlement`.
          */
     post: operations['swapAssets'];
     delete?: never;
@@ -564,10 +564,8 @@ export interface components {
       nonce: components['schemas']['nonce'];
       /** @description Correlates the legs of one swap */
       operationId: string;
-      /** @description The leg this adapter executes; its signature (its party's, over the FULL swap terms) is required */
-      asset: components['schemas']['swapLeg'];
-      /** @description The binding counter-leg: what must arrive, from whom, to where. Signature present only in single-call execution */
-      settlement: components['schemas']['swapLeg'];
+      asset: components['schemas']['swapAssetLeg'];
+      settlement: components['schemas']['swapSettlementLeg'];
       /**
              * Format: int64
              * @description Absolute epoch seconds, identical on both legs; the adapter maps it to a chain-native expiry if needed. Refund path, no cancel
@@ -575,19 +573,25 @@ export interface components {
       deadline: number;
       executionContext?: components['schemas']['executionContext'];
     };
-    swapLeg: {
+    /** @description The leg this adapter executes. Its signature is mandatory and covers the FULL swap terms (both legs). */
+    swapAssetLeg: {
       source: components['schemas']['account'];
       destination: components['schemas']['account'];
       /** @description How many units of the asset tokens */
       quantity: string;
-      signature?: components['schemas']['signature'];
+      signature: components['schemas']['signature'];
     };
-    SwapAssetsResponse: components['schemas']['swapOperation'];
-    swapReceipts: {
-      /** @description This adapter's own leg receipt — always present */
-      asset: components['schemas']['receipt'];
-      /** @description Optional counter-leg receipt attested from the settle tx */
-      settlement?: components['schemas']['receipt'];
+    /** @description The binding counter-leg the contract enforces: what must arrive, from whom, to where — executed by the COUNTERPARTY adapter. Deliberately unsigned: its integrity rests on the mandatory two-group verification of `asset.signature`. */
+    swapSettlementLeg: {
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+    };
+    SwapAssetsResponse: components['schemas']['swapReceiptOperation'];
+    /** @description The single receipt for the leg THIS adapter executed. The counter-leg is reported by the counterparty adapter and assembled by the router. Both receipts share one `transactionId` with distinct ids. */
+    swapReceipt: {
+      receipt: components['schemas']['receipt'];
     };
     GetReceiptResponse: components['schemas']['receiptOperation'];
     HoldOperationRequest: {
@@ -682,9 +686,9 @@ export interface components {
       error?: components['schemas']['receiptOperationErrorInformation'];
       response?: components['schemas']['receipt'];
     };
-    swapOperation: components['schemas']['OperationBase'] & {
+    swapReceiptOperation: components['schemas']['OperationBase'] & {
       error?: components['schemas']['receiptOperationErrorInformation'];
-      response?: components['schemas']['swapReceipts'];
+      response?: components['schemas']['swapReceipt'];
     };
     /**
          * @description Body for `POST /accounts/create`. Single LA-side endpoint covering both create-new
@@ -850,7 +854,7 @@ export interface components {
              */
       instructionSequenceNumber: number;
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'];
     operationStatusCreateAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -874,14 +878,6 @@ export interface components {
              */
       type: 'receipt';
       operation: components['schemas']['receiptOperation'];
-    };
-    operationStatusSwap: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'swap';
-      operation: components['schemas']['swapOperation'];
     };
     operationStatusApproval: {
       /**

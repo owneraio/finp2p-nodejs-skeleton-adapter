@@ -10,8 +10,6 @@ import {
   PlanApprovalService,
   rejectedPlan,
   failedReceiptOperation,
-  pendingSwapOperation,
-  failedSwapOperation,
   EscrowService,
   PaymentService,
   failedDepositOperation,
@@ -69,13 +67,12 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
     case compiletimeMethodName<TokenService>('issue'):
     case compiletimeMethodName<TokenService>('transfer'):
     case compiletimeMethodName<TokenService>('redeem'):
+    case compiletimeMethodName<TokenService>('swap'):
     case compiletimeMethodName<EscrowService>('hold'):
     case compiletimeMethodName<EscrowService>('release'):
     case compiletimeMethodName<EscrowService>('rollback'):
     case compiletimeMethodName<PaymentService>('payout'):
       return pendingOrError(cid => pendingReceiptOperation(cid, opMetadata), (cid, code, message) => failedReceiptOperation(code, message));
-    case compiletimeMethodName<TokenService>('swap'):
-      return pendingOrError(cid => pendingSwapOperation(cid, opMetadata), (cid, code, message) => failedSwapOperation(code, message));
     case compiletimeMethodName<PlanApprovalService>('approvePlan'):
     case compiletimeMethodName<PlanApprovalService>('proposeCancelPlan'):
     case compiletimeMethodName<PlanApprovalService>('proposeResetPlan'):
