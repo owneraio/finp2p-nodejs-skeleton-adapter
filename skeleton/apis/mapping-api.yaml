@@ -104,10 +104,6 @@ paths:
         Supply exactly one of `finId` or `address` — an escrow custody wallet has
         no finId, and cleaning up a replaced mapping leaves only an address.
         Re-whitelisting the same (party, asset) replaces the stored config.
-
-        Requires `Authorization: Bearer <token>` when the adapter registered these
-        routes with a token. This is a privileged surface: see the security note
-        on the DELETE operation.
       operationId: whitelistInvestor
       requestBody:
         required: true
@@ -128,12 +124,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
-        '401':
-          description: missing or invalid bearer token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/errorResponse'
         '409':
           description: |
             Refused on policy grounds — the party stays blocked by mechanisms this
@@ -143,12 +133,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/whitelistRefusedResponse'
-        '429':
-          description: too many failed authorization attempts
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/errorResponse'
         '500':
           description: server error
           content:
@@ -162,10 +146,9 @@ paths:
         remove every entry for the party. Removing an entry that does not exist is
         a success, so retries are safe.
 
-        **Security.** This revokes access. Omitting `assetId` revokes the party
-        for every asset in one call, using whatever authority the adapter holds.
-        Register these routes with a token, or keep them behind a trusted network
-        boundary.
+        **Security.** This revokes access, and omitting `assetId` revokes the party
+        for every asset in one call. These endpoints are adapter-internal and
+        unauthenticated — guard them at the ingress.
       operationId: dewhitelistInvestor
       parameters:
         - in: query
@@ -199,24 +182,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
-        '401':
-          description: missing or invalid bearer token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/errorResponse'
         '409':
           description: refused on policy grounds
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/whitelistRefusedResponse'
-        '429':
-          description: too many failed authorization attempts
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/errorResponse'
         '500':
           description: server error
           content:
@@ -256,18 +227,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/investorWhitelistEntry'
-        '401':
-          description: missing or invalid bearer token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/errorResponse'
-        '429':
-          description: too many failed authorization attempts
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/errorResponse'
         '500':
           description: server error
           content:

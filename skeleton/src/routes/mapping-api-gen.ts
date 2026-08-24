@@ -71,10 +71,6 @@ export interface paths {
          *     Supply exactly one of `finId` or `address` — an escrow custody wallet has
          *     no finId, and cleaning up a replaced mapping leaves only an address.
          *     Re-whitelisting the same (party, asset) replaces the stored config.
-         *
-         *     Requires `Authorization: Bearer <token>` when the adapter registered these
-         *     routes with a token. This is a privileged surface: see the security note
-         *     on the DELETE operation.
          */
     post: operations['whitelistInvestor'];
     /**
@@ -83,10 +79,9 @@ export interface paths {
          *     remove every entry for the party. Removing an entry that does not exist is
          *     a success, so retries are safe.
          *
-         *     **Security.** This revokes access. Omitting `assetId` revokes the party
-         *     for every asset in one call, using whatever authority the adapter holds.
-         *     Register these routes with a token, or keep them behind a trusted network
-         *     boundary.
+         *     **Security.** This revokes access, and omitting `assetId` revokes the party
+         *     for every asset in one call. These endpoints are adapter-internal and
+         *     unauthenticated — guard them at the ingress.
          */
     delete: operations['dewhitelistInvestor'];
     options?: never;
@@ -300,24 +295,6 @@ export interface operations {
           'application/json': components['schemas']['investorWhitelistEntry'][];
         };
       };
-      /** @description missing or invalid bearer token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['errorResponse'];
-        };
-      };
-      /** @description too many failed authorization attempts */
-      429: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['errorResponse'];
-        };
-      };
       /** @description server error */
       500: {
         headers: {
@@ -360,15 +337,6 @@ export interface operations {
           'application/json': components['schemas']['errorResponse'];
         };
       };
-      /** @description missing or invalid bearer token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['errorResponse'];
-        };
-      };
       /**
              * @description Refused on policy grounds — the party stays blocked by mechanisms this
              *     deployment does not operate, so onboarding must be completed
@@ -380,15 +348,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['whitelistRefusedResponse'];
-        };
-      };
-      /** @description too many failed authorization attempts */
-      429: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['errorResponse'];
         };
       };
       /** @description server error */
@@ -436,15 +395,6 @@ export interface operations {
           'application/json': components['schemas']['errorResponse'];
         };
       };
-      /** @description missing or invalid bearer token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['errorResponse'];
-        };
-      };
       /** @description refused on policy grounds */
       409: {
         headers: {
@@ -452,15 +402,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['whitelistRefusedResponse'];
-        };
-      };
-      /** @description too many failed authorization attempts */
-      429: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['errorResponse'];
         };
       };
       /** @description server error */

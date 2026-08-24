@@ -76,8 +76,8 @@ describe("investor whitelist routes", () => {
 
   // axios rather than global fetch: tsconfig lib is es2021, which has no fetch.
   // validateStatus keeps 4xx/5xx as ordinary responses so status can be asserted.
-  const call = (method: string, url: string, data?: unknown, headers?: Record<string, string>) =>
-    axios.request({ method, url: `${base}${url}`, data, headers, validateStatus: () => true } as any)
+  const call = (method: string, url: string, data?: unknown) =>
+    axios.request({ method, url: `${base}${url}`, data, validateStatus: () => true } as any)
       .then(r => ({ status: r.status, body: r.data }));
 
   const post = (body: unknown) => call('POST', '/investor/whitelist', body);
@@ -234,42 +234,6 @@ describe("investor whitelist routes", () => {
     expect(res.body).toEqual({
       error: 'party remains blocked',
       mechanisms: ['identityRegistry', 'countryRestriction'],
-    });
-  });
-
-  describe("auth token", () => {
-    const withToken = async () => {
-      const app = express();
-      app.use(express.json());
-      registerWhitelistRoutes(app, service, { authToken: 'sekret' });
-      await new Promise<void>(r => server.close(() => r()));
-      await start(app);
-    };
-
-    test("rejects a missing token with 401", async () => {
-      await withToken();
-      expect((await post({ finId: FINID, assetId: ASSET })).status).toBe(401);
-    });
-
-    test("rejects a wrong token with 401", async () => {
-      await withToken();
-      const res = await call('POST', '/investor/whitelist', { finId: FINID, assetId: ASSET },
-        { Authorization: 'Bearer nope' });
-      expect(res.status).toBe(401);
-    });
-
-    test("accepts the right token", async () => {
-      await withToken();
-      const res = await call('POST', '/investor/whitelist', { finId: FINID, assetId: ASSET },
-        { Authorization: 'Bearer sekret' });
-      expect(res.status).toBe(200);
-    });
-
-    // The revocation path must be guarded too, not just the grant path.
-    test("guards DELETE and GET as well", async () => {
-      await withToken();
-      expect((await del(`?finId=${FINID}`)).status).toBe(401);
-      expect((await get()).status).toBe(401);
     });
   });
 });
