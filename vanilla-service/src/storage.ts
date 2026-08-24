@@ -50,8 +50,8 @@ export class LedgerStorage {
    *  service's account_mappings queries) can interpolate the same name. */
   get schemaName(): string { return this.schema; }
 
-  constructor(private pool: Pool, schemaName: string = skeletonStorage.DEFAULT_SCHEMA_NAME) {
-    skeletonStorage.assertValidSchemaName(schemaName);
+  constructor(private pool: Pool, schemaName: string) {
+    skeletonStorage.assertValidPostgresIdentifier(schemaName);
     this.schema = schemaName;
   }
 

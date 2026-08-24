@@ -100,7 +100,7 @@ A post-processor (`scripts/postprocess-model-gen.ts`) handles:
 
 ## Database
 
-When workflow persistence is enabled, the skeleton uses PostgreSQL with a `ledger_adapter` schema. Migrations:
+When workflow persistence is enabled, the skeleton uses PostgreSQL with a consumer-chosen schema: `MigrationConfig.schemaName` is required and reaches the SQL files via the `LEDGER_SCHEMA` env var (`${LEDGER_SCHEMA?...}` — goose fails the migration if unset). Migrations:
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb

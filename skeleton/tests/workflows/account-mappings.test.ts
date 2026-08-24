@@ -17,9 +17,10 @@ describe("account mappings", () => {
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
+      schemaName: "ledger_adapter",
     })
     pool = new Pool({ connectionString: container.connectionString });
-    store = new PgAccountStore(pool);
+    store = new PgAccountStore(pool, "ledger_adapter");
   })
 
   afterEach(async () => {

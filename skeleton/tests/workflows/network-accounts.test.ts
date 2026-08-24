@@ -28,9 +28,10 @@ describe("network accounts", () => {
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
+      schemaName: "ledger_adapter",
     })
     pool = new Pool({ connectionString: container.connectionString });
-    store = new PgNetworkAccountStore(pool);
+    store = new PgNetworkAccountStore(pool, "ledger_adapter");
     service = new NetworkAccountServiceImpl(store);
   })
 

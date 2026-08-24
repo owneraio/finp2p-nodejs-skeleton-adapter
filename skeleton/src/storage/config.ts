@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export interface AdditionalMigration {
   /** Directory containing goose migration SQL files */
   migrationsDir: string;
@@ -18,17 +20,12 @@ export interface MigrationConfig {
    * PostgreSQL schema name where skeleton tables (operations, assets,
    * account_mappings, …) are created. Adapters that share a database should
    * pass an adapter-specific name (e.g. 'sepolia', 'heder') so they don't
-   * collide on a global schema. Defaults to 'ledger_adapter' for backward
-   * compatibility. Operators can override the adapter's default at deploy
-   * time via the LEDGER_SCHEMA env var.
+   * collide on a global schema.
    */
-  schemaName?: string;
+  schemaName: string;
   /** Additional migration sets to run after skeleton migrations (e.g. vanilla-service) */
   additionalMigrations?: AdditionalMigration[];
 }
-
-/** Default schema name when neither adapter config nor env var override it. */
-export const DEFAULT_SCHEMA_NAME = 'ledger_adapter';
 
 /**
  * Max byte length we allow for any identifier we splice into SQL. Postgres'
@@ -56,7 +53,29 @@ export function assertValidPostgresIdentifier(name: string): void {
   }
 }
 
-// Kept for backwards compatibility — delegates to assertValidPostgresIdentifier.
-export function assertValidSchemaName(name: string): void {
-  assertValidPostgresIdentifier(name);
+/**
+ * Coerces an arbitrary string into a value that satisfies
+ * assertValidPostgresIdentifier — non-[A-Za-z0-9_] characters become `_`,
+ * a leading digit gets a `_` prefix. When the result exceeds
+ * MAX_POSTGRES_IDENTIFIER_LENGTH it is truncated and an 8-char md5 suffix
+ * derived from the original input is appended so distinct long inputs that
+ * share a prefix don't collapse onto the same identifier. Throws on empty
+ * input.
+ */
+export function toPostgresIdentifier(raw: string): string {
+  if (raw.length === 0) {
+    throw new Error('Cannot derive a Postgres identifier from an empty string.');
+  }
+  let sanitized = raw.replace(/[^A-Za-z0-9_]/g, '_');
+  if (/^[0-9]/.test(sanitized)) {
+    sanitized = `_${sanitized}`;
+  }
+  if (sanitized.length > MAX_POSTGRES_IDENTIFIER_LENGTH) {
+    const hashSuffixLength = 8;
+    const hashSuffix = createHash('md5').update(raw).digest('hex').slice(0, hashSuffixLength);
+    const prefixLength = MAX_POSTGRES_IDENTIFIER_LENGTH - hashSuffixLength - 1;
+    sanitized = `${sanitized.slice(0, prefixLength)}_${hashSuffix}`;
+  }
+  assertValidPostgresIdentifier(sanitized);
+  return sanitized;
 }
