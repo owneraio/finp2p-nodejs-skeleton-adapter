@@ -13,7 +13,11 @@ export interface OperationContext {
  * before invoking a proxied method, cleared once the method's synchronous
  * part returns — valid only until the method's first `await`.
  */
-export let currentOperation: OperationContext | undefined;
+let currentOperation: OperationContext | undefined;
+
+export function getCurrentOperation(): OperationContext | undefined {
+  return currentOperation
+}
 
 export function setCurrentOperation(op: OperationContext | undefined): void {
   currentOperation = op;

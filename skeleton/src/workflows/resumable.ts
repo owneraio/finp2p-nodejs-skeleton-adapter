@@ -1,4 +1,4 @@
-import { currentOperation } from './internal';
+import { getCurrentOperation } from './internal';
 import { Operation } from './storage';
 
 /**
@@ -38,7 +38,7 @@ export async function resumableWorkflow<T>(
   startStage: StartStage<T>,
   ...thenStages: ThenStage<T>[]
 ): Promise<T> {
-  const ctx = currentOperation;
+  const ctx = getCurrentOperation();
   if (!ctx) {
     throw new Error(
       'resumableWorkflow: no current operation. Call it synchronously (before any await) ' +
