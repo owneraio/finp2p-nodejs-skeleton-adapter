@@ -12,9 +12,9 @@ describe('ledger storage', () => {
     container = await global.startPostgresContainer();
     // @ts-ignore
     const goosePath = await global.whichGoose();
-    await runMigrations(goosePath, container.connectionString);
+    await runMigrations(goosePath, container.connectionString, 'ledger_adapter');
     pool = new Pool({ connectionString: container.connectionString });
-    storage = new LedgerStorage(pool);
+    storage = new LedgerStorage(pool, 'ledger_adapter');
   });
 
   afterEach(async () => {

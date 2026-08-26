@@ -1,12 +1,12 @@
 import { Pool } from 'pg';
 import { Asset, AssetStore } from './interfaces';
-import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from './config';
+import { assertValidPostgresIdentifier } from './config';
 
 export class PgAssetStore implements AssetStore {
   private readonly schema: string;
 
-  constructor(private pool: Pool, schemaName: string = DEFAULT_SCHEMA_NAME) {
-    assertValidSchemaName(schemaName);
+  constructor(private pool: Pool, schemaName: string) {
+    assertValidPostgresIdentifier(schemaName);
     this.schema = schemaName;
   }
 

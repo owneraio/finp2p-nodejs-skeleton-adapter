@@ -74,9 +74,10 @@ describe("Service operation tests", () => {
       gooseExecutablePath: await global.whichGoose(),
       migrationListTableName: "finp2p_nodejs_skeleton_migrations",
       storageUser: container.storageUser,
+      schemaName: "ledger_adapter",
     });
     pool = new Pool({ connectionString: container.connectionString });
-    const s = new WorkflowStorage(pool);
+    const s = new WorkflowStorage(pool, "ledger_adapter");
     storage = () => s;
   });
   afterEach(async () => {

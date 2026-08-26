@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
-function runGoose(goosePath: string, connectionString: string, tableName: string, migrationsDir: string): Promise<void> {
+function runGoose(goosePath: string, connectionString: string, tableName: string, migrationsDir: string, schemaName: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const proc = spawn(goosePath, [
       '-table', tableName,
@@ -11,6 +11,7 @@ function runGoose(goosePath: string, connectionString: string, tableName: string
       env: {
         GOOSE_DBSTRING: connectionString,
         GOOSE_DRIVER: 'postgres',
+        LEDGER_SCHEMA: schemaName,
       },
     });
 
@@ -27,12 +28,12 @@ function runGoose(goosePath: string, connectionString: string, tableName: string
   });
 }
 
-export async function runMigrations(goosePath: string, connectionString: string): Promise<void> {
+export async function runMigrations(goosePath: string, connectionString: string, schemaName: string): Promise<void> {
   // Skeleton migrations first (creates schema + account_mappings)
   const skeletonDir = path.resolve(__dirname, '..', '..', 'skeleton', 'migrations');
-  await runGoose(goosePath, connectionString, 'finp2p_nodejs_skeleton_migrations', skeletonDir);
+  await runGoose(goosePath, connectionString, 'finp2p_nodejs_skeleton_migrations', skeletonDir, schemaName);
 
   // Then vanilla-service migrations (accounts + transactions)
   const vanillaDir = path.join(__dirname, '..', 'migrations');
-  await runGoose(goosePath, connectionString, 'finp2p_vanilla_service_migrations', vanillaDir);
+  await runGoose(goosePath, connectionString, 'finp2p_vanilla_service_migrations', vanillaDir, schemaName);
 }

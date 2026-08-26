@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 -- +goose ENVSUB ON
-CREATE TABLE ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts(
+CREATE TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.network_accounts(
   -- used by DELETE /accounts/{accountId}
   account_id VARCHAR(255) PRIMARY KEY,
   idempotency_key VARCHAR(255),
@@ -13,7 +13,7 @@ CREATE TABLE ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts(
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX network_accounts_org_asset_fin_id_idx
-  ON ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts(organization_id, asset_id, fin_id);
+  ON ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.network_accounts(organization_id, asset_id, fin_id);
 -- +goose ENVSUB OFF
 -- +goose StatementEnd
 
@@ -22,7 +22,7 @@ DO $$
     DECLARE
 -- +goose ENVSUB ON
         ledger_adapter_user TEXT := '${LEDGER_ADAPTER_USER:-}';
-        ledger_adapter_schema TEXT := '${LEDGER_SCHEMA:-ledger_adapter}';
+        ledger_adapter_schema TEXT := '${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}';
 -- +goose ENVSUB OFF
         users_exist BOOLEAN;
     BEGIN
@@ -41,6 +41,6 @@ DO $$
 -- +goose Down
 -- +goose StatementBegin
 -- +goose ENVSUB ON
-DROP TABLE ${LEDGER_SCHEMA:-ledger_adapter}.network_accounts;
+DROP TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.network_accounts;
 -- +goose ENVSUB OFF
 -- +goose StatementEnd

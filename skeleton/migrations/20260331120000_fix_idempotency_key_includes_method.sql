@@ -3,8 +3,8 @@
 -- +goose StatementBegin
 -- Fix idempotency: include method in the unique constraint so that
 -- different operations with identical inputs don't collide.
-ALTER TABLE ${LEDGER_SCHEMA:-ledger_adapter}.operations DROP CONSTRAINT IF EXISTS operations_inputs_key;
-CREATE UNIQUE INDEX operations_method_inputs_idx ON ${LEDGER_SCHEMA:-ledger_adapter}.operations (method, inputs);
+ALTER TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.operations DROP CONSTRAINT IF EXISTS operations_inputs_key;
+CREATE UNIQUE INDEX operations_method_inputs_idx ON ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.operations (method, inputs);
 -- +goose StatementEnd
 -- +goose ENVSUB OFF
 
@@ -15,7 +15,7 @@ CREATE UNIQUE INDEX operations_method_inputs_idx ON ${LEDGER_SCHEMA:-ledger_adap
 -- empty/test databases or before any cross-method input collisions exist.
 -- +goose ENVSUB ON
 -- +goose StatementBegin
-DROP INDEX IF EXISTS ${LEDGER_SCHEMA:-ledger_adapter}.operations_method_inputs_idx;
-ALTER TABLE ${LEDGER_SCHEMA:-ledger_adapter}.operations ADD CONSTRAINT operations_inputs_key UNIQUE (inputs);
+DROP INDEX IF EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.operations_method_inputs_idx;
+ALTER TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.operations ADD CONSTRAINT operations_inputs_key UNIQUE (inputs);
 -- +goose StatementEnd
 -- +goose ENVSUB OFF
