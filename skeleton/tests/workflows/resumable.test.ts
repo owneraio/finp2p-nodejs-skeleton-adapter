@@ -284,4 +284,45 @@ describe("Resumable workflows", () => {
     expect(op1.intermediate_states).toEqual(["checkpoint-asset-a"]);
     expect(op2.intermediate_states).toEqual(["checkpoint-asset-b"]);
   });
+
+  test("the startup-replay SELECT completes before any live operation is inserted", async () => {
+    // If a live row can be inserted while the replay SELECT is still in flight,
+    // the SELECT picks it up and the operation executes twice. The invariant is
+    // ordering: replay SELECT done -> only then live inserts. Record both events
+    // with the SELECT slowed by 100ms (on a fast machine the buggy code would
+    // otherwise still win the race by luck).
+    const events: string[] = [];
+    const instrumented: WorkflowStorage = new Proxy(storage, {
+      get(target: any, prop) {
+        if (prop === "getPendingOperations") {
+          return async (method: string) => {
+            await setTimeoutPromise(100);
+            const ops = await target.getPendingOperations(method);
+            events.push("replay-select-done");
+            return ops;
+          };
+        }
+        if (prop === "saveOperation") {
+          return (op: any) => {
+            events.push("live-insert");
+            return target.saveOperation(op);
+          };
+        }
+        const v = target[prop];
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+    });
+
+    const service = {
+      async createAsset(_idempotencyKey: string, _assetId: string): Promise<OperationStatus> {
+        return finalSuccess("asset-race");
+      },
+      async operationStatus(_cid: string): Promise<any> {},
+    };
+
+    const proxy = createServiceProxy(() => Promise.resolve(), instrumented, undefined, service, "createAsset");
+    await proxy.createAsset("idem-race", "asset-race");
+
+    expect(events).toEqual(["replay-select-done", "live-insert"]);
+  });
 });

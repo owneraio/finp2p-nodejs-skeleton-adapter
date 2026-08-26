@@ -223,22 +223,27 @@ export function createServiceProxy<T extends object>(
   const opMetadata: OperationMetadata | undefined = finP2PClient ? { responseStrategy: 'callback' } : undefined;
 
   // Wait for migrations, then replay pending operations (crash recovery).
-  const ready = migrationJob().then(() => {
-    methodsToProxy.forEach((m) => {
-      const raw = service[m];
-      if (typeof raw !== 'function') return;
-      const method = raw.bind(service);
+  // `ready` includes the replay SELECTs (not the replayed executions): live
+  // calls await it before inserting their row, so the replay can only ever
+  // see pre-startup rows and never re-executes an operation of this process.
+  const ready = migrationJob().then(() =>
+    Promise.all(
+      methodsToProxy.map(async (m) => {
+        const raw = service[m];
+        if (typeof raw !== 'function') return;
+        const method = raw.bind(service);
 
-      storage.getPendingOperations(String(m)).then(
-        (operations) => {
+        try {
+          const operations = await storage.getPendingOperations(String(m));
           for (const op of operations) {
             executeAndFinalize(method, op.inputs, op.method, op.cid, opMetadata, storage, finP2PClient);
           }
-        },
-        (error) => logger.error('Failed to fetch pending operations', { error }),
-      );
-    });
-  });
+        } catch (error) {
+          logger.error('Failed to fetch pending operations', { error });
+        }
+      }),
+    ),
+  );
 
   const getOperationStatusMethod: keyof CommonService = 'operationStatus';
 
