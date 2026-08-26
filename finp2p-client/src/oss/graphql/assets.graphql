@@ -43,12 +43,6 @@ query GetAssets($filter: [Filter!], $paginate: PaginateInput) {
             ledgerAssetInfo {
                 ...assetInfo
             }
-            orgSettlementAccount {
-                wallet {
-                    type
-                    address
-                }
-            }
             intents {
                 nodes {
                     id

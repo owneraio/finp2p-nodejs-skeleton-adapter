@@ -5,17 +5,23 @@ import {
   EscrowService,
   HealthService,
   AccountMappingService,
+  NetworkAccountService,
+  InvestorWhitelistService,
+  NotSupportedError,
   PaymentService,
   PlanApprovalService,
   Source,
   TokenService,
 } from '../models';
+import { NotSupportedNetworkAccountService } from '../services/accounts';
 import { Application } from 'express';
 import { errorHandler } from './errors';
 import {
+  accountOperationToAPI,
   assetBindingOptFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
   balanceToAPI,
+  bindInfoOptFromAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
   depositOperationToAPI,
@@ -29,9 +35,21 @@ import {
   sourceFromAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import { AccountMappingConfig, registerMappingRoutes } from './operational';
+import {
+  AccountMappingConfig, registerMappingRoutes,
+  registerWhitelistRoutes,
+} from './operational';
 
 const basePath = 'api';
+
+export interface RegisterOptions {
+  mappingConfig?: AccountMappingConfig;
+  mappingService?: AccountMappingService;
+  /** Opt in to the investor-whitelist endpoints; the adapter supplies the
+   *  implementation. Unauthenticated, like the mapping endpoints — guard them at
+   *  the ingress. */
+  whitelistService?: InvestorWhitelistService;
+}
 
 export const register = (app: Application,
   tokenService: TokenService,
@@ -40,9 +58,13 @@ export const register = (app: Application,
   healthService: HealthService,
   paymentService: PaymentService,
   planService: PlanApprovalService,
-  mappingConfig?: AccountMappingConfig,
-  mappingService?: AccountMappingService,
+  // Defaulted so the account surface is opt-in: an existing adapter that does
+  // not pass one keeps compiling and its /accounts routes answer "not
+  // supported", instead of this patch bump breaking every out-of-repo caller.
+  networkAccountService: NetworkAccountService = new NotSupportedNetworkAccountService(),
+  options?: RegisterOptions,
 ): void => {
+  const { mappingConfig, mappingService, whitelistService } = options ?? {};
   if (mappingConfig && !mappingService) {
     throw new Error('mappingConfig requires a mappingService. Construct AccountMappingServiceImpl(store) and pass it in.');
   }
@@ -163,7 +185,7 @@ export const register = (app: Application,
       const ast = assetFromAPI(asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.issue(ik, ast, destination.finId, quantity, exCtx);
+      const rsp = await tokenService.issue(ik, ast, destinationFromAPI(destination), quantity, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
     });
@@ -197,7 +219,7 @@ export const register = (app: Application,
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await tokenService.redeem(ik, nonce, source.finId, ast, quantity, operationId, sgn, exCtx);
+      const rsp = await tokenService.redeem(ik, nonce, sourceFromAPI(source), ast, quantity, operationId, sgn, exCtx);
       res.json(receiptOperationToAPI(rsp));
     });
 
@@ -305,6 +327,37 @@ export const register = (app: Application,
       res.json(receiptOperationToAPI(receiptOp));
     });
 
+  app.post<{},
+  LedgerAPI['schemas']['AccountOperationAccepted'],
+  LedgerAPI['schemas']['CreateAccountRequest']>(
+    `/${basePath}/accounts/create`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { organizationId, assetId, finId, bindInfo } = req.body;
+
+      const op = await networkAccountService.createAccount(ik, organizationId, assetId, finId, bindInfoOptFromAPI(bindInfo));
+
+      res.status(202).json(accountOperationToAPI(op));
+    });
+
+  app.post(
+    `/${basePath}/accounts/:cid/proof`,
+    async () => {
+      throw new NotSupportedError('ownership challenges are not supported by this adapter');
+    });
+
+  app.delete<LedgerOperations['removeAccount']['parameters']['path'],
+  LedgerAPI['schemas']['AccountOperationAccepted'], {}>(
+    `/${basePath}/accounts/:accountId`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { accountId } = req.params;
+
+      const op = await networkAccountService.removeAccount(ik, accountId);
+
+      res.json(accountOperationToAPI(op));
+    });
+
   app.get<LedgerOperations['getOperation']['parameters']['path'],
   LedgerAPI['schemas']['GetOperationStatusResponse'], {}>(
     `/${basePath}/operations/status/:cid`,
@@ -315,6 +368,10 @@ export const register = (app: Application,
 
   if (mappingConfig) {
     registerMappingRoutes(app, mappingConfig, mappingService!);
+  }
+
+  if (whitelistService) {
+    registerWhitelistRoutes(app, whitelistService);
   }
 
   app.use(errorHandler);

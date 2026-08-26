@@ -61,13 +61,12 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return this.storage.getBalance(finId, asset.assetId);
   }
 
-  public async issue(idempotencyKey: string, asset: Asset, destinationFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
+  public async issue(idempotencyKey: string, asset: Asset, destination: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
     return workflows.resumableWorkflow(
       {
         start: async () => {
-          logger.info(`Issuing ${quantity} of ${asset.assetId} to ${destinationFinId}`);
-          this.storage.credit(destinationFinId, quantity, asset.assetId);
-          const destination: Destination = { finId: destinationFinId };
+          logger.info(`Issuing ${quantity} of ${asset.assetId} to ${destination.finId}`);
+          this.storage.credit(destination.finId, quantity, asset.assetId);
           const tx = new Transaction(quantity, asset, undefined, destination, exCtx, 'issue', undefined);
           this.storage.registerTransaction(tx);
           return tx.id
@@ -104,12 +103,12 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     return successfulReceiptOperation(receipt);
   }
 
-  public async redeem(idempotencyKey: string, nonce: string, sourceFinId: string, asset: Asset, quantity: string, operationId: string | undefined,
+  public async redeem(idempotencyKey: string, nonce: string, source: Source, asset: Asset, quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
-    logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${sourceFinId}`);
+    logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
 
-    // if (!await verifySignature(signature, sourceFinId)) {
+    // if (!await verifySignature(signature, source.finId)) {
     //   return failedReceiptOperation(1, 'Signature verification failed');
     // }
 
@@ -121,10 +120,9 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       // do no movement, account is effected at hold time
       this.storage.removeHoldOperation(operationId);
     } else {
-      this.storage.debit(sourceFinId, quantity, asset.assetId);
+      this.storage.debit(source.finId, quantity, asset.assetId);
     }
 
-    const source: Source = { finId: sourceFinId };
     const tx = new Transaction(quantity, asset, source, undefined, exCtx, 'redeem', operationId);
     this.storage.registerTransaction(tx);
     let receipt = tx.toReceipt();

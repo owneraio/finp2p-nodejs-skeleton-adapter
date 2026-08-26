@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Pool } from 'pg';
 import bs58 from 'bs58';
-import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from '../storage/config';
+import { assertValidPostgresIdentifier } from '../storage/config';
 
 export const generateCid = (): string => bs58.encode(Uint8Array.from(randomBytes(64)));
 
@@ -39,8 +39,8 @@ const cloneExcept = (obj: any, key: string): any => {
 export class WorkflowStorage {
   private readonly schema: string;
 
-  constructor(private pool: Pool, schemaName: string = DEFAULT_SCHEMA_NAME) {
-    assertValidSchemaName(schemaName);
+  constructor(private pool: Pool, schemaName: string) {
+    assertValidPostgresIdentifier(schemaName);
     this.schema = schemaName;
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-client",
-  "version": "0.28.22",
+  "version": "0.28.23",
   "description": "FinP2P API Client",
   "homepage": "https://ownera.io/",
   "main": "./dist/index.js",
@@ -9,7 +9,9 @@
     "dist/**/*"
   ],
   "scripts": {
-    "prebuild": "eslint ./src --ext .ts --fix",
+    "validate:graphql": "graphql-codegen --config graphqlvalidate.ts",
+    "smoke": "node scripts/smoke-investor-accounts.js",
+    "prebuild": "npm run validate:graphql && eslint ./src --ext .ts --fix",
     "build": "tsc",
     "postbuild": "cpx 'src/oss/graphql/*.graphql' dist/oss/graphql/",
     "api-generate": "npx openapi-typescript ./apis/application-api.base.yaml -o src/finapi/model-gen.ts",

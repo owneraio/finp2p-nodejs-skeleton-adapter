@@ -12,9 +12,9 @@ export type LedgerAssetIdentifier = Caip19LedgerAssetIdentifier;
 
 export type Caip19LedgerAssetIdentifier = {
   assetIdentifierType: 'CAIP-19';
-  network: string;
+  network?: string;
   tokenId: string;
-  standard: string;
+  standard?: string;
 };
 
 // Per API spec, deposit assets are limited to 'finp2p' or 'custom' variants (no ledgerIdentifier)
@@ -42,9 +42,19 @@ export type Destination = {
   account?: LedgerAccount
 };
 
+/** Note a custodialAccount has no address, so switch on `type`. */
 export type LedgerAccount = {
-  type: string;
+  type: 'walletAccount';
   address: string;
+} | {
+  type: 'caip10Account';
+  network: string;
+  address: string;
+} | {
+  type: 'custodialAccount';
+  provider: string;
+  vaultAccountId: string;
+  assetId?: string;
 };
 
 
@@ -69,8 +79,8 @@ export type Balance = {
 
 export type TokenIdentifier = {
   tokenId: string
-  network: string
-  standard: string
+  network?: string
+  standard?: string
 };
 
 
@@ -105,7 +115,8 @@ export type IntentType =
   | 'loanIntent'
   | 'redemptionIntent'
   | 'privateOfferIntent'
-  | 'requestForTransferIntent';
+  | 'requestForTransferIntent'
+  | 'moveIntent';
 
 
 
@@ -503,7 +514,74 @@ export const pendingDepositOperation = (correlationId: string, metadata: Operati
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus;
+export type NetworkAccount = LedgerAccount | {
+  type: 'none';
+};
+
+/** Canonical account record returned on onboarding completion. `id` is the LA-assigned
+ *  account identifier, later used by `DELETE /accounts/{accountId}`. */
+export type NetworkAccountRecord = {
+  id: string;
+  account: NetworkAccount;
+};
+
+export type BindInfo = {
+  account: NetworkAccount;
+  /** Raw hex proof-of-ownership hint supplied by the caller, as the router sends
+   *  it: a bare signature with no template and no hash function, since only the
+   *  challenge bytes are signed. Not verified in this trust model — kept so
+   *  implementations can log it or opportunistically check it themselves.
+   *  Absent only when the caller sent no signature at all. */
+  ownershipSignature?: string;
+};
+
+export type PendingAccountOperation = {
+  operation: 'account',
+  type: 'pending';
+  correlationId: string;
+  metadata: OperationMetadata | undefined;
+};
+
+export type SuccessfulAccountOperation = {
+  operation: 'account',
+  type: 'success';
+  correlationId: string;
+  record: NetworkAccountRecord;
+};
+
+export type FailedAccountOperation = {
+  operation: 'account',
+  type: 'failure';
+  correlationId: string;
+  error: ErrorDetails;
+};
+
+export type AccountOperation = PendingAccountOperation | SuccessfulAccountOperation | FailedAccountOperation;
+
+export const pendingAccountOperation = (correlationId: string, metadata: OperationMetadata | undefined): AccountOperation => ({
+  operation: 'account',
+  type: 'pending',
+  correlationId,
+  metadata,
+});
+
+export const successfulAccountOperation = (correlationId: string, record: NetworkAccountRecord): AccountOperation => ({
+  operation: 'account',
+  type: 'success',
+  correlationId,
+  record,
+});
+
+export const failedAccountOperation = (correlationId: string, code: number, message: string): AccountOperation => ({
+  operation: 'account',
+  type: 'failure',
+  correlationId,
+  error: { code, message },
+});
+
+// -------------------------------------------------------------------
+
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation;
 
 
 // -------------------------------------------------------------------
@@ -551,5 +629,24 @@ export type Receipt = {
 export type AccountMapping = {
   finId: string;
   fields: Record<string, string>;
+};
+
+/** An address is a first-class alternative because some parties have no finId —
+ *  an escrow custody wallet, or a replaced mapping's leftover address. */
+export type WhitelistParty = {
+  type: 'finId';
+  finId: string;
+} | {
+  type: 'address';
+  address: string;
+};
+
+export const whitelistPartyId = (party: WhitelistParty): string =>
+  (party.type === 'finId' ? party.finId : party.address);
+
+export type InvestorWhitelistEntry = {
+  party: WhitelistParty;
+  assetId: string;
+  config: Record<string, unknown>;
 };
 

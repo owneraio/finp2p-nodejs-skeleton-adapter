@@ -4,9 +4,14 @@ export type LedgerAssetInfo = {
   ledgerReference?: LedgerReference
 };
 
+/**
+ * `network` and `standard` are nullable upstream (only `tokenId` is non-null in
+ * the OSS schema), so they are optional here rather than promising a string the
+ * server may not send.
+ */
 export type Caip19Identifier = {
-  network: string;
-  standard: string;
+  network?: string | null;
+  standard?: string | null;
   tokenId: string;
 };
 
@@ -109,11 +114,28 @@ export type OssAsset = {
     nodes: OssIntent[]
   }
   ledgerAssetInfo: LedgerAssetInfo
-  orgSettlementAccount?: OssNetworkAccount | null
 };
 
-export type OssNetworkAccount = {
-  wallet?: { type: string; address: string } | null
+/**
+ * One variant of the OSS `NetworkAccount` union, discriminated by `kind`
+ * (an alias of `__typename`; see the `networkAccount` fragment for why it
+ * isn't called `type`).
+ */
+export type OssNetworkAccountVariant =
+  | { kind: 'WalletAccount', type: string, address: string }
+  | { kind: 'Caip10Account', network: string, address: string }
+  | { kind: 'CustodialAccount', provider: string, vaultAccountId: string, assetId?: string | null };
+
+/**
+ * An investor's onboarded network account as projected into the OSS read
+ * model, scoped to one `(organizationId, assetId)` pair. `id` is the
+ * adapter-assigned identifier — the same one `removeInvestorAccount` takes.
+ */
+export type OssInvestorNetworkAccount = {
+  organizationId: string,
+  assetId: string,
+  id: string,
+  account: OssNetworkAccountVariant | null
 };
 
 export type OssPageInfo = {
@@ -169,6 +191,8 @@ export type OssOwner = {
       syncedBalance: string,
     }[]
   }
+  /** Only selected when the query is run with `includeNetworkAccounts: true`. */
+  networkAccounts?: OssInvestorNetworkAccount[] | null
   metadata: {
     acl: string[]
   }
@@ -266,7 +290,7 @@ export type OssLedgerAccountAsset = {
       custodian?: { orgId: string } | null;
     } | null;
   };
-  networkAccount?: { wallet?: { type: string; address: string } | null } | null;
+  networkAccount?: OssNetworkAccountVariant | null;
 };
 
 export type OssAssetOrder = {

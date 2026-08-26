@@ -86,6 +86,156 @@ paths:
               schema:
                 $ref: '#/components/schemas/operationBase'
 
+  /profiles/investor/{investorId}/account/create:
+    post:
+      tags:
+        - profiles
+      summary: Create a new wallet for an investor (LA-generated)
+      description: |
+        The LA generates a fresh wallet on the asset's network and owns the keys. Async:
+        returns `202 { cid }`; poll `GET /operations/{cid}` for the outcome. On completion
+        the payload includes the canonical wallet `{ id, account }` and the wallet is
+        mirrored into the investor resource's `data.accounts[orgId][assetId]`.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: investorId
+          in: path
+          description: ID of the investor profile
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+      operationId: createInvestorAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createInvestorAccountRequest'
+        required: true
+      responses:
+        '202':
+          description: accepted operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/operationBase'
+
+  /profiles/investor/{investorId}/account/bind:
+    post:
+      tags:
+        - profiles
+      summary: Bind an existing external wallet to an investor (caller-supplied)
+      description: |
+        Caller supplies an external network account they own. `ownershipSignature` is
+        required as proof-of-ownership and is verified by the LA. Async: returns `202 { cid }`. If the
+        wallet is already bound to another investor — or to the same investor on the same
+        `(org, asset)` — completion reports `WALLET_ALREADY_BOUND` (409). A bad signature
+        reports `WALLET_BAD_SIGNATURE` (400).
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: investorId
+          in: path
+          description: ID of the investor profile
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+      operationId: bindInvestorAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/bindInvestorAccountRequest'
+        required: true
+      responses:
+        '202':
+          description: accepted operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/operationBase'
+
+  /profiles/investor/{investorId}/account/proof:
+    post:
+      tags:
+        - profiles
+      summary: Submit a signature proof for a pending account workflow
+      description: |
+        Used only for `signatureTemplate` challenges. The client submits an `ownershipSignature`
+        over the LA-issued payload. Advances the workflow from `AWAITING_PROOF_SUBMISSION` to
+        verification; the workflow continues async (poll `GET /operations/{cid}`).
+
+        Out-of-band challenges (walletConnect / deposit / fireblocksApproval) do not use this
+        endpoint — fulfillment happens off-platform and the LA reports verification directly to
+        the asset node per the challenge's `operationResponseStrategy`.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: investorId
+          in: path
+          description: ID of the investor profile
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+      operationId: submitAccountProof
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/submitAccountProofRequest'
+        required: true
+      responses:
+        '202':
+          description: proof accepted; verification continues async
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/operationBase'
+
+  /profiles/investor/{investorId}/account/{accountId}:
+    delete:
+      tags:
+        - profiles
+      summary: Unbind a wallet from an investor
+      description: |
+        Unbinds a wallet from an investor. Asynchronous: returns `202 { cid }`; the
+        local mirror row is removed only after the LA confirms completion.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: investorId
+          in: path
+          description: ID of the investor profile
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        - name: accountId
+          in: path
+          description: LA-assigned wallet identifier
+          required: true
+          schema:
+            type: string
+      operationId: removeInvestorAccount
+      responses:
+        '202':
+          description: accepted operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/operationBase'
+
   /profiles/asset:
     post:
       tags:
@@ -105,6 +255,9 @@ paths:
               required: [ name, type, denomination, ledgerAssetBinding ]
               type: object
               properties:
+                assetId:
+                  type: string
+                  description: 'unique identifier for the asset resource, will default to generated UUID if not provided'
                 metadata:
                   type: object
                   description: The asset metadata
@@ -114,6 +267,8 @@ paths:
                   type: string
                   description: The asset configuration, in serialized JSON representation (deprecated, use metadata instead)
                   deprecated: true
+                signatureTemplate:
+                  $ref: '#/components/schemas/assetSignatureTemplate'
                 verifiers:
                   type: array
                   description: A list of regulation verifiers to execute to validate a transaction
@@ -138,8 +293,6 @@ paths:
                   $ref: '#/components/schemas/assetPolicies'
                 financialIdentifier:
                   $ref: 'common-external-components.yaml#/components/schemas/financialAssetIdentifier'
-                orgSettlementAccount:
-                  $ref: 'common-external-components.yaml#/components/schemas/walletAccount'
                 allowPolicyDefaultFallback:
                   type: boolean
                   description: Flag to indicate if default policy fallback is allowed when no matching policy is found
@@ -206,6 +359,8 @@ paths:
                   deprecated: true
                   x-custom-format: "nullable"
                   nullable: true
+                signatureTemplate:
+                  $ref: '#/components/schemas/assetSignatureTemplateOpt'
                 verifiers:
                   type: array
                   description: A list of regulation verifiers to execute to validate a transaction
@@ -228,6 +383,21 @@ paths:
                   type: boolean
                   description: Flag to indicate if the asset should be automatically shared with known organizations.
                   nullable: true
+                ledgerAssetBinding:
+                  description: >
+                    One-time update per field for the ledger asset identifier.
+                    Each field can only be set once given it's blank.
+                    Once updated the field becomes immutable and any further update attempts will be rejected.
+                  type: object
+                  required: [ledgerIdentifier]
+                  properties:
+                    ledgerIdentifier:
+                      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+                financialIdentifier:
+                  description: >
+                    Promote the asset's financial classification from NONE to a real type.
+                    Allowed only when the current type is NONE.
+                  $ref: 'common-external-components.yaml#/components/schemas/financialAssetIdentifier'
         required: true
       responses:
         '200':
@@ -288,6 +458,11 @@ paths:
                 intentId:
                   type: string
                   description: 'unique identifier for the intent, will default to generated UUID if not provided'
+                metadata:
+                  $ref: 'common-external-components.yaml#/components/schemas/customMetadata'
+                  example:
+                    orderId: "OMS-2026-48291"
+                    clientRef: "INV-SMITH-0042"
 
 
         required: true
@@ -911,6 +1086,10 @@ paths:
                 executionId:
                   type: string
                   description: 'unique identifier for the execution, will default to generated UUID if not provided'
+                observers:
+                  $ref: '#/components/schemas/executionObservers'
+                metadata:
+                  $ref: 'common-external-components.yaml#/components/schemas/customMetadata'
         required: true
       responses:
         '200':
@@ -988,6 +1167,8 @@ paths:
                       $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
                     instruction:
                       $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationAccountAssetInstruction'
+                metadata:
+                  $ref: 'common-external-components.yaml#/components/schemas/customMetadata'
 
         required: true
       responses:
@@ -1571,6 +1752,7 @@ components:
         - $ref: '#/components/schemas/redemptionIntentUpdatePayload'
         - $ref: '#/components/schemas/privateOfferIntentUpdatePayload'
         - $ref: '#/components/schemas/requestForTransferIntentUpdatePayload'
+        - $ref: '#/components/schemas/moveIntentUpdatePayload'
       discriminator:
         propertyName: type
         mapping:
@@ -1581,6 +1763,7 @@ components:
           redemptionIntent: '#/components/schemas/redemptionIntentUpdatePayload'
           privateOfferIntent: '#/components/schemas/privateOfferIntentUpdatePayload'
           requestForTransferIntent: '#/components/schemas/requestForTransferIntentUpdatePayload'
+          moveIntent: '#/components/schemas/moveIntentUpdatePayload'
 
     primarySaleIntentUpdatePayload:
       type: object
@@ -1671,6 +1854,26 @@ components:
         assetTerm:
           $ref: 'common-external-components.yaml#/components/schemas/assetTerm'
 
+    moveIntentUpdatePayload:
+      type: object
+      required: [ type, destinationAssets ]
+      description: >-
+        Update the allowed destination assets of a Move intent. Replaces the
+        existing list; at least one destination is required. The source asset is
+        immutable. sourceToSegregatedAccount and the per-destination
+        fromSegregatedAccount pools may also be updated.
+      properties:
+        type:
+          type: string
+          enum: [ moveIntent ]
+        destinationAssets:
+          type: array
+          minItems: 1
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/moveDestination'
+        sourceToSegregatedAccount:
+          $ref: 'common-external-components.yaml#/components/schemas/finIdAccount'
+
     noSettlementOptionUpdate:
       type: object
       required: [ type ]
@@ -1715,6 +1918,15 @@ components:
 
     # Execute intent
 
+    executionObservers:
+      type: array
+      description: >
+        Optional list of organization ids that will passively observe the orchestration plan.
+        Observers receive all plan state updates but do NOT participate in plan approval or instruction execution.
+        Their acknowledgments are not required and are not counted toward any quorum.
+      items:
+        $ref: 'common-external-components.yaml#/components/schemas/orgId'
+
     intentExecution:
       type: object
       oneOf:
@@ -1725,6 +1937,7 @@ components:
         - $ref: '#/components/schemas/redemptionIntentExecution'
         - $ref: '#/components/schemas/privateOfferIntentExecution'
         - $ref: '#/components/schemas/requestForTransferIntentExecution'
+        - $ref: '#/components/schemas/moveIntentExecution'
       discriminator:
         propertyName: type
         mapping:
@@ -1735,6 +1948,7 @@ components:
           redemptionIntentExecution: '#/components/schemas/redemptionIntentExecution'
           privateOfferIntentExecution: '#/components/schemas/privateOfferIntentExecution'
           requestForTransferIntentExecution: '#/components/schemas/requestForTransferIntentExecution'
+          moveIntentExecution: '#/components/schemas/moveIntentExecution'
 
     primarySaleExecution:
       type: object
@@ -1886,6 +2100,20 @@ components:
           type: string
           enum: [ send, request ]
           description: Indicates whether the operation is to send or request money/asset.
+        asset:
+          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+
+    moveIntentExecution:
+      type: object
+      required: [ type, nonce, asset, owner ]
+      properties:
+        type:
+          type: string
+          enum: [ moveIntentExecution ]
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        owner:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
         asset:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
 
@@ -2062,6 +2290,12 @@ components:
               enum: [ 'workflow' ]
             metadata:
               x-go-type-skip-optional-pointer: false
+            challenge:
+              description: >-
+                Present while an investor network-account operation (bind) is parked on
+                a ledger-adapter challenge (isCompleted=false). The client fulfils it —
+                e.g. signing a signatureTemplate payload and POSTing to .../account/proof.
+              $ref: '#/components/schemas/networkAccountChallenge'
             response:
               discriminator:
                 propertyName: type
@@ -2071,6 +2305,73 @@ components:
               oneOf:
                 - $ref: 'common-external-components.yaml#/components/schemas/APIErrorsTyped'
                 - $ref: '#/components/schemas/workflowOperationResultResponse'
+
+    networkAccountChallenge:
+      description: >-
+        A ledger-adapter-issued challenge for an investor network-account bind,
+        discriminated by `type`. New variants can be added without breaking
+        existing clients.
+      type: object
+      required: [ type ]
+      oneOf:
+        - $ref: '#/components/schemas/networkAccountChallengeSignatureTemplate'
+        - $ref: '#/components/schemas/networkAccountChallengeWalletConnect'
+        - $ref: '#/components/schemas/networkAccountChallengeDeposit'
+        - $ref: '#/components/schemas/networkAccountChallengeFireblocksApproval'
+      discriminator:
+        propertyName: type
+        mapping:
+          signatureTemplate: '#/components/schemas/networkAccountChallengeSignatureTemplate'
+          walletConnect: '#/components/schemas/networkAccountChallengeWalletConnect'
+          deposit: '#/components/schemas/networkAccountChallengeDeposit'
+          fireblocksApproval: '#/components/schemas/networkAccountChallengeFireblocksApproval'
+
+    networkAccountChallengeSignatureTemplate:
+      type: object
+      required: [ type, payload ]
+      properties:
+        type:
+          type: string
+          enum: [ signatureTemplate ]
+        payload:
+          type: string
+          description: Hex-encoded payload the wallet must sign.
+
+    networkAccountChallengeWalletConnect:
+      type: object
+      required: [ type, uri ]
+      properties:
+        type:
+          type: string
+          enum: [ walletConnect ]
+        uri:
+          type: string
+          description: WalletConnect URI to approve.
+
+    networkAccountChallengeDeposit:
+      type: object
+      required: [ type, fromAddress, toAddress, amount ]
+      properties:
+        type:
+          type: string
+          enum: [ deposit ]
+        fromAddress:
+          type: string
+        toAddress:
+          type: string
+        amount:
+          type: string
+
+    networkAccountChallengeFireblocksApproval:
+      type: object
+      required: [ type, requestId ]
+      properties:
+        type:
+          type: string
+          enum: [ fireblocksApproval ]
+        requestId:
+          type: string
+          description: Fireblocks request id awaiting approval.
 
     workflowOperationResultResponse:
       allOf:
@@ -2391,7 +2692,7 @@ components:
           type: string
         operationType:
           type: string
-          enum: [ 'hold', 'issue', 'redeem', 'release', 'transfer', 'unknown' ]
+          enum: [ 'hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'unknown' ]
         timestamp:
           type: integer
 
@@ -2711,7 +3012,7 @@ components:
           description: 'name of field'
         type:
           type: string
-          enum: [ 'string', 'int' ]
+          enum: [ 'string', 'int', 'bytes' ]
           description: 'type of field'
         value:
           type: string
@@ -2786,6 +3087,48 @@ components:
         bind:
           $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
 
+    assetSignatureTemplate:
+      type: object
+      description: |
+        Override of the signature template used for this asset's signatures.
+        Any field omitted falls back to the ledger-binding override and then
+        to the router-config defaults.
+      properties:
+        templateType:
+          type: string
+          enum: [ hashlist, eip712 ]
+        templateVersion:
+          type: integer
+          minimum: 1
+        hashFunction:
+          type: string
+          enum: [ sha3-256, blake2b, keccak-256 ]
+
+    assetSignatureTemplateOpt:
+      x-custom-format: "nullable"
+      type: object
+      nullable: true
+      description: |
+        Override of the signature template used for this asset's signatures.
+        Null clears the asset-level override; any individual field left
+        unset falls through to the ledger / router defaults.
+      properties:
+        templateType:
+          type: string
+          enum: [ hashlist, eip712 ]
+          x-custom-format: "nullable"
+          nullable: true
+        templateVersion:
+          type: integer
+          minimum: 1
+          x-custom-format: "nullable"
+          nullable: true
+        hashFunction:
+          type: string
+          enum: [ sha3-256, blake2b, keccak-256 ]
+          x-custom-format: "nullable"
+          nullable: true
+
     ledgerTokenId:
       type: object
       required: [ type, tokenId ]
@@ -2823,6 +3166,47 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/finIdAccount'
         asset:
           $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
+        marker:
+          $ref: '#/components/schemas/BalanceMarker'
+
+    BalanceMarker:
+      description: marker of balance to denote the balance as of marker
+      discriminator:
+        propertyName: type
+        mapping:
+          timestamp: '#/components/schemas/BalanceMarkerTimestamp'
+          transactionBlock: '#/components/schemas/BalanceMarkerTransactionBlock'
+      oneOf:
+        - $ref: '#/components/schemas/BalanceMarkerTimestamp'
+        - $ref: '#/components/schemas/BalanceMarkerTransactionBlock'
+
+    BalanceMarkerTimestamp:
+      type: object
+      required: [ type, timestamp ]
+      properties:
+        type:
+          type: string
+          enum: [ timestamp ]
+        timestamp:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9999999999
+          description: epoch timestamp in seconds
+
+    BalanceMarkerTransactionBlock:
+      type: object
+      required: [ type, blockNumber, transaction ]
+      properties:
+        type:
+          type: string
+          enum: [ transactionBlock ]
+        blockNumber:
+          type: integer
+          format: int64
+          minimum: 0
+        transaction:
+          type: string
 
     # Proofs
 
@@ -2891,6 +3275,13 @@ components:
             signatureTemplate:
               type: string
               enum: [ 'hashlist', 'EIP712' ]
+            templateVersion:
+              type: integer
+              minimum: 1
+              description: |
+                Receipt-proof signature template shape version. When omitted,
+                the verifier resolves the version from the router-config /
+                ledger-binding / asset-profile chain.
 
     signatureProofPolicyOpt:
       type: object
@@ -2910,6 +3301,15 @@ components:
               type: string
               enum: [ 'hashlist', 'EIP712' ]
               x-custom-format: "nullable+signatureTemplate"
+            templateVersion:
+              type: integer
+              minimum: 1
+              x-custom-format: "nullable"
+              nullable: true
+              description: |
+                Receipt-proof signature template shape version. When omitted
+                or null, the verifier resolves the version from the
+                router-config / ledger-binding / asset-profile chain.
 
     # Documents
 
@@ -3048,7 +3448,8 @@ components:
           properties:
             code:
               type: integer
-              description: Error code from the errorcodes catalog
+              description: |
+                Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference).
             message:
               type: string
 
@@ -3140,5 +3541,60 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    # -------- Investor accounts (Phase 1) --------
+
+    createInvestorAccountRequest:
+      type: object
+      description: |
+        Request body for `POST /profiles/investor/{investorId}/account/create`.
+        Starts the workflow with no caller-supplied wallet — the LA generates a
+        wallet on the asset's network and owns the keys.
+      required: [ organizationId, assetId ]
+      properties:
+        organizationId:
+          $ref: 'common-external-components.yaml#/components/schemas/orgId'
+        assetId:
+          type: string
+          description: ID of the asset
+
+    bindInvestorAccountRequest:
+      type: object
+      description: |
+        Request body for `POST /profiles/investor/{investorId}/account/bind`.
+        Caller supplies an external wallet plus a proof-of-ownership signature.
+        The LA still issues a challenge (typically signatureTemplate) for final verification.
+      required: [ organizationId, assetId, networkAccount, ownershipSignature ]
+      properties:
+        organizationId:
+          $ref: 'common-external-components.yaml#/components/schemas/orgId'
+        assetId:
+          type: string
+          description: ID of the asset
+        networkAccount:
+          $ref: 'common-external-components.yaml#/components/schemas/networkAccount'
+        ownershipSignature:
+          type: string
+          description: |
+            Hex-encoded proof-of-ownership signature over the network account. The signed
+            payload binds the account to the investor/org/asset so that knowing an address
+            alone is not enough to claim it. Treated as a hint; final verification is via
+            the challenge issued by the LA.
+
+    submitAccountProofRequest:
+      type: object
+      description: |
+        Request body for `POST /profiles/investor/{investorId}/account/proof`.
+        Submits the user's signature over the LA-issued `signatureTemplate` payload.
+        Advances the workflow from `AWAITING_PROOF_SUBMISSION`.
+      required: [ cid, ownershipSignature ]
+      properties:
+        cid:
+          type: string
+          description: Correlation id of the account workflow currently in `AWAITING_PROOF_SUBMISSION`.
+        ownershipSignature:
+          type: string
+          description: Hex-encoded signature over the LA-issued `signatureTemplate` payload.
+
 
 

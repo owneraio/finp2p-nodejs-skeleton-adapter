@@ -11,10 +11,11 @@ import {
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
   AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
+  NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
+  AccountInvalidShapeError,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
-import { logger } from '../helpers';
 
 export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
   const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
@@ -41,24 +42,49 @@ export const depositAssetToAPI = (asset: DepositAsset): components['schemas']['d
 
 type AccountLike = components['schemas']['account'] | components['schemas']['depositPayoutAccount'];
 
-const ledgerAccountFromAPI = (ledgerAccount: components['schemas']['walletLedgerAccount']): LedgerAccount => {
+type LedgerAccountAPI =
+  components['schemas']['walletLedgerAccount']
+  | components['schemas']['caip10LedgerAccount']
+  | components['schemas']['custodialLedgerAccount'];
+
+const ledgerAccountFromAPI = (ledgerAccount: LedgerAccountAPI): LedgerAccount => {
   switch (ledgerAccount.type) {
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };
+    case 'caip10Account':
+      return { type: ledgerAccount.type, network: ledgerAccount.network, address: ledgerAccount.address };
+    case 'custodialAccount':
+      return {
+        type: ledgerAccount.type,
+        provider: ledgerAccount.provider,
+        vaultAccountId: ledgerAccount.vaultAccountId,
+        ...(ledgerAccount.assetId !== undefined ? { assetId: ledgerAccount.assetId } : {}),
+      };
     default:
-      throw new Error(`unsupported ledger account type: ${ledgerAccount.type}`);
+      throw new Error(`unsupported ledger account type: ${(ledgerAccount as { type: string }).type}`);
   }
 };
 
-const ledgerAccountToAPI = (ledgerAccount: LedgerAccount | undefined): components['schemas']['walletLedgerAccount'] | undefined => {
+const ledgerAccountToAPI = (ledgerAccount: LedgerAccount | undefined): LedgerAccountAPI | undefined => {
   if (!ledgerAccount) {
     return undefined;
   }
   switch (ledgerAccount.type) {
     case 'walletAccount':
       return { type: ledgerAccount.type, address: ledgerAccount.address };
+    case 'caip10Account':
+      return { type: ledgerAccount.type, network: ledgerAccount.network, address: ledgerAccount.address };
+    case 'custodialAccount':
+      return {
+        type: ledgerAccount.type,
+        provider: ledgerAccount.provider,
+        vaultAccountId: ledgerAccount.vaultAccountId,
+        ...(ledgerAccount.assetId !== undefined ? { assetId: ledgerAccount.assetId } : {}),
+      };
     default:
-      throw new Error(`unsupported ledger account type: ${ledgerAccount.type}`);
+      // Without this, an unknown type returns undefined — which means "no
+      // account" here, so the receipt leg would silently lose it.
+      throw new Error(`unsupported ledger account type: ${(ledgerAccount as { type: string }).type}`);
   }
 };
 
@@ -206,9 +232,9 @@ export const metadataToAPI = (metadata: OperationMetadata): components['schemas'
     case 'polling':
       return {
         operationResponseStrategy: {
-          type: 'random',
+          type: 'poll',
           polling: {
-            type: 'randomPollingInterval',
+            type: 'random',
           },
         },
       };
@@ -601,7 +627,6 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
       return { isCompleted: false, cid, operationMetadata: metadataOptToAPI(metadata) };
     case 'failure':
       const { code, message } = op.error;
-      logger.error('Deposit failed', { code, message });
       return {
         isCompleted: true,
         cid: '',
@@ -613,6 +638,93 @@ export const depositOperationToAPI = (op: DepositOperation): components['schemas
         isCompleted: true,
         cid: '',
         response: depositInstructionToAPI(instruction),
+      };
+  }
+};
+
+export const networkAccountFromAPI = (account: components['schemas']['networkAccount']): NetworkAccount => {
+  // noneAccount is the empty object, so there is no discriminator to switch on.
+  if (!('type' in account)) {
+    return { type: 'none' };
+  }
+  switch (account.type) {
+    case 'walletAccount':
+      return { type: account.type, address: account.address };
+    case 'caip10Account':
+      return { type: account.type, network: account.network, address: account.address };
+    case 'custodialAccount':
+      return {
+        type: account.type,
+        provider: account.provider,
+        vaultAccountId: account.vaultAccountId,
+        ...(account.assetId !== undefined ? { assetId: account.assetId } : {}),
+      };
+    default:
+      // Never degrade to `none`: the router would whitelist `{}` and every later
+      // operation naming the real account would fail 7351.
+      throw new AccountInvalidShapeError(`unsupported network account type: ${(account as { type: string }).type}`);
+  }
+};
+
+export const networkAccountToAPI = (account: NetworkAccount): components['schemas']['networkAccount'] => {
+  switch (account.type) {
+    case 'walletAccount':
+      return { type: account.type, address: account.address };
+    case 'caip10Account':
+      return { type: account.type, network: account.network, address: account.address };
+    case 'custodialAccount':
+      return {
+        type: account.type,
+        provider: account.provider,
+        vaultAccountId: account.vaultAccountId,
+        ...(account.assetId !== undefined ? { assetId: account.assetId } : {}),
+      };
+    case 'none':
+      return {};
+  }
+};
+
+export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] | undefined): BindInfo | undefined => {
+  if (!bindInfo) {
+    return undefined;
+  }
+  // The router sends a bare hex hint (accountOwnershipSignature {signature}),
+  // so there is no template to route through signatureFromAPI.
+  const { ownershipSignature } = bindInfo;
+  return {
+    account: networkAccountFromAPI(bindInfo.networkAccount),
+    ownershipSignature: ownershipSignature?.signature || undefined,
+  };
+};
+
+export const networkAccountRecordToAPI = (record: NetworkAccountRecord): components['schemas']['networkAccountRecord'] => {
+  return {
+    id: record.id,
+    networkAccount: networkAccountToAPI(record.account),
+  };
+};
+
+export const accountOperationToAPI = (op: AccountOperation): components['schemas']['networkAccountOperation'] => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId, metadata } = op;
+      return {
+        isCompleted: false,
+        cid: correlationId,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    case 'success':
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        response: networkAccountRecordToAPI(op.record),
+      };
+    case 'failure':
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: op.correlationId,
+        error: { code, message },
       };
   }
 };
@@ -639,6 +751,12 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'approval',
         operation: planApprovalOperationToAPI(op),
+      };
+
+    case 'account':
+      return {
+        type: 'account',
+        operation: accountOperationToAPI(op),
       };
   }
 };

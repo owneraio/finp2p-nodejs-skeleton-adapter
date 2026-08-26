@@ -9,7 +9,7 @@ import LEDGERS from './graphql/ledgers.graphql';
 import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
 import PLANS from './graphql/plans.graphql';
 import RECEIPTS from './graphql/receipts.graphql';
-import { makeOssPage, OssApprovalConfigNodes, OssAsset, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssPage, OssPaginate, OssReceipt, OssReceiptNodes, OssUser, OssUserNodes } from './model';
+import { makeOssPage, OssApprovalConfigNodes, OssAsset, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssInvestorNetworkAccount, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssPage, OssPaginate, OssReceipt, OssReceiptNodes, OssUser, OssUserNodes } from './model';
 import { ItemNotFoundError } from './errors';
 import { normalizeBaseUrl } from '../finapi/utils';
 
@@ -79,6 +79,39 @@ export class OssClient {
       throw new ItemNotFoundError(finId, 'Owner');
     }
     return resp.users.nodes[0];
+  }
+
+  /**
+   * List the network accounts onboarded for an investor, as projected into the
+   * OSS read model. This is the read-back side of the onboarding flow — the
+   * `id` on each entry is what `removeInvestorAccount` takes.
+   *
+   * Pass `assetId` and/or `organizationId` to narrow to a single scope;
+   * filtering happens client-side because `networkAccounts` is a nested field
+   * and the OSS filter applies to the `users` selection.
+   */
+  async getOwnerNetworkAccounts(
+    ownerId: string,
+    scope: { organizationId?: string; assetId?: string } = {},
+  ): Promise<OssInvestorNetworkAccount[]> {
+    const resp = await this.queryOss<OssOwnerNodes>(OWNERS, {
+      filter: {
+        key: 'id',
+        operator: 'EQ',
+        value: ownerId,
+      },
+      includeCerts: false,
+      includeHoldings: false,
+      includeNetworkAccounts: true,
+    });
+    if (resp.users.nodes.length == 0) {
+      throw new ItemNotFoundError(ownerId, 'Owner');
+    }
+    const accounts = resp.users.nodes[0].networkAccounts ?? [];
+    return accounts.filter((a) => (
+      (scope.organizationId === undefined || a.organizationId === scope.organizationId)
+      && (scope.assetId === undefined || a.assetId === scope.assetId)
+    ));
   }
 
   async getAssets(

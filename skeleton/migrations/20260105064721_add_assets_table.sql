@@ -1,15 +1,15 @@
 -- +goose Up
 -- +goose StatementBegin
 -- +goose ENVSUB ON
-CREATE TYPE ${LEDGER_SCHEMA:-ledger_adapter}.token_standard as ENUM('ERC20');
+CREATE TYPE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.token_standard as ENUM('ERC20');
 
-CREATE TABLE ${LEDGER_SCHEMA:-ledger_adapter}.assets(
+CREATE TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.assets(
   type VARCHAR(255) NOT NULL,
   id VARCHAR(255) NOT NULL,
   -- composite primary key
   PRIMARY KEY (type, id),
 
-  token_standard ${LEDGER_SCHEMA:-ledger_adapter}.token_standard NOT NULL,
+  token_standard ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.token_standard NOT NULL,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   decimals INTEGER NOT NULL,
@@ -23,7 +23,7 @@ DO $$
     DECLARE
 -- +goose ENVSUB ON
         ledger_adapter_user TEXT := '${LEDGER_ADAPTER_USER:-}';
-        ledger_adapter_schema TEXT := '${LEDGER_SCHEMA:-ledger_adapter}';
+        ledger_adapter_schema TEXT := '${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}';
 -- +goose ENVSUB OFF
         users_exist BOOLEAN;
     BEGIN
@@ -42,7 +42,7 @@ DO $$
 -- +goose Down
 -- +goose StatementBegin
 -- +goose ENVSUB ON
-DROP TABLE ${LEDGER_SCHEMA:-ledger_adapter}.assets;
-DROP TYPE ${LEDGER_SCHEMA:-ledger_adapter}.token_standard;
+DROP TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.assets;
+DROP TYPE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.token_standard;
 -- +goose ENVSUB OFF
 -- +goose StatementEnd

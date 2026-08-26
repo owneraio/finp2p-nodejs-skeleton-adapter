@@ -11,6 +11,8 @@ import {
   PaymentsServiceImpl,
   ProofProvider,
   AccountMappingServiceImpl,
+  NetworkAccountServiceImpl,
+  NotSupportedNetworkAccountService,
   workflows,
   storage as skeletonStorage,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
@@ -68,6 +70,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
   let pool: Pool | undefined;
   let mappingService: routes.AccountMappingService | undefined;
   let mappingConfig: routes.AccountMappingConfig | undefined;
+  let networkAccountService: routes.NetworkAccountService = new NotSupportedNetworkAccountService();
 
   if (config?.connectionString) {
     pool = new Pool({ connectionString: config.connectionString });
@@ -105,6 +108,8 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
 
     const accountStore = new skeletonStorage.PgAccountStore(pool, schemaName);
     mappingService = new AccountMappingServiceImpl(accountStore);
+    const networkAccountStore = new skeletonStorage.PgNetworkAccountStore(pool, schemaName);
+    networkAccountService = new NetworkAccountServiceImpl(networkAccountStore);
     mappingConfig = {
       fields: [
         {
@@ -124,8 +129,8 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
     tokenService,
     paymentsService,
     planApprovalService,
-    mappingConfig,
-    mappingService,
+    networkAccountService,
+    { mappingConfig, mappingService },
   );
 
   return { app, pool };

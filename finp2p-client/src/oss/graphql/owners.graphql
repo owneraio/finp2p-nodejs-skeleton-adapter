@@ -1,7 +1,8 @@
 query GetOwners(
     $filter: [Filter!],
     $includeCerts: Boolean = true,
-    $includeHoldings: Boolean = true
+    $includeHoldings: Boolean = true,
+    $includeNetworkAccounts: Boolean = false
 ) {
     users(filter: $filter) {
         nodes {
@@ -41,6 +42,14 @@ query GetOwners(
                     syncedBalance
                 }
             }
+            networkAccounts @include(if: $includeNetworkAccounts) {
+                organizationId
+                assetId
+                id
+                account {
+                    ... networkAccount
+                }
+            }
         }
     }
 }
@@ -49,5 +58,25 @@ fragment asset on AssetDetails {
     type: __typename
     ... on FinP2PAsset {
         resourceId
+    }
+}
+
+# `__typename` is aliased to `kind` rather than `type` because WalletAccount
+# already has a field named `type` — aliasing both to the same response key
+# would be a field conflict.
+fragment networkAccount on NetworkAccount {
+    kind: __typename
+    ... on WalletAccount {
+        type
+        address
+    }
+    ... on Caip10Account {
+        network
+        address
+    }
+    ... on CustodialAccount {
+        provider
+        vaultAccountId
+        assetId
     }
 }

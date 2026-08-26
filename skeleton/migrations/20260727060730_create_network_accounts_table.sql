@@ -1,15 +1,19 @@
 -- +goose Up
 -- +goose StatementBegin
 -- +goose ENVSUB ON
-CREATE TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.account_mappings(
+CREATE TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.network_accounts(
+  -- used by DELETE /accounts/{accountId}
+  account_id VARCHAR(255) PRIMARY KEY,
+  idempotency_key VARCHAR(255),
+  organization_id VARCHAR(255) NOT NULL,
+  asset_id VARCHAR(255) NOT NULL,
   fin_id VARCHAR(255) NOT NULL,
-  account VARCHAR(255) NOT NULL,
+  account JSONB NOT NULL,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (fin_id, account)
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX account_mappings_fin_id_idx ON ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.account_mappings(fin_id, created_at, account);
-CREATE INDEX account_mappings_account_idx ON ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.account_mappings(account, created_at, fin_id);
+CREATE UNIQUE INDEX network_accounts_org_asset_fin_id_idx
+  ON ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.network_accounts(organization_id, asset_id, fin_id);
 -- +goose ENVSUB OFF
 -- +goose StatementEnd
 
@@ -29,7 +33,7 @@ DO $$
         INTO users_exist;
 
         IF users_exist THEN
-            EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE %I.account_mappings TO %I;', ledger_adapter_schema, ledger_adapter_user);
+            EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE %I.network_accounts TO %I;', ledger_adapter_schema, ledger_adapter_user);
         END IF;
     END $$;
 -- +goose StatementEnd
@@ -37,6 +41,6 @@ DO $$
 -- +goose Down
 -- +goose StatementBegin
 -- +goose ENVSUB ON
-DROP TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.account_mappings;
+DROP TABLE ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.network_accounts;
 -- +goose ENVSUB OFF
 -- +goose StatementEnd

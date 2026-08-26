@@ -13,6 +13,9 @@ import {
   EscrowService,
   PaymentService,
   failedDepositOperation,
+  NetworkAccountService,
+  pendingAccountOperation,
+  failedAccountOperation,
   OperationResponseStrategy,
   OperationMetadata,
 } from '../models';
@@ -77,6 +80,9 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
       return pendingOrError(cid => pendingPlan(cid, opMetadata), (cid, code, message) => rejectedPlan(code, message));
     case compiletimeMethodName<PaymentService>('getDepositInstruction'):
       return pendingOrError(cid => pendingDepositOperation(cid, opMetadata), (cid, code, message) => failedDepositOperation(code, message));
+    case compiletimeMethodName<NetworkAccountService>('createAccount'):
+    case compiletimeMethodName<NetworkAccountService>('removeAccount'):
+      return pendingOrError(cid => pendingAccountOperation(cid, opMetadata), (cid, code, message) => failedAccountOperation(cid, code, message));
     default:
       throw new Error(`Unknown proxied method '${methodName}' — add it to wrappedResponse()`);
   }
