@@ -73,7 +73,6 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
     pool = new Pool({ connectionString: config.connectionString });
 
     const schemaName = config?.schemaName ?? SAMPLE_ADAPTER_SCHEMA;
-    workflows.setGlobalPool(pool, schemaName)
     const workflowStorage = new workflows.WorkflowStorage(pool, schemaName);
     if (!finP2PClient) {
       logger.warning('Workflows enabled without FinP2PClient — callbacks will not be sent, router must poll for results');

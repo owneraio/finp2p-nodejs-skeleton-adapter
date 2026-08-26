@@ -64,7 +64,6 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
   public async issue(idempotencyKey: string, asset: Asset, destinationFinId: string, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
     return workflows.resumableWorkflow(
       {
-        arguments,
         start: async () => {
           logger.info(`Issuing ${quantity} of ${asset.assetId} to ${destinationFinId}`);
           this.storage.credit(destinationFinId, quantity, asset.assetId);

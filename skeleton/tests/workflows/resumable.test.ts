@@ -1,13 +1,13 @@
 import { OperationStatus, successfulAssetCreation } from "../../src/models";
 import { setTimeout as setTimeoutPromise } from "node:timers/promises";
 import {
-  clearGlobalPool,
   createServiceProxy,
   migrateIfNeeded,
   resumableWorkflow,
-  setGlobalPool,
   WorkflowStorage,
 } from "../../src/workflows";
+// Internal — not re-exported from the workflows barrel.
+import { setCurrentOperation } from "../../src/workflows/internal";
 import { Pool } from "pg";
 
 const finalSuccess = (assetId: string): OperationStatus =>
@@ -64,11 +64,10 @@ describe("Resumable workflows", () => {
     });
     pool = new Pool({ connectionString: container.connectionString });
     storage = new WorkflowStorage(pool);
-    setGlobalPool(pool);
   });
 
   afterEach(async () => {
-    clearGlobalPool();
+    setCurrentOperation(undefined);
     await pool.end();
     await container.cleanup();
   });
@@ -80,10 +79,9 @@ describe("Resumable workflows", () => {
 
     // This object is the consumer's service implementation.
     const service = {
-      async createAsset(...args: any[]): Promise<OperationStatus> {
+      async createAsset(_idempotencyKey: string, _assetId: string): Promise<OperationStatus> {
         return resumableWorkflow<OperationStatus>(
           {
-            arguments: args,
             start: async () => {
               calls.start++;
               return "tx-deploy-hash"; // string -> checkpoint
@@ -126,9 +124,9 @@ describe("Resumable workflows", () => {
   test("on restart, skips completed stages and resumes from the last checkpoint", async () => {
     // --- attempt 1: start checkpoints, then the next stage hangs (== crash) ---
     const v1 = {
-      async createAsset(...args: any[]): Promise<OperationStatus> {
+      async createAsset(_idempotencyKey: string, _assetId: string): Promise<OperationStatus> {
         return resumableWorkflow<OperationStatus>(
-          { arguments: args, start: async () => "tx-deploy-hash" },
+          { start: async () => "tx-deploy-hash" },
           { then: async () => new Promise<OperationStatus>(() => {}) }, // never resolves
         );
       },
@@ -148,10 +146,9 @@ describe("Resumable workflows", () => {
     const v2Calls = { start: 0, then0: 0 };
     let then0Input: string | undefined;
     const v2 = {
-      async createAsset(...args: any[]): Promise<OperationStatus> {
+      async createAsset(_idempotencyKey: string, _assetId: string): Promise<OperationStatus> {
         return resumableWorkflow<OperationStatus>(
           {
-            arguments: args,
             start: async () => {
               v2Calls.start++; // must NOT happen — start already completed before the crash
               return "tx-deploy-hash";
@@ -194,8 +191,9 @@ describe("Resumable workflows", () => {
     const calls = { start: 0, then0: 0, then1: 0 };
     let then1Input: string | undefined;
 
+    setCurrentOperation({ cid: "seed-2", storage });
     const result = await resumableWorkflow<OperationStatus>(
-      { arguments: ["two-checkpoints"], start: async () => { calls.start++; return "s0"; } },
+      { start: async () => { calls.start++; return "s0"; } },
       { then: async () => { calls.then0++; return "s1"; } },
       { then: async (prev) => { calls.then1++; then1Input = prev; return finalSuccess("done"); } },
     );
@@ -211,8 +209,9 @@ describe("Resumable workflows", () => {
       inputs: ["immediate-final"], outputs: {},
     });
 
+    setCurrentOperation({ cid: "seed-final", storage });
     const result = await resumableWorkflow<OperationStatus>(
-      { arguments: ["immediate-final"], start: async () => finalSuccess("instant") },
+      { start: async () => finalSuccess("instant") },
       { then: async () => finalSuccess("unused") },
     );
 
@@ -227,9 +226,9 @@ describe("Resumable workflows", () => {
       inputs: ["no-continuation"], outputs: {},
     });
 
+    setCurrentOperation({ cid: "seed-err", storage });
     await expect(
       resumableWorkflow<OperationStatus>({
-        arguments: ["no-continuation"],
         start: async () => "checkpoint-with-nowhere-to-go",
       }),
     ).rejects.toThrow(/produced an intermediate state but only 0/);
@@ -239,12 +238,49 @@ describe("Resumable workflows", () => {
     expect(op!.intermediate_states).toEqual(["checkpoint-with-nowhere-to-go"]);
   });
 
-  test("errors when no operation row exists for the given arguments", async () => {
+  test("errors when called outside of an operation", async () => {
+    setCurrentOperation(undefined);
     await expect(
-      resumableWorkflow<OperationStatus>({
-        arguments: ["nonexistent-args"],
-        start: async () => "x",
-      }),
+      resumableWorkflow<OperationStatus>({ start: async () => "x" }),
+    ).rejects.toThrow(/no current operation/);
+  });
+
+  test("errors when the current cid has no operation row", async () => {
+    setCurrentOperation({ cid: "no-such-cid", storage });
+    await expect(
+      resumableWorkflow<OperationStatus>({ start: async () => "x" }),
     ).rejects.toThrow(/no operation row found/);
+  });
+
+  test("context does not leak across concurrent operations", async () => {
+    const service = {
+      async createAsset(_idempotencyKey: string, assetId: string): Promise<OperationStatus> {
+        return resumableWorkflow<OperationStatus>(
+          {
+            start: async () => {
+              await setTimeoutPromise(50); // interleave the two calls
+              return `checkpoint-${assetId}`; // lands on the ambient operation's row
+            },
+          },
+          { then: async () => finalSuccess(assetId) },
+        );
+      },
+      async operationStatus(_cid: string): Promise<any> {},
+    };
+
+    const proxy = createServiceProxy(() => Promise.resolve(), storage, undefined, service, "createAsset");
+    const [p1, p2] = await Promise.all([
+      proxy.createAsset("idem-a", "asset-a"),
+      proxy.createAsset("idem-b", "asset-b"),
+    ]);
+    const cid1 = (p1 as any).correlationId;
+    const cid2 = (p2 as any).correlationId;
+
+    const op1 = await waitForStatus(storage, cid1, "succeeded");
+    const op2 = await waitForStatus(storage, cid2, "succeeded");
+
+    // a leaked context would checkpoint onto the other operation's row
+    expect(op1.intermediate_states).toEqual(["checkpoint-asset-a"]);
+    expect(op2.intermediate_states).toEqual(["checkpoint-asset-b"]);
   });
 });

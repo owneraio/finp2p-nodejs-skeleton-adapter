@@ -17,6 +17,7 @@ import {
   OperationMetadata,
 } from '../models';
 import { Operation as StorageOperation, WorkflowStorage, generateCid } from './storage';
+import { setCurrentOperation } from './internal';
 import { operationStatusToAPI } from '../routes/mapping';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { logger } from '../helpers';
@@ -191,9 +192,15 @@ async function executeAndFinalize(
   finP2PClient: FinP2PClient | undefined,
 ): Promise<void> {
   try {
-    const outputs: OperationStatus = await method(...args);
+    // Expose the operation to resumableWorkflow for the method's synchronous
+    // start only — cleared before anything else can interleave.
+    setCurrentOperation({ cid, storage });
+    const promise = method(...args);
+    setCurrentOperation(undefined);
+    const outputs: OperationStatus = await promise;
     await finalize(storage, finP2PClient, cid, dbStatus(outputs), outputs);
   } catch (error: any) {
+    setCurrentOperation(undefined); // method may have thrown synchronously
     logger.error('Operation failed', { method: methodName, cid, ...describeError(error) });
     const wrp = wrappedResponse(methodName, opMetadata, [cid, 1, String(error)]);
     await finalize(storage, finP2PClient, cid, 'failed', wrp);
