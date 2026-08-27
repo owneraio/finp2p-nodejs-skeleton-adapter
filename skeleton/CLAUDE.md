@@ -51,7 +51,8 @@ The goal is to narrow the scope of building a new adapter to **just implementing
 Provides **idempotent async operation persistence** backed by PostgreSQL:
 
 - **`config.ts`** &mdash; Configuration interfaces: `MigrationConfig`, `StorageConfig`, `ProxyConfig` (callback support), `Config`
-- **`storage.ts`** &mdash; PostgreSQL-based operation store. Tracks operations by correlation ID (`cid`), with status (`in_progress` / `succeeded` / `failed`), inputs (for idempotency), and outputs. Also provides asset storage for adapters that need it.
+- **`storage.ts`** &mdash; PostgreSQL-based operation store. Tracks operations by correlation ID (`cid`), with status (`in_progress` / `succeeded` / `failed`), inputs (for idempotency), outputs, and `intermediate_states` (an ordered `TEXT[]` of opaque checkpoint strings used by resumable workflows, default empty). Also provides asset storage for adapters that need it.
+- **`resumable.ts`** &mdash; `resumableWorkflow()` &mdash; opt-in checkpointing layer on top of `createServiceProxy`. The proxy sets a package-internal `currentOperation` global (`internal.ts`, not re-exported from the barrel) to `{ cid, storage }` just before invoking a proxied method and clears it once the method's synchronous part returns, so `resumableWorkflow({ start }, { then }, …)` **must be called before the method's first `await`**; it captures the context synchronously to find its operation row &mdash; no arguments to forward, no storage wiring &mdash; and runs a chain of stages; a stage that returns a **string** is appended to `intermediate_states` as a checkpoint, a stage that returns **anything else** is the final result. On a proxy replay (in_progress operation re-run after a restart), it reads `intermediate_states` and skips the stages that already completed, resuming from the last checkpoint. It only manages `intermediate_states`; the proxy still owns row creation, status, outputs, and replay. Adopt per-method &mdash; the plain proxy path is unchanged.
 - **`service.ts`** &mdash; `createServiceProxy()` &mdash; the key abstraction. Wraps any service interface in a `Proxy` that:
   1. Generates a correlation ID for each new operation
   2. Stores the pending operation in PostgreSQL (deduplicates by input hash)
@@ -113,6 +114,11 @@ When workflow persistence is enabled, the skeleton uses PostgreSQL with a consum
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb
+- `20260826090000_add_intermediate_states.sql` &mdash; adds `operations.intermediate_states TEXT[] NOT NULL DEFAULT '{}'` for resumable-workflow checkpoints
+
+(Other migrations between these evolve the idempotency key, account mappings, and asset columns &mdash; see `migrations/`.)
+
+New migrations must be created with `goose -dir migrations create <name> sql` so they get a correct timestamped filename; never edit a migration that has already shipped.
 
 Migrations run automatically on startup via goose.
 
