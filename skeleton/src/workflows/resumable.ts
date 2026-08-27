@@ -52,7 +52,7 @@ export async function resumableWorkflow<T>(
     throw new Error(`resumableWorkflow: no operation row found for cid ${cid}.`);
   }
 
-  const states: string[] = [...(operation.intermediate_states ?? [])];
+  const states: string[] = [...operation.intermediate_states];
   let stageIndex = states.length;
 
   for (; ;) {
