@@ -8,6 +8,10 @@ import { Operation } from './storage';
  * a restart, completed stages are skipped and the last checkpoint is fed to
  * the next stage. The proxy still owns row creation, status, outputs, replay.
  *
+ * Stages must be idempotent: only *checkpointed* stages are skipped on replay,
+ * so a stage that crashed mid-flight (side effect done, checkpoint not yet
+ * written) re-runs in full. Crash-safety of each stage is the caller's job.
+ *
  * Must be called synchronously (before any `await`) inside a proxied method:
  *
  * ```ts
