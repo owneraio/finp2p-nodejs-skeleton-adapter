@@ -217,6 +217,14 @@ export const register = (app: Application,
     });
 
   app.post<{},
+  LedgerAPI['schemas']['SwapSingleResponse'],
+  LedgerAPI['schemas']['SwapSingleRequest']>(
+    `/${basePath}/assets/swap-single`,
+    async () => {
+      throw new NotSupportedError('same-org atomic asset swap is not supported by this adapter');
+    });
+
+  app.post<{},
   LedgerAPI['schemas']['RedeemAssetsResponse'],
   LedgerAPI['schemas']['RedeemAssetsRequest']>(
     `/${basePath}/assets/redeem`,

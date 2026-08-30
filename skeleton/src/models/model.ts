@@ -419,10 +419,7 @@ export const pendingReceiptOperation = (correlationId: string, metadata: Operati
 export type SuccessSwapStatus = {
   operation: 'swap',
   type: 'success';
-  /** This adapter's own leg receipt — always present. */
   asset: Receipt;
-  /** Optional counter-leg receipt attested from the settle tx. */
-  settlement?: Receipt;
 };
 
 export type FailedSwapStatus = {
@@ -440,11 +437,10 @@ export type PendingSwapStatus = {
 
 export type SwapOperation = PendingSwapStatus | FailedSwapStatus | SuccessSwapStatus;
 
-export const successfulSwapOperation = (asset: Receipt, settlement?: Receipt): SwapOperation => ({
+export const successfulSwapOperation = (asset: Receipt): SwapOperation => ({
   operation: 'swap',
   type: 'success',
   asset,
-  settlement,
 });
 
 export const failedSwapOperation = (code: number, message: string): SwapOperation => ({

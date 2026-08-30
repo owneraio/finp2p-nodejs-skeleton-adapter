@@ -535,17 +535,49 @@ export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas
   }
 };
 
-export const swapLegFromAPI = (leg: components['schemas']['swapLeg']): SwapLeg => {
+export const swapLegFromAPI = (
+  leg: components['schemas']['swapAssetLeg'] | components['schemas']['swapSettlementLeg'],
+): SwapLeg => {
   return {
     asset: assetFromAPI(leg.source.asset),
     source: sourceFromAPI(leg.source),
     destination: destinationFromAPI(leg.destination),
     quantity: leg.quantity,
-    signature: signatureOptFromAPI(leg.signature),
+    signature: 'signature' in leg ? signatureFromAPI(leg.signature) : undefined,
   };
 };
 
-export const swapOperationToAPI = (op: SwapOperation): components['schemas']['swapOperation'] => {
+export const swapOperationToAPI = (op: SwapOperation): components['schemas']['swapReceiptOperation'] => {
+  switch (op.type) {
+    case 'pending': {
+      const { correlationId: cid, metadata } = op;
+      return {
+        isCompleted: false, cid,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    }
+    case 'failure': {
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: '',
+        error: { code, message },
+      };
+    }
+    case 'success':
+      // Only this adapter's own leg is reported; the counterparty's adapter
+      // attests the counter-leg and the router assembles the pair.
+      return {
+        isCompleted: true,
+        cid: '',
+        response: {
+          receipt: receiptToAPI(op.asset),
+        },
+      };
+  }
+};
+
+const swapOperationToReceiptOperationAPI = (op: SwapOperation): components['schemas']['receiptOperation'] => {
   switch (op.type) {
     case 'pending': {
       const { correlationId: cid, metadata } = op;
@@ -566,10 +598,7 @@ export const swapOperationToAPI = (op: SwapOperation): components['schemas']['sw
       return {
         isCompleted: true,
         cid: '',
-        response: {
-          asset: receiptToAPI(op.asset),
-          settlement: op.settlement ? receiptToAPI(op.settlement) : undefined,
-        },
+        response: receiptToAPI(op.asset),
       };
   }
 };
@@ -801,8 +830,8 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
 
     case 'swap':
       return {
-        type: 'swap',
-        operation: swapOperationToAPI(op),
+        type: 'receipt',
+        operation: swapOperationToReceiptOperationAPI(op),
       };
   }
 };
