@@ -458,6 +458,50 @@ export const pendingSwapOperation = (correlationId: string, metadata: OperationM
 
 // -------------------------------------------------------------------
 
+export type SuccessSwapSingleStatus = {
+  operation: 'swapSingle',
+  type: 'success';
+  asset: Receipt;
+  settlement: Receipt;
+};
+
+export type FailedSwapSingleStatus = {
+  operation: 'swapSingle',
+  type: 'failure';
+  error: ErrorDetails
+};
+
+export type PendingSwapSingleStatus = {
+  operation: 'swapSingle',
+  type: 'pending';
+  correlationId: string;
+  metadata: OperationMetadata | undefined
+};
+
+export type SwapSingleOperation = PendingSwapSingleStatus | FailedSwapSingleStatus | SuccessSwapSingleStatus;
+
+export const successfulSwapSingleOperation = (asset: Receipt, settlement: Receipt): SwapSingleOperation => ({
+  operation: 'swapSingle',
+  type: 'success',
+  asset,
+  settlement,
+});
+
+export const failedSwapSingleOperation = (code: number, message: string): SwapSingleOperation => ({
+  operation: 'swapSingle',
+  type: 'failure',
+  error: { code, message },
+});
+
+export const pendingSwapSingleOperation = (correlationId: string, metadata: OperationMetadata | undefined): SwapSingleOperation => ({
+  operation: 'swapSingle',
+  type: 'pending',
+  correlationId,
+  metadata,
+});
+
+// -------------------------------------------------------------------
+
 
 export type IbanAccountDetails = {
   type: 'iban'
@@ -638,7 +682,7 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation;
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation | SwapSingleOperation;
 
 
 // -------------------------------------------------------------------
@@ -666,7 +710,7 @@ export type TradeDetails = {
   executionContext: ExecutionContext | undefined
 };
 
-export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue' | 'swap';
+export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue' | 'swap' | 'swapSingle';
 
 export type Receipt = {
   id: string,

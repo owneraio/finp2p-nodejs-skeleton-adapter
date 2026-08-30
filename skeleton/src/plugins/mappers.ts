@@ -183,7 +183,8 @@ export const operationToFinAPI = (operationStatus: OperationStatus): OpComponent
         operation: accountOperationToAPI(operationStatus) as OpComponents['schemas']['networkAccountOperation'],
       };
     case 'swap':
+    case 'swapSingle':
       // The router operational API (finp2p-client) has no swap arm yet.
-      throw new Error('swap operation status is not supported by the operational API');
+      throw new Error(`${operationStatus.operation} operation status is not supported by the operational API`);
   }
 };

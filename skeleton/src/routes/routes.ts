@@ -34,6 +34,7 @@ import {
   sourceFromAPI,
   swapLegFromAPI,
   swapOperationToAPI,
+  swapSingleOperationToAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import { AccountMappingConfig, registerMappingRoutes } from './operational';
@@ -220,8 +221,14 @@ export const register = (app: Application,
   LedgerAPI['schemas']['SwapSingleResponse'],
   LedgerAPI['schemas']['SwapSingleRequest']>(
     `/${basePath}/assets/swap-single`,
-    async () => {
-      throw new NotSupportedError('same-org atomic asset swap is not supported by this adapter');
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { nonce, operationId, asset, settlement, deadline, executionContext } = req.body;
+      const exCtx = executionContextOptFromAPI(executionContext, settlement.source.asset?.resourceId);
+
+      const rsp = await tokenService.swapSingle(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), deadline, exCtx);
+
+      res.json(swapSingleOperationToAPI(rsp));
     });
 
   app.post<{},
