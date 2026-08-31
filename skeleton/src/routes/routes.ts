@@ -210,7 +210,7 @@ export const register = (app: Application,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
       const { nonce, operationId, asset, settlement, deadline, executionContext } = req.body;
-      const exCtx = executionContextOptFromAPI(executionContext, settlement.source.asset?.resourceId);
+      const exCtx = executionContextOptFromAPI(executionContext, asset.destination.asset?.resourceId);
 
       const rsp = await tokenService.swap(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), deadline, exCtx);
 
@@ -224,7 +224,7 @@ export const register = (app: Application,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
       const { nonce, operationId, asset, settlement, deadline, executionContext } = req.body;
-      const exCtx = executionContextOptFromAPI(executionContext, settlement.source.asset?.resourceId);
+      const exCtx = executionContextOptFromAPI(executionContext);
 
       const rsp = await tokenService.swapSingle(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), deadline, exCtx);
 
