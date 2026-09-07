@@ -33,6 +33,9 @@ import {
   signatureFromAPI,
   signatureOptFromAPI,
   sourceFromAPI,
+  swapLegFromAPI,
+  swapOperationToAPI,
+  swapSingleOperationToAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
 import {
@@ -206,6 +209,34 @@ export const register = (app: Application,
       const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
+    });
+
+  app.post<{},
+  LedgerAPI['schemas']['SwapAssetsResponse'],
+  LedgerAPI['schemas']['SwapAssetsRequest']>(
+    `/${basePath}/assets/swap`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { nonce, operationId, asset, settlement, deadline, executionContext } = req.body;
+      const exCtx = executionContextOptFromAPI(executionContext, asset.destination.asset?.resourceId);
+
+      const rsp = await tokenService.swap(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), deadline, exCtx);
+
+      res.json(swapOperationToAPI(rsp));
+    });
+
+  app.post<{},
+  LedgerAPI['schemas']['SwapSingleResponse'],
+  LedgerAPI['schemas']['SwapSingleRequest']>(
+    `/${basePath}/assets/swap-single`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { nonce, operationId, asset, settlement, deadline, executionContext } = req.body;
+      const exCtx = executionContextOptFromAPI(executionContext);
+
+      const rsp = await tokenService.swapSingle(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), deadline, exCtx);
+
+      res.json(swapSingleOperationToAPI(rsp));
     });
 
   app.post<{},

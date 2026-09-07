@@ -211,6 +211,94 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/assets/swap': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Atomic Asset Swap
+         * @description Atomically exchange two same-ledger assets in a single ledger transaction — no escrow
+         *     hold, no compensation. Both movements are events of one settle transaction.
+         *
+         *     **Legs are read from THIS ADAPTER'S PERSPECTIVE.** `asset` is *always* the leg this
+         *     adapter executes (what its party sends); `settlement` is what that party receives in
+         *     return — binding counter-leg terms the contract enforces. The two cross-org requests are
+         *     therefore **mirrors**, not copies: what one adapter receives as `asset` is exactly what
+         *     the other receives as `settlement`, with the same `operationId` and `deadline`. The
+         *     adapter never resolves custody, and the caller never annotates perspective.
+         *
+         *     **This endpoint is the CROSS-ORG case, called once per org.** The adapter executes only its
+         *     own `asset` leg and returns exactly one receipt; the second of the two submissions to land
+         *     triggers the on-chain cross. Topology is carried by the ENDPOINT, never inferred: an adapter
+         *     that owns both wallets is called on `POST /assets/swap-single` instead. The adapter therefore
+         *     never infers topology and never resolves custody.
+         *
+         *     **A swap-capable adapter MUST verify the signature by recomputing BOTH hash groups from
+         *     the request's `asset` AND `settlement`, and MUST reject a request whose `settlement`
+         *     terms differ from the signed ones.** Each signature covers the full swap terms — an
+         *     investor authorizes the exchange, not a one-way give-away. This verification is what
+         *     makes the unsigned cross-org counter-leg safe: it is the only thing binding it. Verifying
+         *     only the asset group, or taking the second hash group verbatim from the submitted
+         *     template, silently loses counter-leg integrity and MUST NOT be done.
+         *
+         *     **A COMPLETED operation (`isCompleted: true`) MUST carry its one `receipt`** — the leg this
+         *     adapter executed. An interim (`isCompleted: false`) response may omit it. The adapter is
+         *     **never** asked to attest the counter-leg: the counterparty's adapter reports that one, and
+         *     the router assembles the pair.
+         *
+         *     Receipt ids MUST be distinct per movement while sharing one `transactionId`; deriving them
+         *     deterministically from the ledger event (e.g. `txHash:logIndex`) is recommended.
+         */
+    post: operations['swapAssets'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/assets/swap-single': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Atomic Asset Swap (same-org, one call)
+         * @description Atomically exchange two same-ledger assets when ONE org custodies both wallets, so a single
+         *     adapter submits both legs in one call and returns both receipts.
+         *
+         *     Topology is carried by the ENDPOINT, not inferred: this endpoint always means "you own both
+         *     legs". The cross-org case is `POST /assets/swap`, called once per org, each returning one
+         *     receipt. An adapter therefore never infers topology and never resolves custody.
+         *
+         *     Legs are TRADE-ROLE-FIXED here — `asset` is the traded asset, `settlement` is what pays for it
+         *     — because one adapter owns the whole exchange, so the perspective-relative reading that applies
+         *     to `POST /assets/swap` does not apply here.
+         *
+         *     **Both legs carry their own owner's signature**, so each is authenticated by the party that owns
+         *     it. Each signature still covers the FULL swap terms (both hash groups): an investor authorizes
+         *     the exchange, not a one-way give-away. A swap-capable adapter MUST verify each signature by
+         *     recomputing both hash groups, and MUST reject a request whose terms differ from the signed ones.
+         *
+         *     **A COMPLETED operation (`isCompleted: true`) MUST carry BOTH receipts.** An interim
+         *     (`isCompleted: false`) response may omit a not-yet-observable leg. Receipt ids MUST be distinct
+         *     per movement while sharing one `transactionId`.
+         */
+    post: operations['swapAssetsSingle'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/assets/transfer': {
     parameters: {
       query?: never;
@@ -540,6 +628,109 @@ export interface components {
       executionContext?: components['schemas']['executionContext'];
     };
     MoveAssetsResponse: components['schemas']['receiptOperation'];
+    /**
+         * @description Legs are perspective-relative: `asset` is always the leg THIS adapter executes.
+         *     See `POST /assets/swap` for the mandatory two-group signature verification requirement.
+         */
+    SwapAssetsRequest: {
+      nonce: components['schemas']['nonce'];
+      /** @description Correlates the two legs of one swap on the contract. Required — without it the legs cannot be correlated. */
+      operationId: string;
+      asset: components['schemas']['swapAssetLeg'];
+      settlement: components['schemas']['swapSettlementLeg'];
+      /**
+             * Format: int64
+             * @description Contract TTL as ABSOLUTE epoch seconds — not a duration and not a block number.
+             *     Required: identical on both legs, carried from the execution instruction so the two
+             *     orgs' calls cannot expire at different times. The adapter maps it to a block marker
+             *     if its chain needs one. Expiry refunds; there is no cancel path.
+             */
+      deadline: number;
+      executionContext?: components['schemas']['executionContext'];
+    };
+    /** @description The leg this adapter executes. Its signature is mandatory and covers the FULL swap terms (both legs). */
+    swapAssetLeg: {
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+      signature: components['schemas']['signature'];
+    };
+    /**
+         * @description The binding counter-leg the contract enforces: what must arrive, from whom, to where —
+         *     executed by the COUNTERPARTY's adapter.
+         *
+         *     There is deliberately NO signature field here, not even an optional one: this shape belongs to
+         *     the cross-org endpoint, which is by definition the one-leg case. Integrity of the unsigned
+         *     counter-leg rests on the mandatory two-group verification of `asset.signature`, which covers
+         *     these terms too. The same-org endpoint uses `swapSingleSettlementLeg` instead.
+         */
+    swapSettlementLeg: {
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+    };
+    /**
+         * @description The settlement leg on the SAME-ORG endpoint, where one adapter submits both legs. Unlike the
+         *     cross-org shape this carries its own owner's signature, so each leg is additionally
+         *     authenticated by the party that owns it.
+         */
+    swapSingleSettlementLeg: {
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+      signature: components['schemas']['signature'];
+    };
+    SwapAssetsResponse: components['schemas']['swapReceiptOperation'];
+    swapReceiptOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['swapReceipt'];
+    };
+    /**
+         * @description The single receipt for the leg THIS adapter executed on `POST /assets/swap`. The counter-leg is
+         *     reported by the counterparty's adapter and assembled by the router, so it never appears here.
+         *     Both receipts share one `transactionId` with distinct ids.
+         */
+    swapReceipt: {
+      receipt: components['schemas']['receipt'];
+    };
+    /**
+         * @description Body for `POST /assets/swap-single`, the SAME-ORG case: one adapter custodies both wallets and
+         *     submits both legs. Legs are TRADE-ROLE-FIXED here — `asset` is the traded asset, `settlement`
+         *     is what pays for it — because one adapter owns the whole exchange, so no perspective mapping
+         *     applies.
+         */
+    SwapSingleRequest: {
+      nonce: components['schemas']['nonce'];
+      /** @description Correlates the two legs of one swap on the contract. Required — without it the legs cannot be correlated. */
+      operationId: string;
+      asset: components['schemas']['swapAssetLeg'];
+      settlement: components['schemas']['swapSingleSettlementLeg'];
+      /**
+             * Format: int64
+             * @description Contract TTL as ABSOLUTE epoch seconds, carried from the execution instruction. Required, and
+             *     identical to the value the same trade would carry cross-org, so a swap cannot expire
+             *     differently depending on the custody layout.
+             */
+      deadline: number;
+      executionContext?: components['schemas']['executionContext'];
+    };
+    SwapSingleResponse: components['schemas']['swapSingleReceiptOperation'];
+    swapSingleReceiptOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['swapSingleReceipts'];
+    };
+    /**
+         * @description Both receipts, for the two movements this adapter executed: distinct ids sharing one
+         *     `transactionId`. Trade-role-fixed, because a same-org adapter owns the whole exchange. A
+         *     COMPLETED operation MUST carry both; an interim one may omit a not-yet-observable leg.
+         */
+    swapSingleReceipts: {
+      asset: components['schemas']['receipt'];
+      settlement: components['schemas']['receipt'];
+    };
     GetReceiptResponse: components['schemas']['receiptOperation'];
     HoldOperationRequest: {
       nonce: components['schemas']['nonce'];
@@ -658,6 +849,15 @@ export interface components {
       finId: components['schemas']['finId'];
       bindInfo?: components['schemas']['BindInfo'];
     };
+    /**
+         * @description Proof-of-ownership signature for network-account onboarding — a raw signature over
+         *     the ledger adapter's challenge payload. Unlike a transaction `signature` it carries no
+         *     template or hash function: there is nothing to template, only the challenge bytes to sign.
+         */
+    accountOwnershipSignature: {
+      /** @description hex representation of the ownership signature */
+      signature: string;
+    };
     /** @description Bind-info block. When present in `CreateAccountRequest`, signals the bind-existing flow. */
     BindInfo: {
       networkAccount: components['schemas']['networkAccount'];
@@ -665,12 +865,12 @@ export interface components {
              * @description Proof-of-ownership hint over the network account. The LA may verify this upfront,
              *     but the authoritative ownership proof is the challenge-fulfillment step.
              */
-      ownershipSignature: components['schemas']['signature'];
+      ownershipSignature: components['schemas']['accountOwnershipSignature'];
     };
     /** @description Body for `POST /accounts/{cid}/proof`. Used only for `signatureTemplate` challenges. */
     SubmitAccountProofRequest: {
       /** @description Signature over the LA's `signatureTemplate` challenge payload. */
-      ownershipSignature: components['schemas']['signature'];
+      ownershipSignature: components['schemas']['accountOwnershipSignature'];
     };
     /**
          * @description Returned for `202` and for `200` from `proof` / `delete`. When `isCompleted` is
@@ -797,7 +997,7 @@ export interface components {
              */
       instructionSequenceNumber: number;
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'];
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwapSingle'];
     operationStatusCreateAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -837,6 +1037,22 @@ export interface components {
              */
       type: 'account';
       operation: components['schemas']['networkAccountOperation'];
+    };
+    /**
+         * @description Status of an asynchronous SAME-ORG swap, which completes with two receipts and so cannot be
+         *     reported through the single-receipt `receipt` variant.
+         *
+         *     Deliberately NOT needed for cross-org `POST /assets/swap`: that endpoint completes with exactly
+         *     one receipt, so its async status reuses the existing `receipt` variant unchanged. Only the
+         *     same-org endpoint needs a two-receipt shape.
+         */
+    operationStatusSwapSingle: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swapSingle';
+      operation: components['schemas']['swapSingleReceiptOperation'];
     };
     /**
          * @description Status of an investor network-account create/bind/unbind operation, polled via
@@ -993,7 +1209,7 @@ export interface components {
       operationId?: string;
     };
     /** @enum {string} */
-    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move';
+    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move' | 'swap' | 'swapSingle';
     ledgerAssetInfo: {
       ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
       ledgerReference?: components['schemas']['contractDetails'];
@@ -1195,15 +1411,6 @@ export interface components {
     };
     ExecutionPlanApprovalOperation: components['schemas']['OperationBase'] & components['schemas']['PlanApprovalResponse'];
     ApproveExecutionPlanResponse: components['schemas']['ExecutionPlanApprovalOperation'];
-    APIError: {
-      /** @description Error code indicating the specific failure - for more information see [API Errors](./api-error-codes-reference). */
-      code: number;
-      /** @description A descriptive message providing context about the error. */
-      message: string;
-    };
-    APIErrors: {
-      errors: components['schemas']['APIError'][];
-    };
     executionPlanCancellationProposal: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1481,44 +1688,6 @@ export interface operations {
           'application/json': components['schemas']['ApproveExecutionPlanResponse'];
         };
       };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   executionPlanProposal: {
@@ -1541,44 +1710,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ApproveExecutionPlanResponse'];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };
@@ -1610,44 +1741,6 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   depositInstruction: {
@@ -1673,44 +1766,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['DepositInstructionResponse'];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };
@@ -1740,44 +1795,6 @@ export interface operations {
           'application/json': components['schemas']['PayoutResponse'];
         };
       };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   getAssetBalance: {
@@ -1800,63 +1817,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['GetAssetBalanceResponse'];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Not Found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1100,
-                     *           "message": "Resource not found"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };
@@ -1886,44 +1846,6 @@ export interface operations {
           'application/json': components['schemas']['CreateAssetResponse'];
         };
       };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   issueAssets: {
@@ -1949,44 +1871,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['IssueAssetsResponse'];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };
@@ -2016,44 +1900,6 @@ export interface operations {
           'application/json': components['schemas']['RedeemAssetsResponse'];
         };
       };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   moveAssets: {
@@ -2081,42 +1927,58 @@ export interface operations {
           'application/json': components['schemas']['MoveAssetsResponse'];
         };
       };
-      /** @description Bad Request */
-      400: {
+    };
+  };
+  swapAssets: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['SwapAssetsRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
+          'application/json': components['schemas']['SwapAssetsResponse'];
         };
       };
-      /** @description Internal Server Error */
-      500: {
+    };
+  };
+  swapAssetsSingle: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['SwapSingleRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
+          'application/json': components['schemas']['SwapSingleResponse'];
         };
       };
     };
@@ -2144,44 +2006,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TransferAssetResponse'];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };
@@ -2299,44 +2123,6 @@ export interface operations {
           'application/json': components['schemas']['GetReceiptResponse'];
         };
       };
-      /** @description Not Found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1100,
-                     *           "message": "Resource not found"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   holdOperation: {
@@ -2362,63 +2148,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['HoldOperationResponse'];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Not Found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1100,
-                     *           "message": "Resource not found"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };
@@ -2448,44 +2177,6 @@ export interface operations {
           'application/json': components['schemas']['ReleaseOperationResponse'];
         };
       };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   rollbackOperation: {
@@ -2513,44 +2204,6 @@ export interface operations {
           'application/json': components['schemas']['RollbackOperationResponse'];
         };
       };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
     };
   };
   getOperation: {
@@ -2572,44 +2225,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['GetOperationStatusResponse'];
-        };
-      };
-      /** @description Not Found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1100,
-                     *           "message": "Resource not found"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };
@@ -2634,63 +2249,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['AssetBalanceInfoResponse'];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1002,
-                     *           "message": "Invalid request format"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Not Found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 1100,
-                     *           "message": "Resource not found"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-                     * @example {
-                     *       "errors": [
-                     *         {
-                     *           "code": 2202,
-                     *           "message": "Internal service failure"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-          'application/json': components['schemas']['APIErrors'];
         };
       };
     };

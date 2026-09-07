@@ -8,6 +8,7 @@ import {
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
+  SwapLeg, SwapOperation, SwapSingleOperation,
 } from './model';
 
 
@@ -42,6 +43,26 @@ export interface TokenService {
   redeem(idempotencyKey: string, nonce: string, source: Source, asset: Asset, quantity: string, operationId: string | undefined,
     signature: Signature, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
+
+  /**
+   * Atomically exchange two same-ledger assets. `asset` is the leg this
+   * adapter executes, `settlement` the binding counter-leg its party
+   * receives. `deadline` is absolute epoch seconds, identical on both legs.
+   */
+  swap(idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
+    deadline: number, exCtx: ExecutionContext | undefined
+  ): Promise<SwapOperation>
+
+  /**
+   * Same-org atomic swap: this adapter custodies both wallets, submits both
+   * legs in one ledger transaction and completes with both receipts. Legs are
+   * trade-role-fixed — `asset` is the traded asset, `settlement` what pays for
+   * it — and each carries its own owner's signature over the full swap terms.
+   * `deadline` is absolute epoch seconds.
+   */
+  swapSingle(idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
+    deadline: number, exCtx: ExecutionContext | undefined
+  ): Promise<SwapSingleOperation>
 
 }
 
