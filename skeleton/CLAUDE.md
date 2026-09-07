@@ -13,7 +13,7 @@ The goal is to narrow the scope of building a new adapter to **just implementing
 ### Route layer (`src/routes/`)
 
 - **`model-gen.ts`** &mdash; TypeScript types auto-generated from the DLT adapter API OpenAPI spec (`apis/dlt-adapter-api.yaml`). Generated via `npm run api-generate` using `openapi-typescript`, then post-processed by `scripts/postprocess-model-gen.ts` to handle circular references and export recursive types.
-- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point and is **pure routing**: it takes finalized service implementations and mounts them on HTTP endpoints. All wiring (workflow proxy wrapping, plugin construction, account-mapping store/service, FinP2P client) must happen in the caller before `register()` is invoked. Signature: `register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, options?): void` where `options` is `{ mappingConfig?, mappingService? }`. Endpoints:
+- **`routes.ts`** &mdash; Express route handlers for all DLT adapter API endpoints. The `register()` function is the main entry point and is **pure routing**: it takes finalized service implementations and mounts them on HTTP endpoints. All wiring (workflow proxy wrapping, plugin construction, account-mapping store/service, FinP2P client) must happen in the caller before `register()` is invoked. Signature: `register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, options?): void` where `options` is `{ mappingConfig?, mappingService?, whitelistService? }`. Endpoints:
   - **Plan**: `POST /api/plan/approve`, `POST /api/plan/proposal`, `POST /api/plan/proposal/status`
   - **Tokens**: `POST /api/assets/create`, `POST /api/assets/issue`, `POST /api/assets/transfer`, `POST /api/assets/redeem`, `POST /api/assets/getBalance`, `POST /api/asset/balance`
   - **Escrow**: `POST /api/assets/hold`, `POST /api/assets/release`, `POST /api/assets/rollback`
@@ -21,18 +21,26 @@ The goal is to narrow the scope of building a new adapter to **just implementing
   - **Accounts**: `POST /api/accounts/create` (202), `DELETE /api/accounts/:accountId` &mdash; `networkAccountService` defaults to `NotSupportedNetworkAccountService` (answers 501), so the account surface is opt-in and an existing adapter that passes nothing keeps compiling. `POST /api/accounts/:cid/proof` is a 501 stub: the sync trust model never issues challenges, so the router never has a proof to submit
   - **Common**: `GET /api/assets/receipts/:transactionId`, `GET /api/operations/status/:cid`
   - **Health**: `GET /health`, `GET /health/liveness`, `GET /health/readiness`
+- **`operational.ts`** &mdash; **Adapter-internal** endpoints, outside the `/api` base path. The router never calls these; the adapter's own operators do. Typed from `apis/mapping-api.yaml`, which is skeleton-owned (not sourced from the router repo) &mdash; regenerate with `npm run mapping-api-generate`. Errors use a plain `{ error }` body with 400/500, not the DLT API envelopes.
+  - **Account mapping**: `POST /mapping/owners`, `GET /mapping/owners`, `GET /mapping/fields`. Opt in with `options.mappingConfig` + `options.mappingService`.
+  - **Investor whitelist**: `POST /investor/whitelist` (body `{ finId | address, assetId, config? }`), `DELETE /investor/whitelist?finId=|?address=&assetId=` (omit `assetId` to remove every entry for the party), `GET /investor/whitelist`. Opt in with `options.whitelistService`.
+    - The skeleton stores nothing and enforces nothing here: it exposes the routes and the `InvestorWhitelistService` contract, and the adapter supplies the implementation (typically delegating to on-ledger enforcement).
+    - A **party** is either a `finId` or a raw ledger `address` &mdash; exactly one. Address parties exist because some parties have no finId at all: an escrow custody wallet must be whitelisted or release fails, and cleaning up a replaced mapping leaves only an address. They are distinct keys, so the same string as a finId and as an address are two entries.
+    - **`409` is a policy refusal, not a fault.** Throw `WhitelistRefusedError(message, mechanisms)` when the party stays blocked by mechanisms this deployment does not operate; the route reports the mechanism list so operators can finish onboarding elsewhere. Anything else becomes a 500, so a refusal is never confused with an RPC outage.
+    - **Security.** Like the account-mapping endpoints, these are **unauthenticated** &mdash; the skeleton has no auth model, so it does not invent one here. They grant and revoke access, and a `DELETE` without `assetId` revokes a party for every asset in one call, so guard them at the ingress or with your own middleware (`app.use('/investor/whitelist', myAuth)`).
+
 - **`mapping.ts`** &mdash; Bidirectional mapping functions between OpenAPI-generated types and domain model types from `finp2p-adapter-models`. Converts API request payloads into service method arguments and service results back into API responses.
 
   **Account variants.** Every variant of the OAS `networkAccount` union is representable in the domain model, on both paths:
 
-  | Variant | Fields | Domain type |
-  |---------|--------|-------------|
-  | `walletAccount` | `address` | `WalletAccount` |
-  | `caip10Account` | `network`, `address` | `Caip10Account` |
-  | `custodialAccount` | `provider`, `vaultAccountId`, `assetId?` | `CustodialAccount` |
-  | `noneAccount` | &mdash; (empty object on the wire) | `{ type: 'none' }` |
+  | Variant | Fields |
+  |---------|--------|
+  | `walletAccount` | `address` |
+  | `caip10Account` | `network`, `address` |
+  | `custodialAccount` | `provider`, `vaultAccountId`, `assetId?` |
+  | `noneAccount` | &mdash; (empty object on the wire) |
 
-  The three bound variants are factored into `BoundAccount`, shared by `NetworkAccount` (onboarding, plus `none`) and `LedgerAccount` (per-operation leg, `Source.account` / `Destination.account`) so the two cannot drift.
+  `LedgerAccount` is the inline union of the three bound variants (per-operation leg, `Source.account` / `Destination.account`); `NetworkAccount` is `LedgerAccount | { type: 'none' }` (onboarding), so the two cannot drift.
 
   **`custodialAccount` has no address** &mdash; switch on `type` rather than reaching for `.address`. A type outside the union still throws `AccountInvalidShapeError` (400) rather than degrading to `none`: degrading would report a successful bind while recording an empty account, the router whitelists `{}`, and every later operation naming the real account fails 7351 `AccountNotWhitelisted` with nothing at bind time to explain it.
 
@@ -83,7 +91,8 @@ Default implementations that adapter developers can extend or replace:
 4. Construct your services. If you want PostgreSQL-backed async workflows, create a `pg.Pool`, build a `WorkflowStorage(pool)`, and wrap each service with `createServiceProxy(...)` before passing them to `register()`. The caller owns the pool lifecycle.
 5. For investor account onboarding, construct `NetworkAccountServiceImpl(store, validator?)` backed by a `NetworkAccountStore` (e.g. `PgNetworkAccountStore(pool)`); if the ledger has no account support, use `NotSupportedNetworkAccountService`.
 6. If you want account mapping (deprecated, superseded by network accounts), construct an `AccountStore` (e.g. `PgAccountStore(pool)`) and an `AccountMappingServiceImpl(store)`, and pass them via `options`.
-7. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, { mappingConfig?, mappingService? })`.
+7. For investor whitelisting, implement `InvestorWhitelistService` yourself and pass it as `options.whitelistService`. The skeleton provides the HTTP surface and the contract only &mdash; it defines no whitelisting semantics and no storage, because whether membership lives on-ledger or off is the adapter's call. Omit the service and the endpoints aren't mounted.
+8. Call `routes.register(app, tokenService, escrowService, commonService, healthService, paymentService, planService, networkAccountService, { mappingConfig?, mappingService?, whitelistService? })`.
 
 ## API spec management
 
@@ -100,7 +109,7 @@ A post-processor (`scripts/postprocess-model-gen.ts`) handles:
 
 ## Database
 
-When workflow persistence is enabled, the skeleton uses PostgreSQL with a `ledger_adapter` schema. Migrations:
+When workflow persistence is enabled, the skeleton uses PostgreSQL with a consumer-chosen schema: `MigrationConfig.schemaName` is required and reaches the SQL files via the `LEDGER_SCHEMA` env var (`${LEDGER_SCHEMA?...}` — goose fails the migration if unset). Migrations:
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb

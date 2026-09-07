@@ -6,6 +6,7 @@ import {
   HealthService,
   AccountMappingService,
   NetworkAccountService,
+  InvestorWhitelistService,
   NotSupportedError,
   PaymentService,
   PlanApprovalService,
@@ -37,13 +38,20 @@ import {
   swapSingleOperationToAPI,
 } from './mapping';
 import { components as LedgerAPI, operations as LedgerOperations } from './model-gen';
-import { AccountMappingConfig, registerMappingRoutes } from './operational';
+import {
+  AccountMappingConfig, registerMappingRoutes,
+  registerWhitelistRoutes,
+} from './operational';
 
 const basePath = 'api';
 
 export interface RegisterOptions {
   mappingConfig?: AccountMappingConfig;
   mappingService?: AccountMappingService;
+  /** Opt in to the investor-whitelist endpoints; the adapter supplies the
+   *  implementation. Unauthenticated, like the mapping endpoints — guard them at
+   *  the ingress. */
+  whitelistService?: InvestorWhitelistService;
 }
 
 export const register = (app: Application,
@@ -59,7 +67,7 @@ export const register = (app: Application,
   networkAccountService: NetworkAccountService = new NotSupportedNetworkAccountService(),
   options?: RegisterOptions,
 ): void => {
-  const { mappingConfig, mappingService } = options ?? {};
+  const { mappingConfig, mappingService, whitelistService } = options ?? {};
   if (mappingConfig && !mappingService) {
     throw new Error('mappingConfig requires a mappingService. Construct AccountMappingServiceImpl(store) and pass it in.');
   }
@@ -391,6 +399,10 @@ export const register = (app: Application,
 
   if (mappingConfig) {
     registerMappingRoutes(app, mappingConfig, mappingService!);
+  }
+
+  if (whitelistService) {
+    registerWhitelistRoutes(app, whitelistService);
   }
 
   app.use(errorHandler);

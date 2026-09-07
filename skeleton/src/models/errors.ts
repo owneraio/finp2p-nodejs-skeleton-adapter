@@ -83,3 +83,17 @@ export class AccountNotFoundError extends Error {
     this.code = code;
   }
 }
+
+/** A policy refusal, not a fault: the party stays blocked by mechanisms this
+ *  deployment does not operate. Mapped to 409, so it is distinguishable from an
+ *  outage. Mapped to HTTP 409. */
+export class WhitelistRefusedError extends Error {
+
+  mechanisms: string[];
+
+  constructor(message: string, mechanisms: string[] = []) {
+    super(message);
+    this.name = 'WhitelistRefusedError';
+    this.mechanisms = mechanisms;
+  }
+}

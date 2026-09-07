@@ -732,3 +732,22 @@ export type AccountMapping = {
   fields: Record<string, string>;
 };
 
+/** An address is a first-class alternative because some parties have no finId —
+ *  an escrow custody wallet, or a replaced mapping's leftover address. */
+export type WhitelistParty = {
+  type: 'finId';
+  finId: string;
+} | {
+  type: 'address';
+  address: string;
+};
+
+export const whitelistPartyId = (party: WhitelistParty): string =>
+  (party.type === 'finId' ? party.finId : party.address);
+
+export type InvestorWhitelistEntry = {
+  party: WhitelistParty;
+  assetId: string;
+  config: Record<string, unknown>;
+};
+

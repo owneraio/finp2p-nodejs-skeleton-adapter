@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { NetworkAccountRow, NetworkAccountStore } from './interfaces';
-import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from './config';
+import { assertValidPostgresIdentifier } from './config';
 import { NetworkAccount } from '../models';
 
 interface DbRow {
@@ -24,8 +24,8 @@ const toRow = (db: DbRow): NetworkAccountRow => ({
 export class PgNetworkAccountStore implements NetworkAccountStore {
   private readonly schema: string;
 
-  constructor(private pool: Pool, schemaName: string = DEFAULT_SCHEMA_NAME) {
-    assertValidSchemaName(schemaName);
+  constructor(private pool: Pool, schemaName: string) {
+    assertValidPostgresIdentifier(schemaName);
     this.schema = schemaName;
   }
 

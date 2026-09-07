@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { AccountStore, Account } from './interfaces';
-import { assertValidSchemaName, DEFAULT_SCHEMA_NAME } from './config';
+import { assertValidPostgresIdentifier } from './config';
 
 interface DbRow {
   fin_id: string;
@@ -24,8 +24,8 @@ function aggregateRows(rows: DbRow[]): Account[] {
 export class PgAccountStore implements AccountStore {
   private readonly schema: string;
 
-  constructor(private pool: Pool, schemaName: string = DEFAULT_SCHEMA_NAME) {
-    assertValidSchemaName(schemaName);
+  constructor(private pool: Pool, schemaName: string) {
+    assertValidPostgresIdentifier(schemaName);
     this.schema = schemaName;
   }
 

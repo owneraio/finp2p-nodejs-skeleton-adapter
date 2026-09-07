@@ -6,7 +6,7 @@ import {
   Signature,
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
-  AssetBind, AssetDenomination, AccountMapping,
+  AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
   SwapLeg, SwapOperation, SwapSingleOperation,
 } from './model';
@@ -101,6 +101,30 @@ export interface PlanApprovalService {
   proposeInstructionApproval(idempotencyKey: string, planId: string, instructionSequence: number): Promise<PlanApprovalStatus>
 
   proposalStatus(planId: string, proposal: PlanProposal, status: 'approved' | 'rejected'): Promise<void>
+}
+
+/**
+ * Investor whitelisting, adapter-internal — the router never calls these. The
+ * skeleton defines no semantics and no storage; an implementation delegating to
+ * on-ledger enforcement may not be able to report the submitted config back from
+ * getWhitelist. Throw {@link WhitelistRefusedError} for a policy refusal.
+ */
+export interface InvestorWhitelistService {
+  whitelist(party: WhitelistParty, assetId: string, config: Record<string, unknown>): Promise<InvestorWhitelistEntry>
+
+  /** Omit assetId to dewhitelist the party for every asset. Returns the number
+   *  of entries removed; removing nothing is not an error. */
+  dewhitelist(party: WhitelistParty, assetId?: string): Promise<number>
+
+  getWhitelist(party?: WhitelistParty, assetId?: string): Promise<InvestorWhitelistEntry[]>
+
+  isWhitelisted(party: WhitelistParty, assetId: string): Promise<boolean>
+}
+
+/** Optional pre-write hook for implementations. Throw ValidationError to reject;
+ *  the returned config is what the implementation should persist. */
+export interface InvestorWhitelistValidator {
+  validate(party: WhitelistParty, assetId: string, config: Record<string, unknown>): Promise<Record<string, unknown>>
 }
 
 export interface AccountMappingService {

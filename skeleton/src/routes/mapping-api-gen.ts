@@ -48,6 +48,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/investor/whitelist': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+         * Query whitelist entries
+         * @description Adapter-internal. Optional `finId` / `address` and `assetId` filters.
+         *
+         *     An implementation backed by ledger enforcement may not be able to report
+         *     the `config` originally submitted — only what the ledger can tell it.
+         */
+    get: operations['getInvestorWhitelist'];
+    put?: never;
+    /**
+         * Whitelist a party for an asset
+         * @description Adapter-internal. Records that the party is permitted to transact the
+         *     given `assetId`, together with an arbitrary adapter-defined `config`.
+         *     Supply exactly one of `finId` or `address` — an escrow custody wallet has
+         *     no finId, and cleaning up a replaced mapping leaves only an address.
+         *     Re-whitelisting the same (party, asset) replaces the stored config.
+         */
+    post: operations['whitelistInvestor'];
+    /**
+         * Dewhitelist a party
+         * @description Adapter-internal. Removes the party's whitelist entry. Omit `assetId` to
+         *     remove every entry for the party. Removing an entry that does not exist is
+         *     a success, so retries are safe.
+         *
+         *     **Security.** This revokes access, and omitting `assetId` revokes the party
+         *     for every asset in one call. These endpoints are adapter-internal and
+         *     unauthenticated — guard them at the ingress.
+         */
+    delete: operations['dewhitelistInvestor'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -83,6 +124,47 @@ export interface components {
       description: string;
       /** @description Example value for the field */
       exampleValue: string;
+    };
+    /**
+         * @description Arbitrary adapter-defined configuration for the whitelist entry, stored
+         *     verbatim. The skeleton does not interpret it — validate it with a
+         *     InvestorWhitelistValidator if the adapter needs to.
+         */
+    whitelistConfig: {
+      [key: string]: unknown;
+    };
+    whitelistInvestorRequest: {
+      /** @description FinP2P identity (hex secp256k1 compressed public key). Supply exactly one of finId or address. */
+      finId?: string;
+      /** @description Raw ledger address, for parties with no finId (e.g. an escrow custody wallet). Supply exactly one of finId or address. */
+      address?: string;
+      /** @description Asset resource id */
+      assetId: string;
+      config?: components['schemas']['whitelistConfig'];
+    };
+    investorWhitelistEntry: {
+      /** @description Present when the party is identified by finId. */
+      finId?: string;
+      /** @description Present when the party is identified by a raw ledger address. */
+      address?: string;
+      assetId: string;
+      config: components['schemas']['whitelistConfig'];
+    };
+    dewhitelistInvestorResponse: {
+      finId?: string;
+      address?: string;
+      /** @description Absent when every entry for the party was removed. */
+      assetId?: string;
+      /** @description Number of entries removed. */
+      removed: number;
+    };
+    whitelistRefusedResponse: {
+      error: string;
+      /**
+             * @description The mechanisms still blocking the party, which this deployment does
+             *     not operate. Onboarding must be completed through them.
+             */
+      mechanisms?: string[];
     };
     errorResponse: {
       /** @description Error message */
@@ -187,6 +269,148 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['accountMappingField'][];
+        };
+      };
+    };
+  };
+  getInvestorWhitelist: {
+    parameters: {
+      query?: {
+        finId?: string;
+        address?: string;
+        assetId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description whitelist entries */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['investorWhitelistEntry'][];
+        };
+      };
+      /** @description server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+    };
+  };
+  whitelistInvestor: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['whitelistInvestorRequest'];
+      };
+    };
+    responses: {
+      /** @description party whitelisted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['investorWhitelistEntry'];
+        };
+      };
+      /** @description invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /**
+             * @description Refused on policy grounds — the party stays blocked by mechanisms this
+             *     deployment does not operate, so onboarding must be completed
+             *     elsewhere. Distinct from 500, which means the adapter failed.
+             */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['whitelistRefusedResponse'];
+        };
+      };
+      /** @description server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+    };
+  };
+  dewhitelistInvestor: {
+    parameters: {
+      query?: {
+        /** @description FinP2P identity. Supply exactly one of finId or address. */
+        finId?: string;
+        /** @description Raw ledger address. Supply exactly one of finId or address. */
+        address?: string;
+        /** @description Asset resource id. Omit to remove all entries for the party. */
+        assetId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description entries removed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['dewhitelistInvestorResponse'];
+        };
+      };
+      /** @description invalid request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
+        };
+      };
+      /** @description refused on policy grounds */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['whitelistRefusedResponse'];
+        };
+      };
+      /** @description server error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['errorResponse'];
         };
       };
     };
