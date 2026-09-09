@@ -2176,6 +2176,9 @@ export interface components {
       buyer: string;
       asset: components['schemas']['buyingAsset'];
       settlement: components['schemas']['buyingSettlementBase'];
+      settlements?: {
+        legs: components['schemas']['buyingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     sellingIntent: {
@@ -2187,6 +2190,9 @@ export interface components {
       seller: components['schemas']['ownerId'];
       asset: components['schemas']['sellingAsset'];
       settlement: components['schemas']['sellingSettlements'];
+      settlements?: {
+        legs: components['schemas']['sellingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     borrowerLenderAccountAssetInstruction: {
@@ -2314,6 +2320,9 @@ export interface components {
       seller: components['schemas']['ownerId'];
       asset: components['schemas']['privateOfferIntentAsset'];
       settlement: components['schemas']['sellingSettlements'];
+      settlements?: {
+        legs: components['schemas']['sellingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     requestForTransferSendAssetInstruction: {

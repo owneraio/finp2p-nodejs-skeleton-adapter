@@ -89,6 +89,8 @@ export type Asset = Profile & {
   certificates: Certificates;
   /** Custom configuration for the Asset. */
   config: Scalars['String']['output'];
+  /** Data providers declared on the asset profile: where the asset's data comes from. */
+  dataProviders?: Maybe<Array<AssetDataProvider>>;
   /** decimal places for the asset */
   decimalPlaces: Scalars['Int']['output'];
   /** Denomination currency of the Asset */
@@ -98,10 +100,15 @@ export type Asset = Profile & {
   id: Scalars['String']['output'];
   /** Collection of Intents associated with the Asset. */
   intents: Intents;
-  /** Tokens issued for the given Asset. */
+  /**
+   * Tokens issued for the given Asset. paginate is opt-in: when omitted the full
+   * cap table is returned and pageInfo stays null (pre-pagination behavior).
+   */
   issuedTokens: TokensBalances;
   /** Issuer profile of the Asset. */
   issuerId: Scalars['String']['output'];
+  /** Org-local labels computed by the router; filter via key `labels.<key>`. */
+  labels?: Maybe<Array<KeyValuePair>>;
   /** ledgerAssetInfo information */
   ledgerAssetInfo?: Maybe<LedgerAssetInfo>;
   /** Profile metadata, contains ACL information of the profile. */
@@ -125,6 +132,7 @@ export type Asset = Profile & {
 export type AssetCertificatesArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -132,6 +140,7 @@ export type AssetCertificatesArgs = {
 export type AssetIntentsArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -139,6 +148,8 @@ export type AssetIntentsArgs = {
 export type AssetIssuedTokensArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 /** Identifier type for asset data */
@@ -167,6 +178,17 @@ export type AssetDataItem = {
   source?: Maybe<Scalars['String']['output']>;
   /** When the record was last updated */
   updatedAt: Scalars['Int']['output'];
+};
+
+/** A data provider declared on an asset profile (the source of a data type for the asset). */
+export type AssetDataProvider = {
+  __typename?: 'AssetDataProvider';
+  /** Data types this provider supplies for the asset. */
+  dataTypes?: Maybe<Array<Scalars['String']['output']>>;
+  /** For a 'finp2p' provider this is the peer org id; for 'adapter' the bound adapter name. */
+  providerName: Scalars['String']['output'];
+  /** Provider type: 'adapter' or 'finp2p'. */
+  providerType: Scalars['String']['output'];
 };
 
 /** Results for asset data query. */
@@ -278,6 +300,8 @@ export type AwaitInstruction = {
 export type BuyingContractDetails = {
   __typename?: 'BuyingContractDetails';
   asset: AssetOrder;
+  /** The settlement group this execution actually used. */
+  selectedSettlementGroup?: Maybe<BuyingSelectedSettlementGroup>;
   settlement?: Maybe<AssetOrder>;
 };
 
@@ -292,15 +316,42 @@ export type BuyingIntent = {
   settlementInstruction?: Maybe<BuyingSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
+  /** The settlement alternatives declared by this intent; exactly one of them is settled. */
+  settlements?: Maybe<Array<BuyingSettlement>>;
   signaturePolicy: BuyingSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
+};
+
+/** The settlement group a buying execution actually used, out of the alternatives its intent declared. */
+export type BuyingSelectedSettlementGroup = {
+  __typename?: 'BuyingSelectedSettlementGroup';
+  /** The legs of the selected group; all of them settle together. */
+  legs: Array<AssetOrder>;
+};
+
+/** One settlement alternative: all of its legs settle together. */
+export type BuyingSettlement = {
+  __typename?: 'BuyingSettlement';
+  legs: Array<BuyingSettlementLeg>;
 };
 
 export type BuyingSettlementInstruction = {
   __typename?: 'BuyingSettlementInstruction';
   /** Source account where buyer pays from */
   account?: Maybe<FinP2PAssetAccount>;
+};
+
+export type BuyingSettlementLeg = {
+  __typename?: 'BuyingSettlementLeg';
+  settlementInstruction?: Maybe<BuyingSettlementLegInstruction>;
+  settlementTerm?: Maybe<SettlementTerm>;
+};
+
+/** The account a buying settlement leg pays from. */
+export type BuyingSettlementLegInstruction = {
+  __typename?: 'BuyingSettlementLegInstruction';
+  sourceAccount?: Maybe<FinP2PAssetAccount>;
 };
 
 export type BuyingSignaturePolicy = ManualIntentSignaturePolicy | PresignedBuyingIntentSignaturePolicy;
@@ -347,6 +398,7 @@ export type Certificate = {
 /** Represents a Certificate in the network. */
 export type CertificateDocumentsArgs = {
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 export type CertificateOrder = {
@@ -576,6 +628,8 @@ export type ExecutionPlan = {
   __typename?: 'ExecutionPlan';
   /** list of plan approvals */
   approvals: Array<Maybe<PlanApproval>>;
+  /** Resource ids of the assets on the plan's asset leg, both sides, deduplicated and sorted. A move plan can carry two distinct ids. Filterable with CONTAINS only, against one exact, case-sensitive id; use `where`/`or` to match this or `settlementAssetIds`. */
+  assetIds: Array<Scalars['String']['output']>;
   /** plan's contract details */
   contract: ExecutionPlanContract;
   /** plan creation (timestamp in sec) */
@@ -588,12 +642,18 @@ export type ExecutionPlan = {
   instructions: Array<Maybe<ExecutionPlanInstruction>>;
   /** Intent associated with execution plan */
   intent?: Maybe<Intent>;
+  /** Resource ids of the plan's investors, deduplicated and sorted. Filterable with CONTAINS only, against one exact, case-sensitive id; use `where`/`or` to match any of several. */
+  investorIds: Array<Scalars['String']['output']>;
   /** last time plan was modified (epoch time seconds) */
   lastModified: Scalars['Int']['output'];
   /** organizations which participate in the execution plan */
   organizations: Array<ExecutionOrganization>;
+  /** The kind of execution plan, derived from its contract details. Null when the details are missing or of an unrecognized kind. Supports EQ, NEQ and IN. */
+  planType?: Maybe<ExecutionPlanType>;
   /** All workflows related to this plan (plan-level and per-instruction) — the top-level `workflows` query pre-scoped to the plan, with the same filter/pagination/ordering. Use pageInfo.totalCount for the count and a filter (e.g. health_status EQ UNHEALTHY) for the problematic subset. Defaults to creationTimestamp ASC. */
   relatedWorkflows: Workflows;
+  /** Resource ids of the assets on the plan's settlement leg(s), every leg of a multi-leg settlement included, deduplicated and sorted. Empty for plans that settle nothing. Filterable with CONTAINS only, against one exact, case-sensitive id. */
+  settlementAssetIds: Array<Scalars['String']['output']>;
   /** lifecycle status of the execution plan */
   status: ExecutionPlanStatus;
   /** version of the execution plan */
@@ -607,6 +667,7 @@ export type ExecutionPlanRelatedWorkflowsArgs = {
   filter?: InputMaybe<Array<Filter>>;
   orderBy?: InputMaybe<WorkflowOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 export type ExecutionPlanContract = {
@@ -654,6 +715,8 @@ export type ExecutionPlanInvestor = {
   __typename?: 'ExecutionPlanInvestor';
   investor: Scalars['String']['output'];
   role: InvestorRole;
+  /** The user record for this investor. Null when this organization has no local record for them, which is normal for a remote participant. */
+  user?: Maybe<User>;
 };
 
 export type ExecutionPlanOrder = {
@@ -679,6 +742,19 @@ export enum ExecutionPlanStatus {
   Unknown = 'Unknown',
 }
 
+/** The kind of execution plan, derived from its contract details. */
+export enum ExecutionPlanType {
+  Buying = 'BUYING',
+  Issuance = 'ISSUANCE',
+  Loan = 'LOAN',
+  Move = 'MOVE',
+  PrivateOffer = 'PRIVATE_OFFER',
+  Redemption = 'REDEMPTION',
+  RequestForTransfer = 'REQUEST_FOR_TRANSFER',
+  Selling = 'SELLING',
+  Transfer = 'TRANSFER',
+}
+
 export type ExecutionsPlans = {
   __typename?: 'ExecutionsPlans';
   nodes?: Maybe<Array<ExecutionPlan>>;
@@ -702,17 +778,41 @@ export type Field = {
 
 /**
  * Filter capabilities that can be applied on queries which return multiple results of a given Entity.
- * Currently filtering is available only on the fields which belongs to the Root of the entity
- * and not on nested entities' fields.
+ * A filter key names a field of the underlying record, matched case-insensitively; nested fields are
+ * reachable with dot notation (e.g. "correspondent.assetId"). Multiple filters combine with AND —
+ * for boolean combinations (OR, nesting) use the sibling where argument, where offered, taking a FilterExpr.
  */
 export type Filter = {
-  /** The Object's key to which apply the filter rule. */
+  /**
+   * The Object's key to which apply the filter rule.
+   * Dot notation also addresses entries of a key-value map field: `labels.<key>` filters on a
+   * label, `customMetadata.<key>` on a custom-metadata entry, and the whole remainder of the
+   * path is taken as one map key, so a label named `a.b` is addressed as `labels.a.b`.
+   * Map keys are matched case-insensitively, like field names: an exact-case key wins, and when
+   * several keys differ only in case the lexicographically smallest match is used.
+   * A map key that is absent from a record is a non-match for that record — it returns an empty
+   * result rather than an error, unlike a key naming no field at all, which fails the query.
+   */
   key: Scalars['String']['input'];
   /** Operator to apply on the specified key and provided value. */
   operator: Operator;
   /** The Value to be used by the Filter Operator. */
   value: Scalars['String']['input'];
 };
+
+/**
+ * Boolean combination of Filters. Exactly one field must be set:
+ * filter is a leaf condition; and / or combine sub-expressions.
+ * and: [] matches everything; or: [] matches nothing. Maximum nesting depth is 16.
+ * When both the filter and where arguments are provided, a record must satisfy both.
+ */
+export type FilterExpr =
+  /** Matches when every sub-expression matches. */
+  { and: Array<FilterExpr>; filter?: never; or?: never; }
+  |  /** A single leaf condition. */
+  { and?: never; filter: Filter; or?: never; }
+  |  /** Matches when at least one sub-expression matches. */
+  { and?: never; filter?: never; or: Array<FilterExpr>; };
 
 /** FinP2P account - represents a user account in the FinP2P network */
 export type FinP2PAccount = {
@@ -728,6 +828,8 @@ export type FinP2PAccount = {
 /** FinP2P asset with resource ID and ledger identifier */
 export type FinP2PAsset = {
   __typename?: 'FinP2PAsset';
+  /** The asset record for this resource id. Null when this organization has no local record for it. */
+  asset?: Maybe<Asset>;
   /** Ledger identifier for the asset */
   ledgerIdentifier?: Maybe<LedgerIdentifier>;
   /** Resource ID of the FinP2P asset */
@@ -754,13 +856,17 @@ export type FinancialAsset = {
   __typename?: 'FinancialAsset';
   /** CAIP19 identifiers — asset instances on different networks/blockchains (from assetHeader data) */
   caip19Identifiers: Array<Scalars['String']['output']>;
-  /** Financial data items from data adapters for this ISIN */
+  /** Financial data items from data adapters for this financial identifier */
   dataItems: Array<AssetDataItem>;
-  /** ISIN identifier value (e.g., US0378331005) */
+  /** Financial identifier type this asset is aggregated by (e.g., ISIN, ISO4217) */
+  identifierType: Scalars['String']['output'];
+  /** Financial identifier value (e.g., US0378331005 for ISIN, USD for ISO4217) */
+  identifierValue: Scalars['String']['output'];
+  /** ISIN identifier value (e.g., US0378331005); empty for non-ISIN financial identifiers. Kept for backward compatibility -- prefer identifierType/identifierValue. */
   isin: Scalars['String']['output'];
-  /** FinP2P assets linked by matching ISIN identifier (may be empty) */
+  /** FinP2P assets linked by matching financial identifier (may be empty) */
   linkedAssets: Array<Asset>;
-  /** Refresh configurations for this ISIN */
+  /** Refresh configurations for this financial identifier */
   refreshConfigs: Array<AssetRefreshConfigItem>;
 };
 
@@ -1020,12 +1126,14 @@ export type IssuerAssetsArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
 /** Represents an Issuer in the network. */
 export type IssuerOutboxArgs = {
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 export type IssuerOrder = {
@@ -1306,7 +1414,7 @@ export enum OperationType {
 
 /** Operators available to be used  */
 export enum Operator {
-  /** Contains */
+  /** Contains. On a String field: case-insensitive substring match. On a list field: exact element membership, except the workflow correlation_id and reference_id filters, which match a case-insensitive substring within each element. */
   Contains = 'CONTAINS',
   /** Equals */
   Eq = 'EQ',
@@ -1350,6 +1458,7 @@ export type OrganizationAssetsArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1358,6 +1467,7 @@ export type OrganizationUsersArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 export type OrganizationAsset = {
@@ -1535,6 +1645,8 @@ export type PrimarySale = {
 export type PrivateOfferContractDetails = {
   __typename?: 'PrivateOfferContractDetails';
   asset: AssetOrder;
+  /** The settlement group this execution actually used. */
+  selectedSettlementGroup?: Maybe<PrivateOfferSelectedSettlementGroup>;
   settlement?: Maybe<AssetOrder>;
 };
 
@@ -1549,11 +1661,37 @@ export type PrivateOfferIntent = {
   sellingSettlementInstruction?: Maybe<SellingSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
+  /** The settlement alternatives declared by this intent; exactly one of them is settled. */
+  settlements?: Maybe<Array<PrivateOfferSettlement>>;
   signaturePolicy: PrivateOfferSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
   /** Source account - seller's account from which asset is sold */
   source: FinP2PAssetAccount;
+};
+
+/** The settlement group a private-offer execution actually used, out of the alternatives its intent declared. */
+export type PrivateOfferSelectedSettlementGroup = {
+  __typename?: 'PrivateOfferSelectedSettlementGroup';
+  /** The legs of the selected group; all of them settle together. */
+  legs: Array<AssetOrder>;
+};
+
+/** One settlement alternative: all of its legs settle together. */
+export type PrivateOfferSettlement = {
+  __typename?: 'PrivateOfferSettlement';
+  legs: Array<PrivateOfferSettlementLeg>;
+};
+
+export type PrivateOfferSettlementLeg = {
+  __typename?: 'PrivateOfferSettlementLeg';
+  settlementInstruction?: Maybe<PrivateOfferSettlementLegInstruction>;
+  settlementTerm?: Maybe<SettlementTerm>;
+};
+
+export type PrivateOfferSettlementLegInstruction = {
+  __typename?: 'PrivateOfferSettlementLegInstruction';
+  destinationAccount?: Maybe<FinP2PAssetAccount>;
 };
 
 export type PrivateOfferSignaturePolicy = ManualIntentSignaturePolicy | PresignedPrivateOfferIntentSignaturePolicy;
@@ -1574,6 +1712,7 @@ export type Profile = {
 export type ProfileCertificatesArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 /** Profile Metadata (ACL). */
@@ -1603,7 +1742,7 @@ export type Query = {
   dataProviders: DataProviderBindings;
   /** Look up Data Rules that map identifiers to data providers. */
   dataRules: DataRules;
-  /** Look up FinancialAssets aggregated by ISIN from data adapter data. Filter by isin to get a specific asset. */
+  /** Look up FinancialAssets aggregated by financial identifier (type + value) from data adapter data. Filter by identifierType/identifierValue to get a specific asset. */
   financialAssets: FinancialAssets;
   /** Look up Issuers, Optional provide Filter. */
   issuers: Issuers;
@@ -1613,7 +1752,7 @@ export type Query = {
   pinningConfig?: Maybe<PinningConfigs>;
   /** Look up Execution Plans, Optional provide Filter. */
   plans: ExecutionsPlans;
-  /** Look up a receipt by a Filter (mandatory). */
+  /** Look up Receipts, Optional provide Filter. */
   receipts: Receipts;
   /** Look up Users, Optional provide Filter or Aggregate. */
   users: Users;
@@ -1632,6 +1771,7 @@ export type QueryApprovalConfigsArgs = {
 export type QueryAssetDatasArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1641,6 +1781,7 @@ export type QueryAssetsArgs = {
   filter?: InputMaybe<Array<Filter>>;
   orderBy?: InputMaybe<AssetOrderInput>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1648,7 +1789,9 @@ export type QueryAssetsArgs = {
 export type QueryCertificatesArgs = {
   aggregate?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<CertificateOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1656,6 +1799,7 @@ export type QueryCertificatesArgs = {
 export type QueryCustodyProvidersArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1663,6 +1807,7 @@ export type QueryCustodyProvidersArgs = {
 export type QueryDataProvidersArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1670,6 +1815,7 @@ export type QueryDataProvidersArgs = {
 export type QueryDataRulesArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1677,13 +1823,16 @@ export type QueryDataRulesArgs = {
 export type QueryFinancialAssetsArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
 /** The query root of Ownera's GraphQL interface. */
 export type QueryIssuersArgs = {
   filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<IssuerOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1691,6 +1840,7 @@ export type QueryIssuersArgs = {
 export type QueryLedgersArgs = {
   filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1698,7 +1848,9 @@ export type QueryLedgersArgs = {
 export type QueryOrganizationsArgs = {
   aggregate?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<OrganizationOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1707,13 +1859,16 @@ export type QueryPlansArgs = {
   filter?: InputMaybe<Array<Filter>>;
   orderBy?: InputMaybe<ExecutionPlanOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
 /** The query root of Ownera's GraphQL interface. */
 export type QueryReceiptsArgs = {
   filter?: InputMaybe<Array<InputMaybe<Filter>>>;
+  orderBy?: InputMaybe<ReceiptOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1721,7 +1876,9 @@ export type QueryReceiptsArgs = {
 export type QueryUsersArgs = {
   aggregate?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<UserOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -1730,6 +1887,7 @@ export type QueryWorkflowsArgs = {
   filter?: InputMaybe<Array<Filter>>;
   orderBy?: InputMaybe<WorkflowOrder>;
   paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 export type Receipt = {
@@ -1913,6 +2071,8 @@ export type RevertHoldInstruction = {
 export type SellingContractDetails = {
   __typename?: 'SellingContractDetails';
   asset: AssetOrder;
+  /** The settlement group this execution actually used. */
+  selectedSettlementGroup?: Maybe<SellingSelectedSettlementGroup>;
   settlement?: Maybe<AssetOrder>;
 };
 
@@ -1925,6 +2085,8 @@ export type SellingIntent = {
   sellingSettlementInstruction?: Maybe<SellingSettlementInstruction>;
   /** Settlement term */
   settlementTerm?: Maybe<SettlementTerm>;
+  /** The settlement alternatives declared by this intent; exactly one of them is settled. */
+  settlements?: Maybe<Array<SellingSettlement>>;
   signaturePolicy: SellingSignaturePolicy;
   /** Signature policy type */
   signaturePolicyType: SignaturePolicyType;
@@ -1932,10 +2094,35 @@ export type SellingIntent = {
   source: FinP2PAssetAccount;
 };
 
+/** The settlement group a selling execution actually used, out of the alternatives its intent declared. */
+export type SellingSelectedSettlementGroup = {
+  __typename?: 'SellingSelectedSettlementGroup';
+  /** The legs of the selected group; all of them settle together. */
+  legs: Array<AssetOrder>;
+};
+
+/** One settlement alternative: all of its legs settle together. */
+export type SellingSettlement = {
+  __typename?: 'SellingSettlement';
+  legs: Array<SellingSettlementLeg>;
+};
+
 export type SellingSettlementInstruction = {
   __typename?: 'SellingSettlementInstruction';
   /** Destination accounts where seller receives payment */
   accounts?: Maybe<Array<FinP2PAssetAccount>>;
+};
+
+export type SellingSettlementLeg = {
+  __typename?: 'SellingSettlementLeg';
+  settlementInstruction?: Maybe<SellingSettlementLegInstruction>;
+  settlementTerm?: Maybe<SettlementTerm>;
+};
+
+/** The account a selling settlement leg pays into. */
+export type SellingSettlementLegInstruction = {
+  __typename?: 'SellingSettlementLegInstruction';
+  destinationAccount?: Maybe<FinP2PAssetAccount>;
 };
 
 export type SellingSignaturePolicy = ManualIntentSignaturePolicy | PresignedSellingIntentSignaturePolicy;
@@ -2070,6 +2257,8 @@ export type TokenBalance = {
   syncedQuantityTimestamp: Scalars['Int']['output'];
   transactionsDetails?: Maybe<Array<TransactionDetails>>;
   userId: Scalars['String']['output'];
+  /** Owner's display name; empty when the owner profile carries no name claim. */
+  userName: Scalars['String']['output'];
 };
 
 /** Results for tokens query. */
@@ -2079,6 +2268,8 @@ export type TokensBalances = {
   aggregate?: Maybe<Array<AggregateResult>>;
   /** Collection of Token Objects, conforms to the Filter input if provided. */
   nodes?: Maybe<Array<TokenBalance>>;
+  /** Keeps pagination info when a paginate input was provided. */
+  pageInfo?: Maybe<PageInfo>;
 };
 
 export type TradeDetails = {
@@ -2132,6 +2323,8 @@ export type User = Profile & {
   id: Scalars['String']['output'];
   /** User's associated messages */
   inbox: Messages;
+  /** Org-local labels computed by the router; filter via key `labels.<key>`. */
+  labels?: Maybe<Array<KeyValuePair>>;
   /** Profile metadata, contains ACL information of the profile. */
   metadata: ProfileMetadata;
   name: Scalars['String']['output'];
@@ -2147,6 +2340,7 @@ export type User = Profile & {
 /** Represents an User in the network. */
 export type UserAccountsArgs = {
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -2154,6 +2348,7 @@ export type UserAccountsArgs = {
 export type UserCertificatesArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
@@ -2161,18 +2356,21 @@ export type UserCertificatesArgs = {
 export type UserHoldingsArgs = {
   aggregates?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
 /** Represents an User in the network. */
 export type UserInboxArgs = {
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 
 /** Represents an User in the network. */
 export type UserNetworkAccountsArgs = {
   filter?: InputMaybe<Array<Filter>>;
+  where?: InputMaybe<FilterExpr>;
 };
 
 export type UserOrder = {
@@ -2183,6 +2381,8 @@ export type UserOrder = {
 export enum UserOrderField {
   /** users order by determined by Id field */
   Id = 'ID',
+  /** users order by determined by Name field */
+  Name = 'NAME',
 }
 
 /** Results for asset query. */

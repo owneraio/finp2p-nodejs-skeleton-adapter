@@ -15,10 +15,10 @@ type Organization {
     clusterId: String!
 
     "Assets which the Organization act as the Primary Node."
-    assets(filter : [Filter!], aggregates: [Aggregate!], paginate: PaginateInput = {}): Assets!
+    assets(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!], paginate: PaginateInput = {}): Assets!
 
     "Users which the Organization act as the Primary Node."
-    users(filter : [Filter!], aggregates: [Aggregate!], paginate: PaginateInput = {}): Users!
+    users(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!], paginate: PaginateInput = {}): Users!
 }
 
 "Profile interface."
@@ -26,7 +26,7 @@ interface Profile {
     id: String!
 
     "Collection of certificates associated with the Profile."
-    certificates(filter : [Filter!], aggregates: [Aggregate!]): Certificates!
+    certificates(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!]): Certificates!
 
     "Organization id to which this profile is associated with."
     organizationId: String!
@@ -52,10 +52,10 @@ type Asset implements Profile  {
     id: String!
 
     "Collection of certificates associated with the Profile."
-    certificates(filter : [Filter!], aggregates: [Aggregate!]): Certificates!
+    certificates(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!]): Certificates!
 
     "Collection of Intents associated with the Asset."
-    intents(filter : [Filter!], aggregates: [Aggregate!]): Intents!
+    intents(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!]): Intents!
 
     name: String!
 
@@ -67,8 +67,11 @@ type Asset implements Profile  {
     "Custom configuration for the Asset."
     config: String!
 
-    "Tokens issued for the given Asset."
-    issuedTokens(filter : [Filter!], aggregates: [Aggregate!]): TokensBalances!
+    """
+    Tokens issued for the given Asset. paginate is opt-in: when omitted the full
+    cap table is returned and pageInfo stays null (pre-pagination behavior).
+    """
+    issuedTokens(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!], paginate: PaginateInput): TokensBalances!
 
     "Issuer profile of the Asset."
     issuerId: String!
@@ -108,6 +111,23 @@ type Asset implements Profile  {
 
     "whether the asset is auto-shared"
     autoShare: Boolean!
+
+
+    "Data providers declared on the asset profile: where the asset's data comes from."
+    dataProviders: [AssetDataProvider!]
+
+    "Org-local labels computed by the router; filter via key `labels.<key>`."
+    labels: [KeyValuePair!]
+}
+
+"A data provider declared on an asset profile (the source of a data type for the asset)."
+type AssetDataProvider {
+    "For a 'finp2p' provider this is the peer org id; for 'adapter' the bound adapter name."
+    providerName: String!
+    "Provider type: 'adapter' or 'finp2p'."
+    providerType: String!
+    "Data types this provider supplies for the asset."
+    dataTypes: [String!]
 }
 
 type LedgerAssetInfo {
@@ -261,15 +281,19 @@ type DataProviderBindings {
 
 "Aggregated view of a financial asset identified by ISIN"
 type FinancialAsset {
-    "ISIN identifier value (e.g., US0378331005)"
+    "ISIN identifier value (e.g., US0378331005); empty for non-ISIN financial identifiers. Kept for backward compatibility -- prefer identifierType/identifierValue."
     isin: String!
-    "Financial data items from data adapters for this ISIN"
+    "Financial identifier type this asset is aggregated by (e.g., ISIN, ISO4217)"
+    identifierType: String!
+    "Financial identifier value (e.g., US0378331005 for ISIN, USD for ISO4217)"
+    identifierValue: String!
+    "Financial data items from data adapters for this financial identifier"
     dataItems(dataTypes: [DataType!]): [AssetDataItem!]!
-    "Refresh configurations for this ISIN"
+    "Refresh configurations for this financial identifier"
     refreshConfigs: [AssetRefreshConfigItem!]!
     "CAIP19 identifiers — asset instances on different networks/blockchains (from assetHeader data)"
     caip19Identifiers: [String!]!
-    "FinP2P assets linked by matching ISIN identifier (may be empty)"
+    "FinP2P assets linked by matching financial identifier (may be empty)"
     linkedAssets: [Asset!]!
 }
 
@@ -360,9 +384,9 @@ type Issuer  {
     id: String!
 
     "Assets issued by the Issuer."
-    assets(filter : [Filter!], aggregates: [Aggregate!], paginate: PaginateInput = {}): Assets!
+    assets(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!], paginate: PaginateInput = {}): Assets!
 
-    outbox(filter : [Filter!]): OutgoingMessages
+    outbox(filter : [Filter!], where: FilterExpr): OutgoingMessages
 }
 
 "Represents an User in the network."
@@ -370,11 +394,11 @@ type User implements Profile  {
     id: String!
 
     "Collection of certificates associated with the Profile."
-    certificates(filter : [Filter!], aggregates: [Aggregate!]): Certificates!
+    certificates(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!]): Certificates!
 
     name: String!
 
-    holdings(filter : [Filter!], aggregates: [Aggregate!]): Holdings!
+    holdings(filter : [Filter!], where: FilterExpr, aggregates: [Aggregate!]): Holdings!
 
     "Organization id to whom this profile is associated with."
     organizationId: String!
@@ -385,20 +409,23 @@ type User implements Profile  {
     "finIds keys associated with this investor"
     finIds: [String!]
 
-    accounts(filter: [Filter!]): [FinP2PAccount!]
+    accounts(filter: [Filter!], where: FilterExpr): [FinP2PAccount!]
 
     "Investor network accounts (LA-managed wallets) bound to a specific organization and asset."
-    networkAccounts(filter: [Filter!]): [InvestorNetworkAccount!]
+    networkAccounts(filter: [Filter!], where: FilterExpr): [InvestorNetworkAccount!]
 
     "User's associated messages"
     #    inbox(filter : [Filter!]): [IncomingMessage!]!
-    inbox(filter : [Filter!]): Messages!
+    inbox(filter : [Filter!], where: FilterExpr): Messages!
 
     "user resource version"
     version: String!
 
     "Data access permissions this resource has received from other organizations"
     dataAccessReceived: [String]
+
+    "Org-local labels computed by the router; filter via key `labels.<key>`."
+    labels: [KeyValuePair!]
 }
 
 type OutgoingMessages {
@@ -513,6 +540,10 @@ type Custodian {
 "Represents an Asset token balance information."
 type TokenBalance {
     userId: String!
+
+    "Owner's display name; empty when the owner profile carries no name claim."
+    userName: String!
+
     assetId: String!
     quantity: String! ## calculated balance based on asset's receipt
     availableQuantity: String! ## calculated available balance based on asset's receipt
@@ -662,7 +693,7 @@ type Certificate {
     data: String
 
     "Certificate associated documents metadata."
-    documents(filter : [Filter!]): Documents!
+    documents(filter : [Filter!], where: FilterExpr): Documents!
 }
 
 
@@ -810,6 +841,9 @@ type FinP2PAsset {
 
     "Ledger identifier for the asset"
     ledgerIdentifier: LedgerIdentifier
+
+    "The asset record for this resource id. Null when this organization has no local record for it."
+    asset: Asset
 }
 
 "CAIP-19 format ledger identifier"
@@ -921,7 +955,7 @@ type ExecutionPlan {
     workflows: [Workflow!]!
 
     "All workflows related to this plan (plan-level and per-instruction) — the top-level `workflows` query pre-scoped to the plan, with the same filter/pagination/ordering. Use pageInfo.totalCount for the count and a filter (e.g. health_status EQ UNHEALTHY) for the problematic subset. Defaults to creationTimestamp ASC."
-    relatedWorkflows(filter: [Filter!], paginate: PaginateInput = {}, orderBy: WorkflowOrder): Workflows!
+    relatedWorkflows(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}, orderBy: WorkflowOrder): Workflows!
 
     "plan creation (timestamp in sec)"
     creationTimestamp: Int!
@@ -934,6 +968,18 @@ type ExecutionPlan {
 
     "Custom key-value metadata for tracing and reconciliation"
     customMetadata: [KeyValuePair!]
+
+    "Resource ids of the plan's investors, deduplicated and sorted. Filterable with CONTAINS only, against one exact, case-sensitive id; use `where`/`or` to match any of several."
+    investorIds: [String!]!
+
+    "Resource ids of the assets on the plan's asset leg, both sides, deduplicated and sorted. A move plan can carry two distinct ids. Filterable with CONTAINS only, against one exact, case-sensitive id; use `where`/`or` to match this or `settlementAssetIds`."
+    assetIds: [String!]!
+
+    "Resource ids of the assets on the plan's settlement leg(s), every leg of a multi-leg settlement included, deduplicated and sorted. Empty for plans that settle nothing. Filterable with CONTAINS only, against one exact, case-sensitive id."
+    settlementAssetIds: [String!]!
+
+    "The kind of execution plan, derived from its contract details. Null when the details are missing or of an unrecognized kind. Supports EQ, NEQ and IN."
+    planType: ExecutionPlanType
 }
 
 type ExecutionPlanContract {
@@ -944,6 +990,9 @@ type ExecutionPlanContract {
 type ExecutionPlanInvestor {
     investor: String! # resource id of the investor
     role: InvestorRole!
+
+    "The user record for this investor. Null when this organization has no local record for them, which is normal for a remote participant."
+    user: User
 }
 
 enum InvestorRole {
@@ -952,6 +1001,19 @@ enum InvestorRole {
     LENDER
     BORROWER
     ISSUER
+}
+
+"The kind of execution plan, derived from its contract details."
+enum ExecutionPlanType {
+    ISSUANCE
+    BUYING
+    SELLING
+    LOAN
+    TRANSFER
+    REDEMPTION
+    PRIVATE_OFFER
+    REQUEST_FOR_TRANSFER
+    MOVE
 }
 
 union ExecutionPlanContractDetails = IssuanceContractDetails | BuyingContractDetails | SellingContractDetails | LoanContractDetails
@@ -965,11 +1027,15 @@ type IssuanceContractDetails {
 type BuyingContractDetails {
     asset: AssetOrder!
     settlement: AssetOrder
+    "The settlement group this execution actually used."
+    selectedSettlementGroup: BuyingSelectedSettlementGroup
 }
 
 type SellingContractDetails {
     asset: AssetOrder!
     settlement: AssetOrder
+    "The settlement group this execution actually used."
+    selectedSettlementGroup: SellingSelectedSettlementGroup
 }
 
 type LoanContractDetails {
@@ -994,6 +1060,8 @@ type RedemptionContractDetails {
 type PrivateOfferContractDetails {
     asset: AssetOrder!
     settlement: AssetOrder
+    "The settlement group this execution actually used."
+    selectedSettlementGroup: PrivateOfferSelectedSettlementGroup
 }
 
 type RequestForTransferContractDetails {
@@ -1012,6 +1080,24 @@ type LoanOrder {
 
 type AssetOrderTerm {
     amount: String!
+}
+
+"The settlement group a private-offer execution actually used, out of the alternatives its intent declared."
+type PrivateOfferSelectedSettlementGroup {
+    "The legs of the selected group; all of them settle together."
+    legs: [AssetOrder!]!
+}
+
+"The settlement group a selling execution actually used, out of the alternatives its intent declared."
+type SellingSelectedSettlementGroup {
+    "The legs of the selected group; all of them settle together."
+    legs: [AssetOrder!]!
+}
+
+"The settlement group a buying execution actually used, out of the alternatives its intent declared."
+type BuyingSelectedSettlementGroup {
+    "The legs of the selected group; all of them settle together."
+    legs: [AssetOrder!]!
 }
 
 type AssetOrderInstruction {
@@ -1316,10 +1402,28 @@ type BuyingIntent{
     "Settlement term"
     settlementTerm: SettlementTerm
 
+    "The settlement alternatives declared by this intent; exactly one of them is settled."
+    settlements: [BuyingSettlement!]
+
     "Signature policy type"
     signaturePolicyType: SignaturePolicyType!
     signaturePolicy: BuyingSignaturePolicy!
     settlementInstruction: BuyingSettlementInstruction
+}
+
+"One settlement alternative: all of its legs settle together."
+type BuyingSettlement {
+    legs: [BuyingSettlementLeg!]!
+}
+
+type BuyingSettlementLeg {
+    settlementTerm: SettlementTerm
+    settlementInstruction: BuyingSettlementLegInstruction
+}
+
+"The account a buying settlement leg pays from."
+type BuyingSettlementLegInstruction {
+    sourceAccount: FinP2PAssetAccount
 }
 
 type SellingIntent{
@@ -1335,10 +1439,28 @@ type SellingIntent{
     "Settlement term"
     settlementTerm: SettlementTerm
 
+    "The settlement alternatives declared by this intent; exactly one of them is settled."
+    settlements: [SellingSettlement!]
+
     "Signature policy type"
     signaturePolicyType: SignaturePolicyType!
     signaturePolicy: SellingSignaturePolicy!
     sellingSettlementInstruction: SellingSettlementInstruction
+}
+
+"One settlement alternative: all of its legs settle together."
+type SellingSettlement {
+    legs: [SellingSettlementLeg!]!
+}
+
+type SellingSettlementLeg {
+    settlementTerm: SettlementTerm
+    settlementInstruction: SellingSettlementLegInstruction
+}
+
+"The account a selling settlement leg pays into."
+type SellingSettlementLegInstruction {
+    destinationAccount: FinP2PAssetAccount
 }
 
 type PrivateOfferIntent{
@@ -1357,10 +1479,27 @@ type PrivateOfferIntent{
     "Settlement term"
     settlementTerm: SettlementTerm
 
+    "The settlement alternatives declared by this intent; exactly one of them is settled."
+    settlements: [PrivateOfferSettlement!]
+
     "Signature policy type"
     signaturePolicyType: SignaturePolicyType!
     signaturePolicy: PrivateOfferSignaturePolicy!
     sellingSettlementInstruction: SellingSettlementInstruction
+}
+
+"One settlement alternative: all of its legs settle together."
+type PrivateOfferSettlement {
+    legs: [PrivateOfferSettlementLeg!]!
+}
+
+type PrivateOfferSettlementLeg {
+    settlementTerm: SettlementTerm
+    settlementInstruction: PrivateOfferSettlementLegInstruction
+}
+
+type PrivateOfferSettlementLegInstruction {
+    destinationAccount: FinP2PAssetAccount
 }
 
 type RequestForTransferIntent{
@@ -1499,11 +1638,21 @@ type OrganizationAsset {
 
 """
 Filter capabilities that can be applied on queries which return multiple results of a given Entity.
-Currently filtering is available only on the fields which belongs to the Root of the entity
-and not on nested entities' fields.
+A filter key names a field of the underlying record, matched case-insensitively; nested fields are
+reachable with dot notation (e.g. "correspondent.assetId"). Multiple filters combine with AND —
+for boolean combinations (OR, nesting) use the sibling where argument, where offered, taking a FilterExpr.
 """
 input Filter {
-    "The Object's key to which apply the filter rule."
+    """
+    The Object's key to which apply the filter rule.
+    Dot notation also addresses entries of a key-value map field: `labels.<key>` filters on a
+    label, `customMetadata.<key>` on a custom-metadata entry, and the whole remainder of the
+    path is taken as one map key, so a label named `a.b` is addressed as `labels.a.b`.
+    Map keys are matched case-insensitively, like field names: an exact-case key wins, and when
+    several keys differ only in case the lexicographically smallest match is used.
+    A map key that is absent from a record is a non-match for that record — it returns an empty
+    result rather than an error, unlike a key naming no field at all, which fails the query.
+    """
     key: String!
 
     "The Value to be used by the Filter Operator."
@@ -1531,8 +1680,25 @@ enum Operator {
     IN
     "Not In"
     NIN
-    "Contains"
+    "Contains. On a String field: case-insensitive substring match. On a list field: exact element membership, except the workflow correlation_id and reference_id filters, which match a case-insensitive substring within each element."
     CONTAINS
+}
+
+"""
+Boolean combination of Filters. Exactly one field must be set:
+filter is a leaf condition; and / or combine sub-expressions.
+and: [] matches everything; or: [] matches nothing. Maximum nesting depth is 16.
+When both the filter and where arguments are provided, a record must satisfy both.
+"""
+input FilterExpr @oneOf {
+    "Matches when every sub-expression matches."
+    and: [FilterExpr!]
+
+    "Matches when at least one sub-expression matches."
+    or: [FilterExpr!]
+
+    "A single leaf condition."
+    filter: Filter
 }
 
 
@@ -1565,6 +1731,9 @@ type TokensBalances {
 
     "Collection of Aggregate Results, if an Aggregate input was provided."
     aggregate: [AggregateResult!]
+
+    "Keeps pagination info when a paginate input was provided."
+    pageInfo: PageInfo
 }
 
 "Results for issuers query."
@@ -1675,48 +1844,48 @@ input Aggregate {
 "The query root of Ownera's GraphQL interface."
 type Query {
     "Look up Assets, Optional provide Filters or Aggregates."
-    assets(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: AssetOrderInput): Assets!
+    assets(filter: [Filter!], where: FilterExpr, aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: AssetOrderInput): Assets!
 
     "Look up Users, Optional provide Filter or Aggregate."
-    users(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Users!
+    users(filter: [Filter!], where: FilterExpr, aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: UserOrder): Users!
 
-    "Look up a receipt by a Filter (mandatory)."
-    receipts(filter: [Filter], paginate: PaginateInput = {}): Receipts!
+    "Look up Receipts, Optional provide Filter."
+    receipts(filter: [Filter], where: FilterExpr, paginate: PaginateInput = {}, orderBy: ReceiptOrder): Receipts!
 
     "Look up Issuers, Optional provide Filter."
-    issuers(filter: [Filter!], paginate: PaginateInput = {}): Issuers!
+    issuers(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}, orderBy: IssuerOrder): Issuers!
 
     "Look up Certificates, Optional provide Filter or Aggregate."
-    certificates(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Certificates!
+    certificates(filter: [Filter!], where: FilterExpr, aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: CertificateOrder): Certificates!
 
     "Look up Organizations, Optional provide Filter or Aggregate."
-    organizations(filter: [Filter!], aggregate: [Aggregate!], paginate: PaginateInput = {}): Organizations!
+    organizations(filter: [Filter!], where: FilterExpr, aggregate: [Aggregate!], paginate: PaginateInput = {}, orderBy: OrganizationOrder): Organizations!
 
     "Look up Execution Plans, Optional provide Filter."
-    plans(filter:[Filter!], paginate: PaginateInput = {}, orderBy: ExecutionPlanOrder): ExecutionsPlans!
+    plans(filter:[Filter!], where: FilterExpr, paginate: PaginateInput = {}, orderBy: ExecutionPlanOrder): ExecutionsPlans!
 
     "Look up Workflows, Optional provide Filter."
-    workflows(filter: [Filter!], paginate: PaginateInput = {}, orderBy: WorkflowOrder): Workflows!
+    workflows(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}, orderBy: WorkflowOrder): Workflows!
 
-    ledgers(filter: [Filter!], paginate: PaginateInput = {}): LedgerBindings!
+    ledgers(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}): LedgerBindings!
 
-    custodyProviders(filter: [Filter!], paginate: PaginateInput = {}): CustodyProviders!
+    custodyProviders(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}): CustodyProviders!
 
     approvalConfigs(paginate: PaginateInput = {}): ApprovalConfigs!
 
     pinningConfig: PinningConfigs
 
     "Look up Asset Data, Optional provide Filter."
-    assetDatas(filter: [Filter!], paginate: PaginateInput = {}): AssetDatas!
+    assetDatas(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}): AssetDatas!
 
     "Look up Data Provider bindings."
-    dataProviders(filter: [Filter!], paginate: PaginateInput = {}): DataProviderBindings!
+    dataProviders(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}): DataProviderBindings!
 
     "Look up Data Rules that map identifiers to data providers."
-    dataRules(filter: [Filter!], paginate: PaginateInput = {}): DataRules!
+    dataRules(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}): DataRules!
 
-    "Look up FinancialAssets aggregated by ISIN from data adapter data. Filter by isin to get a specific asset."
-    financialAssets(filter: [Filter!], paginate: PaginateInput = {}): FinancialAssets!
+    "Look up FinancialAssets aggregated by financial identifier (type + value) from data adapter data. Filter by identifierType/identifierValue to get a specific asset."
+    financialAssets(filter: [Filter!], where: FilterExpr, paginate: PaginateInput = {}): FinancialAssets!
 }
 
 type PageInfo {
@@ -1801,6 +1970,9 @@ input UserOrder {
 enum UserOrderField {
     "users order by determined by Id field"
     ID
+
+    "users order by determined by Name field"
+    NAME
 }
 
 input ReceiptOrder {
