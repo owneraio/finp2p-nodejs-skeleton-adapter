@@ -21,6 +21,8 @@ tags:
     description: 'Discovery service operations'
   - name: 'dataprovider'
     description: 'Data provider adapter configuration and management'
+  - name: 'labels'
+    description: 'Cert-to-label mapping configuration and manual per-resource labels'
 paths:
   /workflow/cancel:
     post:
@@ -939,10 +941,14 @@ paths:
                     $ref: '#/components/schemas/transaction'
       responses:
         '200':
-          description: 'successful operation'
-        '208':
           description: |
-            Some transactions were not imported due to duplicate transaction IDs.
+            The transactions were processed. Duplicate transaction or receipt ids
+            are skipped rather than re-imported and are listed in the response
+            body; the rest of the batch is imported.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/importTransactionsPartialResponse'
         '400':
           description: 'Bad Request'
           content:
@@ -1703,6 +1709,144 @@ paths:
                 errors:
                   - code: 2003
                     message: 'Gateway timeout'
+  /labels/mappings:
+    get:
+      tags:
+        - 'labels'
+      summary: 'List cert-to-label mappings'
+      description: 'List the runtime-configurable cert-to-label mappings'
+      operationId: 'listLabelMappings'
+      responses:
+        '200':
+          description: 'found the label mappings'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/listLabelMappingsResponse'
+    post:
+      tags:
+        - 'labels'
+      summary: 'Add a cert-to-label mapping'
+      description: 'Add a mapping from one certificate data type''s field to one resource label. When multiple mappings produce the same label key, the most recently created mapping wins.'
+      operationId: 'addLabelMapping'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/addLabelMappingRequest'
+      responses:
+        '200':
+          description: 'mapping added'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/addLabelMappingResponse'
+  /labels/mappings/{mappingId}:
+    delete:
+      tags:
+        - 'labels'
+      summary: 'Delete a cert-to-label mapping'
+      description: 'Delete a cert-to-label mapping by id'
+      operationId: 'deleteLabelMapping'
+      parameters:
+        - name: 'mappingId'
+          in: 'path'
+          description: 'ID of the label mapping'
+          required: true
+          schema:
+            type: 'string'
+            format: 'uuid'
+            pattern: .*\S.*
+            x-autoMinLength: true
+      responses:
+        '204':
+          description: 'mapping deleted'
+          content: {}
+  /resources/{resourceId}/labels:
+    get:
+      tags:
+        - 'labels'
+      summary: 'List a resource''s labels'
+      description: 'List a resource''s labels, each annotated with its source (derived or manual)'
+      operationId: 'listResourceLabels'
+      parameters:
+        - name: 'resourceId'
+          in: 'path'
+          description: 'ID of the resource'
+          required: true
+          schema:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+      responses:
+        '200':
+          description: 'found the resource''s labels'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/listResourceLabelsResponse'
+  /resources/{resourceId}/labels/{key}:
+    put:
+      tags:
+        - 'labels'
+      summary: 'Set a manual resource label'
+      description: 'Set a manual label on a resource; claims the key away from any derived label of the same key'
+      operationId: 'addResourceLabel'
+      parameters:
+        - name: 'resourceId'
+          in: 'path'
+          description: 'ID of the resource'
+          required: true
+          schema:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+        - name: 'key'
+          in: 'path'
+          description: 'label key'
+          required: true
+          schema:
+            type: 'string'
+            minLength: 1
+            maxLength: 64
+            pattern: '^[a-zA-Z0-9][a-zA-Z0-9_-]*$'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/addResourceLabelRequest'
+      responses:
+        '204':
+          description: 'label set'
+          content: {}
+    delete:
+      tags:
+        - 'labels'
+      summary: 'Remove a manual resource label'
+      description: 'Remove a resource''s manual label for key; a derived label of the same key, if any, is untouched'
+      operationId: 'removeResourceLabel'
+      parameters:
+        - name: 'resourceId'
+          in: 'path'
+          description: 'ID of the resource'
+          required: true
+          schema:
+            type: 'string'
+            pattern: .*\S.*
+            x-autoMinLength: true
+        - name: 'key'
+          in: 'path'
+          description: 'label key'
+          required: true
+          schema:
+            type: 'string'
+            minLength: 1
+            maxLength: 64
+            pattern: '^[a-zA-Z0-9][a-zA-Z0-9_-]*$'
+      responses:
+        '204':
+          description: 'label removed (or already absent)'
+          content: {}
   /custody/bind:
     post:
       tags:
@@ -3024,6 +3168,31 @@ components:
           enum: ['issue', 'transfer', 'hold', 'release', 'redeem', 'move']
         proof:
           $ref: '#/components/schemas/proofPolicy'
+    importTransactionsPartialResponse:
+      type: 'object'
+      required: ['failures']
+      properties:
+        failures:
+          type: 'array'
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/importTransactionFailure'
+    importTransactionFailure:
+      type: 'object'
+      required: ['id', 'transactionId', 'error']
+      properties:
+        id:
+          type: 'string'
+          description: 'Receipt id (`transactions[].id`) of the entry that was not imported.'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        transactionId:
+          type: 'string'
+          description: 'Ledger transaction id of the entry that was not imported.'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        error:
+          $ref: 'common-external-components.yaml#/components/schemas/APIError'
     transactionDetails:
       description: 'Additional input and output details for UTXO supporting DLTs'
       type: 'object'
@@ -3045,7 +3214,7 @@ components:
       required: ['executionPlanId']
       properties:
         executionPlanId:
-          $ref: '#/components/schemas/executionPlanId'
+          $ref: 'common-external-components.yaml#/components/schemas/executionPlanId'
         sequence:
           type: 'integer'
           format: 'uint32'
@@ -3055,7 +3224,7 @@ components:
       required: ['plan', 'currentInstructionSequence', 'approvals', 'instructionsCompletionEvents', 'executionPlanStatus', 'creationTimestamp']
       properties:
         plan:
-          $ref: '#/components/schemas/executionPlan'
+          $ref: 'common-external-components.yaml#/components/schemas/executionPlan'
         approvals:
           type: 'array'
           items:
@@ -3078,303 +3247,6 @@ components:
           type: 'string'
           enum: ['proposed', 'approved', 'rejected', 'failed', 'completed', 'halted', 'canceled']
           description: 'Current status of the execution plan'
-    executionPlan:
-      type: 'object'
-      required: ['id', 'intent', 'instructions', 'participants', 'contract']
-      properties:
-        id:
-          $ref: '#/components/schemas/executionPlanId'
-        intent:
-          $ref: '#/components/schemas/assetIntent'
-        instructions:
-          type: 'array'
-          items:
-            $ref: '#/components/schemas/executionInstruction'
-        participants:
-          type: 'array'
-          items:
-            $ref: '#/components/schemas/executionParticipant'
-        contract:
-          $ref: '#/components/schemas/contract'
-        metadata:
-          $ref: 'common-external-components.yaml#/components/schemas/customMetadata'
-    contract:
-      type: 'object'
-      properties:
-        investors:
-          type: 'array'
-          items:
-            $ref: '#/components/schemas/investor'
-        contractDetails:
-          oneOf:
-            - $ref: '#/components/schemas/issuanceContractDetails'
-            - $ref: '#/components/schemas/buyingContractDetails'
-            - $ref: '#/components/schemas/sellingContractDetails'
-            - $ref: '#/components/schemas/loanContractDetails'
-            - $ref: '#/components/schemas/transferContractDetails'
-            - $ref: '#/components/schemas/redeemContractDetails'
-            - $ref: '#/components/schemas/privateOfferContractDetails'
-            - $ref: '#/components/schemas/requestForTransferContractDetails'
-          discriminator:
-            propertyName: 'type'
-            mapping:
-              issuance: '#/components/schemas/issuanceContractDetails'
-              buying: '#/components/schemas/buyingContractDetails'
-              selling: '#/components/schemas/sellingContractDetails'
-              loan: '#/components/schemas/loanContractDetails'
-              transfer: '#/components/schemas/transferContractDetails'
-              redeem: '#/components/schemas/redeemContractDetails'
-              privateOffer: '#/components/schemas/privateOfferContractDetails'
-              requestForTransfer: '#/components/schemas/requestForTransferContractDetails'
-    issuanceContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['issuance']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-        settlement:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-    buyingContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['buying']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-        settlement:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-    sellingContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['selling']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-        settlement:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-    loanContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['loan']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/loanExecuteAsset'
-        settlement:
-          $ref: 'common-external-components.yaml#/components/schemas/loanExecuteAsset'
-        instruction:
-          $ref: 'common-external-components.yaml#/components/schemas/loanInstruction'
-    transferContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['transfer']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-    redeemContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['redeem']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-        settlement:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-    privateOfferContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['privateOffer']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-        settlement:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-    requestForTransferContractDetails:
-      type: 'object'
-      required: ['type']
-      properties:
-        type:
-          type: 'string'
-          enum: ['requestForTransfer']
-        asset:
-          $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
-    investor:
-      type: 'object'
-      properties:
-        investor:
-          type: 'string'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        role:
-          type: 'string'
-          enum: ['buyer', 'seller', 'lender', 'borrower', 'issuer']
-        signature:
-          $ref: '#/components/schemas/signature'
-    executionInstruction:
-      type: 'object'
-      required: ['sequence', 'organizations', 'executionPlanOperation']
-      properties:
-        sequence:
-          type: 'integer'
-          format: 'uint32'
-        organizations:
-          type: 'array'
-          items:
-            type: 'string'
-            pattern: .*\S.*
-            x-autoMinLength: true
-        executionPlanOperation:
-          $ref: '#/components/schemas/executionPlanOperation'
-        timeout:
-          type: 'integer'
-          format: 'int32'
-    executionPlanOperation:
-      oneOf:
-        - $ref: '#/components/schemas/holdInstruction'
-        - $ref: '#/components/schemas/releaseInstruction'
-        - $ref: '#/components/schemas/issueInstruction'
-        - $ref: '#/components/schemas/transferInstruction'
-        - $ref: '#/components/schemas/awaitInstruction'
-        - $ref: '#/components/schemas/revertHoldInstruction'
-        - $ref: '#/components/schemas/redemptionInstruction'
-      discriminator:
-        propertyName: 'type'
-        mapping:
-          hold: '#/components/schemas/holdInstruction'
-          release: '#/components/schemas/releaseInstruction'
-          issue: '#/components/schemas/issueInstruction'
-          transfer: '#/components/schemas/transferInstruction'
-          await: '#/components/schemas/awaitInstruction'
-          redeem: '#/components/schemas/redemptionInstruction'
-    holdInstruction:
-      type: 'object'
-      required: ['type', 'source', 'destination', 'asset', 'amount', 'signature']
-      properties:
-        type:
-          type: 'string'
-          enum: ['hold']
-        source:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        destination:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        amount:
-          type: 'string'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        signature:
-          $ref: '#/components/schemas/signature'
-    releaseInstruction:
-      type: 'object'
-      required: ['type', 'source', 'destination', 'asset', 'amount']
-      properties:
-        type:
-          type: 'string'
-          enum: ['release']
-        source:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        destination:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        amount:
-          type: 'string'
-          pattern: .*\S.*
-          x-autoMinLength: true
-    issueInstruction:
-      type: 'object'
-      required: ['type', 'destination', 'amount', 'signature']
-      properties:
-        type:
-          type: 'string'
-          enum: ['issue']
-        destination:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        amount:
-          type: 'string'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        signature:
-          $ref: '#/components/schemas/signature'
-    transferInstruction:
-      type: 'object'
-      required: ['type', 'source', 'destination', 'amount', 'signature']
-      properties:
-        type:
-          type: 'string'
-          enum: ['transfer']
-        source:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        destination:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        amount:
-          type: 'string'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        signature:
-          $ref: '#/components/schemas/signature'
-    awaitInstruction:
-      type: 'object'
-      required: ['type', 'waitUntil']
-      properties:
-        type:
-          type: 'string'
-          enum: ['await']
-        waitUntil:
-          type: 'integer'
-          format: 'uint64'
-    revertHoldInstruction:
-      type: 'object'
-      required: ['type', 'destination']
-      properties:
-        type:
-          type: 'string'
-          enum: ['revert-hold']
-        source:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        destination:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-    redemptionInstruction:
-      type: 'object'
-      required: ['type', 'source', 'destination', 'amount', 'signature']
-      properties:
-        type:
-          type: 'string'
-          enum: ['redemption']
-        source:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        destination:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAccountAsset'
-        amount:
-          type: 'string'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        signature:
-          $ref: '#/components/schemas/signature'
-    executionParticipant:
-      type: 'object'
-      required: ['organizationId', 'roles']
-      properties:
-        organizationId:
-          type: 'string'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        roles:
-          type: 'array'
-          items:
-            type: 'string'
-            enum: ['contributor', 'observer']
     executionPlanApproval:
       type: 'object'
       required: ['organizationId', 'signature', 'digest']
@@ -3401,203 +3273,6 @@ components:
             mapping:
               receipt: '#/components/schemas/receiptOutput'
               error: '#/components/schemas/instructionCompletionError'
-    assetIntent:
-      type: 'object'
-      required: ['start', 'end', 'intent']
-      properties:
-        start:
-          type: 'integer'
-          format: 'int64'
-          description: 'start time for intent, in epoch (seconds)'
-        end:
-          type: 'integer'
-          format: 'int64'
-          description: 'end time for intent, in epoch (seconds)'
-        intent:
-          $ref: 'common-external-components.yaml#/components/schemas/intent'
-    signature:
-      type: 'object'
-      required: ['signature', 'template', 'hashFunc']
-      description: 'represent a signature template information'
-      properties:
-        signature:
-          type: 'string'
-          description: 'hex representation of the signature'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        template:
-          $ref: '#/components/schemas/signatureTemplate'
-        hashFunc:
-          $ref: '#/components/schemas/hashFunction'
-    signatureTemplate:
-      type: 'object'
-      oneOf:
-        - $ref: '#/components/schemas/hashListTemplate'
-        - $ref: '#/components/schemas/EIP712Template'
-      discriminator:
-        propertyName: 'type'
-        mapping:
-          hashList: '#/components/schemas/hashListTemplate'
-          EIP712: '#/components/schemas/EIP712Template'
-    hashListTemplate:
-      description: 'ordered list of hash groups'
-      required: ['type', 'hashGroups', 'hash']
-      type: 'object'
-      properties:
-        type:
-          type: 'string'
-          enum: ['hashList']
-        templateVersion:
-          type: 'integer'
-          minimum: 1
-          description: |
-            This version identifies the HashList template specification revision.
-            When omitted, the verifier resolves the version from the
-            router/ledger/asset-profile resolver chain.
-        hashGroups:
-          type: 'array'
-          items:
-            $ref: '#/components/schemas/hashGroup'
-        hash:
-          type: 'string'
-          description: 'hex representation of the combined hash groups hash value'
-          x-allowEmpty: true
-    hashFunction:
-      type: 'string'
-      enum: ['unspecified', 'sha3_256', 'sha3-256', 'blake2b', 'keccak_256', 'keccak-256']
-      description: 'hash function types'
-    hashGroup:
-      type: 'object'
-      required: ['hash', 'fields']
-      properties:
-        hash:
-          type: 'string'
-          description: 'hex representation of the hash group hash value'
-          x-allowEmpty: true
-        fields:
-          description: 'list of fields by order they appear in the hash group'
-          type: 'array'
-          items:
-            $ref: '#/components/schemas/field'
-    field:
-      type: 'object'
-      description: 'describing a field in the hash group'
-      required: ['name', 'type', 'value']
-      properties:
-        name:
-          type: 'string'
-          description: 'name of field'
-          pattern: .*\S.*
-          x-autoMinLength: true
-        type:
-          type: 'string'
-          enum: ['string', 'int', 'bytes']
-          description: 'type of field'
-        value:
-          type: 'string'
-          description: 'hex representation of the field value'
-          x-allowEmpty: true
-    EIP712Domain:
-      type: 'object'
-      properties:
-        name:
-          type: 'string'
-          x-allowEmpty: true
-        version:
-          type: 'string'
-          x-allowEmpty: true
-        chainId:
-          type: 'integer'
-          format: 'uint64'
-        verifyingContract:
-          type: 'string'
-          format: 'address'
-          x-allowEmpty: true
-    EIP712TypedValue:
-      oneOf:
-        - $ref: '#/components/schemas/EIP712TypeString'
-        - $ref: '#/components/schemas/EIP712TypeInteger'
-        - $ref: '#/components/schemas/EIP712TypeBool'
-        - $ref: '#/components/schemas/EIP712TypeByte'
-        - $ref: '#/components/schemas/EIP712TypeObject'
-        - $ref: '#/components/schemas/EIP712TypeArray'
-    EIP712Types:
-      type: 'object'
-      properties:
-        definitions:
-          type: 'array'
-          items:
-            $ref: '#/components/schemas/EIP712TypeDefinition'
-    EIP712TypeDefinition:
-      type: 'object'
-      properties:
-        name:
-          type: 'string'
-          x-allowEmpty: true
-        fields:
-          type: 'array'
-          items:
-            $ref: '#/components/schemas/EIP712FieldDefinition'
-    EIP712FieldDefinition:
-      type: 'object'
-      properties:
-        name:
-          type: 'string'
-          x-allowEmpty: true
-        type:
-          type: 'string'
-    EIP712Template:
-      required: ['type', 'domain', 'message', 'primaryType', 'types', 'hash']
-      type: 'object'
-      properties:
-        type:
-          type: 'string'
-          enum: ['EIP712']
-        templateVersion:
-          type: 'integer'
-          minimum: 1
-          description: |
-            Template shape version. When omitted, the verifier resolves the
-            version from the router/ledger/asset-profile resolver chain.
-            Not to be confused with EIP712Domain.version (the EIP-712
-            contract domain version). See pkg/signature/specs/eip712/ for
-            versioned specs.
-        domain:
-          $ref: '#/components/schemas/EIP712Domain'
-        message:
-          type: 'object'
-          additionalProperties:
-            $ref: '#/components/schemas/EIP712TypedValue'
-        types:
-          $ref: '#/components/schemas/EIP712Types'
-        primaryType:
-          type: 'string'
-          x-allowEmpty: true
-        hash:
-          type: 'string'
-          description: 'hex representation of template hash'
-          x-allowEmpty: true
-    EIP712TypeString:
-      type: 'string'
-      pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
-      x-allowEmpty: true
-    EIP712TypeByte:
-      type: 'string'
-      pattern: '^0x[0-9a-fA-F]+$' # matches hexadecimal string starting with '0x'
-      minLength: 3
-      maxLength: 320
-    EIP712TypeInteger:
-      type: 'integer'
-    EIP712TypeBool:
-      type: 'boolean'
-    EIP712TypeObject:
-      type: 'object'
-      additionalProperties:
-        $ref: '#/components/schemas/EIP712TypedValue'
-    EIP712TypeArray:
-      type: 'array'
-      items:
-        $ref: '#/components/schemas/EIP712TypedValue'
     receiptOutput:
       type: 'object'
       required: ['type', 'id', 'quantity', 'details', 'timestamp']
@@ -3659,7 +3334,7 @@ components:
           type: 'string'
           enum: ['signatureProofPolicy']
         signature:
-          $ref: '#/components/schemas/signature'
+          $ref: 'common-external-components.yaml#/components/schemas/signature'
     ownerId:
       type: 'string'
       description: 'The Owner resource id'
@@ -3679,11 +3354,6 @@ components:
           type: 'string'
           pattern: .*\S.*
           x-autoMinLength: true
-    executionPlanId:
-      type: 'string'
-      description: 'The execution plan  resource id'
-      pattern: '^[^:](?:.+):106:(?:.+)'
-      example: 'bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01'
     assetId:
       type: 'string'
       description: 'The Asset resource id'
@@ -3943,17 +3613,53 @@ components:
           minLength: 1
           maxLength: 1000
           pattern: '^([a-z][a-z0-9_]*)(\.[a-z][a-z0-9_]*)*$'
+    batchAccountSelector:
+      description: |
+        Resolves path against every leg of the selected settlement group,
+        yielding one account per leg instead of a single account, e.g.
+        "contract_details.private_offer.selected_settlement.legs.asset_instruction.source_account".
+        Degrades to a single result when the path names a singular field.
+        The instruction is replicated per leg by the execution-plan
+        translator.
+      type: 'object'
+      required: ['path', 'type']
+      properties:
+        type:
+          type: 'string'
+          enum: ['batch_account']
+        path:
+          type: 'string'
+          minLength: 1
+          maxLength: 1000
+          pattern: '^([a-z][a-z0-9_]*)(\.[a-z][a-z0-9_]*)*$'
+    batchAssetSelector:
+      description: 'batchAccountSelector''s asset-path counterpart.'
+      type: 'object'
+      required: ['path', 'type']
+      properties:
+        type:
+          type: 'string'
+          enum: ['batch_asset']
+        path:
+          type: 'string'
+          minLength: 1
+          maxLength: 1000
+          pattern: '^([a-z][a-z0-9_]*)(\.[a-z][a-z0-9_]*)*$'
     selector:
       type: 'object'
       nullable: true
       oneOf:
         - $ref: '#/components/schemas/accountSelector'
         - $ref: '#/components/schemas/assetSelector'
+        - $ref: '#/components/schemas/batchAccountSelector'
+        - $ref: '#/components/schemas/batchAssetSelector'
       discriminator:
         propertyName: 'type'
         mapping:
           account: '#/components/schemas/accountSelector'
           asset: '#/components/schemas/assetSelector'
+          batch_account: '#/components/schemas/batchAccountSelector'
+          batch_asset: '#/components/schemas/batchAssetSelector'
     instructionTarget:
       type: 'object'
       required: ['selectors']
@@ -4169,3 +3875,103 @@ components:
       oneOf:
         - $ref: 'dlt-adapter-api.yaml#/components/schemas/operationStatus'
         - $ref: 'custody-adapter-api.yaml#/components/schemas/operationStatus'
+    labelMapping:
+      type: 'object'
+      required: ['id', 'dataType', 'field', 'label']
+      properties:
+        id:
+          type: 'string'
+          format: 'uuid'
+          description: 'unique mapping id'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        dataType:
+          type: 'string'
+          maxLength: 255
+          description: 'certificate data type this mapping reads (e.g. individual_info)'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        field:
+          type: 'string'
+          maxLength: 512
+          description: 'gjson dot path into the data item''s document; nested fields and array indexes are supported (e.g. "beneficialOwners.0.email")'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        label:
+          type: 'string'
+          maxLength: 64
+          description: 'resource label key the field''s value is written to'
+          pattern: .*\S.*
+          x-autoMinLength: true
+    listLabelMappingsResponse:
+      type: 'object'
+      required: ['mappings']
+      properties:
+        mappings:
+          type: 'array'
+          items:
+            $ref: '#/components/schemas/labelMapping'
+    addLabelMappingRequest:
+      type: 'object'
+      required: ['dataType', 'field', 'label']
+      properties:
+        dataType:
+          type: 'string'
+          minLength: 1
+          maxLength: 255
+          pattern: '^\S+$'
+          description: 'certificate data type this mapping reads (e.g. individual_info)'
+        field:
+          type: 'string'
+          minLength: 1
+          maxLength: 512
+          description: 'gjson dot path into the data item''s document; nested fields and array indexes are supported (e.g. "beneficialOwners.0.email")'
+        label:
+          type: 'string'
+          minLength: 1
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9_-]*$'
+          description: 'resource label key the field''s value is written to; "type" is reserved'
+    addLabelMappingResponse:
+      type: 'object'
+      required: ['id']
+      properties:
+        id:
+          type: 'string'
+          format: 'uuid'
+          description: 'id of the created (or already-existing identical) mapping'
+          pattern: .*\S.*
+          x-autoMinLength: true
+    resourceLabel:
+      type: 'object'
+      required: ['key', 'value', 'source']
+      properties:
+        key:
+          type: 'string'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        value:
+          type: 'string'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        source:
+          type: 'string'
+          enum: ['derived', 'manual']
+          description: 'whether the label was derived automatically or set via the manual-label API'
+    listResourceLabelsResponse:
+      type: 'object'
+      required: ['labels']
+      properties:
+        labels:
+          type: 'array'
+          items:
+            $ref: '#/components/schemas/resourceLabel'
+    addResourceLabelRequest:
+      type: 'object'
+      required: ['value']
+      properties:
+        value:
+          type: 'string'
+          minLength: 1
+          maxLength: 255
+          description: 'the label''s value'

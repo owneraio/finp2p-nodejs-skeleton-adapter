@@ -3,6 +3,12 @@
  * Do not make direct changes to the file.
  */
 
+/** Extracted recursive types to break circular references in generated schemas */
+export type RecursiveEIP712TypedValue = (string) | (number) | (boolean) | (string) | RecursiveEIP712TypeObject | RecursiveEIP712TypeArray;
+export type RecursiveEIP712TypeObject = {
+  [key: string]: RecursiveEIP712TypedValue;
+};
+export type RecursiveEIP712TypeArray = RecursiveEIP712TypedValue[];
 export interface paths {
   '/profiles/owner': {
     parameters: {
@@ -78,8 +84,11 @@ export interface paths {
     put?: never;
     /**
          * Bind an existing external wallet to an investor (caller-supplied)
-         * @description Caller supplies an external network account they own. `ownershipSignature` is
-         *     required as proof-of-ownership and is verified by the LA. Async: returns `202 { cid }`. If the
+         * @description Caller supplies an external network account they own, optionally with an
+         *     `ownershipSignature` hint. Proof-of-ownership is enforced by the ledger adapter
+         *     according to its own policy — typically a challenge (e.g. `signatureTemplate`)
+         *     the caller must fulfil, an out-of-band approval, or the adapter's own upfront
+         *     verification. Async: returns `202 { cid }`. If the
          *     wallet is already bound to another investor — or to the same investor on the same
          *     `(org, asset)` — completion reports `WALLET_ALREADY_BOUND` (409). A bad signature
          *     reports `WALLET_BAD_SIGNATURE` (400).
@@ -258,6 +267,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/profiles/asset/{id}/intent/{intentId}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+         * Cancel the intent
+         * @description Cancel the intent so that it can no longer participate in a token transfer
+         */
+    put: operations['cancelAssetProfileIntent'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/profiles/{id}/share': {
     parameters: {
       query?: never;
@@ -329,6 +358,7 @@ export interface paths {
     put?: never;
     /**
          * Create Certificate
+         * @deprecated
          * @description Creates a new Certificate for a specific profile identity
          */
     post: operations['createCertificate'];
@@ -358,6 +388,7 @@ export interface paths {
     head?: never;
     /**
          * Update Certificate
+         * @deprecated
          * @description Patch a Certificate for a specific profile identity
          */
     patch: operations['patchCertificate'];
@@ -374,6 +405,7 @@ export interface paths {
     put?: never;
     /**
          * Adds a new document on a Certificate
+         * @deprecated
          * @description Adds a new document associated with a Certificate ID
          */
     post: operations['addCertificateDoc'];
@@ -413,6 +445,7 @@ export interface paths {
     get?: never;
     /**
          * Update document
+         * @deprecated
          * @description Update an existing document on a Certificate
          */
     put: operations['updateCertificateDoc'];
@@ -437,6 +470,26 @@ export interface paths {
          * @description Execute a token intent
          */
     post: operations['ExecuteToken'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tokens/execute/dryRun': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Dry-run a token intent execution
+         * @description Predict the execution plan for an intent WITHOUT executing it. Returns whether the intent would be executable and, if so, the predicted plan (instructions, participants). This is a prediction, not a guarantee, and nothing is persisted. Uses the same request body as Execute Token (the signature is not required for a dry-run).
+         */
+    post: operations['dryRunExecuteToken'];
     delete?: never;
     options?: never;
     head?: never;
@@ -692,6 +745,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/data/documents': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Upload documents
+         * @description Upload one or more documents to file storage and receive a URI for each.
+         */
+    post: operations['uploadDocuments'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/data/rules': {
     parameters: {
       query?: never;
@@ -911,6 +984,7 @@ export interface components {
       nonce: components['schemas']['nonce'];
       asset: components['schemas']['sourceDestinationIntentAsset'];
       settlement?: components['schemas']['sourceDestinationIntentAsset'];
+      settlements?: components['schemas']['sourceDestinationExecuteAsset'][];
       seller: components['schemas']['ownerId'];
     };
     sellingIntentExecution: {
@@ -922,6 +996,7 @@ export interface components {
       nonce: components['schemas']['nonce'];
       asset: components['schemas']['sourceDestinationIntentAsset'];
       settlement?: components['schemas']['sourceDestinationIntentAsset'];
+      settlements?: components['schemas']['sourceDestinationExecuteAsset'][];
       buyer: components['schemas']['ownerId'];
     };
     loanIntentExecution: {
@@ -972,6 +1047,7 @@ export interface components {
         };
       };
       settlement?: components['schemas']['sourceDestinationIntentAsset'];
+      settlements?: components['schemas']['sourceDestinationExecuteAsset'][];
       buyer: components['schemas']['ownerId'];
       seller: components['schemas']['ownerId'];
     };
@@ -1200,6 +1276,75 @@ export interface components {
     };
     executionOperationResult: {
       executionPlanId: components['schemas']['executionPlanId'];
+    };
+    executeTokenRequest: {
+      user: components['schemas']['ownerId'];
+      intentId: components['schemas']['intentId'];
+      intent: components['schemas']['intentExecution'];
+      /** @description unique identifier for the execution, will default to generated UUID if not provided */
+      executionId?: string;
+      observers?: components['schemas']['executionObservers'];
+      metadata?: components['schemas']['customMetadata'];
+    };
+    /** @description Prediction of an intent execution. When executable is true the predicted plan is present and failure is absent; when false, failure explains why and plan is absent. The plan is a prediction and is never persisted. */
+    dryRunExecutionPlanResult: {
+      /** @description whether the intent is predicted to be executable */
+      executable: boolean;
+      /** @description The predicted execution plan (present when executable). This is the SAME schema the operational API returns from GET /execution/{planId}, so a client can render a prediction with the same code it renders a real plan. It is a prediction and is never persisted. */
+      plan?: components['schemas']['executionPlan'];
+      /**
+             * Format: int64
+             * @description protocol version the predicted plan requires its contributors to support
+             */
+      requiredProtocolVersion?: number;
+      /** @description non-fatal caveats (e.g. lagging observers, counterparty capabilities unverified) */
+      warnings?: string[];
+      /** @description Every evaluated variation. A variation is one combination of assets matched as a unit — a Move source+destination, or a Loan main asset + one settlement leg. Creation of a closed intent is rejected unless EVERY variation matched. Populated for the creation/update gate; empty for the preview, which evaluates one real contract. */
+      candidates?: components['schemas']['dryRunCandidateResult'][];
+      failure?: components['schemas']['dryRunExecutionPlanFailure'];
+    };
+    dryRunExecutionPlanFailure: {
+      /**
+             * @description stage at which the prediction determined the intent would not execute
+             * @enum {string}
+             */
+      stage: 'requestValidation' | 'policyMatch' | 'translation' | 'participants' | 'capabilities' | 'selfVerification';
+      /**
+             * @description machine-readable outcome class
+             * @enum {string}
+             */
+      classification: 'noPolicyMatch' | 'unsupportedIntent' | 'technical' | 'wouldFail';
+      /** @description error code when available */
+      code?: number;
+      message?: string;
+    };
+    /** @description One evaluated variation: a combination of assets that was matched as a unit. */
+    dryRunCandidateResult: {
+      /** @description whether this combination produced a consistent policy pair */
+      matched: boolean;
+      /** @description why the combination failed (present when matched is false) */
+      reason?: string;
+      assets?: components['schemas']['dryRunCandidateAsset'][];
+    };
+    dryRunCandidateAsset: {
+      /** @description asset resource id (org:type:rawId) */
+      assetId: string;
+      /** @description organization owning the asset (derived from assetId) */
+      organizationId?: string;
+      /**
+             * @description the role the asset plays in this variation
+             * @enum {string}
+             */
+      role: 'main' | 'settlement';
+      /** @description policies considered on this asset for this variation */
+      policies?: components['schemas']['dryRunCandidatePolicy'][];
+    };
+    dryRunCandidatePolicy: {
+      policyId: string;
+      /** @description whether this policy was the one selected for the variation */
+      matched: boolean;
+      /** @description why this policy was rejected (present when matched is false) */
+      reason?: string;
     };
     executionCancellationOperationResult: components['schemas']['executionPlanCancellationStatus'];
     executionResetOperationResult: components['schemas']['executionPlanResetStatus'];
@@ -1645,7 +1790,7 @@ export interface components {
     ledgerAssetBinding: {
       /** @description The name of the ledger to which the asset will be bound. Must match the ledgerName defined in /ledger/bind call */
       ledger: string;
-      bind?: components['schemas']['ledgerAssetIdentifier'];
+      bind?: components['schemas']['ledgerAssetIdentifierCreateOrBind'];
     };
     /**
          * @description Override of the signature template used for this asset's signatures.
@@ -1789,6 +1934,25 @@ export interface components {
       /** @description The file mimeType */
       mimeType: string;
     };
+    documentUploadList: {
+      /** @description References to the uploaded documents, in the order received. */
+      documents: components['schemas']['documentUpload'][];
+    };
+    documentUpload: {
+      /** @description relative URI to retrieve the document (pass this as the fileURI when ingesting) */
+      uri: string;
+      /** @description base64-encoded sha3-256 of the document bytes */
+      hash: string;
+      /** @description the document's MIME type */
+      mimeType: string;
+      /** @description the document's file name */
+      fileName: string;
+      /**
+             * Format: int64
+             * @description the document size in bytes
+             */
+      size: number;
+    };
     dataAccess: {
       /**
              * @description Type of data access granted to shared organizations.
@@ -1860,15 +2024,42 @@ export interface components {
       /** @description Identifier value (e.g. US0378331005) */
       identifierValue: string;
     };
-    /** @enum {string} */
-    DataType: 'assetHeader' | 'pricing' | 'fundamentals' | 'ratings' | 'corporateActions' | 'marketData' | 'referenceData';
+    /**
+         * @description Category of financial data.
+         *
+         *     The valid values are not fixed by this specification. A data type is valid if and only if a
+         *     JSON schema is published for it as `data/{dataType}.schema.json` in the FinP2P data schema
+         *     registry, which is therefore the authoritative list. A data type with no published schema is
+         *     rejected — on ingest, and on data-rule creation — so new categories become available by
+         *     publishing a schema, with no specification change and no release.
+         *
+         *     Currently published, for orientation:
+         *     - assetHeader: Asset catalog metadata (ISIN, CAIP-19 representations, name, icon)
+         *     - pricing: Quotes, NAV, prices
+         *     - referenceData: Asset name, issuer, sector
+         *     - rating: Credit-rating snapshot from a single agency
+         *     - currencyRating: FX-rate snapshot from the asset's currency to target currencies
+         *     - kycRequirements: Per-asset KYC requirements declared by the asset creator
+         * @example pricing
+         */
+    DataType: string;
     CreateDataRuleRequest: {
       /** @description Identifier type (e.g. ISIN, CAIP19) */
       identifierType: string;
       /** @description Identifier value (e.g. US0378331005) or "*" for all */
       identifierValue: string;
-      /** @description Name of the data provider */
+      /**
+             * @description Name of the data provider. For providerType 'adapter' this is the bound adapter
+             *     name; for providerType 'finp2p' this is the peer organization id serving the data.
+             */
       providerName: string;
+      /**
+             * @description Type of the data provider. 'adapter' references a provider bound via the data
+             *     provider binding API. 'finp2p' references a peer organization on the FinP2P
+             *     network acting as a data provider; auto-created from discovery if it does not exist.
+             * @enum {string}
+             */
+      providerType: 'adapter' | 'finp2p';
       /** @description Data type this provider supplies for matching assets */
       dataType: components['schemas']['DataType'];
       /** @description Refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based). Null means system default (24h). */
@@ -1878,12 +2069,24 @@ export interface components {
              * @default true
              */
       enabled: boolean;
+      /**
+             * @description Serving allow-list for a 'finp2p' rule: organization ids permitted to receive this
+             *     data over the FinP2P DataService. Empty or omitted means no peer is served
+             *     (deny-by-default). Only valid for providerType 'finp2p'; rejected for 'adapter'.
+             */
+      acl?: string[];
     };
     UpdateDataRuleRequest: {
       /** @description Updated refresh interval in duration format (e.g. '1h', '24h') or 'RT' for real-time (subscription-based) */
       refreshInterval?: string;
       /** @description Whether this rule is active */
       enabled?: boolean;
+      /**
+             * @description Replacement serving allow-list (finp2p rules only): organization ids permitted to
+             *     receive this data. Dropping an org also revokes its active subscription. Empty means
+             *     deny all.
+             */
+      acl?: string[];
     };
     DataRuleResponse: {
       /** Format: uuid */
@@ -1912,8 +2115,9 @@ export interface components {
     };
     /**
          * @description Request body for `POST /profiles/investor/{investorId}/account/bind`.
-         *     Caller supplies an external wallet plus a proof-of-ownership signature.
-         *     The LA still issues a challenge (typically signatureTemplate) for final verification.
+         *     Caller supplies an external wallet, optionally with a proof-of-ownership
+         *     signature hint. Ownership verification is the ledger adapter's responsibility,
+         *     per its own policy.
          */
     bindInvestorAccountRequest: {
       organizationId: components['schemas']['orgId'];
@@ -1921,12 +2125,11 @@ export interface components {
       assetId: string;
       networkAccount: components['schemas']['networkAccount'];
       /**
-             * @description Hex-encoded proof-of-ownership signature over the network account. The signed
-             *     payload binds the account to the investor/org/asset so that knowing an address
-             *     alone is not enough to claim it. Treated as a hint; final verification is via
-             *     the challenge issued by the LA.
+             * @description Optional hex-encoded proof-of-ownership signature over the network account.
+             *     The platform does not interpret it: it is forwarded to the ledger adapter
+             *     as-is, and whether (and how) it is verified is adapter policy.
              */
-      ownershipSignature: string;
+      ownershipSignature?: string;
     };
     /**
          * @description Request body for `POST /profiles/investor/{investorId}/account/proof`.
@@ -2016,17 +2219,19 @@ export interface components {
       /** @description Unique code identifying the denomination asset type */
       code: string;
     };
-    'ledgerAssetIdentifierTypeCAIP-19': {
+    'ledgerAssetIdentifierTypeCAIP-19CreateOrBind': {
       /**
              * @description Classification type standards (enum property replaced by openapi-typescript)
              * @enum {string}
              */
       assetIdentifierType: 'CAIP-19';
       network?: string;
-      tokenId: string;
+      /** @description Identifier of an existing on-ledger token to bind to. Omit to have the ledger create a new token on the given network/standard. */
+      tokenId?: string;
       standard?: string;
     };
-    ledgerAssetIdentifier: components['schemas']['ledgerAssetIdentifierTypeCAIP-19'];
+    /** @description Ledger asset identifier accepted when creating an asset profile. With tokenId present it binds the profile to an existing on-ledger token. Without tokenId it instructs the ledger to create a new token on the given network/standard; the ledger mints the token, and the full resulting identifier is persisted on the profile. */
+    ledgerAssetIdentifierCreateOrBind: components['schemas']['ledgerAssetIdentifierTypeCAIP-19CreateOrBind'];
     /** @description Financial instruments (equities, bonds, funds, etc.). 12-character ISO 6166 code. */
     financialAssetIdentifierTypeISIN: {
       /**
@@ -2057,6 +2262,17 @@ export interface components {
     };
     /** @description Globally recognized code identifying the asset across networks, routers, and counterparties. Used for balance aggregation and cross-router asset recognition. Format is validated for structure only. */
     financialAssetIdentifier: components['schemas']['financialAssetIdentifierTypeISIN'] | components['schemas']['financialAssetIdentifierTypeISO4217'] | components['schemas']['financialAssetIdentifierTypeNONE'];
+    'ledgerAssetIdentifierTypeCAIP-19': {
+      /**
+             * @description Classification type standards (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+      assetIdentifierType: 'CAIP-19';
+      network?: string;
+      tokenId: string;
+      standard?: string;
+    };
+    ledgerAssetIdentifier: components['schemas']['ledgerAssetIdentifierTypeCAIP-19'];
     /** @description the total number of units */
     amount: string;
     assetTerm: {
@@ -2176,6 +2392,9 @@ export interface components {
       buyer: string;
       asset: components['schemas']['buyingAsset'];
       settlement: components['schemas']['buyingSettlementBase'];
+      settlements?: {
+        legs: components['schemas']['buyingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     sellingIntent: {
@@ -2187,6 +2406,9 @@ export interface components {
       seller: components['schemas']['ownerId'];
       asset: components['schemas']['sellingAsset'];
       settlement: components['schemas']['sellingSettlements'];
+      settlements?: {
+        legs: components['schemas']['sellingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     borrowerLenderAccountAssetInstruction: {
@@ -2314,6 +2536,9 @@ export interface components {
       seller: components['schemas']['ownerId'];
       asset: components['schemas']['privateOfferIntentAsset'];
       settlement: components['schemas']['sellingSettlements'];
+      settlements?: {
+        legs: components['schemas']['sellingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     requestForTransferSendAssetInstruction: {
@@ -2404,6 +2629,339 @@ export interface components {
     sourceDestinationIntentAsset: {
       term?: components['schemas']['assetTerm'];
       instruction?: components['schemas']['sourceDestinationAccountAssetInstruction'];
+    };
+    sourceDestinationAccountLedgerAssetInstruction: {
+      sourceAccount: components['schemas']['finp2pAssetAccount'];
+      destinationAccount: components['schemas']['finp2pAssetAccount'];
+    };
+    sourceDestinationExecuteAsset: {
+      term?: components['schemas']['assetTerm'];
+      instruction?: components['schemas']['sourceDestinationAccountLedgerAssetInstruction'];
+    };
+    /**
+         * @description The execution plan  resource id
+         * @example bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01
+         */
+    'schemas-executionPlanId': string;
+    assetIntent: {
+      /**
+             * Format: int64
+             * @description start time for intent, in epoch (seconds)
+             */
+      start: number;
+      /**
+             * Format: int64
+             * @description end time for intent, in epoch (seconds)
+             */
+      end: number;
+      intent: components['schemas']['intent'];
+    };
+    /** @description describes account information */
+    ledgerAccountAsset: {
+      finp2pAccount: components['schemas']['finp2pAssetAccount'];
+      networkAccount?: components['schemas']['networkAccount'];
+    };
+    /** @description describing a field in the hash group */
+    'schemas-field': {
+      /** @description name of field */
+      name: string;
+      /**
+             * @description type of field
+             * @enum {string}
+             */
+      type: 'string' | 'int' | 'bytes';
+      /** @description hex representation of the field value */
+      value: string;
+    };
+    'schemas-hashGroup': {
+      /** @description hex representation of the hash group hash value */
+      hash: string;
+      /** @description list of fields by order they appear in the hash group */
+      fields: components['schemas']['schemas-field'][];
+    };
+    /** @description ordered list of hash groups */
+    hashListTemplate: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hashList';
+      /**
+             * @description This version identifies the HashList template specification revision.
+             *     When omitted, the verifier resolves the version from the
+             *     router/ledger/asset-profile resolver chain.
+             */
+      templateVersion?: number;
+      hashGroups: components['schemas']['schemas-hashGroup'][];
+      /** @description hex representation of the combined hash groups hash value */
+      hash: string;
+    };
+    EIP712Domain: {
+      name?: string;
+      version?: string;
+      /** Format: uint64 */
+      chainId?: number;
+      /** Format: address */
+      verifyingContract?: string;
+    };
+    EIP712TypeString: string;
+    EIP712TypeInteger: number;
+    EIP712TypeBool: boolean;
+    EIP712TypeByte: string;
+    EIP712TypedValue: RecursiveEIP712TypedValue;
+    EIP712TypeObject: RecursiveEIP712TypeObject;
+    EIP712TypeArray: RecursiveEIP712TypeArray;
+    EIP712FieldDefinition: {
+      name?: string;
+      type?: string;
+    };
+    EIP712TypeDefinition: {
+      name?: string;
+      fields?: components['schemas']['EIP712FieldDefinition'][];
+    };
+    EIP712Types: {
+      definitions?: components['schemas']['EIP712TypeDefinition'][];
+    };
+    EIP712Template: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'EIP712';
+      /**
+             * @description Template shape version. When omitted, the verifier resolves the
+             *     version from the router/ledger/asset-profile resolver chain.
+             *     Not to be confused with EIP712Domain.version (the EIP-712
+             *     contract domain version). See pkg/signature/specs/eip712/ for
+             *     versioned specs.
+             */
+      templateVersion?: number;
+      domain: components['schemas']['EIP712Domain'];
+      message: {
+        [key: string]: components['schemas']['EIP712TypedValue'];
+      };
+      types: components['schemas']['EIP712Types'];
+      primaryType: string;
+      /** @description hex representation of template hash */
+      hash: string;
+    };
+    'schemas-signatureTemplate': components['schemas']['hashListTemplate'] | components['schemas']['EIP712Template'];
+    /**
+         * @description hash function types
+         * @enum {string}
+         */
+    hashFunction: 'unspecified' | 'sha3_256' | 'sha3-256' | 'blake2b' | 'keccak_256' | 'keccak-256';
+    /** @description represent a signature template information */
+    signature: {
+      /** @description hex representation of the signature */
+      signature: string;
+      template: components['schemas']['schemas-signatureTemplate'];
+      hashFunc: components['schemas']['hashFunction'];
+    };
+    holdInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hold';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    releaseInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'release';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+    };
+    issueInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'issue';
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    transferInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'transfer';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    awaitInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'await';
+      /** Format: uint64 */
+      waitUntil: number;
+    };
+    redemptionInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'redeem';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['signature'];
+    };
+    revertHoldInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'revertHoldInstruction';
+      source?: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+    };
+    executionPlanOperation: components['schemas']['holdInstruction'] | components['schemas']['releaseInstruction'] | components['schemas']['issueInstruction'] | components['schemas']['transferInstruction'] | components['schemas']['awaitInstruction'] | components['schemas']['revertHoldInstruction'] | components['schemas']['redemptionInstruction'];
+    executionInstruction: {
+      /** Format: uint32 */
+      sequence: number;
+      organizations: string[];
+      executionPlanOperation: components['schemas']['executionPlanOperation'];
+      /** Format: int32 */
+      timeout?: number;
+    };
+    executionParticipant: {
+      organizationId: string;
+      roles: ('contributor' | 'observer')[];
+    };
+    investor: {
+      investor?: string;
+      /** @enum {string} */
+      role?: 'buyer' | 'seller' | 'lender' | 'borrower' | 'issuer';
+      signature?: components['schemas']['signature'];
+    };
+    issuanceContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'issuance';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    buyingContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'buying';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+      selectedSettlement?: {
+        legs: components['schemas']['sourceDestinationExecuteAsset'][];
+      };
+    };
+    sellingContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'selling';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+      selectedSettlement?: {
+        legs: components['schemas']['sourceDestinationExecuteAsset'][];
+      };
+    };
+    BorrowerLenderAccountLedgerAssetInstruction: {
+      borrowerAccount: components['schemas']['finp2pAssetAccount'];
+      lenderAccount: components['schemas']['finp2pAssetAccount'];
+    };
+    loanExecuteAsset: {
+      assetTerm: components['schemas']['assetTerm'];
+      assetInstruction: components['schemas']['BorrowerLenderAccountLedgerAssetInstruction'];
+    };
+    loanContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'loan';
+      asset?: components['schemas']['loanExecuteAsset'];
+      settlement?: components['schemas']['loanExecuteAsset'];
+      instruction?: components['schemas']['loanInstruction'];
+    };
+    transferContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'transfer';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    redeemContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'redeem';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    privateOfferContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'privateOffer';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+      selectedSettlement?: {
+        legs: components['schemas']['sourceDestinationExecuteAsset'][];
+      };
+    };
+    requestForTransferContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'requestForTransfer';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    /** @description Execution-side asset of a Move: source/destination accounts plus the optional segregated-account legs that select the Move variant (a source segregated account implies Release; a destination pool implies Transfer). */
+    moveExecuteAsset: {
+      term?: components['schemas']['assetTerm'];
+      instruction?: components['schemas']['sourceDestinationAccountLedgerAssetInstruction'];
+      sourceToSegregatedAccount?: components['schemas']['ledgerAccountAsset'];
+      destinationFromSegregatedAccount?: components['schemas']['ledgerAccountAsset'];
+    };
+    moveContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'move';
+      asset?: components['schemas']['moveExecuteAsset'];
+    };
+    contract: {
+      investors?: components['schemas']['investor'][];
+      contractDetails?: components['schemas']['issuanceContractDetails'] | components['schemas']['buyingContractDetails'] | components['schemas']['sellingContractDetails'] | components['schemas']['loanContractDetails'] | components['schemas']['transferContractDetails'] | components['schemas']['redeemContractDetails'] | components['schemas']['privateOfferContractDetails'] | components['schemas']['requestForTransferContractDetails'] | components['schemas']['moveContractDetails'];
+    };
+    executionPlan: {
+      id: components['schemas']['schemas-executionPlanId'];
+      intent: components['schemas']['assetIntent'];
+      instructions: components['schemas']['executionInstruction'][];
+      participants: components['schemas']['executionParticipant'][];
+      contract: components['schemas']['contract'];
+      metadata?: components['schemas']['customMetadata'];
     };
     finp2pAssetWithType: {
       /**
@@ -3020,6 +3578,29 @@ export interface operations {
       };
     };
   };
+  cancelAssetProfileIntent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset profile */
+        id: components['schemas']['assetId'];
+        /** @description ID of the intent */
+        intentId: components['schemas']['intentId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   shareProfile: {
     parameters: {
       query?: never;
@@ -3414,15 +3995,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        'application/json': {
-          user: components['schemas']['ownerId'];
-          intentId: components['schemas']['intentId'];
-          intent: components['schemas']['intentExecution'];
-          /** @description unique identifier for the execution, will default to generated UUID if not provided */
-          executionId?: string;
-          observers?: components['schemas']['executionObservers'];
-          metadata?: components['schemas']['customMetadata'];
-        };
+        'application/json': components['schemas']['executeTokenRequest'];
       };
     };
     responses: {
@@ -3433,6 +4006,30 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['executionOperationResult'];
+        };
+      };
+    };
+  };
+  dryRunExecuteToken: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['executeTokenRequest'];
+      };
+    };
+    responses: {
+      /** @description dry-run prediction */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['dryRunExecutionPlanResult'];
         };
       };
     };
@@ -3834,6 +4431,35 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['IngestAssetDataResponse'];
+        };
+      };
+    };
+  };
+  uploadDocuments: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Idempotency-Key'?: components['schemas']['nonce'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** @description the documents in binary format */
+          files: string[];
+        };
+      };
+    };
+    responses: {
+      /** @description Documents uploaded successfully */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['documentUploadList'];
         };
       };
     };

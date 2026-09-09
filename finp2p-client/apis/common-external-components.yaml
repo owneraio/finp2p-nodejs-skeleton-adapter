@@ -801,6 +801,41 @@ components:
           type: string
           pattern: .*\S.*
           x-autoMinLength: true
+    ledgerAssetIdentifierCreateOrBind:
+      description: >
+        Ledger asset identifier accepted when creating an asset profile. With tokenId present it
+        binds the profile to an existing on-ledger token. Without tokenId it instructs the ledger
+        to create a new token on the given network/standard; the ledger mints the token, and the
+        full resulting identifier is persisted on the profile.
+      oneOf:
+        - $ref: '#/components/schemas/ledgerAssetIdentifierTypeCAIP-19CreateOrBind'
+      discriminator:
+        propertyName: assetIdentifierType
+        mapping:
+          CAIP-19: '#/components/schemas/ledgerAssetIdentifierTypeCAIP-19CreateOrBind'
+    ledgerAssetIdentifierTypeCAIP-19CreateOrBind:
+      type: object
+      required: [assetIdentifierType]
+      properties:
+        assetIdentifierType:
+          type: string
+          enum: [CAIP-19]
+          description: Classification type standards
+        network:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        tokenId:
+          type: string
+          description: >
+            Identifier of an existing on-ledger token to bind to. Omit to have the ledger create a
+            new token on the given network/standard.
+          pattern: .*\S.*
+          x-autoMinLength: true
+        standard:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
     networkInfo:
       type: object
       required: [networkId]
@@ -1058,6 +1093,17 @@ components:
           $ref: '#/components/schemas/buyingAsset'
         settlement:
           $ref: '#/components/schemas/buyingSettlementBase'
+        settlements:
+          type: array
+          items:
+            type: object
+            required: [legs]
+            properties:
+              legs:
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/components/schemas/buyingSettlementBase'
         signaturePolicy:
           oneOf:
             - $ref: '#/components/schemas/presignedSignaturePolicy'
@@ -1080,6 +1126,17 @@ components:
           $ref: '#/components/schemas/sellingAsset'
         settlement:
           $ref: '#/components/schemas/sellingSettlements'
+        settlements:
+          type: array
+          items:
+            type: object
+            required: [legs]
+            properties:
+              legs:
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/components/schemas/sellingSettlementBase'
         signaturePolicy:
           oneOf:
             - $ref: '#/components/schemas/presignedSignaturePolicy'
@@ -1155,6 +1212,17 @@ components:
           $ref: '#/components/schemas/privateOfferIntentAsset'
         settlement:
           $ref: '#/components/schemas/sellingSettlements'
+        settlements:
+          type: array
+          items:
+            type: object
+            required: [legs]
+            properties:
+              legs:
+                type: array
+                minItems: 1
+                items:
+                  $ref: '#/components/schemas/sellingSettlementBase'
         signaturePolicy:
           oneOf:
             - $ref: '#/components/schemas/presignedSignaturePolicy'
@@ -1305,6 +1373,19 @@ components:
           $ref: '#/components/schemas/assetTerm'
         instruction:
           $ref: '#/components/schemas/sourceDestinationAccountLedgerAssetInstruction'
+    moveExecuteAsset:
+      type: object
+      description: >-
+        Execution-side asset of a Move: source/destination accounts plus the optional segregated-account legs that select the Move variant (a source segregated account implies Release; a destination pool implies Transfer).
+      properties:
+        term:
+          $ref: '#/components/schemas/assetTerm'
+        instruction:
+          $ref: '#/components/schemas/sourceDestinationAccountLedgerAssetInstruction'
+        sourceToSegregatedAccount:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destinationFromSegregatedAccount:
+          $ref: '#/components/schemas/ledgerAccountAsset'
     privateOfferIntentAsset:
       type: object
       required: [assetInstruction, assetTerm]
@@ -1684,3 +1765,554 @@ components:
       type: 'string'
       description: 'A unit value represented as a string, the value is a decimal number'
       pattern: '^\d+(\.\d+)?$'
+    # --- Execution plan model (moved from operational-api.base.yaml) ---
+    # Shared because BOTH the operational API (GET /execution/{planId}) and the
+    # application API (POST /tokens/execute/dryRun) return an execution plan.
+    # It lives here so the application spec never has to depend on the operational
+    # spec; this file has no .gen variant, so the empty-string enforcer maintains
+    # its string constraints in place.
+    EIP712Domain:
+      type: object
+      properties:
+        name:
+          type: string
+          x-allowEmpty: true
+        version:
+          type: string
+          x-allowEmpty: true
+        chainId:
+          type: integer
+          format: uint64
+        verifyingContract:
+          type: string
+          format: address
+          x-allowEmpty: true
+    EIP712FieldDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+          x-allowEmpty: true
+        type:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    EIP712Template:
+      required: [type, domain, message, primaryType, types, hash]
+      type: object
+      properties:
+        type:
+          type: string
+          enum: ["EIP712"]
+        templateVersion:
+          type: integer
+          minimum: 1
+          description: |
+            Template shape version. When omitted, the verifier resolves the
+            version from the router/ledger/asset-profile resolver chain.
+            Not to be confused with EIP712Domain.version (the EIP-712
+            contract domain version). See pkg/signature/specs/eip712/ for
+            versioned specs.
+        domain:
+          $ref: '#/components/schemas/EIP712Domain'
+        message:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/EIP712TypedValue'
+        types:
+          $ref: '#/components/schemas/EIP712Types'
+        primaryType:
+          type: string
+          x-allowEmpty: true
+        hash:
+          type: string
+          description: 'hex representation of template hash'
+          x-allowEmpty: true
+    EIP712TypeArray:
+      type: array
+      items:
+        $ref: '#/components/schemas/EIP712TypedValue'
+    EIP712TypeBool:
+      type: boolean
+    EIP712TypeByte:
+      type: string
+      pattern: '^0x[0-9a-fA-F]+$' # matches hexadecimal string starting with '0x'
+      minLength: 3
+      maxLength: 320
+    EIP712TypeDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+          x-allowEmpty: true
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/EIP712FieldDefinition'
+    EIP712TypeInteger:
+      type: integer
+    EIP712TypeObject:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/EIP712TypedValue'
+    EIP712TypeString:
+      type: string
+      pattern: '^(?:$|0([^x].*)?|[^0].*)$' # matches string that doesn't start with hexadecimal prefix
+      x-allowEmpty: true
+    EIP712TypedValue:
+      oneOf:
+        - $ref: '#/components/schemas/EIP712TypeString'
+        - $ref: '#/components/schemas/EIP712TypeInteger'
+        - $ref: '#/components/schemas/EIP712TypeBool'
+        - $ref: '#/components/schemas/EIP712TypeByte'
+        - $ref: '#/components/schemas/EIP712TypeObject'
+        - $ref: '#/components/schemas/EIP712TypeArray'
+    EIP712Types:
+      type: object
+      properties:
+        definitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EIP712TypeDefinition'
+    assetIntent:
+      type: object
+      required: [start, end, intent]
+      properties:
+        start:
+          type: integer
+          format: int64
+          description: start time for intent, in epoch (seconds)
+        end:
+          type: integer
+          format: int64
+          description: end time for intent, in epoch (seconds)
+        intent:
+          $ref: '#/components/schemas/intent'
+    awaitInstruction:
+      type: object
+      required: [type, waitUntil]
+      properties:
+        type:
+          type: string
+          enum: ["await"]
+        waitUntil:
+          type: integer
+          format: uint64
+    buyingContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [buying]
+        asset:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        settlement:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        selectedSettlement:
+          type: object
+          required: [legs]
+          properties:
+            legs:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+    contract:
+      type: object
+      properties:
+        investors:
+          type: array
+          items:
+            $ref: '#/components/schemas/investor'
+        contractDetails:
+          oneOf:
+            - $ref: '#/components/schemas/issuanceContractDetails'
+            - $ref: '#/components/schemas/buyingContractDetails'
+            - $ref: '#/components/schemas/sellingContractDetails'
+            - $ref: '#/components/schemas/loanContractDetails'
+            - $ref: '#/components/schemas/transferContractDetails'
+            - $ref: '#/components/schemas/redeemContractDetails'
+            - $ref: '#/components/schemas/privateOfferContractDetails'
+            - $ref: '#/components/schemas/requestForTransferContractDetails'
+            - $ref: '#/components/schemas/moveContractDetails'
+          discriminator:
+            propertyName: type
+            mapping:
+              issuance: '#/components/schemas/issuanceContractDetails'
+              buying: '#/components/schemas/buyingContractDetails'
+              selling: '#/components/schemas/sellingContractDetails'
+              loan: '#/components/schemas/loanContractDetails'
+              transfer: '#/components/schemas/transferContractDetails'
+              redeem: '#/components/schemas/redeemContractDetails'
+              privateOffer: '#/components/schemas/privateOfferContractDetails'
+              requestForTransfer: '#/components/schemas/requestForTransferContractDetails'
+              move: '#/components/schemas/moveContractDetails'
+    executionInstruction:
+      type: object
+      required: [sequence, organizations, executionPlanOperation]
+      properties:
+        sequence:
+          type: integer
+          format: uint32
+        organizations:
+          type: array
+          items:
+            type: string
+            pattern: .*\S.*
+            x-autoMinLength: true
+        executionPlanOperation:
+          $ref: '#/components/schemas/executionPlanOperation'
+        timeout:
+          type: integer
+          format: int32
+    executionParticipant:
+      type: object
+      required: [organizationId, roles]
+      properties:
+        organizationId:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        roles:
+          type: array
+          items:
+            type: string
+            enum: ["contributor", "observer"]
+    executionPlan:
+      type: object
+      required: [id, intent, instructions, participants, contract]
+      properties:
+        id:
+          $ref: '#/components/schemas/executionPlanId'
+        intent:
+          $ref: '#/components/schemas/assetIntent'
+        instructions:
+          type: array
+          items:
+            $ref: '#/components/schemas/executionInstruction'
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/executionParticipant'
+        contract:
+          $ref: '#/components/schemas/contract'
+        metadata:
+          $ref: '#/components/schemas/customMetadata'
+    executionPlanId:
+      type: string
+      description: 'The execution plan  resource id'
+      pattern: '^[^:](?:.+):106:(?:.+)'
+      example: 'bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+    executionPlanOperation:
+      oneOf:
+        - $ref: '#/components/schemas/holdInstruction'
+        - $ref: '#/components/schemas/releaseInstruction'
+        - $ref: '#/components/schemas/issueInstruction'
+        - $ref: '#/components/schemas/transferInstruction'
+        - $ref: '#/components/schemas/awaitInstruction'
+        - $ref: '#/components/schemas/revertHoldInstruction'
+        - $ref: '#/components/schemas/redemptionInstruction'
+      discriminator:
+        propertyName: type
+        mapping:
+          hold: '#/components/schemas/holdInstruction'
+          release: '#/components/schemas/releaseInstruction'
+          issue: '#/components/schemas/issueInstruction'
+          transfer: '#/components/schemas/transferInstruction'
+          await: '#/components/schemas/awaitInstruction'
+          redeem: '#/components/schemas/redemptionInstruction'
+    field:
+      type: object
+      description: 'describing a field in the hash group'
+      required: [name, type, value]
+      properties:
+        name:
+          type: string
+          description: 'name of field'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        type:
+          type: string
+          enum: ["string", "int", "bytes"]
+          description: 'type of field'
+        value:
+          type: string
+          description: 'hex representation of the field value'
+          x-allowEmpty: true
+    hashFunction:
+      type: string
+      enum:
+        - unspecified
+        - sha3_256
+        - sha3-256
+        - blake2b
+        - keccak_256
+        - keccak-256
+      description: hash function types
+    hashGroup:
+      type: object
+      required: [hash, fields]
+      properties:
+        hash:
+          type: string
+          description: 'hex representation of the hash group hash value'
+          x-allowEmpty: true
+        fields:
+          description: 'list of fields by order they appear in the hash group'
+          type: array
+          items:
+            $ref: '#/components/schemas/field'
+    hashListTemplate:
+      description: 'ordered list of hash groups'
+      required: [type, hashGroups, hash]
+      type: object
+      properties:
+        type:
+          type: string
+          enum: ["hashList"]
+        templateVersion:
+          type: integer
+          minimum: 1
+          description: |
+            This version identifies the HashList template specification revision.
+            When omitted, the verifier resolves the version from the
+            router/ledger/asset-profile resolver chain.
+        hashGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/hashGroup'
+        hash:
+          type: string
+          description: 'hex representation of the combined hash groups hash value'
+          x-allowEmpty: true
+    holdInstruction:
+      type: object
+      required: [type, source, destination, asset, amount, signature]
+      properties:
+        type:
+          type: string
+          enum: ["hold"]
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    investor:
+      type: object
+      properties:
+        investor:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        role:
+          type: string
+          enum: ["buyer", "seller", "lender", "borrower", "issuer"]
+        signature:
+          $ref: '#/components/schemas/signature'
+    issuanceContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [issuance]
+        asset:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        settlement:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+    issueInstruction:
+      type: object
+      required: [type, destination, amount, signature]
+      properties:
+        type:
+          type: string
+          enum: ["issue"]
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    loanContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [loan]
+        asset:
+          $ref: '#/components/schemas/loanExecuteAsset'
+        settlement:
+          $ref: '#/components/schemas/loanExecuteAsset'
+        instruction:
+          $ref: '#/components/schemas/loanInstruction'
+    moveContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [move]
+        asset:
+          $ref: '#/components/schemas/moveExecuteAsset'
+    privateOfferContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [privateOffer]
+        asset:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        settlement:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        selectedSettlement:
+          type: object
+          required: [legs]
+          properties:
+            legs:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+    redeemContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [redeem]
+        asset:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        settlement:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+    redemptionInstruction:
+      type: object
+      required: [type, source, destination, amount, signature]
+      properties:
+        type:
+          type: string
+          enum: ["redemption"]
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    releaseInstruction:
+      type: object
+      required: [type, source, destination, asset, amount]
+      properties:
+        type:
+          type: string
+          enum: ["release"]
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    requestForTransferContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [requestForTransfer]
+        asset:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+    revertHoldInstruction:
+      type: object
+      required: [type, destination]
+      properties:
+        type:
+          type: string
+          enum: ["revert-hold"]
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+    sellingContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [selling]
+        asset:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        settlement:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+        selectedSettlement:
+          type: object
+          required: [legs]
+          properties:
+            legs:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+    signature:
+      type: object
+      required: [signature, template, hashFunc]
+      description: 'represent a signature template information'
+      properties:
+        signature:
+          type: string
+          description: 'hex representation of the signature'
+          pattern: .*\S.*
+          x-autoMinLength: true
+        template:
+          $ref: '#/components/schemas/signatureTemplate'
+        hashFunc:
+          $ref: '#/components/schemas/hashFunction'
+    signatureTemplate:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/hashListTemplate'
+        - $ref: '#/components/schemas/EIP712Template'
+      discriminator:
+        propertyName: type
+        mapping:
+          hashList: '#/components/schemas/hashListTemplate'
+          EIP712: '#/components/schemas/EIP712Template'
+    transferContractDetails:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [transfer]
+        asset:
+          $ref: '#/components/schemas/sourceDestinationExecuteAsset'
+    transferInstruction:
+      type: object
+      required: [type, source, destination, amount, signature]
+      properties:
+        type:
+          type: string
+          enum: ["transfer"]
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
