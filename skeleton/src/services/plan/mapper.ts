@@ -133,6 +133,13 @@ const contractFromAPI = (contract: OpComponents['schemas']['contract']): PlanCon
         assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
         break;
       }
+      case 'move': {
+        // moveExecuteAsset extends sourceDestinationExecuteAsset with optional
+        // segregated-account legs; the base term/instruction map as a plain leg.
+        const { asset } = contractDetails;
+        assetLeg = legFromSourceDestinationExecuteAssetOpt(asset);
+        break;
+      }
     }
   }
 
