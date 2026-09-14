@@ -3268,11 +3268,35 @@ components:
           oneOf:
             - $ref: '#/components/schemas/receiptOutput'
             - $ref: '#/components/schemas/instructionCompletionError'
+            - $ref: '#/components/schemas/receiptsOutput'
           discriminator:
             propertyName: 'type'
             mapping:
               receipt: '#/components/schemas/receiptOutput'
               error: '#/components/schemas/instructionCompletionError'
+              receipts: '#/components/schemas/receiptsOutput'
+    receiptsOutput:
+      type: 'object'
+      description: |
+        Completion output for an instruction that produces MORE THAN ONE receipt. An instruction
+        yielding a single receipt uses `receiptOutput` instead, so this variant always carries at
+        least two. There is deliberately no upper bound: operations with more than two receipts can
+        use this shape without a schema change.
+
+        ORDER IS SIGNIFICANT, and its meaning is defined per instruction — the array form cannot
+        name the role each receipt plays. For Swap (the first user of this variant, exchanging two
+        assets in one ledger transaction, so two receipts with distinct ids sharing one
+        transactionId): `receipts[0]` is the trade asset leg, `receipts[1]` the settlement leg.
+      required: ['type', 'receipts']
+      properties:
+        type:
+          type: 'string'
+          enum: ['receipts']
+        receipts:
+          type: 'array'
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/receiptOutput'
     receiptOutput:
       type: 'object'
       required: ['type', 'id', 'quantity', 'details', 'timestamp']
@@ -3299,7 +3323,7 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/receiptAssetDetails'
         operationType:
           type: 'string'
-          enum: ['hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'unknown']
+          enum: ['hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'swap', 'unknown']
         operationRef:
           type: 'string'
           pattern: .*\S.*
@@ -3680,7 +3704,7 @@ components:
       properties:
         instruction:
           type: 'string'
-          enum: ['Hold', 'Transfer', 'Release', 'Await', 'Issue', 'RevertHold', 'Redeem', 'Move']
+          enum: ['Hold', 'Transfer', 'Release', 'Await', 'Issue', 'RevertHold', 'Redeem', 'Move', 'Swap']
         sequence:
           type: 'integer'
           format: 'uint32'

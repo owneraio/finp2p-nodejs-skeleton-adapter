@@ -287,6 +287,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/profiles/asset/{id}/intent/{intentId}/reject': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Reject the intent
+         * @description Reject the intent. Optional reason may be supplied.
+         */
+    post: operations['rejectAssetProfileIntent'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/profiles/{id}/share': {
     parameters: {
       query?: never;
@@ -1480,7 +1500,7 @@ export interface components {
       assetDetails?: components['schemas']['receiptAssetDetails'];
       operationRef?: string;
       /** @enum {string} */
-      operationType: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'move' | 'unknown';
+      operationType: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'move' | 'swap' | 'unknown';
       timestamp: number;
     };
     /**
@@ -2993,6 +3013,19 @@ export interface components {
       type: 'iban';
       iban: string;
     };
+    bicAccountDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'bic';
+      bic: string;
+      accountNumber: string;
+    };
+    /**
+         * @deprecated
+         * @description Deprecated, use bicAccountDetails. Kept for backward compatibility.
+         */
     swiftAccountDetails: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -3000,6 +3033,8 @@ export interface components {
              */
       type: 'swift';
       swiftCode: string;
+      /** @description Mirrors swiftCode during the migration to bicAccountDetails. */
+      bic?: string;
       accountNumber: string;
     };
     sortCodeDetails: {
@@ -3012,7 +3047,7 @@ export interface components {
       code: string;
       accountNumber: string;
     };
-    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['bicAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
     wireTransfer: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -3591,6 +3626,36 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  rejectAssetProfileIntent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset profile */
+        id: components['schemas']['assetId'];
+        /** @description ID of the intent */
+        intentId: components['schemas']['intentId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Optional human-readable reason for the rejection; must not be blank when provided */
+          rejectReason?: string;
+        };
+      };
+    };
     responses: {
       /** @description successful operation */
       200: {
