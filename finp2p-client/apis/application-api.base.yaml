@@ -129,8 +129,11 @@ paths:
         - profiles
       summary: Bind an existing external wallet to an investor (caller-supplied)
       description: |
-        Caller supplies an external network account they own. `ownershipSignature` is
-        required as proof-of-ownership and is verified by the LA. Async: returns `202 { cid }`. If the
+        Caller supplies an external network account they own, optionally with an
+        `ownershipSignature` hint. Proof-of-ownership is enforced by the ledger adapter
+        according to its own policy — typically a challenge (e.g. `signatureTemplate`)
+        the caller must fulfil, an out-of-band approval, or the adapter's own upfront
+        verification. Async: returns `202 { cid }`. If the
         wallet is already bound to another investor — or to the same investor on the same
         `(org, asset)` — completion reports `WALLET_ALREADY_BOUND` (409). A bad signature
         reports `WALLET_BAD_SIGNATURE` (400).
@@ -621,6 +624,30 @@ paths:
           description: successful operation
         
 
+  '/profiles/asset/{id}/intent/{intentId}/cancel':
+    put:
+      tags:
+        - profiles
+      summary: Cancel the intent
+      description: Cancel the intent so that it can no longer participate in a token transfer
+      operationId: cancelAssetProfileIntent
+      parameters:
+        - name: id
+          in: path
+          description: ID of the asset profile
+          required: true
+          schema:
+            $ref: '#/components/schemas/assetId'
+        - name: intentId
+          in: path
+          description: ID of the intent
+          required: true
+          schema:
+            $ref: '#/components/schemas/intentId'
+      responses:
+        '200':
+          description: successful operation
+
   /profiles/{id}/share:
     post:
       tags:
@@ -735,6 +762,7 @@ paths:
         - certificates
       summary: Create Certificate
       description: Creates a new Certificate for a specific profile identity
+      deprecated: true
       operationId: createCertificate
       parameters:
         - in: header
@@ -889,6 +917,7 @@ paths:
                 $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
 
     patch:
+      deprecated: true
       tags:
         - certificates
       summary: Update Certificate
@@ -941,6 +970,7 @@ paths:
 
   '/profiles/{profileId}/certificates/{certificateId}/docs':
     post:
+      deprecated: true
       tags:
         - docs
       summary: Adds a new document on a Certificate
@@ -1013,6 +1043,7 @@ paths:
 
   '/profiles/{profileId}/certificates/{certificateId}/docs/{docId}':
     put:
+      deprecated: true
       tags:
         - docs
       summary: Update document
@@ -1074,22 +1105,7 @@ paths:
         content:
           application/json:
             schema:
-              required: [ user, intentId, intent ]
-              type: object
-              properties:
-                user:
-                  $ref: 'common-external-components.yaml#/components/schemas/ownerId'
-                intentId:
-                  $ref: '#/components/schemas/intentId'
-                intent:
-                  $ref: '#/components/schemas/intentExecution'
-                executionId:
-                  type: string
-                  description: 'unique identifier for the execution, will default to generated UUID if not provided'
-                observers:
-                  $ref: '#/components/schemas/executionObservers'
-                metadata:
-                  $ref: 'common-external-components.yaml#/components/schemas/customMetadata'
+              $ref: '#/components/schemas/executeTokenRequest'
         required: true
       responses:
         '200':
@@ -1098,6 +1114,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/executionOperationResult'
+
+  '/tokens/execute/dryRun':
+    post:
+      tags:
+        - tokens
+      summary: Dry-run a token intent execution
+      description: >-
+        Predict the execution plan for an intent WITHOUT executing it. Returns whether the
+        intent would be executable and, if so, the predicted plan (instructions, participants).
+        This is a prediction, not a guarantee, and nothing is persisted. Uses the same request
+        body as Execute Token (the signature is not required for a dry-run).
+      operationId: dryRunExecuteToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/executeTokenRequest'
+        required: true
+      responses:
+        '200':
+          description: dry-run prediction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/dryRunExecutionPlanResult'
 
   '/tokens/execute/cancel':
     post:
@@ -1546,6 +1587,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/IngestAssetDataResponse'
 
+  '/data/documents':
+    post:
+      tags:
+        - data
+      summary: Upload documents
+      description: Upload one or more documents to file storage and receive a URI for each.
+      operationId: uploadDocuments
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: the documents in binary format
+      responses:
+        '200':
+          description: Documents uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/documentUploadList'
   # Data Rules Endpoints
   '/data/rules':
     post:
@@ -1981,6 +2056,10 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
         settlement:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        settlements:
+          type: array
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
         seller:
           $ref: 'common-external-components.yaml#/components/schemas/ownerId'
 
@@ -1997,6 +2076,10 @@ components:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
         settlement:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        settlements:
+          type: array
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
         buyer:
           $ref: 'common-external-components.yaml#/components/schemas/ownerId'
 
@@ -2078,6 +2161,10 @@ components:
                   $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetAccount'
         settlement:
           $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationIntentAsset'
+        settlements:
+          type: array
+          items:
+            $ref: 'common-external-components.yaml#/components/schemas/sourceDestinationExecuteAsset'
         buyer:
           $ref: 'common-external-components.yaml#/components/schemas/ownerId'
         seller:
@@ -2463,6 +2550,130 @@ components:
       properties:
         executionPlanId:
           $ref: '#/components/schemas/executionPlanId'
+
+    executeTokenRequest:
+      type: object
+      required: [ user, intentId, intent ]
+      properties:
+        user:
+          $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+        intentId:
+          $ref: '#/components/schemas/intentId'
+        intent:
+          $ref: '#/components/schemas/intentExecution'
+        executionId:
+          type: string
+          description: 'unique identifier for the execution, will default to generated UUID if not provided'
+        observers:
+          $ref: '#/components/schemas/executionObservers'
+        metadata:
+          $ref: 'common-external-components.yaml#/components/schemas/customMetadata'
+
+    dryRunExecutionPlanResult:
+      type: object
+      required: [ executable ]
+      description: >-
+        Prediction of an intent execution. When executable is true the predicted plan is present
+        and failure is absent; when false, failure explains why and plan is absent. The plan is a
+        prediction and is never persisted.
+      properties:
+        executable:
+          type: boolean
+          description: 'whether the intent is predicted to be executable'
+        plan:
+          description: >-
+            The predicted execution plan (present when executable). This is the SAME schema the
+            operational API returns from GET /execution/{planId}, so a client can render a
+            prediction with the same code it renders a real plan. It is a prediction and is
+            never persisted.
+          $ref: 'common-external-components.yaml#/components/schemas/executionPlan'
+        requiredProtocolVersion:
+          type: integer
+          format: int64
+          description: 'protocol version the predicted plan requires its contributors to support'
+        warnings:
+          type: array
+          items:
+            type: string
+          description: 'non-fatal caveats (e.g. lagging observers, counterparty capabilities unverified)'
+        candidates:
+          type: array
+          description: >-
+            Every evaluated variation. A variation is one combination of assets matched as a unit —
+            a Move source+destination, or a Loan main asset + one settlement leg. Creation of a
+            closed intent is rejected unless EVERY variation matched. Populated for the
+            creation/update gate; empty for the preview, which evaluates one real contract.
+          items:
+            $ref: '#/components/schemas/dryRunCandidateResult'
+        failure:
+          $ref: '#/components/schemas/dryRunExecutionPlanFailure'
+
+    dryRunExecutionPlanFailure:
+      type: object
+      required: [ stage, classification ]
+      properties:
+        stage:
+          type: string
+          enum: [ requestValidation, policyMatch, translation, participants, capabilities, selfVerification ]
+          description: 'stage at which the prediction determined the intent would not execute'
+        classification:
+          type: string
+          enum: [ noPolicyMatch, unsupportedIntent, technical, wouldFail ]
+          description: 'machine-readable outcome class'
+        code:
+          type: integer
+          description: 'error code when available'
+        message:
+          type: string
+
+    dryRunCandidateResult:
+      type: object
+      required: [ matched ]
+      description: 'One evaluated variation: a combination of assets that was matched as a unit.'
+      properties:
+        matched:
+          type: boolean
+          description: 'whether this combination produced a consistent policy pair'
+        reason:
+          type: string
+          description: 'why the combination failed (present when matched is false)'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/dryRunCandidateAsset'
+
+    dryRunCandidateAsset:
+      type: object
+      required: [ assetId, role ]
+      properties:
+        assetId:
+          type: string
+          description: 'asset resource id (org:type:rawId)'
+        organizationId:
+          type: string
+          description: 'organization owning the asset (derived from assetId)'
+        role:
+          type: string
+          enum: [ main, settlement ]
+          description: 'the role the asset plays in this variation'
+        policies:
+          type: array
+          description: 'policies considered on this asset for this variation'
+          items:
+            $ref: '#/components/schemas/dryRunCandidatePolicy'
+
+    dryRunCandidatePolicy:
+      type: object
+      required: [ policyId, matched ]
+      properties:
+        policyId:
+          type: string
+        matched:
+          type: boolean
+          description: 'whether this policy was the one selected for the variation'
+        reason:
+          type: string
+          description: 'why this policy was rejected (present when matched is false)'
 
     executionCancellationOperationResult:
       $ref: '#/components/schemas/executionPlanCancellationStatus'
@@ -3085,7 +3296,7 @@ components:
           type: string
           description: The name of the ledger to which the asset will be bound. Must match the ledgerName defined in /ledger/bind call
         bind:
-          $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+          $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifierCreateOrBind'
 
     assetSignatureTemplate:
       type: object
@@ -3340,6 +3551,37 @@ components:
           type: string
           description: The file mimeType
 
+    documentUploadList:
+      type: object
+      required: [ documents ]
+      properties:
+        documents:
+          type: array
+          description: References to the uploaded documents, in the order received.
+          items:
+            $ref: '#/components/schemas/documentUpload'
+
+    documentUpload:
+      type: object
+      required: [ uri, hash, mimeType, fileName, size ]
+      properties:
+        uri:
+          type: string
+          description: relative URI to retrieve the document (pass this as the fileURI when ingesting)
+        hash:
+          type: string
+          description: base64-encoded sha3-256 of the document bytes
+        mimeType:
+          type: string
+          description: the document's MIME type
+        fileName:
+          type: string
+          description: the document's file name
+        size:
+          type: integer
+          format: int64
+          description: the document size in bytes
+
     dataAccess:
       type: object
       required: [ accessType, status ]
@@ -3468,14 +3710,23 @@ components:
 
     DataType:
       type: string
-      enum:
-        - assetHeader
-        - pricing
-        - fundamentals
-        - ratings
-        - corporateActions
-        - marketData
-        - referenceData
+      example: pricing
+      description: |
+        Category of financial data.
+
+        The valid values are not fixed by this specification. A data type is valid if and only if a
+        JSON schema is published for it as `data/{dataType}.schema.json` in the FinP2P data schema
+        registry, which is therefore the authoritative list. A data type with no published schema is
+        rejected — on ingest, and on data-rule creation — so new categories become available by
+        publishing a schema, with no specification change and no release.
+
+        Currently published, for orientation:
+        - assetHeader: Asset catalog metadata (ISIN, CAIP-19 representations, name, icon)
+        - pricing: Quotes, NAV, prices
+        - referenceData: Asset name, issuer, sector
+        - rating: Credit-rating snapshot from a single agency
+        - currencyRating: FX-rate snapshot from the asset's currency to target currencies
+        - kycRequirements: Per-asset KYC requirements declared by the asset creator
 
     # Data Rules Schemas
     CreateDataRuleRequest:
@@ -3484,6 +3735,7 @@ components:
         - identifierType
         - identifierValue
         - providerName
+        - providerType
         - dataType
       properties:
         identifierType:
@@ -3494,7 +3746,16 @@ components:
           description: Identifier value (e.g. US0378331005) or "*" for all
         providerName:
           type: string
-          description: Name of the data provider
+          description: |
+            Name of the data provider. For providerType 'adapter' this is the bound adapter
+            name; for providerType 'finp2p' this is the peer organization id serving the data.
+        providerType:
+          type: string
+          enum: [adapter, finp2p]
+          description: |
+            Type of the data provider. 'adapter' references a provider bound via the data
+            provider binding API. 'finp2p' references a peer organization on the FinP2P
+            network acting as a data provider; auto-created from discovery if it does not exist.
         dataType:
           $ref: '#/components/schemas/DataType'
           description: Data type this provider supplies for matching assets
@@ -3505,6 +3766,14 @@ components:
           type: boolean
           description: Whether this rule is active
           default: true
+        acl:
+          type: array
+          items:
+            type: string
+          description: |
+            Serving allow-list for a 'finp2p' rule: organization ids permitted to receive this
+            data over the FinP2P DataService. Empty or omitted means no peer is served
+            (deny-by-default). Only valid for providerType 'finp2p'; rejected for 'adapter'.
 
     UpdateDataRuleRequest:
       type: object
@@ -3515,6 +3784,14 @@ components:
         enabled:
           type: boolean
           description: Whether this rule is active
+        acl:
+          type: array
+          items:
+            type: string
+          description: |
+            Replacement serving allow-list (finp2p rules only): organization ids permitted to
+            receive this data. Dropping an org also revokes its active subscription. Empty means
+            deny all.
 
     DataRuleResponse:
       type: object
@@ -3562,9 +3839,10 @@ components:
       type: object
       description: |
         Request body for `POST /profiles/investor/{investorId}/account/bind`.
-        Caller supplies an external wallet plus a proof-of-ownership signature.
-        The LA still issues a challenge (typically signatureTemplate) for final verification.
-      required: [ organizationId, assetId, networkAccount, ownershipSignature ]
+        Caller supplies an external wallet, optionally with a proof-of-ownership
+        signature hint. Ownership verification is the ledger adapter's responsibility,
+        per its own policy.
+      required: [ organizationId, assetId, networkAccount ]
       properties:
         organizationId:
           $ref: 'common-external-components.yaml#/components/schemas/orgId'
@@ -3576,10 +3854,9 @@ components:
         ownershipSignature:
           type: string
           description: |
-            Hex-encoded proof-of-ownership signature over the network account. The signed
-            payload binds the account to the investor/org/asset so that knowing an address
-            alone is not enough to claim it. Treated as a hint; final verification is via
-            the challenge issued by the LA.
+            Optional hex-encoded proof-of-ownership signature over the network account.
+            The platform does not interpret it: it is forwarded to the ledger adapter
+            as-is, and whether (and how) it is verified is adapter policy.
 
     submitAccountProofRequest:
       type: object
@@ -3595,6 +3872,5 @@ components:
         ownershipSignature:
           type: string
           description: Hex-encoded signature over the LA-issued `signatureTemplate` payload.
-
 
 

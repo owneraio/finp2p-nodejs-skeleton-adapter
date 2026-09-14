@@ -342,6 +342,94 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/labels/mappings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+         * List cert-to-label mappings
+         * @description List the runtime-configurable cert-to-label mappings
+         */
+    get: operations['listLabelMappings'];
+    put?: never;
+    /**
+         * Add a cert-to-label mapping
+         * @description Add a mapping from one certificate data type's field to one resource label. When multiple mappings produce the same label key, the most recently created mapping wins.
+         */
+    post: operations['addLabelMapping'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/labels/mappings/{mappingId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+         * Delete a cert-to-label mapping
+         * @description Delete a cert-to-label mapping by id
+         */
+    delete: operations['deleteLabelMapping'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/resources/{resourceId}/labels': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+         * List a resource's labels
+         * @description List a resource's labels, each annotated with its source (derived or manual)
+         */
+    get: operations['listResourceLabels'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/resources/{resourceId}/labels/{key}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+         * Set a manual resource label
+         * @description Set a manual label on a resource; claims the key away from any derived label of the same key
+         */
+    put: operations['addResourceLabel'];
+    post?: never;
+    /**
+         * Remove a manual resource label
+         * @description Remove a resource's manual label for key; a derived label of the same key, if any, is untouched
+         */
+    delete: operations['removeResourceLabel'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/custody/bind': {
     parameters: {
       query?: never;
@@ -855,6 +943,16 @@ export interface components {
       operationType?: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move';
       proof?: components['schemas']['proofPolicy'];
     };
+    importTransactionsPartialResponse: {
+      failures: components['schemas']['importTransactionFailure'][];
+    };
+    importTransactionFailure: {
+      /** @description Receipt id (`transactions[].id`) of the entry that was not imported. */
+      id: string;
+      /** @description Ledger transaction id of the entry that was not imported. */
+      transactionId: string;
+      error: components['schemas']['APIError'];
+    };
     /** @description Additional input and output details for UTXO supporting DLTs */
     transactionDetails: {
       operationId?: string;
@@ -892,179 +990,6 @@ export interface components {
              */
       executionPlanStatus: 'proposed' | 'approved' | 'rejected' | 'failed' | 'completed' | 'halted' | 'canceled';
     };
-    executionPlan: {
-      id: components['schemas']['executionPlanId'];
-      intent: components['schemas']['assetIntent'];
-      instructions: components['schemas']['executionInstruction'][];
-      participants: components['schemas']['executionParticipant'][];
-      contract: components['schemas']['contract'];
-      metadata?: components['schemas']['customMetadata'];
-    };
-    contract: {
-      investors?: components['schemas']['investor'][];
-      contractDetails?: components['schemas']['issuanceContractDetails'] | components['schemas']['buyingContractDetails'] | components['schemas']['sellingContractDetails'] | components['schemas']['loanContractDetails'] | components['schemas']['transferContractDetails'] | components['schemas']['redeemContractDetails'] | components['schemas']['privateOfferContractDetails'] | components['schemas']['requestForTransferContractDetails'];
-    };
-    issuanceContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'issuance';
-      asset?: components['schemas']['sourceDestinationExecuteAsset'];
-      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
-    };
-    buyingContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'buying';
-      asset?: components['schemas']['sourceDestinationExecuteAsset'];
-      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
-    };
-    sellingContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'selling';
-      asset?: components['schemas']['sourceDestinationExecuteAsset'];
-      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
-    };
-    loanContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'loan';
-      asset?: components['schemas']['loanExecuteAsset'];
-      settlement?: components['schemas']['loanExecuteAsset'];
-      instruction?: components['schemas']['loanInstruction'];
-    };
-    transferContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'transfer';
-      asset?: components['schemas']['sourceDestinationExecuteAsset'];
-    };
-    redeemContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'redeem';
-      asset?: components['schemas']['sourceDestinationExecuteAsset'];
-      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
-    };
-    privateOfferContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'privateOffer';
-      asset?: components['schemas']['sourceDestinationExecuteAsset'];
-      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
-    };
-    requestForTransferContractDetails: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'requestForTransfer';
-      asset?: components['schemas']['sourceDestinationExecuteAsset'];
-    };
-    investor: {
-      investor?: string;
-      /** @enum {string} */
-      role?: 'buyer' | 'seller' | 'lender' | 'borrower' | 'issuer';
-      signature?: components['schemas']['signature'];
-    };
-    executionInstruction: {
-      /** Format: uint32 */
-      sequence: number;
-      organizations: string[];
-      executionPlanOperation: components['schemas']['executionPlanOperation'];
-      /** Format: int32 */
-      timeout?: number;
-    };
-    executionPlanOperation: components['schemas']['holdInstruction'] | components['schemas']['releaseInstruction'] | components['schemas']['issueInstruction'] | components['schemas']['transferInstruction'] | components['schemas']['awaitInstruction'] | components['schemas']['revertHoldInstruction'] | components['schemas']['redemptionInstruction'];
-    holdInstruction: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'hold';
-      source: components['schemas']['ledgerAccountAsset'];
-      destination: components['schemas']['ledgerAccountAsset'];
-      amount: string;
-      signature: components['schemas']['signature'];
-    };
-    releaseInstruction: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'release';
-      source: components['schemas']['ledgerAccountAsset'];
-      destination: components['schemas']['ledgerAccountAsset'];
-      amount: string;
-    };
-    issueInstruction: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'issue';
-      destination: components['schemas']['ledgerAccountAsset'];
-      amount: string;
-      signature: components['schemas']['signature'];
-    };
-    transferInstruction: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'transfer';
-      source: components['schemas']['ledgerAccountAsset'];
-      destination: components['schemas']['ledgerAccountAsset'];
-      amount: string;
-      signature: components['schemas']['signature'];
-    };
-    awaitInstruction: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'await';
-      /** Format: uint64 */
-      waitUntil: number;
-    };
-    revertHoldInstruction: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'revertHoldInstruction';
-      source?: components['schemas']['ledgerAccountAsset'];
-      destination: components['schemas']['ledgerAccountAsset'];
-    };
-    redemptionInstruction: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'redeem';
-      source: components['schemas']['ledgerAccountAsset'];
-      destination: components['schemas']['ledgerAccountAsset'];
-      amount: string;
-      signature: components['schemas']['signature'];
-    };
-    executionParticipant: {
-      organizationId: string;
-      roles: ('contributor' | 'observer')[];
-    };
     executionPlanApproval: {
       /** @description An Id of the organisation approved a plan */
       organizationId: string;
@@ -1077,116 +1002,6 @@ export interface components {
       instructionSequenceNumber: number;
       output?: components['schemas']['receiptOutput'] | components['schemas']['instructionCompletionError'];
     };
-    assetIntent: {
-      /**
-             * Format: int64
-             * @description start time for intent, in epoch (seconds)
-             */
-      start: number;
-      /**
-             * Format: int64
-             * @description end time for intent, in epoch (seconds)
-             */
-      end: number;
-      intent: components['schemas']['intent'];
-    };
-    /** @description represent a signature template information */
-    signature: {
-      /** @description hex representation of the signature */
-      signature: string;
-      template: components['schemas']['signatureTemplate'];
-      hashFunc: components['schemas']['hashFunction'];
-    };
-    signatureTemplate: components['schemas']['hashListTemplate'] | components['schemas']['EIP712Template'];
-    /** @description ordered list of hash groups */
-    hashListTemplate: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'hashList';
-      /**
-             * @description This version identifies the HashList template specification revision.
-             *     When omitted, the verifier resolves the version from the
-             *     router/ledger/asset-profile resolver chain.
-             */
-      templateVersion?: number;
-      hashGroups: components['schemas']['hashGroup'][];
-      /** @description hex representation of the combined hash groups hash value */
-      hash: string;
-    };
-    /**
-         * @description hash function types
-         * @enum {string}
-         */
-    hashFunction: 'unspecified' | 'sha3_256' | 'sha3-256' | 'blake2b' | 'keccak_256' | 'keccak-256';
-    hashGroup: {
-      /** @description hex representation of the hash group hash value */
-      hash: string;
-      /** @description list of fields by order they appear in the hash group */
-      fields: components['schemas']['field'][];
-    };
-    /** @description describing a field in the hash group */
-    field: {
-      /** @description name of field */
-      name: string;
-      /**
-             * @description type of field
-             * @enum {string}
-             */
-      type: 'string' | 'int' | 'bytes';
-      /** @description hex representation of the field value */
-      value: string;
-    };
-    EIP712Domain: {
-      name?: string;
-      version?: string;
-      /** Format: uint64 */
-      chainId?: number;
-      /** Format: address */
-      verifyingContract?: string;
-    };
-    EIP712TypedValue: RecursiveEIP712TypedValue;
-    EIP712Types: {
-      definitions?: components['schemas']['EIP712TypeDefinition'][];
-    };
-    EIP712TypeDefinition: {
-      name?: string;
-      fields?: components['schemas']['EIP712FieldDefinition'][];
-    };
-    EIP712FieldDefinition: {
-      name?: string;
-      type?: string;
-    };
-    EIP712Template: {
-      /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-      type: 'EIP712';
-      /**
-             * @description Template shape version. When omitted, the verifier resolves the
-             *     version from the router/ledger/asset-profile resolver chain.
-             *     Not to be confused with EIP712Domain.version (the EIP-712
-             *     contract domain version). See pkg/signature/specs/eip712/ for
-             *     versioned specs.
-             */
-      templateVersion?: number;
-      domain: components['schemas']['EIP712Domain'];
-      message: {
-        [key: string]: components['schemas']['EIP712TypedValue'];
-      };
-      types: components['schemas']['EIP712Types'];
-      primaryType: string;
-      /** @description hex representation of template hash */
-      hash: string;
-    };
-    EIP712TypeString: string;
-    EIP712TypeByte: string;
-    EIP712TypeInteger: number;
-    EIP712TypeBool: boolean;
-    EIP712TypeObject: RecursiveEIP712TypeObject;
-    EIP712TypeArray: RecursiveEIP712TypeArray;
     receiptOutput: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1221,7 +1036,7 @@ export interface components {
              * @enum {string}
              */
       type: 'signatureProofPolicy';
-      signature: components['schemas']['signature'];
+      signature: components['schemas']['schemas-signature'];
     };
     /**
          * @description The Owner resource id
@@ -1238,11 +1053,6 @@ export interface components {
       code: number;
       message: string;
     };
-    /**
-         * @description The execution plan  resource id
-         * @example bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01
-         */
-    executionPlanId: string;
     /**
          * @description The Asset resource id
          * @example bank-x:102:f461a964-ae08-4e35-b690-24de06d973db
@@ -1387,7 +1197,32 @@ export interface components {
       type: 'asset';
       path: string;
     };
-    selector: (components['schemas']['accountSelector'] | components['schemas']['assetSelector']) | null;
+    /**
+         * @description Resolves path against every leg of the selected settlement group,
+         *     yielding one account per leg instead of a single account, e.g.
+         *     "contract_details.private_offer.selected_settlement.legs.asset_instruction.source_account".
+         *     Degrades to a single result when the path names a singular field.
+         *     The instruction is replicated per leg by the execution-plan
+         *     translator.
+         */
+    batchAccountSelector: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'batch_account';
+      path: string;
+    };
+    /** @description batchAccountSelector's asset-path counterpart. */
+    batchAssetSelector: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'batch_asset';
+      path: string;
+    };
+    selector: (components['schemas']['accountSelector'] | components['schemas']['assetSelector'] | components['schemas']['batchAccountSelector'] | components['schemas']['batchAssetSelector']) | null;
     instructionTarget: {
       version?: string;
       selectors: components['schemas']['selector'][];
@@ -1502,6 +1337,53 @@ export interface components {
       absoluteDeviation?: number;
     } & (unknown | unknown);
     operationStatusCallback: components['schemas']['operationStatus'] | components['schemas']['schemas-operationStatus'];
+    labelMapping: {
+      /**
+             * Format: uuid
+             * @description unique mapping id
+             */
+      id: string;
+      /** @description certificate data type this mapping reads (e.g. individual_info) */
+      dataType: string;
+      /** @description gjson dot path into the data item's document; nested fields and array indexes are supported (e.g. "beneficialOwners.0.email") */
+      field: string;
+      /** @description resource label key the field's value is written to */
+      label: string;
+    };
+    listLabelMappingsResponse: {
+      mappings: components['schemas']['labelMapping'][];
+    };
+    addLabelMappingRequest: {
+      /** @description certificate data type this mapping reads (e.g. individual_info) */
+      dataType: string;
+      /** @description gjson dot path into the data item's document; nested fields and array indexes are supported (e.g. "beneficialOwners.0.email") */
+      field: string;
+      /** @description resource label key the field's value is written to; "type" is reserved */
+      label: string;
+    };
+    addLabelMappingResponse: {
+      /**
+             * Format: uuid
+             * @description id of the created (or already-existing identical) mapping
+             */
+      id: string;
+    };
+    resourceLabel: {
+      key: string;
+      value: string;
+      /**
+             * @description whether the label was derived automatically or set via the manual-label API
+             * @enum {string}
+             */
+      source: 'derived' | 'manual';
+    };
+    listResourceLabelsResponse: {
+      labels: components['schemas']['resourceLabel'][];
+    };
+    addResourceLabelRequest: {
+      /** @description the label's value */
+      value: string;
+    };
     /**
          * @description 32 bytes buffer (24 randomly generated bytes by the client + 8 bytes epoch timestamp seconds) encoded to hex:
          *
@@ -1592,7 +1474,10 @@ export interface components {
       operationMetadata?: components['schemas']['OperationMetadata'];
     };
     createAssetOperationErrorInformation: {
-      /** Format: uint32 */
+      /**
+             * Format: uint32
+             * @description Business error code for the failed create. Well-known values: 7311 (LedgerBindingNotSupportedErr) — the ledger does not support creating an asset on the requested network/standard.
+             */
       code?: number;
       message?: string;
     };
@@ -1872,8 +1757,26 @@ export interface components {
       intentVersion?: string;
       executionContext?: components['schemas']['receiptExecutionContext'];
     };
+    /** @description describing a field in the hash group */
+    field: {
+      /** @description name of field */
+      name: string;
+      /**
+             * @description type of field
+             * @enum {string}
+             */
+      type: 'string' | 'int' | 'bytes';
+      /** @description hex representation of the field value */
+      value: string;
+    };
+    hashGroup: {
+      /** @description hex representation of the hash group hash value */
+      hash: string;
+      /** @description list of fields by order they appear in the hash group */
+      fields: components['schemas']['field'][];
+    };
     /** @description ordered list of hash groups */
-    'schemas-hashListTemplate': {
+    hashListTemplate: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1885,18 +1788,33 @@ export interface components {
       /** @description Template shape version. When omitted, the verifier resolves the version from the signature proof context. */
       templateVersion?: number;
     };
-    'schemas-EIP712FieldDefinition': {
+    EIP712Domain: {
+      name?: string;
+      version?: string;
+      /** Format: uint64 */
+      chainId?: number;
+      /** Format: address */
+      verifyingContract?: string;
+    };
+    EIP712TypeString: string;
+    EIP712TypeInteger: number;
+    EIP712TypeBool: boolean;
+    EIP712TypeByte: string;
+    EIP712TypedValue: RecursiveEIP712TypedValue;
+    EIP712TypeObject: RecursiveEIP712TypeObject;
+    EIP712TypeArray: RecursiveEIP712TypeArray;
+    EIP712FieldDefinition: {
       name?: string;
       type?: string;
     };
-    'schemas-EIP712TypeDefinition': {
+    EIP712TypeDefinition: {
       name?: string;
-      fields?: components['schemas']['schemas-EIP712FieldDefinition'][];
+      fields?: components['schemas']['EIP712FieldDefinition'][];
     };
-    'schemas-EIP712Types': {
-      definitions?: components['schemas']['schemas-EIP712TypeDefinition'][];
+    EIP712Types: {
+      definitions?: components['schemas']['EIP712TypeDefinition'][];
     };
-    'schemas-EIP712Template': {
+    EIP712Template: {
       /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1906,19 +1824,24 @@ export interface components {
       message: {
         [key: string]: components['schemas']['EIP712TypedValue'];
       };
-      types: components['schemas']['schemas-EIP712Types'];
+      types: components['schemas']['EIP712Types'];
       primaryType: string;
       /** @description hex representation of template hash */
       hash: string;
       /** @description Template shape version. When omitted, the verifier resolves the version from the signature proof context. */
       templateVersion?: number;
     };
-    'schemas-signatureTemplate': components['schemas']['schemas-hashListTemplate'] | components['schemas']['schemas-EIP712Template'];
+    signatureTemplate: components['schemas']['hashListTemplate'] | components['schemas']['EIP712Template'];
+    /**
+         * @description hash function types
+         * @enum {string}
+         */
+    hashFunction: 'unspecified' | 'sha3_256' | 'sha3-256' | 'blake2b' | 'keccak_256' | 'keccak-256';
     /** @description represent a signature template information */
-    'schemas-signature': {
+    signature: {
       /** @description hex representation of the signature */
       signature: string;
-      template: components['schemas']['schemas-signatureTemplate'];
+      template: components['schemas']['signatureTemplate'];
       hashFunc: components['schemas']['hashFunction'];
     };
     'schemas-signatureProofPolicy': {
@@ -1927,7 +1850,7 @@ export interface components {
              * @enum {string}
              */
       type: 'signatureProofPolicy';
-      signature?: components['schemas']['schemas-signature'];
+      signature?: components['schemas']['signature'];
     };
     /** @description additional proof information attached to a receipt */
     'schemas-proofPolicy': components['schemas']['schemas-signatureProofPolicy'] | components['schemas']['noProofPolicy'];
@@ -2196,6 +2119,70 @@ export interface components {
       networkAccount?: components['schemas']['networkAccount'];
     };
     /**
+         * @description The execution plan  resource id
+         * @example bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01
+         */
+    executionPlanId: string;
+    /** @description ordered list of hash groups */
+    'schemas-hashListTemplate': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hashList';
+      /**
+             * @description This version identifies the HashList template specification revision.
+             *     When omitted, the verifier resolves the version from the
+             *     router/ledger/asset-profile resolver chain.
+             */
+      templateVersion?: number;
+      hashGroups: components['schemas']['hashGroup'][];
+      /** @description hex representation of the combined hash groups hash value */
+      hash: string;
+    };
+    'schemas-EIP712FieldDefinition': {
+      name?: string;
+      type?: string;
+    };
+    'schemas-EIP712TypeDefinition': {
+      name?: string;
+      fields?: components['schemas']['schemas-EIP712FieldDefinition'][];
+    };
+    'schemas-EIP712Types': {
+      definitions?: components['schemas']['schemas-EIP712TypeDefinition'][];
+    };
+    'schemas-EIP712Template': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'EIP712';
+      /**
+             * @description Template shape version. When omitted, the verifier resolves the
+             *     version from the router/ledger/asset-profile resolver chain.
+             *     Not to be confused with EIP712Domain.version (the EIP-712
+             *     contract domain version). See pkg/signature/specs/eip712/ for
+             *     versioned specs.
+             */
+      templateVersion?: number;
+      domain: components['schemas']['EIP712Domain'];
+      message: {
+        [key: string]: components['schemas']['EIP712TypedValue'];
+      };
+      types: components['schemas']['schemas-EIP712Types'];
+      primaryType: string;
+      /** @description hex representation of template hash */
+      hash: string;
+    };
+    'schemas-signatureTemplate': components['schemas']['schemas-hashListTemplate'] | components['schemas']['schemas-EIP712Template'];
+    /** @description represent a signature template information */
+    'schemas-signature': {
+      /** @description hex representation of the signature */
+      signature: string;
+      template: components['schemas']['schemas-signatureTemplate'];
+      hashFunc: components['schemas']['hashFunction'];
+    };
+    /**
          * @description The Owner resource id
          * @example bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01
          */
@@ -2313,6 +2300,9 @@ export interface components {
       buyer: string;
       asset: components['schemas']['buyingAsset'];
       settlement: components['schemas']['buyingSettlementBase'];
+      settlements?: {
+        legs: components['schemas']['buyingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     sellingIntent: {
@@ -2324,6 +2314,9 @@ export interface components {
       seller: components['schemas']['schemas-ownerId'];
       asset: components['schemas']['sellingAsset'];
       settlement: components['schemas']['sellingSettlements'];
+      settlements?: {
+        legs: components['schemas']['sellingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     borrowerLenderAccountAssetInstruction: {
@@ -2451,6 +2444,9 @@ export interface components {
       seller: components['schemas']['schemas-ownerId'];
       asset: components['schemas']['privateOfferIntentAsset'];
       settlement: components['schemas']['sellingSettlements'];
+      settlements?: {
+        legs: components['schemas']['sellingSettlementBase'][];
+      }[];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     requestForTransferSendAssetInstruction: {
@@ -2509,10 +2505,113 @@ export interface components {
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'] | components['schemas']['manualSignaturePolicy'];
     };
     intent: components['schemas']['primarySale'] | components['schemas']['buyingIntent'] | components['schemas']['sellingIntent'] | components['schemas']['loanIntent'] | components['schemas']['redemptionIntent'] | components['schemas']['privateOfferIntent'] | components['schemas']['requestForTransferIntent'] | components['schemas']['moveIntent'];
+    assetIntent: {
+      /**
+             * Format: int64
+             * @description start time for intent, in epoch (seconds)
+             */
+      start: number;
+      /**
+             * Format: int64
+             * @description end time for intent, in epoch (seconds)
+             */
+      end: number;
+      intent: components['schemas']['intent'];
+    };
     /** @description describes account information */
     ledgerAccountAsset: {
       finp2pAccount: components['schemas']['finp2pAssetAccount'];
       networkAccount?: components['schemas']['networkAccount'];
+    };
+    holdInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hold';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['schemas-signature'];
+    };
+    releaseInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'release';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+    };
+    issueInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'issue';
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['schemas-signature'];
+    };
+    transferInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'transfer';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['schemas-signature'];
+    };
+    awaitInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'await';
+      /** Format: uint64 */
+      waitUntil: number;
+    };
+    redemptionInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'redeem';
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature: components['schemas']['schemas-signature'];
+    };
+    revertHoldInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'revertHoldInstruction';
+      source?: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+    };
+    executionPlanOperation: components['schemas']['holdInstruction'] | components['schemas']['releaseInstruction'] | components['schemas']['issueInstruction'] | components['schemas']['transferInstruction'] | components['schemas']['awaitInstruction'] | components['schemas']['revertHoldInstruction'] | components['schemas']['redemptionInstruction'];
+    executionInstruction: {
+      /** Format: uint32 */
+      sequence: number;
+      organizations: string[];
+      executionPlanOperation: components['schemas']['executionPlanOperation'];
+      /** Format: int32 */
+      timeout?: number;
+    };
+    executionParticipant: {
+      organizationId: string;
+      roles: ('contributor' | 'observer')[];
+    };
+    investor: {
+      investor?: string;
+      /** @enum {string} */
+      role?: 'buyer' | 'seller' | 'lender' | 'borrower' | 'issuer';
+      signature?: components['schemas']['schemas-signature'];
     };
     sourceDestinationAccountLedgerAssetInstruction: {
       sourceAccount: components['schemas']['finp2pAssetAccount'];
@@ -2522,6 +2621,39 @@ export interface components {
       term?: components['schemas']['assetTerm'];
       instruction?: components['schemas']['sourceDestinationAccountLedgerAssetInstruction'];
     };
+    issuanceContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'issuance';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    buyingContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'buying';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+      selectedSettlement?: {
+        legs: components['schemas']['sourceDestinationExecuteAsset'][];
+      };
+    };
+    sellingContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'selling';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+      selectedSettlement?: {
+        legs: components['schemas']['sourceDestinationExecuteAsset'][];
+      };
+    };
     BorrowerLenderAccountLedgerAssetInstruction: {
       borrowerAccount: components['schemas']['finp2pAssetAccount'];
       lenderAccount: components['schemas']['finp2pAssetAccount'];
@@ -2530,9 +2662,83 @@ export interface components {
       assetTerm: components['schemas']['assetTerm'];
       assetInstruction: components['schemas']['BorrowerLenderAccountLedgerAssetInstruction'];
     };
+    loanContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'loan';
+      asset?: components['schemas']['loanExecuteAsset'];
+      settlement?: components['schemas']['loanExecuteAsset'];
+      instruction?: components['schemas']['loanInstruction'];
+    };
+    transferContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'transfer';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    redeemContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'redeem';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    privateOfferContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'privateOffer';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+      settlement?: components['schemas']['sourceDestinationExecuteAsset'];
+      selectedSettlement?: {
+        legs: components['schemas']['sourceDestinationExecuteAsset'][];
+      };
+    };
+    requestForTransferContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'requestForTransfer';
+      asset?: components['schemas']['sourceDestinationExecuteAsset'];
+    };
+    /** @description Execution-side asset of a Move: source/destination accounts plus the optional segregated-account legs that select the Move variant (a source segregated account implies Release; a destination pool implies Transfer). */
+    moveExecuteAsset: {
+      term?: components['schemas']['assetTerm'];
+      instruction?: components['schemas']['sourceDestinationAccountLedgerAssetInstruction'];
+      sourceToSegregatedAccount?: components['schemas']['ledgerAccountAsset'];
+      destinationFromSegregatedAccount?: components['schemas']['ledgerAccountAsset'];
+    };
+    moveContractDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'move';
+      asset?: components['schemas']['moveExecuteAsset'];
+    };
+    contract: {
+      investors?: components['schemas']['investor'][];
+      contractDetails?: components['schemas']['issuanceContractDetails'] | components['schemas']['buyingContractDetails'] | components['schemas']['sellingContractDetails'] | components['schemas']['loanContractDetails'] | components['schemas']['transferContractDetails'] | components['schemas']['redeemContractDetails'] | components['schemas']['privateOfferContractDetails'] | components['schemas']['requestForTransferContractDetails'] | components['schemas']['moveContractDetails'];
+    };
     /** @description Optional. A map of key:value string pairs for custom tracing, reconciliation, and business context. Opaque to the Router. */
     customMetadata: {
       [key: string]: string;
+    };
+    executionPlan: {
+      id: components['schemas']['executionPlanId'];
+      intent: components['schemas']['assetIntent'];
+      instructions: components['schemas']['executionInstruction'][];
+      participants: components['schemas']['executionParticipant'][];
+      contract: components['schemas']['contract'];
+      metadata?: components['schemas']['customMetadata'];
     };
     /** @description Additional input and output details for UTXO supporting DLTs */
     receiptTransactionDetails: {
@@ -3935,19 +4141,18 @@ export interface operations {
       };
     };
     responses: {
-      /** @description successful operation */
+      /**
+             * @description The transactions were processed. Duplicate transaction or receipt ids
+             *     are skipped rather than re-imported and are listed in the response
+             *     body; the rest of the batch is imported.
+             */
       200: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
-      };
-      /** @description Some transactions were not imported due to duplicate transaction IDs. */
-      208: {
-        headers: {
-          [name: string]: unknown;
+        content: {
+          'application/json': components['schemas']['importTransactionsPartialResponse'];
         };
-        content?: never;
       };
       /** @description Bad Request */
       400: {
@@ -5236,6 +5441,144 @@ export interface operations {
                      */
           'application/json': components['schemas']['APIErrors'];
         };
+      };
+    };
+  };
+  listLabelMappings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description found the label mappings */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['listLabelMappingsResponse'];
+        };
+      };
+    };
+  };
+  addLabelMapping: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['addLabelMappingRequest'];
+      };
+    };
+    responses: {
+      /** @description mapping added */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['addLabelMappingResponse'];
+        };
+      };
+    };
+  };
+  deleteLabelMapping: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the label mapping */
+        mappingId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description mapping deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listResourceLabels: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the resource */
+        resourceId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description found the resource's labels */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['listResourceLabelsResponse'];
+        };
+      };
+    };
+  };
+  addResourceLabel: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the resource */
+        resourceId: string;
+        /** @description label key */
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['addResourceLabelRequest'];
+      };
+    };
+    responses: {
+      /** @description label set */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  removeResourceLabel: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the resource */
+        resourceId: string;
+        /** @description label key */
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description label removed (or already absent) */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

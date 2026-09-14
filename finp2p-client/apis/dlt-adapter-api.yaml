@@ -1234,6 +1234,10 @@ components:
         code:
           type: integer
           format: uint32
+          description: >
+            Business error code for the failed create. Well-known values:
+            7311 (LedgerBindingNotSupportedErr) — the ledger does not support
+            creating an asset on the requested network/standard.
         message:
           type: string
           pattern: .*\S.*
@@ -1696,7 +1700,7 @@ components:
           type: boolean
           description: 'Indicates if allowance is required'
     ledgerAssetBinding:
-      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifierCreateOrBind'
     AssetBalanceInfoRequest:
       type: object
       required:
