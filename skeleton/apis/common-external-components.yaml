@@ -595,10 +595,12 @@ components:
         propertyName: type
         mapping:
           iban: '#/components/schemas/ibanAccountDetails'
+          bic: '#/components/schemas/bicAccountDetails'
           swift: '#/components/schemas/swiftAccountDetails'
           sortCode: '#/components/schemas/sortCodeDetails'
       oneOf:
         - $ref: '#/components/schemas/ibanAccountDetails'
+        - $ref: '#/components/schemas/bicAccountDetails'
         - $ref: '#/components/schemas/swiftAccountDetails'
         - $ref: '#/components/schemas/sortCodeDetails'
     ibanAccountDetails:
@@ -612,15 +614,37 @@ components:
           type: string
           pattern: .*\S.*
           x-autoMinLength: true
-    swiftAccountDetails:
+    bicAccountDetails:
       type: object
-      required: [type, swiftCode, accountNumber]
+      required: [type, bic, accountNumber]
       properties:
         type:
           type: string
           enum: ['bic']
+        bic:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        accountNumber:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    swiftAccountDetails:
+      type: object
+      deprecated: true
+      description: Deprecated, use bicAccountDetails. Kept for backward compatibility.
+      required: [type, swiftCode, accountNumber]
+      properties:
+        type:
+          type: string
+          enum: ['swift']
         swiftCode:
           type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        bic:
+          type: string
+          description: Mirrors swiftCode during the migration to bicAccountDetails.
           pattern: .*\S.*
           x-autoMinLength: true
         accountNumber:
@@ -795,6 +819,41 @@ components:
           x-autoMinLength: true
         tokenId:
           type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        standard:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+    ledgerAssetIdentifierCreateOrBind:
+      description: >
+        Ledger asset identifier accepted when creating an asset profile. With tokenId present it
+        binds the profile to an existing on-ledger token. Without tokenId it instructs the ledger
+        to create a new token on the given network/standard; the ledger mints the token, and the
+        full resulting identifier is persisted on the profile.
+      oneOf:
+        - $ref: '#/components/schemas/ledgerAssetIdentifierTypeCAIP-19CreateOrBind'
+      discriminator:
+        propertyName: assetIdentifierType
+        mapping:
+          CAIP-19: '#/components/schemas/ledgerAssetIdentifierTypeCAIP-19CreateOrBind'
+    ledgerAssetIdentifierTypeCAIP-19CreateOrBind:
+      type: object
+      required: [assetIdentifierType]
+      properties:
+        assetIdentifierType:
+          type: string
+          enum: [CAIP-19]
+          description: Classification type standards
+        network:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        tokenId:
+          type: string
+          description: >
+            Identifier of an existing on-ledger token to bind to. Omit to have the ledger create a
+            new token on the given network/standard.
           pattern: .*\S.*
           x-autoMinLength: true
         standard:

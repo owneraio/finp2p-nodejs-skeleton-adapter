@@ -85,7 +85,7 @@ export const depositOperationToFinAPI = (operationStatus: DepositOperation): OpC
         operation: {
           cid: '',
           isCompleted: true,
-          response: depositInstructionToAPI(instruction),
+          response: depositInstructionToAPI(instruction) as OpComponents['schemas']['depositInstruction'],
         },
       };
     case 'failure':
@@ -183,7 +183,6 @@ export const operationToFinAPI = (operationStatus: OperationStatus): OpComponent
         operation: accountOperationToAPI(operationStatus) as OpComponents['schemas']['networkAccountOperation'],
       };
     case 'swap':
-    case 'swapSingle':
       // The router operational API (finp2p-client) has no swap arm yet.
       throw new Error(`${operationStatus.operation} operation status is not supported by the operational API`);
   }

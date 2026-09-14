@@ -93,7 +93,7 @@ export type Balance = {
 
 
 export type TokenIdentifier = {
-  tokenId: string
+  tokenId?: string
   network?: string
   standard?: string
 };
@@ -419,7 +419,8 @@ export const pendingReceiptOperation = (correlationId: string, metadata: Operati
 export type SuccessSwapStatus = {
   operation: 'swap',
   type: 'success';
-  asset: Receipt;
+  /** Exactly numberOfReceipts entries, asset leg first. */
+  receipts: Receipt[];
 };
 
 export type FailedSwapStatus = {
@@ -437,10 +438,10 @@ export type PendingSwapStatus = {
 
 export type SwapOperation = PendingSwapStatus | FailedSwapStatus | SuccessSwapStatus;
 
-export const successfulSwapOperation = (asset: Receipt): SwapOperation => ({
+export const successfulSwapOperation = (asset: Receipt, settlement?: Receipt): SwapOperation => ({
   operation: 'swap',
   type: 'success',
-  asset,
+  receipts: settlement ? [asset, settlement] : [asset],
 });
 
 export const failedSwapOperation = (code: number, message: string): SwapOperation => ({
@@ -451,50 +452,6 @@ export const failedSwapOperation = (code: number, message: string): SwapOperatio
 
 export const pendingSwapOperation = (correlationId: string, metadata: OperationMetadata | undefined): SwapOperation => ({
   operation: 'swap',
-  type: 'pending',
-  correlationId,
-  metadata,
-});
-
-// -------------------------------------------------------------------
-
-export type SuccessSwapSingleStatus = {
-  operation: 'swapSingle',
-  type: 'success';
-  asset: Receipt;
-  settlement: Receipt;
-};
-
-export type FailedSwapSingleStatus = {
-  operation: 'swapSingle',
-  type: 'failure';
-  error: ErrorDetails
-};
-
-export type PendingSwapSingleStatus = {
-  operation: 'swapSingle',
-  type: 'pending';
-  correlationId: string;
-  metadata: OperationMetadata | undefined
-};
-
-export type SwapSingleOperation = PendingSwapSingleStatus | FailedSwapSingleStatus | SuccessSwapSingleStatus;
-
-export const successfulSwapSingleOperation = (asset: Receipt, settlement: Receipt): SwapSingleOperation => ({
-  operation: 'swapSingle',
-  type: 'success',
-  asset,
-  settlement,
-});
-
-export const failedSwapSingleOperation = (code: number, message: string): SwapSingleOperation => ({
-  operation: 'swapSingle',
-  type: 'failure',
-  error: { code, message },
-});
-
-export const pendingSwapSingleOperation = (correlationId: string, metadata: OperationMetadata | undefined): SwapSingleOperation => ({
-  operation: 'swapSingle',
   type: 'pending',
   correlationId,
   metadata,
@@ -682,7 +639,7 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation | SwapSingleOperation;
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation;
 
 
 // -------------------------------------------------------------------
@@ -710,7 +667,7 @@ export type TradeDetails = {
   executionContext: ExecutionContext | undefined
 };
 
-export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue' | 'swap' | 'swapSingle';
+export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue' | 'swap';
 
 export type Receipt = {
   id: string,
