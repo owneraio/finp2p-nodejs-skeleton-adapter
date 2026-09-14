@@ -13,6 +13,7 @@ import {
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
   NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
   AccountInvalidShapeError,
+  SwapLeg, SwapOperation,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -534,6 +535,49 @@ export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas
   }
 };
 
+export const swapLegFromAPI = (
+  leg: components['schemas']['swapAssetLeg'] | components['schemas']['swapSettlementLeg'],
+): SwapLeg => {
+  return {
+    asset: assetFromAPI(leg.source.asset),
+    source: sourceFromAPI(leg.source),
+    destination: destinationFromAPI(leg.destination),
+    quantity: leg.quantity,
+    signature: leg.signature ? signatureFromAPI(leg.signature) : undefined,
+  };
+};
+
+export const swapOperationToAPI = (op: SwapOperation): components['schemas']['swapReceiptOperation'] => {
+  switch (op.type) {
+    case 'pending': {
+      const { correlationId: cid, metadata } = op;
+      return {
+        isCompleted: false, cid,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    }
+    case 'failure': {
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: '',
+        error: { code, message },
+      };
+    }
+    case 'success':
+      // Only the leg(s) this adapter executed are reported, asset leg first;
+      // a leg executed by the counterparty's adapter is attested there and
+      // the router assembles the pair.
+      return {
+        isCompleted: true,
+        cid: '',
+        response: {
+          receipts: op.receipts.map(receiptToAPI),
+        },
+      };
+  }
+};
+
 export const wireDetailsToAPI = (details: WireDetails):
 components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'] => {
   switch (details.type) {
@@ -757,6 +801,12 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'account',
         operation: accountOperationToAPI(op),
+      };
+
+    case 'swap':
+      return {
+        type: 'swap',
+        operation: swapOperationToAPI(op),
       };
   }
 };

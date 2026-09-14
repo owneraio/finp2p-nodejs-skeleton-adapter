@@ -648,6 +648,42 @@ paths:
         '200':
           description: successful operation
 
+  '/profiles/asset/{id}/intent/{intentId}/reject':
+    post:
+      tags:
+        - profiles
+      summary: Reject the intent
+      description: >-
+        Reject the intent. Optional reason may be supplied.
+      operationId: rejectAssetProfileIntent
+      parameters:
+        - name: id
+          in: path
+          description: ID of the asset profile
+          required: true
+          schema:
+            $ref: '#/components/schemas/assetId'
+        - name: intentId
+          in: path
+          description: ID of the intent
+          required: true
+          schema:
+            $ref: '#/components/schemas/intentId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rejectReason:
+                  type: string
+                  pattern: '\S'
+                  description: Optional human-readable reason for the rejection; must not be blank when provided
+      responses:
+        '200':
+          description: successful operation
+
   /profiles/{id}/share:
     post:
       tags:
@@ -2903,7 +2939,7 @@ components:
           type: string
         operationType:
           type: string
-          enum: [ 'hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'unknown' ]
+          enum: [ 'hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'swap', 'unknown' ]
         timestamp:
           type: integer
 

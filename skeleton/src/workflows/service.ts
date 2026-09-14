@@ -10,6 +10,8 @@ import {
   PlanApprovalService,
   rejectedPlan,
   failedReceiptOperation,
+  pendingSwapOperation,
+  failedSwapOperation,
   EscrowService,
   PaymentService,
   failedDepositOperation,
@@ -72,6 +74,8 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
     case compiletimeMethodName<EscrowService>('rollback'):
     case compiletimeMethodName<PaymentService>('payout'):
       return pendingOrError(cid => pendingReceiptOperation(cid, opMetadata), (cid, code, message) => failedReceiptOperation(code, message));
+    case compiletimeMethodName<TokenService>('swap'):
+      return pendingOrError(cid => pendingSwapOperation(cid, opMetadata), (cid, code, message) => failedSwapOperation(code, message));
     case compiletimeMethodName<PlanApprovalService>('approvePlan'):
     case compiletimeMethodName<PlanApprovalService>('proposeCancelPlan'):
     case compiletimeMethodName<PlanApprovalService>('proposeResetPlan'):
@@ -158,7 +162,6 @@ async function finalize(
     const callbackPayload = operationStatusToAPI(outputs);
     logger.debug('Sending callback to router', { cid, status, outputsType: (outputs as any)?.type });
     try {
-      // @ts-ignore — operationStatus type mismatch with sendCallback signature
       const result = await finP2PClient.sendCallback(cid, callbackPayload);
       // openapi-fetch returns { data, error, response } instead of throwing on HTTP errors
       const httpError = (result as any)?.error;

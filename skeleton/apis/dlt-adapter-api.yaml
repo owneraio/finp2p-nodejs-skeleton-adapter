@@ -465,6 +465,53 @@ paths:
                 errors:
                   - code: 2202
                     message: 'Internal service failure'
+  /assets/swap:
+    post:
+      tags:
+        - 'transactions'
+      summary: 'Atomic Asset Swap'
+      description: |
+        Atomically exchange two same-ledger assets in one ledger transaction. Called once per
+        EXECUTING org — the org operating a leg's debited wallet. `numberOfReceipts` says how many
+        legs THIS adapter must execute and attest: 1 when the counterparty's adapter executes the
+        other leg (cross-org), 2 when this adapter custodies both wallets (same-org). The router
+        derives it from the legs' source-account orgs, so the adapter never resolves custody.
+
+        Legs are read from THIS ADAPTER'S PERSPECTIVE: `asset` is the leg it executes, `settlement`
+        what its party receives in return. With `numberOfReceipts: 2` the adapter executes both legs
+        and `settlement.signature` MUST be present; with 1 the counter-leg is executed by the
+        counterparty and carries no signature. The two cross-org requests are mirrors sharing an
+        `operationId` and `deadline`.
+
+        The adapter MUST verify every signature by recomputing BOTH hash groups from the request's
+        `asset` AND `settlement`, and MUST reject a request whose `settlement` differs from the signed
+        terms — that is the only thing binding an unsigned counter-leg.
+
+        A completed operation (`isCompleted: true`) MUST carry exactly `numberOfReceipts` entries in
+        `response.receipts` — the leg(s) it executed and never a leg it did not, `asset` first — and
+        an interim response omits `response`. Each receipt echoes its own leg's request
+        `destination.asset`. Receipt ids MUST be distinct per movement while sharing one
+        `transactionId`.
+      operationId: 'swapAssets'
+      parameters:
+        - in: 'header'
+          name: 'Idempotency-Key'
+          description: 'hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)'
+          schema:
+            type: 'string'
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwapAssetsRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapAssetsResponse'
   /assets/transfer:
     post:
       tags:
@@ -1135,6 +1182,108 @@ components:
     MoveAssetsResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
+    SwapAssetsRequest:
+      type: 'object'
+      description: |
+        Legs are perspective-relative: `asset` is always the leg THIS adapter executes; `settlement`
+        is the counter-leg, executed here too only when `numberOfReceipts` is 2.
+        See `POST /assets/swap` for the mandatory two-group signature verification requirement.
+      required: ['nonce', 'operationId', 'asset', 'settlement', 'deadline']
+      properties:
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        operationId:
+          type: 'string'
+          description: 'Correlates the two legs of one swap on the contract. Required — without it the legs cannot be correlated.'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        numberOfReceipts:
+          type: 'integer'
+          minimum: 1
+          default: 1
+          description: |
+            How many legs THIS adapter executes and attests, and so how many entries a completed
+            response carries in `response.receipts`: 1 when only `asset` is executed here (the
+            counterparty's adapter executes `settlement`), 2 when this adapter custodies both wallets
+            and executes both. When 2, `settlement.signature` MUST be present.
+        asset:
+          $ref: '#/components/schemas/swapAssetLeg'
+        settlement:
+          $ref: '#/components/schemas/swapSettlementLeg'
+        deadline:
+          type: 'integer'
+          format: 'int64'
+          description: |
+            Contract TTL as ABSOLUTE epoch seconds — not a duration and not a block number.
+            Required: identical on both legs, carried from the execution instruction so the two
+            orgs' calls cannot expire at different times. The adapter maps it to a block marker
+            if its chain needs one. Expiry refunds; there is no cancel path.
+        executionContext:
+          $ref: '#/components/schemas/executionContext'
+    swapAssetLeg:
+      type: 'object'
+      description: 'The leg this adapter executes. Its signature is mandatory and covers the FULL swap terms (both legs).'
+      required: ['source', 'destination', 'quantity', 'signature']
+      properties:
+        source:
+          $ref: '#/components/schemas/account'
+        destination:
+          $ref: '#/components/schemas/account'
+        quantity:
+          type: 'string'
+          description: 'How many units of the asset tokens'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    swapSettlementLeg:
+      type: 'object'
+      description: |
+        The binding counter-leg the contract enforces: what must arrive, from whom, to where.
+
+        `signature` follows `numberOfReceipts`: absent when the COUNTERPARTY's adapter executes this
+        leg (1) — integrity of the unsigned counter-leg then rests on the mandatory two-group
+        verification of `asset.signature`, which covers these terms too — and REQUIRED when this
+        adapter executes both legs (2), so each leg is authenticated by the party that owns it.
+      required: ['source', 'destination', 'quantity']
+      properties:
+        source:
+          $ref: '#/components/schemas/account'
+        destination:
+          $ref: '#/components/schemas/account'
+        quantity:
+          type: 'string'
+          description: 'How many units of the asset tokens'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    SwapAssetsResponse:
+      allOf:
+        - $ref: '#/components/schemas/swapReceiptOperation'
+    swapReceiptOperation:
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - type: 'object'
+          properties:
+            error:
+              $ref: '#/components/schemas/receiptOperationErrorInformation'
+            response:
+              $ref: '#/components/schemas/swapReceipts'
+    swapReceipts:
+      type: 'object'
+      description: |
+        The receipts for the leg(s) THIS adapter executed on `POST /assets/swap`: exactly
+        `numberOfReceipts` entries on a COMPLETED operation, `asset` first, never a leg another
+        adapter executed. An INTERIM operation omits `response` altogether — an empty array is
+        invalid. All entries share one `transactionId` with distinct ids.
+      required: ['receipts']
+      properties:
+        receipts:
+          type: 'array'
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/receipt'
     GetReceiptResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
@@ -1366,6 +1515,18 @@ components:
             an investor without a resolvable finId cannot onboard a network account.
         bindInfo:
           $ref: '#/components/schemas/BindInfo'
+    accountOwnershipSignature:
+      type: 'object'
+      description: |
+        Proof-of-ownership signature for network-account onboarding — a raw signature over
+        the ledger adapter's challenge payload. Unlike a transaction `signature` it carries no
+        template or hash function: there is nothing to template, only the challenge bytes to sign.
+      required: ['signature']
+      properties:
+        signature:
+          type: 'string'
+          description: 'hex representation of the ownership signature'
+          x-allowEmpty: true
     BindInfo:
       type: 'object'
       description: |
@@ -1375,7 +1536,7 @@ components:
         networkAccount:
           $ref: 'common-external-components.yaml#/components/schemas/networkAccount'
         ownershipSignature:
-          $ref: '#/components/schemas/signature'
+          $ref: '#/components/schemas/accountOwnershipSignature'
           description: |
             Proof-of-ownership hint over the network account. The LA may verify this upfront,
             but the authoritative ownership proof is the challenge-fulfillment step.
@@ -1386,7 +1547,7 @@ components:
       required: ['ownershipSignature']
       properties:
         ownershipSignature:
-          $ref: '#/components/schemas/signature'
+          $ref: '#/components/schemas/accountOwnershipSignature'
           description: 'Signature over the LA''s `signatureTemplate` challenge payload.'
     AccountOperationAccepted:
       description: |
@@ -1539,6 +1700,8 @@ components:
         code:
           type: 'integer'
           format: 'uint32'
+          description: |
+            Business error code for the failed create. Well-known values: 7311 (LedgerBindingNotSupportedErr) — the ledger does not support creating an asset on the requested network/standard.
         message:
           type: 'string'
           pattern: '.*\S.*'
@@ -1583,6 +1746,7 @@ components:
         - $ref: '#/components/schemas/operationStatusReceipt'
         - $ref: '#/components/schemas/operationStatusApproval'
         - $ref: '#/components/schemas/operationStatusAccount'
+        - $ref: '#/components/schemas/operationStatusSwap'
       discriminator:
         propertyName: 'type'
         mapping:
@@ -1591,6 +1755,7 @@ components:
           receipt: '#/components/schemas/operationStatusReceipt'
           approval: '#/components/schemas/operationStatusApproval'
           account: '#/components/schemas/operationStatusAccount'
+          swap: '#/components/schemas/operationStatusSwap'
     operationStatusCreateAsset:
       type: 'object'
       required: ['type', 'operation']
@@ -1636,6 +1801,19 @@ components:
           enum: ['account']
         operation:
           $ref: '#/components/schemas/networkAccountOperation'
+    operationStatusSwap:
+      type: 'object'
+      description: |
+        Status of an asynchronous `POST /assets/swap`: the same array response as the synchronous
+        call, so a completion carries exactly the `numberOfReceipts` entries that were requested
+        whichever way it arrives. Not the single-receipt `receipt` variant, which cannot carry two.
+      required: ['type', 'operation']
+      properties:
+        type:
+          type: 'string'
+          enum: ['swap']
+        operation:
+          $ref: '#/components/schemas/swapReceiptOperation'
     networkAccountOperation:
       description: |
         Status of an investor network-account create/bind/unbind operation, polled via
@@ -1920,7 +2098,9 @@ components:
           x-autoMinLength: true
     operationType:
       type: 'string'
-      enum: ['issue', 'transfer', 'hold', 'release', 'redeem', 'move']
+      # A receipt attests one movement, and that movement is a `swap` whichever adapter submitted the
+      # leg - `numberOfReceipts` decides who submits, not what the ledger did.
+      enum: ['issue', 'transfer', 'hold', 'release', 'redeem', 'move', 'swap']
     ledgerAssetInfo:
       type: 'object'
       required: ['ledgerIdentifier']
@@ -1969,7 +2149,7 @@ components:
           type: 'boolean'
           description: 'Indicates if allowance is required'
     ledgerAssetBinding:
-      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifierCreateOrBind'
     AssetBalanceInfoRequest:
       type: 'object'
       required: ['account', 'asset']

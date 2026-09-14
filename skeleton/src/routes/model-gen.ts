@@ -211,6 +211,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/assets/swap': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Atomic Asset Swap
+         * @description Atomically exchange two same-ledger assets in one ledger transaction. Called once per
+         *     EXECUTING org — the org operating a leg's debited wallet. `numberOfReceipts` says how many
+         *     legs THIS adapter must execute and attest: 1 when the counterparty's adapter executes the
+         *     other leg (cross-org), 2 when this adapter custodies both wallets (same-org). The router
+         *     derives it from the legs' source-account orgs, so the adapter never resolves custody.
+         *
+         *     Legs are read from THIS ADAPTER'S PERSPECTIVE: `asset` is the leg it executes, `settlement`
+         *     what its party receives in return. With `numberOfReceipts: 2` the adapter executes both legs
+         *     and `settlement.signature` MUST be present; with 1 the counter-leg is executed by the
+         *     counterparty and carries no signature. The two cross-org requests are mirrors sharing an
+         *     `operationId` and `deadline`.
+         *
+         *     The adapter MUST verify every signature by recomputing BOTH hash groups from the request's
+         *     `asset` AND `settlement`, and MUST reject a request whose `settlement` differs from the signed
+         *     terms — that is the only thing binding an unsigned counter-leg.
+         *
+         *     A completed operation (`isCompleted: true`) MUST carry exactly `numberOfReceipts` entries in
+         *     `response.receipts` — the leg(s) it executed and never a leg it did not, `asset` first — and
+         *     an interim response omits `response`. Each receipt echoes its own leg's request
+         *     `destination.asset`. Receipt ids MUST be distinct per movement while sharing one
+         *     `transactionId`.
+         */
+    post: operations['swapAssets'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/assets/transfer': {
     parameters: {
       query?: never;
@@ -485,7 +525,7 @@ export interface components {
         [key: string]: unknown;
       };
       asset: components['schemas']['finp2pAssetBase'];
-      ledgerAssetBinding?: components['schemas']['ledgerAssetIdentifier'];
+      ledgerAssetBinding?: components['schemas']['ledgerAssetIdentifierCreateOrBind'];
       name?: components['schemas']['assetName'];
       issuerId?: components['schemas']['ownerResourceId'];
       denomination?: components['schemas']['assetDenomination'];
@@ -540,6 +580,72 @@ export interface components {
       executionContext?: components['schemas']['executionContext'];
     };
     MoveAssetsResponse: components['schemas']['receiptOperation'];
+    /**
+         * @description Legs are perspective-relative: `asset` is always the leg THIS adapter executes; `settlement`
+         *     is the counter-leg, executed here too only when `numberOfReceipts` is 2.
+         *     See `POST /assets/swap` for the mandatory two-group signature verification requirement.
+         */
+    SwapAssetsRequest: {
+      nonce: components['schemas']['nonce'];
+      /** @description Correlates the two legs of one swap on the contract. Required — without it the legs cannot be correlated. */
+      operationId: string;
+      /**
+             * @description How many legs THIS adapter executes and attests, and so how many entries a completed
+             *     response carries in `response.receipts`: 1 when only `asset` is executed here (the
+             *     counterparty's adapter executes `settlement`), 2 when this adapter custodies both wallets
+             *     and executes both. When 2, `settlement.signature` MUST be present.
+             * @default 1
+             */
+      numberOfReceipts: number;
+      asset: components['schemas']['swapAssetLeg'];
+      settlement: components['schemas']['swapSettlementLeg'];
+      /**
+             * Format: int64
+             * @description Contract TTL as ABSOLUTE epoch seconds — not a duration and not a block number.
+             *     Required: identical on both legs, carried from the execution instruction so the two
+             *     orgs' calls cannot expire at different times. The adapter maps it to a block marker
+             *     if its chain needs one. Expiry refunds; there is no cancel path.
+             */
+      deadline: number;
+      executionContext?: components['schemas']['executionContext'];
+    };
+    /** @description The leg this adapter executes. Its signature is mandatory and covers the FULL swap terms (both legs). */
+    swapAssetLeg: {
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+      signature: components['schemas']['signature'];
+    };
+    /**
+         * @description The binding counter-leg the contract enforces: what must arrive, from whom, to where.
+         *
+         *     `signature` follows `numberOfReceipts`: absent when the COUNTERPARTY's adapter executes this
+         *     leg (1) — integrity of the unsigned counter-leg then rests on the mandatory two-group
+         *     verification of `asset.signature`, which covers these terms too — and REQUIRED when this
+         *     adapter executes both legs (2), so each leg is authenticated by the party that owns it.
+         */
+    swapSettlementLeg: {
+      source: components['schemas']['account'];
+      destination: components['schemas']['account'];
+      /** @description How many units of the asset tokens */
+      quantity: string;
+      signature?: components['schemas']['signature'];
+    };
+    SwapAssetsResponse: components['schemas']['swapReceiptOperation'];
+    swapReceiptOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['swapReceipts'];
+    };
+    /**
+         * @description The receipts for the leg(s) THIS adapter executed on `POST /assets/swap`: exactly
+         *     `numberOfReceipts` entries on a COMPLETED operation, `asset` first, never a leg another
+         *     adapter executed. An INTERIM operation omits `response` altogether — an empty array is
+         *     invalid. All entries share one `transactionId` with distinct ids.
+         */
+    swapReceipts: {
+      receipts: components['schemas']['receipt'][];
+    };
     GetReceiptResponse: components['schemas']['receiptOperation'];
     HoldOperationRequest: {
       nonce: components['schemas']['nonce'];
@@ -658,6 +764,15 @@ export interface components {
       finId: components['schemas']['finId'];
       bindInfo?: components['schemas']['BindInfo'];
     };
+    /**
+         * @description Proof-of-ownership signature for network-account onboarding — a raw signature over
+         *     the ledger adapter's challenge payload. Unlike a transaction `signature` it carries no
+         *     template or hash function: there is nothing to template, only the challenge bytes to sign.
+         */
+    accountOwnershipSignature: {
+      /** @description hex representation of the ownership signature */
+      signature: string;
+    };
     /** @description Bind-info block. When present in `CreateAccountRequest`, signals the bind-existing flow. */
     BindInfo: {
       networkAccount: components['schemas']['networkAccount'];
@@ -665,12 +780,12 @@ export interface components {
              * @description Proof-of-ownership hint over the network account. The LA may verify this upfront,
              *     but the authoritative ownership proof is the challenge-fulfillment step.
              */
-      ownershipSignature: components['schemas']['signature'];
+      ownershipSignature: components['schemas']['accountOwnershipSignature'];
     };
     /** @description Body for `POST /accounts/{cid}/proof`. Used only for `signatureTemplate` challenges. */
     SubmitAccountProofRequest: {
       /** @description Signature over the LA's `signatureTemplate` challenge payload. */
-      ownershipSignature: components['schemas']['signature'];
+      ownershipSignature: components['schemas']['accountOwnershipSignature'];
     };
     /**
          * @description Returned for `202` and for `200` from `proof` / `delete`. When `isCompleted` is
@@ -774,7 +889,10 @@ export interface components {
       regulationErrorDetails?: components['schemas']['RegulationError'][];
     };
     createAssetOperationErrorInformation: {
-      /** Format: uint32 */
+      /**
+             * Format: uint32
+             * @description Business error code for the failed create. Well-known values: 7311 (LedgerBindingNotSupportedErr) — the ledger does not support creating an asset on the requested network/standard.
+             */
       code?: number;
       message?: string;
     };
@@ -797,7 +915,7 @@ export interface components {
              */
       instructionSequenceNumber: number;
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'];
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
     operationStatusCreateAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -837,6 +955,19 @@ export interface components {
              */
       type: 'account';
       operation: components['schemas']['networkAccountOperation'];
+    };
+    /**
+         * @description Status of an asynchronous `POST /assets/swap`: the same array response as the synchronous
+         *     call, so a completion carries exactly the `numberOfReceipts` entries that were requested
+         *     whichever way it arrives. Not the single-receipt `receipt` variant, which cannot carry two.
+         */
+    operationStatusSwap: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swap';
+      operation: components['schemas']['swapReceiptOperation'];
     };
     /**
          * @description Status of an investor network-account create/bind/unbind operation, polled via
@@ -993,7 +1124,7 @@ export interface components {
       operationId?: string;
     };
     /** @enum {string} */
-    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move';
+    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move' | 'swap';
     ledgerAssetInfo: {
       ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
       ledgerReference?: components['schemas']['contractDetails'];
@@ -1016,7 +1147,7 @@ export interface components {
       /** @description Indicates if allowance is required */
       allowanceRequired?: boolean;
     };
-    ledgerAssetBinding: components['schemas']['ledgerAssetIdentifier'];
+    ledgerAssetBinding: components['schemas']['ledgerAssetIdentifierCreateOrBind'];
     AssetBalanceInfoRequest: {
       account: components['schemas']['assetBalanceAccount'];
       asset: components['schemas']['asset'];
@@ -1291,6 +1422,19 @@ export interface components {
       type: 'iban';
       iban: string;
     };
+    bicAccountDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'bic';
+      bic: string;
+      accountNumber: string;
+    };
+    /**
+         * @deprecated
+         * @description Deprecated, use bicAccountDetails. Kept for backward compatibility.
+         */
     swiftAccountDetails: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1298,6 +1442,8 @@ export interface components {
              */
       type: 'swift';
       swiftCode: string;
+      /** @description Mirrors swiftCode during the migration to bicAccountDetails. */
+      bic?: string;
       accountNumber: string;
     };
     sortCodeDetails: {
@@ -1310,7 +1456,7 @@ export interface components {
       code: string;
       accountNumber: string;
     };
-    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['bicAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
     wireTransfer: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1431,6 +1577,19 @@ export interface components {
       intentVersion?: string;
       executionContext?: components['schemas']['receiptExecutionContext'];
     };
+    'ledgerAssetIdentifierTypeCAIP-19CreateOrBind': {
+      /**
+             * @description Classification type standards (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+      assetIdentifierType: 'CAIP-19';
+      network?: string;
+      /** @description Identifier of an existing on-ledger token to bind to. Omit to have the ledger create a new token on the given network/standard. */
+      tokenId?: string;
+      standard?: string;
+    };
+    /** @description Ledger asset identifier accepted when creating an asset profile. With tokenId present it binds the profile to an existing on-ledger token. Without tokenId it instructs the ledger to create a new token on the given network/standard; the ledger mints the token, and the full resulting identifier is persisted on the profile. */
+    ledgerAssetIdentifierCreateOrBind: components['schemas']['ledgerAssetIdentifierTypeCAIP-19CreateOrBind'];
     /** @description The name of the asset */
     assetName: string;
     /**
@@ -2117,6 +2276,33 @@ export interface operations {
                      *     }
                      */
           'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  swapAssets: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['SwapAssetsRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SwapAssetsResponse'];
         };
       };
     };
