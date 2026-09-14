@@ -162,7 +162,6 @@ async function finalize(
     const callbackPayload = operationStatusToAPI(outputs);
     logger.debug('Sending callback to router', { cid, status, outputsType: (outputs as any)?.type });
     try {
-      // @ts-ignore — operationStatus type mismatch with sendCallback signature
       const result = await finP2PClient.sendCallback(cid, callbackPayload);
       // openapi-fetch returns { data, error, response } instead of throwing on HTTP errors
       const httpError = (result as any)?.error;

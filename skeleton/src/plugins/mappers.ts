@@ -8,6 +8,7 @@ import {
   Receipt,
   ReceiptOperation,
   Source,
+  SwapOperation,
 } from '../models';
 import { OpComponents } from '@owneraio/finp2p-client';
 import { accountOperationToAPI, contractDetailsOptToAPI, depositInstructionToAPI, tradeDetailsToAPI, transactionDetailsToAPI, proofPolicyOptToAPI } from '../routes';
@@ -85,7 +86,7 @@ export const depositOperationToFinAPI = (operationStatus: DepositOperation): OpC
         operation: {
           cid: '',
           isCompleted: true,
-          response: depositInstructionToAPI(instruction) as OpComponents['schemas']['depositInstruction'],
+          response: depositInstructionToAPI(instruction),
         },
       };
     case 'failure':
@@ -167,6 +168,35 @@ export const receiptOperationToFinAPI = (operationStatus: ReceiptOperation): OpC
   }
 };
 
+export const swapOperationToFinAPI = (operationStatus: SwapOperation): OpComponents['schemas']['operationStatusSwap'] => {
+  switch (operationStatus.type) {
+    case 'success':
+      return {
+        type: 'swap',
+        operation: {
+          cid: '',
+          isCompleted: true,
+          response: {
+            receipts: operationStatus.receipts.map(receiptToFinAPI),
+          },
+        },
+      };
+    case 'failure':
+      const { error: { code, message } } = operationStatus;
+      return {
+        type: 'swap',
+        operation: {
+          cid: '',
+          isCompleted: true,
+          error: { code, message },
+        },
+      };
+    case 'pending':
+      const { correlationId: cid } = operationStatus;
+      return { type: 'swap', operation: { cid, isCompleted: false } };
+  }
+};
+
 export const operationToFinAPI = (operationStatus: OperationStatus): OpComponents['schemas']['operationStatus'] => {
   switch (operationStatus.operation) {
     case 'createAsset':
@@ -183,7 +213,6 @@ export const operationToFinAPI = (operationStatus: OperationStatus): OpComponent
         operation: accountOperationToAPI(operationStatus) as OpComponents['schemas']['networkAccountOperation'],
       };
     case 'swap':
-      // The router operational API (finp2p-client) has no swap arm yet.
-      throw new Error(`${operationStatus.operation} operation status is not supported by the operational API`);
+      return swapOperationToFinAPI(operationStatus);
   }
 };
