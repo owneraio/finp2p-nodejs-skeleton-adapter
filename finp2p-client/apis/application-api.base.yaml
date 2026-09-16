@@ -164,6 +164,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/operationBase'
 
+  /profiles/investor/{investorId}/account/sync:
+    post:
+      tags:
+        - profiles
+      summary: Sync an investor's network accounts on an asset from the ledger adapter
+      description: |
+        Asks the asset's ledger adapter which network accounts it already holds for this
+        investor on the asset (e.g. wallets whitelisted directly on the adapter or its
+        external system) and makes that list the investor's onboarded accounts for
+        `(organizationId, assetId)`: every returned wallet is recorded, and any wallet the
+        router previously held for that pair that the adapter did not return is removed.
+        An empty result clears the pair. No wallet is created and no challenge is issued.
+        Async: returns `202 { cid }`; on completion the operation result carries the
+        recorded wallets in `accounts`. A ledger adapter without lookup support fails the
+        operation with 7352 (`ACCOUNT_LOOKUP_NOT_SUPPORTED`).
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        - name: investorId
+          in: path
+          description: ID of the investor profile
+          required: true
+          schema:
+            $ref: 'common-external-components.yaml#/components/schemas/ownerId'
+      operationId: syncInvestorAccounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/syncInvestorAccountsRequest'
+        required: true
+      responses:
+        '202':
+          description: accepted operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/operationBase'
+
   /profiles/investor/{investorId}/account/proof:
     post:
       tags:
@@ -644,6 +686,42 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/intentId'
+      responses:
+        '200':
+          description: successful operation
+
+  '/profiles/asset/{id}/intent/{intentId}/reject':
+    post:
+      tags:
+        - profiles
+      summary: Reject the intent
+      description: >-
+        Reject the intent. Optional reason may be supplied.
+      operationId: rejectAssetProfileIntent
+      parameters:
+        - name: id
+          in: path
+          description: ID of the asset profile
+          required: true
+          schema:
+            $ref: '#/components/schemas/assetId'
+        - name: intentId
+          in: path
+          description: ID of the intent
+          required: true
+          schema:
+            $ref: '#/components/schemas/intentId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rejectReason:
+                  type: string
+                  pattern: '\S'
+                  description: Optional human-readable reason for the rejection; must not be blank when provided
       responses:
         '200':
           description: successful operation
@@ -2472,6 +2550,32 @@ components:
 
     workflowOperationResult:
       type: object
+      properties:
+        accounts:
+          type: array
+          description: |
+            Investor network-account operations: the accounts the operation resolved and the
+            investor now holds — the single created/bound account for create/bind; for sync
+            every account the ledger adapter reported for (organizationId, assetId), empty
+            when it holds none. Absent for other workflow operations.
+          items:
+            $ref: '#/components/schemas/investorNetworkAccountRecord'
+
+    investorNetworkAccountRecord:
+      type: object
+      description: An investor's recorded network account on a (managing org, asset).
+      required: [ id, organizationId, assetId, networkAccount ]
+      properties:
+        id:
+          type: string
+          description: Ledger-adapter-assigned account identifier.
+        organizationId:
+          $ref: 'common-external-components.yaml#/components/schemas/orgId'
+        assetId:
+          type: string
+          description: ID of the asset
+        networkAccount:
+          $ref: 'common-external-components.yaml#/components/schemas/networkAccount'
 
     executionOperationResultResponse:
       allOf:
@@ -3857,6 +3961,19 @@ components:
             Optional hex-encoded proof-of-ownership signature over the network account.
             The platform does not interpret it: it is forwarded to the ledger adapter
             as-is, and whether (and how) it is verified is adapter policy.
+
+    syncInvestorAccountsRequest:
+      type: object
+      description: |
+        Request body for `POST /profiles/investor/{investorId}/account/sync`. Identifies the
+        (managing org, asset) whose ledger adapter is asked for the investor's accounts.
+      required: [ organizationId, assetId ]
+      properties:
+        organizationId:
+          $ref: 'common-external-components.yaml#/components/schemas/orgId'
+        assetId:
+          type: string
+          description: ID of the asset
 
     submitAccountProofRequest:
       type: object
