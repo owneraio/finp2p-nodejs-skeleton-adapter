@@ -1,11 +1,12 @@
 import { LedgerAPIClient } from './api/api';
 import { TestDataBuilder } from './utils/test-builders';
+import { LedgerProfile, resolveLedgerProfile } from './utils/ledger-profile';
 import { TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
-import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
+import { ACTOR_NAMES, ERROR_CODES } from './utils/test-constants';
 import { generateId } from './utils/utils';
 
-export function businessLogicTests() {
+export function businessLogicTests(ledger?: Partial<LedgerProfile>) {
   describe('Business Logic - Negative Tests', () => {
 
     let client: LedgerAPIClient;
@@ -19,7 +20,7 @@ export function businessLogicTests() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
+      builder = new TestDataBuilder(orgId, resolveLedgerProfile(ledger), client);
       fixtures = new TestFixtures(client, builder);
     });
 
@@ -429,6 +430,50 @@ export function businessLogicTests() {
 
         const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.issue(issueRequest));
         expect(issueStatus.error).toBeUndefined();
+      });
+
+      // Create-mode conformance: without a tokenId the ledger either mints a new
+      // token (the resulting identifier must carry a tokenId) or rejects with the
+      // well-known 7311 LedgerBindingNotSupportedErr. Any other outcome is a
+      // conformance failure.
+      test('should create a new token or reject with 7311 when binding has no tokenId', async () => {
+        const issuer = await builder.buildActor(ACTOR_NAMES.ISSUER);
+        const asset = builder.buildFinP2PAsset();
+
+        const createStatus = await TestHelpers.createAssetAndWait(
+          client,
+          builder.buildCreateAssetRequest({ asset, binding: 'create' }),
+        );
+
+        if (createStatus.error) {
+          expect(createStatus.error.code).toBe(ERROR_CODES.LEDGER_BINDING_NOT_SUPPORTED);
+          return;
+        }
+        expect(createStatus.response?.ledgerAssetInfo.ledgerIdentifier.tokenId).toBeTruthy();
+
+        const issueRequest = builder.buildIssueRequest({
+          destination: { finId: issuer.finId, asset },
+          quantity: 100,
+          settlementRef: generateId(),
+        });
+
+        const issueStatus = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.issue(issueRequest));
+        expect(issueStatus.error).toBeUndefined();
+      });
+
+      test('should create a new token or reject with 7311 when binding is omitted', async () => {
+        const asset = builder.buildFinP2PAsset();
+
+        const createStatus = await TestHelpers.createAssetAndWait(
+          client,
+          builder.buildCreateAssetRequest({ asset, binding: 'none' }),
+        );
+
+        if (createStatus.error) {
+          expect(createStatus.error.code).toBe(ERROR_CODES.LEDGER_BINDING_NOT_SUPPORTED);
+          return;
+        }
+        expect(createStatus.response?.ledgerAssetInfo.ledgerIdentifier.tokenId).toBeTruthy();
       });
 
       test('should handle multiple assets independently', async () => {

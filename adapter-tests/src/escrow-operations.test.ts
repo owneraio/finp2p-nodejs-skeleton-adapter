@@ -1,8 +1,9 @@
 import { LedgerAPIClient } from './api/api';
 import { TestDataBuilder } from './utils/test-builders';
+import { resolveLedgerProfile } from './utils/ledger-profile';
 import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
-import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
+import { SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
 import { generateId } from './utils/utils';
 
 describe('Escrow Operations', () => {
@@ -18,7 +19,7 @@ describe('Escrow Operations', () => {
     // @ts-ignore
     orgId = global.orgId;
 
-    builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
+    builder = new TestDataBuilder(orgId, resolveLedgerProfile(), client);
     fixtures = new TestFixtures(client, builder);
   });
 

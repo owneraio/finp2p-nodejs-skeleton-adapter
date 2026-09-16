@@ -3,11 +3,19 @@ import { businessLogicTests } from './business-logic.test';
 import { tokenLifecycleTests } from './token-lifecycle.test';
 import { insufficientBalanceTest } from './insufficient-balance.test';
 import { mappingOperationsTests } from './mapping-operations.test';
+import { LedgerProfile } from './utils/ledger-profile';
 
 export * as callbackServer from './callback-server/server';
+export { LedgerProfile, DEFAULT_LEDGER_PROFILE } from './utils/ledger-profile';
 
 export interface AdapterTestConfig {
   mapping?: boolean;
+  /**
+   * Ledger-specific identifier formats (network, standard, tokenId generator)
+   * and signing parameters. Merged over `global.ledgerProfile` (set by the
+   * adapter's jest test environment) and the built-in EVM defaults.
+   */
+  ledger?: Partial<LedgerProfile>;
 }
 
 /**
@@ -22,9 +30,9 @@ export interface AdapterTestConfig {
  */
 export function runAdapterTests(config?: AdapterTestConfig) {
   describe('FinP2P Adapter Test Suite', () => {
-    businessLogicTests();
-    tokenLifecycleTests();
-    insufficientBalanceTest();
+    businessLogicTests(config?.ledger);
+    tokenLifecycleTests(config?.ledger);
+    insufficientBalanceTest(config?.ledger);
     if (config?.mapping) {
       mappingOperationsTests();
     }

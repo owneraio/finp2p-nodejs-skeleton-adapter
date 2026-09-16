@@ -1,10 +1,11 @@
 import { LedgerAPIClient } from './api/api';
 import { TestDataBuilder } from './utils/test-builders';
+import { LedgerProfile, resolveLedgerProfile } from './utils/ledger-profile';
 import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
-import { ADDRESSES, SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
+import { SCENARIOS, ACTOR_NAMES } from './utils/test-constants';
 
-export function tokenLifecycleTests() {
+export function tokenLifecycleTests(ledger?: Partial<LedgerProfile>) {
   describe('Token Lifecycle', () => {
 
     let client: LedgerAPIClient;
@@ -18,7 +19,7 @@ export function tokenLifecycleTests() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
+      builder = new TestDataBuilder(orgId, resolveLedgerProfile(ledger), client);
       fixtures = new TestFixtures(client, builder);
     });
 
