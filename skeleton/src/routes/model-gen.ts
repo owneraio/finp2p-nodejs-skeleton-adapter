@@ -289,6 +289,48 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/accounts/lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Look up the accounts this LA already holds for an investor on an asset
+         * @description The asset node asks the LA which network accounts it already associates with
+         *     `finId` on `(organizationId, assetId)` — e.g. wallets whitelisted directly on the
+         *     adapter or its external system. The LA answers with the full array. Nothing is
+         *     created and **no challenge is ever issued**. An empty array is a successful, empty
+         *     result.
+         *
+         *     **Return production wallets only.** The array must contain the investor's real
+         *     accounts on this asset — the ones the adapter actually holds or has whitelisted for
+         *     that investor. Never return test, placeholder or freshly generated wallets. Every
+         *     returned wallet is **bound on the router** as an onboarded network account for the
+         *     investor on `(organizationId, assetId)`, replacing whatever the router previously
+         *     held for that pair, and will be accepted on the investor's execution legs. Return an
+         *     empty array if the adapter holds none.
+         *
+         *     Two response shapes, both `202`:
+         *
+         *     - `isCompleted: true` — the result is inline in `accounts`.
+         *     - `isCompleted: false` — `cid` is returned and the result arrives on
+         *       `GET /operations/status/{cid}` (or the callback, per `operationResponseStrategy`)
+         *       as `networkAccountOperation.accounts`.
+         *
+         *     A ledger adapter that does not support lookup answers `501`; the asset node fails the
+         *     operation with a terminal business error (7352).
+         */
+    post: operations['lookupAccounts'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/accounts/{accountId}': {
     parameters: {
       query?: never;
@@ -485,7 +527,7 @@ export interface components {
         [key: string]: unknown;
       };
       asset: components['schemas']['finp2pAssetBase'];
-      ledgerAssetBinding?: components['schemas']['ledgerAssetIdentifier'];
+      ledgerAssetBinding?: components['schemas']['ledgerAssetIdentifierCreateOrBind'];
       name?: components['schemas']['assetName'];
       issuerId?: components['schemas']['ownerResourceId'];
       denomination?: components['schemas']['assetDenomination'];
@@ -658,6 +700,25 @@ export interface components {
       finId: components['schemas']['finId'];
       bindInfo?: components['schemas']['BindInfo'];
     };
+    /**
+         * @description Body for `POST /accounts/lookup`. Same identification triple as `CreateAccountRequest`;
+         *     no wallet is supplied — the LA reports the accounts it already holds for the investor.
+         */
+    LookupAccountsRequest: {
+      organizationId: string;
+      assetId: string;
+      /** @description The investor whose adapter-held accounts are looked up (see `CreateAccountRequest.finId`). */
+      finId: components['schemas']['finId'];
+    };
+    /**
+         * @description Proof-of-ownership signature for network-account onboarding — a raw signature over
+         *     the ledger adapter's challenge payload. Unlike a transaction `signature` it carries no
+         *     template or hash function: there is nothing to template, only the challenge bytes to sign.
+         */
+    accountOwnershipSignature: {
+      /** @description hex representation of the ownership signature */
+      signature: string;
+    };
     /** @description Bind-info block. When present in `CreateAccountRequest`, signals the bind-existing flow. */
     BindInfo: {
       networkAccount: components['schemas']['networkAccount'];
@@ -665,12 +726,12 @@ export interface components {
              * @description Proof-of-ownership hint over the network account. The LA may verify this upfront,
              *     but the authoritative ownership proof is the challenge-fulfillment step.
              */
-      ownershipSignature: components['schemas']['signature'];
+      ownershipSignature: components['schemas']['accountOwnershipSignature'];
     };
     /** @description Body for `POST /accounts/{cid}/proof`. Used only for `signatureTemplate` challenges. */
     SubmitAccountProofRequest: {
       /** @description Signature over the LA's `signatureTemplate` challenge payload. */
-      ownershipSignature: components['schemas']['signature'];
+      ownershipSignature: components['schemas']['accountOwnershipSignature'];
     };
     /**
          * @description Returned for `202` and for `200` from `proof` / `delete`. When `isCompleted` is
@@ -682,6 +743,13 @@ export interface components {
     AccountOperationAccepted: components['schemas']['OperationBase'] & {
       operationMetadata?: components['schemas']['OperationMetadata'];
       response?: components['schemas']['networkAccountRecord'];
+      /**
+             * @description Lookup result (`POST /accounts/lookup`): every production account the LA holds
+             *     for the investor on the asset — the router binds exactly this list. Present only
+             *     for lookup operations — create/bind keep the singular `response`. Empty on a
+             *     successful lookup that found nothing.
+             */
+      accounts?: components['schemas']['networkAccountRecord'][];
       error?: components['schemas']['networkAccountOperationErrorInformation'];
       /**
              * Format: int64
@@ -774,7 +842,10 @@ export interface components {
       regulationErrorDetails?: components['schemas']['RegulationError'][];
     };
     createAssetOperationErrorInformation: {
-      /** Format: uint32 */
+      /**
+             * Format: uint32
+             * @description Business error code for the failed create. Well-known values: 7311 (LedgerBindingNotSupportedErr) — the ledger does not support creating an asset on the requested network/standard.
+             */
       code?: number;
       message?: string;
     };
@@ -839,14 +910,22 @@ export interface components {
       operation: components['schemas']['networkAccountOperation'];
     };
     /**
-         * @description Status of an investor network-account create/bind/unbind operation, polled via
+         * @description Status of an investor network-account create/bind/lookup/unbind operation, polled via
          *     `GET /operations/status/{cid}`. While a challenge is outstanding, `challenge` is
-         *     present; on completion `response` carries the canonical `{ id, wallet }`; on failure
-         *     `error` carries the LA-level code/message.
+         *     present; on completion `response` carries the canonical `{ id, wallet }` (create/bind)
+         *     or `accounts` carries the adapter-held list (lookup); on failure `error` carries the
+         *     LA-level code/message.
          */
     networkAccountOperation: components['schemas']['OperationBase'] & {
       challenge?: components['schemas']['AccountChallenge'];
       response?: components['schemas']['networkAccountRecord'];
+      /**
+             * @description Lookup result (`POST /accounts/lookup`): every production account the LA holds
+             *     for the investor on the asset — the router binds exactly this list. Present only
+             *     for lookup operations — create/bind keep the singular `response`. Empty on a
+             *     successful lookup that found nothing.
+             */
+      accounts?: components['schemas']['networkAccountRecord'][];
       error?: components['schemas']['networkAccountOperationErrorInformation'];
       /**
              * Format: int64
@@ -1016,7 +1095,7 @@ export interface components {
       /** @description Indicates if allowance is required */
       allowanceRequired?: boolean;
     };
-    ledgerAssetBinding: components['schemas']['ledgerAssetIdentifier'];
+    ledgerAssetBinding: components['schemas']['ledgerAssetIdentifierCreateOrBind'];
     AssetBalanceInfoRequest: {
       account: components['schemas']['assetBalanceAccount'];
       asset: components['schemas']['asset'];
@@ -1291,6 +1370,19 @@ export interface components {
       type: 'iban';
       iban: string;
     };
+    bicAccountDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'bic';
+      bic: string;
+      accountNumber: string;
+    };
+    /**
+         * @deprecated
+         * @description Deprecated, use bicAccountDetails. Kept for backward compatibility.
+         */
     swiftAccountDetails: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1298,6 +1390,8 @@ export interface components {
              */
       type: 'swift';
       swiftCode: string;
+      /** @description Mirrors swiftCode during the migration to bicAccountDetails. */
+      bic?: string;
       accountNumber: string;
     };
     sortCodeDetails: {
@@ -1310,7 +1404,7 @@ export interface components {
       code: string;
       accountNumber: string;
     };
-    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['bicAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
     wireTransfer: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1431,6 +1525,19 @@ export interface components {
       intentVersion?: string;
       executionContext?: components['schemas']['receiptExecutionContext'];
     };
+    'ledgerAssetIdentifierTypeCAIP-19CreateOrBind': {
+      /**
+             * @description Classification type standards (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+      assetIdentifierType: 'CAIP-19';
+      network?: string;
+      /** @description Identifier of an existing on-ledger token to bind to. Omit to have the ledger create a new token on the given network/standard. */
+      tokenId?: string;
+      standard?: string;
+    };
+    /** @description Ledger asset identifier accepted when creating an asset profile. With tokenId present it binds the profile to an existing on-ledger token. Without tokenId it instructs the ledger to create a new token on the given network/standard; the ledger mints the token, and the full resulting identifier is persisted on the profile. */
+    ledgerAssetIdentifierCreateOrBind: components['schemas']['ledgerAssetIdentifierTypeCAIP-19CreateOrBind'];
     /** @description The name of the asset */
     assetName: string;
     /**
@@ -2243,6 +2350,33 @@ export interface operations {
     responses: {
       /** @description Proof accepted; verification continues per response strategy. */
       200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AccountOperationAccepted'];
+        };
+      };
+    };
+  };
+  lookupAccounts: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LookupAccountsRequest'];
+      };
+    };
+    responses: {
+      /** @description Accepted. `isCompleted: true` carries `accounts` inline; otherwise poll `/operations/status/{cid}`. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
