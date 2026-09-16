@@ -96,26 +96,45 @@ Each subproject has its own GitHub Actions workflow triggered by git tags:
 
 ## CI
 
-The CI workflow (`.github/workflows/ci.yml`) runs on every PR and push to master. It builds and tests all subprojects in dependency order:
-1. finp2p-client &rarr; build
-2. finp2p-adapter-models &rarr; build
-3. adapter-tests &rarr; build
-4. skeleton &rarr; build + test (requires PostgreSQL via testcontainers + goose)
-5. sample-adapter &rarr; build + test (requires PostgreSQL via testcontainers + goose)
+The CI workflow (`.github/workflows/ci.yml`) runs on every PR and push to master. Each subproject runs in its **own independent job** &mdash; there is no shared build order and no local linking. Every job does `npm ci` (installing `@owneraio` dependencies from GitHub Packages at the versions pinned in that subproject's `package-lock.json`), then builds, then tests where applicable:
+
+| Job | Steps |
+|-----|-------|
+| finp2p-client | build |
+| skeleton | build + test (PostgreSQL via testcontainers + goose) |
+| adapter-tests | build |
+| vanilla-service | build + test (PostgreSQL via testcontainers + goose) |
+| sample-adapter | build + test (PostgreSQL via testcontainers + goose) |
+
+## Cross-project changes (why CI does not link local packages)
+
+CI used to `npm install ../skeleton` etc., so downstream subprojects built against the sibling directory's working copy instead of a published package. That caused two problems:
+
+1. **Duplicate nominal types.** The symlinked sibling brought its own nested copies of shared dependencies (`@owneraio/finp2p-client`, `pg`), which shadowed the consumer's copies and produced "two distinct nominal types" TypeScript errors &mdash; worked around with a fragile `npm prune --omit=dev` step.
+2. **Untestable breaking changes.** When an upstream package (e.g. skeleton) made a breaking API change, downstream builds in the same PR only passed *because* of the local link. The PR would merge green, but the published downstream package was never actually built against a published upstream &mdash; forcing people to either publish prerelease versions mid-review or publish release versions straight from branches to untangle it.
+
+CI now installs every subproject strictly from GitHub Packages. The workflow for a breaking cross-project change is:
+
+1. Make the upstream change and open a PR (upstream's own build + tests validate it).
+2. Publish a **prerelease** from the branch, e.g. tag `skeleton-v0.29.0-mychange.0` &rarr; publishes `@owneraio/finp2p-nodejs-skeleton-adapter@0.29.0-mychange.0`.
+3. In the downstream subproject, point `package.json` at the prerelease, run `npm install` to update the lockfile, and make the adapting change. CI builds it against the real published prerelease.
+4. After the upstream release version is published, bump the downstream range to it before (or when) merging.
+
+Non-breaking changes need no coordination: merge upstream, publish, then bump the downstream version range in a follow-up.
 
 ## Development setup
 
 Each subproject has its own `package.json` and `node_modules`. There is no workspace-level package manager &mdash; install and build each subproject independently.
 
 ```bash
-# Build adapter-models (no external deps)
-cd finp2p-adapter-models && npm install && npm run build
+# Build finp2p-client (no @owneraio deps)
+cd finp2p-client && npm ci && npm run build
 
-# Build skeleton (depends on published adapter-models + finp2p-client)
-cd skeleton && npm install && npm run build
+# Build skeleton (depends on published finp2p-client)
+cd skeleton && npm ci && npm run build
 
 # Build and test sample-adapter (depends on all of the above)
-cd sample-adapter && npm install && npm run build && npm test
+cd sample-adapter && npm ci && npm run build && npm test
 ```
 
-For local development across subprojects, you can temporarily `npm install ../finp2p-adapter-models` etc., but **remember to restore the version range** in `package.json` before committing (the `file:` protocol breaks CI).
+All `@owneraio/*` dependencies resolve to **published packages on GitHub Packages** &mdash; never to sibling directories. Do not `npm install ../skeleton` or use `file:`/`link:` specifiers, even temporarily: the lockfile picks up the local paths and the build stops testing what will actually ship (see "Cross-project changes" above). If you need an unpublished sibling change, publish a prerelease and depend on that.

@@ -19,8 +19,8 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@owneraio/finp2p-client": "^0.28.23",
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.28",
+    "@owneraio/finp2p-client": "^0.28.25",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.28.30",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
     "express": "5.0.0",
@@ -32,7 +32,7 @@
     "winston": "^3.3.3"
   },
   "devDependencies": {
-    "@owneraio/adapter-tests": "^0.28.2",
+    "@owneraio/adapter-tests": "^0.28.8",
     "@testcontainers/postgresql": "^11.8.0",
     "@types/express": "^4.17.13",
     "@types/jest": "^29.2.0",
