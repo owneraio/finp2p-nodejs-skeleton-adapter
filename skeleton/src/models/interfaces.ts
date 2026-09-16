@@ -27,7 +27,7 @@ export interface CommonService {
 export interface TokenService {
 
   createAsset(idempotencyKey: string, assetId: string,
-    assetBind: AssetBind | undefined, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
+    assetBind: AssetBind, assetMetadata: any | undefined, assetName: string | undefined, issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined): Promise<AssetCreationStatus>;
 
   getBalance(asset: Asset, finId: string): Promise<string>;

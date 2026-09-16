@@ -140,18 +140,9 @@ export const executionContextOptFromAPI = (
   return executionContextFromAPI(ep, counterpartyAssetId);
 };
 
-export const assetBindingFromAPI = (assetBind: components['schemas']['ledgerAssetBinding']): AssetBind => {
-  const { tokenId, network, standard } = assetBind;
-  return {
-    tokenIdentifier: { tokenId, network, standard },
-  };
-};
-
-export const assetBindingOptFromAPI = (assetBind: components['schemas']['ledgerAssetBinding'] | undefined): AssetBind | undefined => {
-  if (!assetBind) {
-    return undefined;
-  }
-  return assetBindingFromAPI(assetBind);
+export const assetBindingFromAPI = (assetBind: components['schemas']['ledgerAssetBinding'] | undefined): AssetBind => {
+  const { tokenId, network, standard } = assetBind ?? {};
+  return { tokenId, network, standard };
 };
 
 export const assetDenominationFromAPI = (denom: components['schemas']['assetDenomination']): AssetDenomination => {

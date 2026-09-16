@@ -77,15 +77,20 @@ export type Balance = {
 };
 
 
-export type TokenIdentifier = {
-  tokenId: string
+/**
+ * Ledger asset binding, mirrors `ledgerAssetIdentifierCreateOrBind` from the OAS.
+ *
+ * - `tokenId` present: the router wants to bind the asset to this existing
+ *   on-ledger token. `network`/`standard` may still be absent, depending on
+ *   the network.
+ * - `tokenId` absent: deployment of a new token. The router may still provide
+ *   a preferred `network`/`standard`; the ledger should raise an error if it
+ *   cannot support them.
+ */
+export type AssetBind = {
+  tokenId?: string
   network?: string
   standard?: string
-};
-
-
-export type AssetBind = {
-  tokenIdentifier: TokenIdentifier
 };
 
 export type AssetDenominationType = 'finp2p' | 'fiat' | 'cryptocurrency';

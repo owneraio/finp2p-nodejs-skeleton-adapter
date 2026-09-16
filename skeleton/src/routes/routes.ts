@@ -18,7 +18,7 @@ import { Application } from 'express';
 import { errorHandler } from './errors';
 import {
   accountOperationToAPI,
-  assetBindingOptFromAPI, assetDenominationOptFromAPI,
+  assetBindingFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
   balanceToAPI,
   bindInfoOptFromAPI,
@@ -147,7 +147,7 @@ export const register = (app: Application,
       const result = await tokenService.createAsset(
         idempotencyKey,
         asset.resourceId,
-        assetBindingOptFromAPI(ledgerAssetBinding),
+        assetBindingFromAPI(ledgerAssetBinding),
         metadata,
         name,
         issuerId,
