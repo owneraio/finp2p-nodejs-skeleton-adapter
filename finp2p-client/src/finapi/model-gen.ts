@@ -100,6 +100,34 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/profiles/investor/{investorId}/account/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Sync an investor's network accounts on an asset from the ledger adapter
+         * @description Asks the asset's ledger adapter which network accounts it already holds for this
+         *     investor on the asset (e.g. wallets whitelisted directly on the adapter or its
+         *     external system) and makes that list the investor's onboarded accounts for
+         *     `(organizationId, assetId)`: every returned wallet is recorded, and any wallet the
+         *     router previously held for that pair that the adapter did not return is removed.
+         *     An empty result clears the pair. No wallet is created and no challenge is issued.
+         *     Async: returns `202 { cid }`; on completion the operation result carries the
+         *     recorded wallets in `accounts`. A ledger adapter without lookup support fails the
+         *     operation with 7352 (`ACCOUNT_LOOKUP_NOT_SUPPORTED`).
+         */
+    post: operations['syncInvestorAccounts'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/profiles/investor/{investorId}/account/proof': {
     parameters: {
       query?: never;
@@ -281,6 +309,26 @@ export interface paths {
          */
     put: operations['cancelAssetProfileIntent'];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/profiles/asset/{id}/intent/{intentId}/reject': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Reject the intent
+         * @description Reject the intent. Optional reason may be supplied.
+         */
+    post: operations['rejectAssetProfileIntent'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1222,7 +1270,24 @@ export interface components {
              */
       type: 'success';
     };
-    workflowOperationResult: Record<string, never>;
+    workflowOperationResult: {
+      /**
+             * @description Investor network-account operations: the accounts the operation resolved and the
+             *     investor now holds — the single created/bound account for create/bind; for sync
+             *     every account the ledger adapter reported for (organizationId, assetId), empty
+             *     when it holds none. Absent for other workflow operations.
+             */
+      accounts?: components['schemas']['investorNetworkAccountRecord'][];
+    };
+    /** @description An investor's recorded network account on a (managing org, asset). */
+    investorNetworkAccountRecord: {
+      /** @description Ledger-adapter-assigned account identifier. */
+      id: string;
+      organizationId: components['schemas']['orgId'];
+      /** @description ID of the asset */
+      assetId: string;
+      networkAccount: components['schemas']['networkAccount'];
+    };
     executionOperationResultResponse: {
       /** @enum {string} */
       type: 'success';
@@ -2132,6 +2197,15 @@ export interface components {
       ownershipSignature?: string;
     };
     /**
+         * @description Request body for `POST /profiles/investor/{investorId}/account/sync`. Identifies the
+         *     (managing org, asset) whose ledger adapter is asked for the investor's accounts.
+         */
+    syncInvestorAccountsRequest: {
+      organizationId: components['schemas']['orgId'];
+      /** @description ID of the asset */
+      assetId: string;
+    };
+    /**
          * @description Request body for `POST /profiles/investor/{investorId}/account/proof`.
          *     Submits the user's signature over the LA-issued `signatureTemplate` payload.
          *     Advances the workflow from `AWAITING_PROOF_SUBMISSION`.
@@ -2993,6 +3067,19 @@ export interface components {
       type: 'iban';
       iban: string;
     };
+    bicAccountDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'bic';
+      bic: string;
+      accountNumber: string;
+    };
+    /**
+         * @deprecated
+         * @description Deprecated, use bicAccountDetails. Kept for backward compatibility.
+         */
     swiftAccountDetails: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -3000,6 +3087,8 @@ export interface components {
              */
       type: 'swift';
       swiftCode: string;
+      /** @description Mirrors swiftCode during the migration to bicAccountDetails. */
+      bic?: string;
       accountNumber: string;
     };
     sortCodeDetails: {
@@ -3012,7 +3101,7 @@ export interface components {
       code: string;
       accountNumber: string;
     };
-    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['bicAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
     wireTransfer: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -3228,6 +3317,35 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': components['schemas']['bindInvestorAccountRequest'];
+      };
+    };
+    responses: {
+      /** @description accepted operation */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['operationBase'];
+        };
+      };
+    };
+  };
+  syncInvestorAccounts: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': components['schemas']['nonce'];
+      };
+      path: {
+        /** @description ID of the investor profile */
+        investorId: components['schemas']['ownerId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['syncInvestorAccountsRequest'];
       };
     };
     responses: {
@@ -3591,6 +3709,36 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  rejectAssetProfileIntent: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID of the asset profile */
+        id: components['schemas']['assetId'];
+        /** @description ID of the intent */
+        intentId: components['schemas']['intentId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': {
+          /** @description Optional human-readable reason for the rejection; must not be blank when provided */
+          rejectReason?: string;
+        };
+      };
+    };
     responses: {
       /** @description successful operation */
       200: {

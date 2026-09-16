@@ -1586,6 +1586,19 @@ export interface components {
       type: 'iban';
       iban: string;
     };
+    bicAccountDetails: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'bic';
+      bic: string;
+      accountNumber: string;
+    };
+    /**
+         * @deprecated
+         * @description Deprecated, use bicAccountDetails. Kept for backward compatibility.
+         */
     swiftAccountDetails: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1593,6 +1606,8 @@ export interface components {
              */
       type: 'swift';
       swiftCode: string;
+      /** @description Mirrors swiftCode during the migration to bicAccountDetails. */
+      bic?: string;
       accountNumber: string;
     };
     sortCodeDetails: {
@@ -1605,7 +1620,7 @@ export interface components {
       code: string;
       accountNumber: string;
     };
-    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
+    wireDetails: components['schemas']['ibanAccountDetails'] | components['schemas']['bicAccountDetails'] | components['schemas']['swiftAccountDetails'] | components['schemas']['sortCodeDetails'];
     wireTransfer: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1993,14 +2008,22 @@ export interface components {
       message: string;
     };
     /**
-         * @description Status of an investor network-account create/bind/unbind operation, polled via
+         * @description Status of an investor network-account create/bind/lookup/unbind operation, polled via
          *     `GET /operations/status/{cid}`. While a challenge is outstanding, `challenge` is
-         *     present; on completion `response` carries the canonical `{ id, wallet }`; on failure
-         *     `error` carries the LA-level code/message.
+         *     present; on completion `response` carries the canonical `{ id, wallet }` (create/bind)
+         *     or `accounts` carries the adapter-held list (lookup); on failure `error` carries the
+         *     LA-level code/message.
          */
     networkAccountOperation: components['schemas']['OperationBase'] & {
       challenge?: components['schemas']['AccountChallenge'];
       response?: components['schemas']['networkAccountRecord'];
+      /**
+             * @description Lookup result (`POST /accounts/lookup`): every production account the LA holds
+             *     for the investor on the asset — the router binds exactly this list. Present only
+             *     for lookup operations — create/bind keep the singular `response`. Empty on a
+             *     successful lookup that found nothing.
+             */
+      accounts?: components['schemas']['networkAccountRecord'][];
       error?: components['schemas']['networkAccountOperationErrorInformation'];
       /**
              * Format: int64

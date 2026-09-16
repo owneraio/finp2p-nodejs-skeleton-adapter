@@ -598,6 +598,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccountOperationAccepted'
+  /accounts/lookup:
+    post:
+      tags:
+        - 'management'
+      summary: 'Look up the accounts this LA already holds for an investor on an asset'
+      description: |
+        The asset node asks the LA which network accounts it already associates with
+        `finId` on `(organizationId, assetId)` — e.g. wallets whitelisted directly on the
+        adapter or its external system. The LA answers with the full array. Nothing is
+        created and **no challenge is ever issued**. An empty array is a successful, empty
+        result.
+
+        **Return production wallets only.** The array must contain the investor's real
+        accounts on this asset — the ones the adapter actually holds or has whitelisted for
+        that investor. Never return test, placeholder or freshly generated wallets. Every
+        returned wallet is **bound on the router** as an onboarded network account for the
+        investor on `(organizationId, assetId)`, replacing whatever the router previously
+        held for that pair, and will be accepted on the investor's execution legs. Return an
+        empty array if the adapter holds none.
+
+        Two response shapes, both `202`:
+
+        - `isCompleted: true` — the result is inline in `accounts`.
+        - `isCompleted: false` — `cid` is returned and the result arrives on
+          `GET /operations/status/{cid}` (or the callback, per `operationResponseStrategy`)
+          as `networkAccountOperation.accounts`.
+
+        A ledger adapter that does not support lookup answers `501`; the asset node fails the
+        operation with a terminal business error (7352).
+      operationId: 'lookupAccounts'
+      parameters:
+        - in: 'header'
+          name: 'Idempotency-Key'
+          description: 'hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)'
+          schema:
+            type: 'string'
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LookupAccountsRequest'
+        required: true
+      responses:
+        '202':
+          description: 'Accepted. `isCompleted: true` carries `accounts` inline; otherwise poll `/operations/status/{cid}`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOperationAccepted'
   /accounts/{accountId}:
     delete:
       tags:
@@ -1366,6 +1416,36 @@ components:
             an investor without a resolvable finId cannot onboard a network account.
         bindInfo:
           $ref: '#/components/schemas/BindInfo'
+    LookupAccountsRequest:
+      type: 'object'
+      description: |
+        Body for `POST /accounts/lookup`. Same identification triple as `CreateAccountRequest`;
+        no wallet is supplied — the LA reports the accounts it already holds for the investor.
+      required: ['organizationId', 'assetId', 'finId']
+      properties:
+        organizationId:
+          type: 'string'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        assetId:
+          type: 'string'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        finId:
+          $ref: 'common-external-components.yaml#/components/schemas/finId'
+          description: 'The investor whose adapter-held accounts are looked up (see `CreateAccountRequest.finId`).'
+    accountOwnershipSignature:
+      type: 'object'
+      description: |
+        Proof-of-ownership signature for network-account onboarding — a raw signature over
+        the ledger adapter's challenge payload. Unlike a transaction `signature` it carries no
+        template or hash function: there is nothing to template, only the challenge bytes to sign.
+      required: ['signature']
+      properties:
+        signature:
+          type: 'string'
+          description: 'hex representation of the ownership signature'
+          x-allowEmpty: true
     BindInfo:
       type: 'object'
       description: |
@@ -1375,7 +1455,7 @@ components:
         networkAccount:
           $ref: 'common-external-components.yaml#/components/schemas/networkAccount'
         ownershipSignature:
-          $ref: '#/components/schemas/signature'
+          $ref: '#/components/schemas/accountOwnershipSignature'
           description: |
             Proof-of-ownership hint over the network account. The LA may verify this upfront,
             but the authoritative ownership proof is the challenge-fulfillment step.
@@ -1386,7 +1466,7 @@ components:
       required: ['ownershipSignature']
       properties:
         ownershipSignature:
-          $ref: '#/components/schemas/signature'
+          $ref: '#/components/schemas/accountOwnershipSignature'
           description: 'Signature over the LA''s `signatureTemplate` challenge payload.'
     AccountOperationAccepted:
       description: |
@@ -1403,6 +1483,15 @@ components:
               $ref: 'common-external-components.yaml#/components/schemas/OperationMetadata'
             response:
               $ref: '#/components/schemas/networkAccountRecord'
+            accounts:
+              type: 'array'
+              description: |
+                Lookup result (`POST /accounts/lookup`): every production account the LA holds
+                for the investor on the asset — the router binds exactly this list. Present only
+                for lookup operations — create/bind keep the singular `response`. Empty on a
+                successful lookup that found nothing.
+              items:
+                $ref: '#/components/schemas/networkAccountRecord'
             error:
               $ref: '#/components/schemas/networkAccountOperationErrorInformation'
             expiresInSeconds:
@@ -1539,6 +1628,8 @@ components:
         code:
           type: 'integer'
           format: 'uint32'
+          description: |
+            Business error code for the failed create. Well-known values: 7311 (LedgerBindingNotSupportedErr) — the ledger does not support creating an asset on the requested network/standard.
         message:
           type: 'string'
           pattern: '.*\S.*'
@@ -1638,10 +1729,11 @@ components:
           $ref: '#/components/schemas/networkAccountOperation'
     networkAccountOperation:
       description: |
-        Status of an investor network-account create/bind/unbind operation, polled via
+        Status of an investor network-account create/bind/lookup/unbind operation, polled via
         `GET /operations/status/{cid}`. While a challenge is outstanding, `challenge` is
-        present; on completion `response` carries the canonical `{ id, wallet }`; on failure
-        `error` carries the LA-level code/message.
+        present; on completion `response` carries the canonical `{ id, wallet }` (create/bind)
+        or `accounts` carries the adapter-held list (lookup); on failure `error` carries the
+        LA-level code/message.
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
         - type: 'object'
@@ -1650,6 +1742,15 @@ components:
               $ref: '#/components/schemas/AccountChallenge'
             response:
               $ref: '#/components/schemas/networkAccountRecord'
+            accounts:
+              type: 'array'
+              description: |
+                Lookup result (`POST /accounts/lookup`): every production account the LA holds
+                for the investor on the asset — the router binds exactly this list. Present only
+                for lookup operations — create/bind keep the singular `response`. Empty on a
+                successful lookup that found nothing.
+              items:
+                $ref: '#/components/schemas/networkAccountRecord'
             error:
               $ref: '#/components/schemas/networkAccountOperationErrorInformation'
             expiresInSeconds:
@@ -1969,7 +2070,7 @@ components:
           type: 'boolean'
           description: 'Indicates if allowance is required'
     ledgerAssetBinding:
-      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
+      $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifierCreateOrBind'
     AssetBalanceInfoRequest:
       type: 'object'
       required: ['account', 'asset']
