@@ -1,5 +1,11 @@
 name: CI
 
+# Each subproject is built and tested in its own job, installing its
+# @owneraio dependencies from GitHub Packages — never from sibling
+# directories. If a change here depends on an unpublished change in a
+# sibling package, publish a prerelease of that package first and point
+# package.json at it (see CLAUDE.md, "Cross-project changes").
+
 on:
   push:
     branches:
@@ -8,101 +14,145 @@ on:
       - 'v0.**'
   pull_request:
 
+# Least-privilege GITHUB_TOKEN: checkout + installing @owneraio packages
+# from GitHub Packages only need read access.
+permissions:
+  contents: read
+  packages: read
+
 jobs:
-  build:
+  # `npm ci` catches package.json/package-lock.json dependency drift, but not
+  # a `version` field edited by hand without `npm version --no-git-tag-version`.
+  lockfile-version-sync:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout application repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: check package.json version matches package-lock.json
+        run: |
+          fail=0
+          for d in finp2p-client skeleton adapter-tests vanilla-service sample-adapter skeleton-test-environment; do
+            node -e "
+              const p = require('./$d/package.json');
+              const l = require('./$d/package-lock.json');
+              const lockRoot = l.packages?.['']?.version ?? l.version;
+              if (p.version !== l.version || p.version !== lockRoot) {
+                console.error('$d: package.json=' + p.version + ' package-lock.json=' + l.version + '/' + lockRoot);
+                console.error('$d: bump with \`npm version <ver> --no-git-tag-version\`, never by editing files directly');
+                process.exit(1);
+              }
+            " || fail=1
+          done
+          exit $fail
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+  finp2p-client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./finp2p-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: https://npm.pkg.github.com/
           scope: '@owneraio'
-
-      - name: finp2p-client install dependencies
-        working-directory: ./finp2p-client
-        run: npm clean-install
-
-      - name: finp2p-client build
-        working-directory: ./finp2p-client
-        run: npm run build
-
-        # ----------------------------------
-
-      - name: skeleton install dependencies
-        working-directory: ./skeleton
+      - name: install dependencies
         run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: skeleton build
-        working-directory: ./skeleton
+      - name: build
         run: npm run build
 
-      - name: install skeleton migration tool
+  skeleton:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: ./skeleton
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: https://npm.pkg.github.com/
+          scope: '@owneraio'
+      - name: install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: build
+        run: npm run build
+      - name: install migration tool
         run: |
           go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: skeleton test
-        working-directory: ./skeleton
+      - name: test
         run: npm run test
 
-      - name: skeleton prune dev dependencies
-        # Consumers (adapter-tests, vanilla-service, sample-adapter) install
-        # skeleton via `npm install ../skeleton`, which symlinks the directory.
-        # Skeleton's devDeps include @owneraio/finp2p-client and pg, which the
-        # consumer also installs. Without pruning, the symlinked nested copy
-        # shadows the consumer's copy and causes "two distinct nominal types"
-        # TS errors at the call sites where the types meet.
-        working-directory: ./skeleton
-        run: npm prune --omit=dev
-
-        # ----------------------------------
-
-      - name: adapter-tests install dependencies
+  adapter-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: ./adapter-tests
-        run: npm install ../skeleton && npm install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: https://npm.pkg.github.com/
+          scope: '@owneraio'
+      - name: install dependencies
+        run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: adapter-tests build
-        working-directory: ./adapter-tests
+      - name: build
         run: npm run build
 
-        # ----------------------------------
-
-      - name: vanilla-service install dependencies
+  vanilla-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: ./vanilla-service
-        run: npm install ../skeleton && npm install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: https://npm.pkg.github.com/
+          scope: '@owneraio'
+      - name: install dependencies
+        run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: vanilla-service build
-        working-directory: ./vanilla-service
+      - name: build
         run: npm run build
-
-      - name: vanilla-service test
-        working-directory: ./vanilla-service
+      - name: install migration tool
+        run: |
+          go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - name: test
         run: npm run test
 
-        # ----------------------------------
-
-      - name: sample-adapter install dependencies
+  sample-adapter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: ./sample-adapter
-        run: npm install ../skeleton ../adapter-tests && npm install
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: https://npm.pkg.github.com/
+          scope: '@owneraio'
+      - name: install dependencies
+        run: npm ci
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: sample-adapter build
-        working-directory: ./sample-adapter
+      - name: build
         run: npm run build
-
-      - name: sample-adapter test
-        working-directory: ./sample-adapter
+      - name: install migration tool
+        run: |
+          go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - name: test
         run: npm test
