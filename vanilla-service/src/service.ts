@@ -30,7 +30,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
   async createAsset(
     idempotencyKey: string, assetId: string,
-    assetBind: AssetBind | undefined, assetMetadata: any | undefined,
+    assetBind: AssetBind, assetMetadata: any | undefined,
     assetName: string | undefined, issuerId: string | undefined,
     assetDenomination: AssetDenomination | undefined,
   ): Promise<AssetCreationStatus> {
@@ -44,9 +44,9 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       return successfulAssetCreation(result);
     }
 
-    const ledgerIdentifier = assetBind?.tokenIdentifier
-      ? { assetIdentifierType: 'CAIP-19' as const, tokenId: assetBind.tokenIdentifier.tokenId, network: assetBind.tokenIdentifier.network, standard: assetBind.tokenIdentifier.standard }
-      : { assetIdentifierType: 'CAIP-19' as const, tokenId: generateCid(), network: 'db', standard: 'vanilla' };
+    const ledgerIdentifier = assetBind.tokenId
+      ? { assetIdentifierType: 'CAIP-19' as const, tokenId: assetBind.tokenId, network: assetBind.network, standard: assetBind.standard }
+      : { assetIdentifierType: 'CAIP-19' as const, tokenId: generateCid(), network: assetBind.network ?? 'db', standard: assetBind.standard ?? 'vanilla' };
     return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
   }
 
