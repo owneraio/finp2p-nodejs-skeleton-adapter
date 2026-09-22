@@ -62,6 +62,12 @@ export type ExecutionContext = {
   planId: string
   sequence: number
   counterpartyAssetId?: string
+  /**
+   * HACK: swap only. The HTTP legs carry source AND destination assets, but
+   * SwapLeg drops the destination-side binding — this smuggles the settlement
+   * leg's counterparty resource id through until SwapLeg models both sides.
+   */
+  counterpartySettlementId?: string
 };
 
 /**

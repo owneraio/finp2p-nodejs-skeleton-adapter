@@ -122,23 +122,26 @@ export const depositPayoutAccountToAPI = (dest: Destination): components['schema
 export const executionContextFromAPI = (
   ep: components['schemas']['executionContext'],
   counterpartyAssetId?: string,
+  counterpartySettlementId?: string,
 ): ExecutionContext => {
   const { executionPlanId, instructionSequenceNumber } = ep;
   return {
     planId: executionPlanId,
     sequence: instructionSequenceNumber,
     counterpartyAssetId,
+    counterpartySettlementId,
   };
 };
 
 export const executionContextOptFromAPI = (
   ep: components['schemas']['executionContext'] | undefined,
   counterpartyAssetId?: string,
+  counterpartySettlementId?: string,
 ): ExecutionContext | undefined => {
   if (!ep) {
     return undefined;
   }
-  return executionContextFromAPI(ep, counterpartyAssetId);
+  return executionContextFromAPI(ep, counterpartyAssetId, counterpartySettlementId);
 };
 
 export const assetBindingFromAPI = (assetBind: components['schemas']['ledgerAssetBinding']): AssetBind => {
