@@ -3,7 +3,7 @@ import {
   AssetBind, AssetCreationStatus,
   AssetDenomination,
   Balance, BusinessError, Destination,
-  LedgerAssetIdentifier, ReceiptOperation, Source, successfulAssetCreation, successfulReceiptOperation,
+  LedgerAssetIdentifier, ReceiptOperation, Source, failedAssetCreation, successfulAssetCreation, successfulReceiptOperation,
   TokenService,
   Asset, ExecutionContext,
   Signature,
@@ -14,6 +14,12 @@ import { Storage } from './storage';
 import {
   generateId,
 } from './utils';
+
+const SUPPORTED_NETWORK = 'inmemory';
+const SUPPORTED_STANDARD = 'mock';
+
+/** LedgerBindingNotSupportedErr — the ledger does not support the requested network/standard. */
+const LEDGER_BINDING_NOT_SUPPORTED = 7311;
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
@@ -35,13 +41,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       issuerId,
       assetDenomination,
     });
-    let ledgerIdentifier: LedgerAssetIdentifier;
-    if (!assetBind || !assetBind.tokenIdentifier) {
-      ledgerIdentifier = { assetIdentifierType: 'CAIP-19', network: 'inmemory', tokenId: generateId(), standard: 'mock' };
-    } else {
-      const { network, tokenId, standard } = assetBind.tokenIdentifier;
-      ledgerIdentifier = { assetIdentifierType: 'CAIP-19', network, tokenId, standard };
+    const network = assetBind?.network ?? SUPPORTED_NETWORK;
+    const standard = assetBind?.standard ?? SUPPORTED_STANDARD;
+    if (network !== SUPPORTED_NETWORK || standard !== SUPPORTED_STANDARD) {
+      return failedAssetCreation(LEDGER_BINDING_NOT_SUPPORTED,
+        `unsupported ledger binding ${network}/${standard}, only ${SUPPORTED_NETWORK}/${SUPPORTED_STANDARD} is supported`);
     }
+    const tokenId = assetBind?.tokenId ?? generateId();
+    const ledgerIdentifier: LedgerAssetIdentifier = { assetIdentifierType: 'CAIP-19', network, tokenId, standard };
     const asset: Asset = { assetId, assetType: 'finp2p', ledgerIdentifier };
     this.storage.createAsset(assetId, asset);
     return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
