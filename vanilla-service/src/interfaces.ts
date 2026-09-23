@@ -20,7 +20,7 @@ export interface AssetDelegate {
   createAsset(
     idempotencyKey: string,
     assetId: string,
-    assetBind: AssetBind | undefined,
+    assetBind: AssetBind,
     assetMetadata: any | undefined,
     assetName: string | undefined,
     issuerId: string | undefined,
