@@ -1,4 +1,5 @@
 import { createCrypto, finIdToAddress, generateNonce, randomResourceId, ASSET } from './utils';
+import { LedgerProfile } from './ledger-profile';
 import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { LedgerAPIClient } from '../api/api';
 import { eip712Signature } from '../api/mapper';
@@ -32,12 +33,18 @@ export interface TestActor {
  * - build[Operation]Request() - Creates request body objects for API calls
  */
 export class TestDataBuilder {
+  private chainId: number;
+
+  private verifyingContract: string;
+
   constructor(
     private orgId: string,
-    private chainId: number,
-    private verifyingContract: string,
+    private profile: LedgerProfile,
     private client?: LedgerAPIClient,
-  ) {}
+  ) {
+    this.chainId = profile.chainId;
+    this.verifyingContract = profile.verifyingContract;
+  }
 
   // ========== Data Builders (creates supporting objects) ==========
 
@@ -89,9 +96,9 @@ export class TestDataBuilder {
       resourceId: assetId,
       ledgerIdentifier: {
         assetIdentifierType: 'CAIP-19',
-        network: `eip155:${this.chainId}`,
-        tokenId: assetId,
-        standard: 'ERC20',
+        network: this.profile.network,
+        tokenId: this.profile.generateTokenId(assetId),
+        standard: this.profile.standard,
       },
     };
   }
@@ -105,9 +112,9 @@ export class TestDataBuilder {
       resourceId: code,
       ledgerIdentifier: {
         assetIdentifierType: 'CAIP-19',
-        network: `eip155:${this.chainId}`,
-        tokenId: code,
-        standard: 'ERC20',
+        network: this.profile.network,
+        tokenId: this.profile.generateTokenId(code),
+        standard: this.profile.standard,
       },
     };
   }
@@ -115,16 +122,36 @@ export class TestDataBuilder {
   // ========== Request Builders (creates request body objects) ==========
 
   /**
-   * Creates a CreateAssetRequest body for API call
+   * Creates a CreateAssetRequest body for API call.
+   *
+   * `ledgerAssetBinding` follows the `ledgerAssetIdentifierCreateOrBind` OAS
+   * schema, where `tokenId` is optional:
+   * - `binding: 'bind'` (default) — full identifier with `tokenId`, binds the
+   *   asset to an existing on-ledger token
+   * - `binding: 'create'` — identifier without `tokenId`, instructs the ledger
+   *   to create a new token on the given network/standard
+   * - `binding: 'none'` — omits `ledgerAssetBinding` entirely, the ledger
+   *   creates a new token with its own defaults
+   *
    * @example await client.tokens.createAsset(builder.buildCreateAssetRequest({ asset }));
+   * @example await client.tokens.createAsset(builder.buildCreateAssetRequest({ asset, binding: 'create' }));
    */
   buildCreateAssetRequest(params: {
     asset: LedgerAPI['schemas']['asset'];
+    binding?: 'bind' | 'create' | 'none';
   }): LedgerAPI['schemas']['CreateAssetRequest'] {
-    return {
-      asset: { resourceId: params.asset.resourceId },
-      ledgerAssetBinding: params.asset.ledgerIdentifier,
-    };
+    const asset = { resourceId: params.asset.resourceId };
+    switch (params.binding ?? 'bind') {
+      case 'none':
+        return { asset };
+      case 'create': {
+        const { assetIdentifierType, network, standard } = params.asset.ledgerIdentifier;
+        return { asset, ledgerAssetBinding: { assetIdentifierType, network, standard } };
+      }
+      case 'bind':
+      default:
+        return { asset, ledgerAssetBinding: params.asset.ledgerIdentifier };
+    }
   }
 
   /**

@@ -1,11 +1,12 @@
 import { LedgerAPIClient } from './api/api';
 import { TestDataBuilder } from './utils/test-builders';
+import { LedgerProfile, resolveLedgerProfile } from './utils/ledger-profile';
 import { TestFixtures } from './utils/test-fixtures';
-import { ADDRESSES, ACTOR_NAMES } from './utils/test-constants';
+import { ACTOR_NAMES } from './utils/test-constants';
 import { generateId } from './utils/utils';
 import { TestHelpers } from './utils/test-assertions';
 
-export function insufficientBalanceTest() {
+export function insufficientBalanceTest(ledger?: Partial<LedgerProfile>) {
   describe('Insufficient Balance - Negative Tests', () => {
 
     let client: LedgerAPIClient;
@@ -19,7 +20,7 @@ export function insufficientBalanceTest() {
       // @ts-ignore
       orgId = global.orgId;
 
-      builder = new TestDataBuilder(orgId, 1, ADDRESSES.ZERO_ADDRESS, client);
+      builder = new TestDataBuilder(orgId, resolveLedgerProfile(ledger), client);
       fixtures = new TestFixtures(client, builder);
     });
 

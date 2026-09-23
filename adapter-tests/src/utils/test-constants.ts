@@ -68,6 +68,14 @@ export const ACTOR_NAMES = {
 } as const;
 
 /**
+ * Well-known business error codes from the DLT adapter OAS
+ */
+export const ERROR_CODES = {
+  // The ledger does not support creating an asset on the requested network/standard
+  LEDGER_BINDING_NOT_SUPPORTED: 7311,
+} as const;
+
+/**
  * Timeout values for async operations
  */
 export const TIMEOUTS = {
