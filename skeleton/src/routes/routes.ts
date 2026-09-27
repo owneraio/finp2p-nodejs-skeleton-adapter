@@ -15,7 +15,7 @@ import {
 } from '../models';
 import { NotSupportedNetworkAccountService } from '../services/accounts';
 import { Application } from 'express';
-import { errorHandler } from './errors';
+import { errorHandler, forwardAsyncErrors } from './errors';
 import {
   accountOperationToAPI,
   assetBindingFromAPI, assetDenominationOptFromAPI,
@@ -51,7 +51,7 @@ export interface RegisterOptions {
   whitelistService?: InvestorWhitelistService;
 }
 
-export const register = (app: Application,
+export const register = (adapterApp: Application,
   tokenService: TokenService,
   escrowService: EscrowService,
   commonService: CommonService,
@@ -64,6 +64,8 @@ export const register = (app: Application,
   networkAccountService: NetworkAccountService = new NotSupportedNetworkAccountService(),
   options?: RegisterOptions,
 ): void => {
+  // Rejections from the handlers below reach errorHandler on Express 4 as on 5.
+  const app = forwardAsyncErrors(adapterApp);
   const { mappingConfig, mappingService, whitelistService } = options ?? {};
   if (mappingConfig && !mappingService) {
     throw new Error('mappingConfig requires a mappingService. Construct AccountMappingServiceImpl(store) and pass it in.');

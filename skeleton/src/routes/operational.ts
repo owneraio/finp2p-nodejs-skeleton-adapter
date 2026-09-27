@@ -5,6 +5,7 @@ import {
   ValidationError, WhitelistRefusedError,
 } from '../models';
 import { logger } from '../helpers';
+import { forwardAsyncErrors } from './errors';
 import { components as MappingAPI } from './mapping-api-gen';
 
 type APIMappingResponse = MappingAPI['schemas']['ownerMapping'];
@@ -47,10 +48,12 @@ function toAPIMappingResponse(m: AccountMapping): APIMappingResponse {
  *   GET  /mapping/fields   — supported account mapping field metadata
  */
 export function registerMappingRoutes(
-  app: Application,
+  adapterApp: Application,
   config: AccountMappingConfig,
   mappingService: AccountMappingService,
 ): void {
+  // Rejections from the handlers below reach errorHandler on Express 4 as on 5.
+  const app = forwardAsyncErrors(adapterApp);
 
   app.post('/mapping/owners', async (req, res) => {
     try {
@@ -179,9 +182,11 @@ const isPartyError = (p: WhitelistParty | { error: string }): p is { error: stri
  *   GET    /investor/whitelist  — query
  */
 export function registerWhitelistRoutes(
-  app: Application,
+  adapterApp: Application,
   whitelistService: InvestorWhitelistService,
 ): void {
+  // Rejections from the handlers below reach errorHandler on Express 4 as on 5.
+  const app = forwardAsyncErrors(adapterApp);
 
   const fail = (res: Response, e: any, context: string): void => {
     if (e instanceof ValidationError) {

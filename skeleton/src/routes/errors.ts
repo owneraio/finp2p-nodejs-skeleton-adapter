@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { Application, NextFunction, Request, Response } from 'express';
 import { logger } from '../helpers';
 import {
   AccountAlreadyBoundError,
@@ -72,3 +72,46 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+const ROUTING_METHODS = new Set(['all', 'get', 'post', 'put', 'patch', 'delete', 'use']);
+const forwarding = new WeakSet<object>();
+
+type Handler = (req: Request, res: Response, next: NextFunction) => unknown;
+
+const isPromiseLike = (value: unknown): value is Promise<unknown> =>
+  typeof (value as Promise<unknown> | undefined)?.catch === 'function';
+
+/**
+ * A handler whose rejected promise is passed to `next`. The promise is not
+ * handed back, because Express 5 would pass the same rejection on again.
+ * Error middleware, recognised by its four parameters, is left as it is.
+ */
+const forwardRejection = (arg: unknown): unknown => {
+  if (Array.isArray(arg)) return arg.map(forwardRejection);
+  if (typeof arg !== 'function' || arg.length === 4) return arg;
+  const handler = arg as Handler;
+  return (req: Request, res: Response, next: NextFunction) => {
+    const result = handler(req, res, next);
+    if (isPromiseLike(result)) result.catch(next);
+  };
+};
+
+/**
+ * The app with every route and middleware registered through it passing a
+ * rejected promise to `next`, and so to `errorHandler`. Express 5 does this
+ * itself; Express 4 leaves the rejection unhandled, which under Node's
+ * default ends the process, so one failing request would take an adapter on
+ * Express 4 down. Applying it twice is harmless.
+ */
+export function forwardAsyncErrors<T extends Application>(app: T): T {
+  if (forwarding.has(app)) return app;
+  const proxy = new Proxy(app, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof prop !== 'string' || !ROUTING_METHODS.has(prop) || typeof value !== 'function') return value;
+      return (...args: unknown[]) => value.apply(target, args.map(forwardRejection));
+    },
+  });
+  forwarding.add(proxy);
+  return proxy;
+}

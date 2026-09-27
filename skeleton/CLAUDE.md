@@ -45,6 +45,7 @@ The goal is to narrow the scope of building a new adapter to **just implementing
   **`custodialAccount` has no address** &mdash; switch on `type` rather than reaching for `.address`. A type outside the union still throws `AccountInvalidShapeError` (400) rather than degrading to `none`: degrading would report a successful bind while recording an empty account, the router whitelists `{}`, and every later operation naming the real account fails 7351 `AccountNotWhitelisted` with nothing at bind time to explain it.
 
   Rejecting a variant the ledger cannot service belongs in a `NetworkAccountValidator`, which is adapter policy &mdash; not in the mapper, which must represent everything the OAS defines.
+- **`errors.ts`** &mdash; `errorHandler`, the error middleware `register()` mounts last, and `forwardAsyncErrors(app)`, which `register()`, `registerMappingRoutes()` and `registerWhitelistRoutes()` apply to the app they are given so a rejected async handler reaches `errorHandler` on Express 4 as well as 5 (Express 4 leaves it unhandled, which ends the process). The adapter creates the app, so `express` is a peer dependency (`^4.18.0 || ^5.0.0`); adapters registering their own async routes can wrap their app the same way.
 
 ### Workflow layer (`src/workflows/`)
 
