@@ -1545,7 +1545,7 @@ export interface components {
       assetDetails?: components['schemas']['receiptAssetDetails'];
       operationRef?: string;
       /** @enum {string} */
-      operationType: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'move' | 'unknown';
+      operationType: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'move' | 'swap' | 'unknown';
       timestamp: number;
     };
     /**

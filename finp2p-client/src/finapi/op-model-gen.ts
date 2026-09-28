@@ -590,7 +590,7 @@ export interface components {
       services?: string[];
       /** @description Supported execution-plan capability ids. */
       execution?: string[];
-      /** @description Supported async operation capability ids. */
+      /** @description Supported peer-invocable operation capability ids, banded by the service that serves them: async operation handling (the Operations service) and the DataService RPCs. Whether a peer serves data at all is carried by protocolVersion, not by the presence of the data entries here. */
       operations?: string[];
       custodySigning?: components['schemas']['signatureCapability'];
       /** @description Policy-derived per-intent capabilities. */
@@ -1000,7 +1000,26 @@ export interface components {
              * @description Sequence number of the instruction involved
              */
       instructionSequenceNumber: number;
-      output?: components['schemas']['receiptOutput'] | components['schemas']['instructionCompletionError'];
+      output?: components['schemas']['receiptOutput'] | components['schemas']['instructionCompletionError'] | components['schemas']['receiptsOutput'];
+    };
+    /**
+         * @description Completion output for an instruction that produces MORE THAN ONE receipt. An instruction
+         *     yielding a single receipt uses `receiptOutput` instead, so this variant always carries at
+         *     least two. There is deliberately no upper bound: operations with more than two receipts can
+         *     use this shape without a schema change.
+         *
+         *     ORDER IS SIGNIFICANT, and its meaning is defined per instruction — the array form cannot
+         *     name the role each receipt plays. For Swap (the first user of this variant, exchanging two
+         *     assets in one ledger transaction, so two receipts with distinct ids sharing one
+         *     transactionId): `receipts[0]` is the trade asset leg, `receipts[1]` the settlement leg.
+         */
+    receiptsOutput: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'receipts';
+      receipts: components['schemas']['receiptOutput'][];
     };
     receiptOutput: {
       /**
@@ -1016,7 +1035,7 @@ export interface components {
       tradeDetails?: components['schemas']['receiptTradeDetails'];
       details: components['schemas']['receiptAssetDetails'];
       /** @enum {string} */
-      operationType?: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'move' | 'unknown';
+      operationType?: 'hold' | 'issue' | 'redeem' | 'release' | 'transfer' | 'move' | 'swap' | 'unknown';
       operationRef?: string;
       timestamp: number;
       proof?: components['schemas']['proofPolicy'];
@@ -1229,7 +1248,7 @@ export interface components {
     };
     instruction: {
       /** @enum {string} */
-      instruction: 'Hold' | 'Transfer' | 'Release' | 'Await' | 'Issue' | 'RevertHold' | 'Redeem' | 'Move';
+      instruction: 'Hold' | 'Transfer' | 'Release' | 'Await' | 'Issue' | 'RevertHold' | 'Redeem' | 'Move' | 'Swap';
       /** Format: uint32 */
       sequence: number;
       executors?: ('self' | 'counterparty')[];
@@ -1762,7 +1781,7 @@ export interface components {
       operationId?: string;
     };
     /** @enum {string} */
-    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move';
+    operationType: 'issue' | 'transfer' | 'hold' | 'release' | 'redeem' | 'move' | 'swap';
     receiptExecutionContext: {
       executionPlanId: string;
       instructionSequenceNumber: number;
@@ -2043,7 +2062,33 @@ export interface components {
       type: 'account';
       operation: components['schemas']['networkAccountOperation'];
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'];
+    /**
+         * @description The receipts for the leg(s) THIS adapter executed on `POST /assets/swap`: exactly
+         *     `numberOfReceipts` entries on a COMPLETED operation, `asset` first, never a leg another
+         *     adapter executed. An INTERIM operation omits `response` altogether — an empty array is
+         *     invalid. All entries share one `transactionId` with distinct ids.
+         */
+    swapReceipts: {
+      receipts: components['schemas']['receipt'][];
+    };
+    swapReceiptOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['swapReceipts'];
+    };
+    /**
+         * @description Status of an asynchronous `POST /assets/swap`: the same array response as the synchronous
+         *     call, so a completion carries exactly the `numberOfReceipts` entries that were requested
+         *     whichever way it arrives. Not the single-receipt `receipt` variant, which cannot carry two.
+         */
+    operationStatusSwap: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swap';
+      operation: components['schemas']['swapReceiptOperation'];
+    };
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
     CustomError: {
       code: number;
       message: string;
