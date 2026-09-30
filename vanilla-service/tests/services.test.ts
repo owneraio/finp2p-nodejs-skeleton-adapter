@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import {
-  Asset, Destination, ReceiptOperation, Signature, Source,
+  Asset, Destination, ReceiptOperation, Signature, Source, SwapLeg, SwapOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { DelegateResult, EscrowDelegate, TransferDelegate } from '../src/interfaces';
 import { LedgerStorage } from '../src/storage';
@@ -149,6 +149,63 @@ describe('vanilla services', () => {
       const bobBal = await storage.getBalance('bob', asset.assetId);
       expect(aliceBal.balance).toBe('400');
       expect(bobBal.balance).toBe('100');
+    });
+  });
+
+  // ─── swap ─────────────────────────────────────────────────────────────
+
+  describe('swap', () => {
+    const usd: Asset = { assetId: 'usd', assetType: 'finp2p', ledgerIdentifier: { assetIdentifierType: 'CAIP-19', network: 'test', tokenId: 'usd', standard: 'mock' } };
+    const assetLeg: SwapLeg = { asset, source: { finId: 'alice' }, destination: { finId: 'bob' }, quantity: '10', signature: dummySig };
+    const settlementLeg: SwapLeg = { asset: usd, source: { finId: 'bob' }, destination: { finId: 'alice' }, quantity: '20', signature: dummySig };
+
+    const expectSwapSuccess = (result: SwapOperation) => {
+      expect(result.type).toBe('success');
+      if (result.type !== 'success') throw new Error('not success');
+      return result;
+    };
+
+    beforeEach(async () => {
+      await storage.ensureAccount('alice', asset.assetId, asset.assetType);
+      await storage.ensureAccount('bob', usd.assetId, usd.assetType);
+      await storage.credit('alice', '100', asset.assetId, { idempotency_key: nextIk() });
+      await storage.credit('bob', '100', usd.assetId, { idempotency_key: nextIk() });
+    });
+
+    test('both legs: moves both assets, two receipts share one transactionId', async () => {
+      const result = expectSwapSuccess(await service.swap(nextIk(), 'nonce', 'op-1', assetLeg, settlementLeg, 2, 0, undefined));
+
+      expect(result.receipts).toHaveLength(2);
+      const [a, s] = result.receipts;
+      expect(a.id).not.toBe(s.id);
+      expect(s.transactionDetails.transactionId).toBe(a.transactionDetails.transactionId);
+      expect(a.operationType).toBe('swap');
+      expect((await storage.getBalance('alice', asset.assetId)).balance).toBe('90');
+      expect((await storage.getBalance('bob', asset.assetId)).balance).toBe('10');
+      expect((await storage.getBalance('bob', usd.assetId)).balance).toBe('80');
+      expect((await storage.getBalance('alice', usd.assetId)).balance).toBe('20');
+
+      const fetched = await service.getReceipt(s.id);
+      expectSuccess(fetched);
+      if (fetched.type === 'success') {
+        expect(fetched.receipt.transactionDetails.transactionId).toBe(a.transactionDetails.transactionId);
+      }
+    });
+
+    test('single leg: moves only the asset leg', async () => {
+      const result = expectSwapSuccess(await service.swap(nextIk(), 'nonce', 'op-2', assetLeg, { ...settlementLeg, signature: undefined }, 1, 0, undefined));
+
+      expect(result.receipts).toHaveLength(1);
+      expect((await storage.getBalance('bob', asset.assetId)).balance).toBe('10');
+      expect((await storage.getBalance('bob', usd.assetId)).balance).toBe('100');
+    });
+
+    test('both legs: settlement failure reverts the asset leg', async () => {
+      const result = await service.swap(nextIk(), 'nonce', 'op-3', assetLeg, { ...settlementLeg, quantity: '500' }, 2, 0, undefined);
+
+      expect(result.type).toBe('failure');
+      expect((await storage.getBalance('alice', asset.assetId)).balance).toBe('100');
+      expect((await storage.getBalance('bob', usd.assetId)).balance).toBe('100');
     });
   });
 
