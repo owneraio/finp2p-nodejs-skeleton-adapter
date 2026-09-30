@@ -37,7 +37,9 @@ const failureResponse = (code: number, message: string): errorResponse => {
   };
 };
 
-const apiErrors = (code: number, message: string): components['schemas']['APIErrors'] => {
+type apiErrorsBody = { errors: { code: number, message: string }[] };
+
+const apiErrors = (code: number, message: string): apiErrorsBody => {
   return { errors: [{ code, message }] };
 };
 
