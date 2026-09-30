@@ -3,9 +3,9 @@ import {
   Balance, BusinessError, CommonService, Destination,
   EscrowService, ExecutionContext,
   HealthService, PlannedInboundTransferContext, InboundTransferContext, InboundTransferHook, AccountMappingService, OperationStatus, OperationType,
-  AccountMapping, ReceiptOperation, Signature, Source,
+  AccountMapping, Receipt, ReceiptOperation, Signature, Source, SwapLeg, SwapOperation,
   TokenService, ValidationError,
-  failedReceiptOperation, successfulAssetCreation, successfulReceiptOperation,
+  failedReceiptOperation, failedSwapOperation, successfulAssetCreation, successfulReceiptOperation, successfulSwapOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { FinP2PClient } from '@owneraio/finp2p-client';
 import { AssetDelegate, DistributionService, DistributionStatus, EscrowDelegate, InboundTransferVerificationError, OmnibusDelegate, TransferDelegate } from './interfaces';
@@ -143,6 +143,57 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
     return successfulReceiptOperation(receipt);
   }
 
+  async swap(
+    idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
+    numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined,
+  ): Promise<SwapOperation> {
+    getLogger().info(`Swapping ${asset.quantity} of ${asset.asset.assetId} for ${settlement.quantity} of ${settlement.asset.assetId}`, { operationId, numberOfReceipts });
+
+    if (numberOfReceipts !== 1 && numberOfReceipts !== 2) {
+      return failedSwapOperation(1, `numberOfReceipts must be 1 or 2, got ${numberOfReceipts}`);
+    }
+    if (numberOfReceipts === 2 && !settlement.signature) {
+      return failedSwapOperation(1, 'settlement leg signature is required');
+    }
+    if (deadline && deadline <= Math.floor(Date.now() / 1000)) {
+      return failedSwapOperation(1, `swap deadline ${deadline} has already passed`);
+    }
+
+    const details = (suffix: string, transactionId?: string) => ({
+      idempotency_key: `${idempotencyKey}:${suffix}`,
+      operation_id: operationId,
+      operation_type: 'swap' as const,
+      execution_context: exCtx ? { planId: exCtx.planId, sequence: exCtx.sequence } : undefined,
+      transaction_id: transactionId,
+    });
+    const moveLeg = (leg: SwapLeg, suffix: string, transactionId?: string) =>
+      this.storage.move(leg.source.finId, leg.destination.finId, leg.quantity, leg.asset.assetId, details(suffix, transactionId), leg.asset.assetType);
+
+    await this.storage.ensureAccount(asset.destination.finId, asset.asset.assetId, asset.asset.assetType);
+    const assetTx = await moveLeg(asset, 'asset');
+    const assetReceipt = buildReceipt(assetTx, asset.asset, asset.source, asset.destination, asset.quantity, 'swap', exCtx, operationId);
+    if (numberOfReceipts === 1) {
+      return successfulSwapOperation(assetReceipt);
+    }
+
+    let settlementTx;
+    try {
+      await this.storage.ensureAccount(settlement.destination.finId, settlement.asset.assetId, settlement.asset.assetType);
+      settlementTx = await moveLeg(settlement, 'settlement', assetTx.id);
+    } catch (e: any) {
+      await moveLeg({ ...asset, source: { finId: asset.destination.finId }, destination: { finId: asset.source.finId } }, 'revert');
+      return failedSwapOperation(1, e?.message ?? String(e));
+    }
+    // receiptToAPI reads counterpartyAssetId for the destination asset; the settlement leg sees them swapped
+    const settlementExCtx = exCtx && {
+      ...exCtx, counterpartyAssetId: exCtx.counterpartySettlementId, counterpartySettlementId: exCtx.counterpartyAssetId,
+    };
+    const settlementReceipt: Receipt = buildReceipt(
+      settlementTx, settlement.asset, settlement.source, settlement.destination, settlement.quantity, 'swap', settlementExCtx, operationId, assetTx.id,
+    );
+    return successfulSwapOperation(assetReceipt, settlementReceipt);
+  }
+
   async getBalance(asset: Asset, finId: string): Promise<string> {
     const bal = await this.storage.getBalance(finId, asset.assetId, asset.assetType);
     return bal.available;
@@ -275,7 +326,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       destination: tx.destination ? { finId: tx.destination } : undefined,
       quantity: tx.amount,
       transactionDetails: {
-        transactionId: tx.id,
+        transactionId: tx.details?.transaction_id ?? tx.id,
         operationId: tx.details?.operation_id,
       },
       tradeDetails: {
