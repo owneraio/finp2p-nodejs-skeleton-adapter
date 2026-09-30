@@ -111,4 +111,10 @@ export const SCENARIOS = {
     SETTLEMENT_AMOUNT: 1000,
     EXPECTED_AFTER_REDEEM: 0, // 100 - 100
   },
+
+  SWAP: {
+    ISSUED: 100,
+    AMOUNT: 10,
+    SETTLEMENT_AMOUNT: 20,
+  },
 } as const;
