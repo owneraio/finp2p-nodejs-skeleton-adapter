@@ -91,6 +91,7 @@ function createApp(orgId: string, finP2PClient: FinP2PClient | undefined, config
       'createAsset',
       'issue',
       'transfer',
+      'swap',
       'redeem',
     );
     escrowService = workflows.createServiceProxy(ready, workflowStorage, finP2PClient, escrowService,
