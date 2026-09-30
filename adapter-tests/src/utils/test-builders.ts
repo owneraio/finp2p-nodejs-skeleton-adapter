@@ -4,10 +4,12 @@ import { LedgerAPI } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { LedgerAPIClient } from '../api/api';
 import { eip712Signature } from '../api/mapper';
 import {
+  BUYING_TYPES,
   EIP712PrimarySaleMessage,
   EIP712SellingMessage,
   eip712Term,
   finId,
+  newBuyingMessage,
   newRedemptionMessage,
   newSellingMessage,
   PRIMARY_SALE_TYPES,
@@ -260,6 +262,60 @@ export class TestDataBuilder {
         } as EIP712SellingMessage,
         params.seller.privateKey,
       ),
+    };
+  }
+
+  /**
+   * Creates a SwapAssetsRequest body: the seller's leg (`asset`) signed by the seller,
+   * the buyer's leg (`settlement`) signed by the buyer only when this adapter executes both legs.
+   * @example await client.tokens.swap(await builder.buildSignedSwapRequest({ ... }));
+   */
+  async buildSignedSwapRequest(params: {
+    seller: TestActor;
+    buyer: TestActor;
+    asset: LedgerAPI['schemas']['asset'];
+    settlementAsset: LedgerAPI['schemas']['asset'];
+    amount: number;
+    settlementAmount: number;
+    operationId: string;
+    numberOfReceipts: 1 | 2;
+    deadline?: number;
+  }): Promise<LedgerAPI['schemas']['SwapAssetsRequest']> {
+    const { seller, buyer, asset, settlementAsset, amount, settlementAmount, numberOfReceipts } = params;
+    const nonce = generateNonce().toString('hex');
+    const assetTerm = eip712Term(asset.resourceId, 'finp2p', `${amount}`);
+    const settlementTerm = eip712Term(settlementAsset.resourceId, 'finp2p', `${settlementAmount}`);
+
+    const sellerSignature = await eip712Signature(
+      this.chainId, this.verifyingContract, 'Selling', SELLING_TYPES,
+      newSellingMessage(nonce, finId(buyer.finId), finId(seller.finId), assetTerm, settlementTerm),
+      seller.privateKey,
+    );
+    const buyerSignature = numberOfReceipts === 2
+      ? await eip712Signature(
+        this.chainId, this.verifyingContract, 'Buying', BUYING_TYPES,
+        newBuyingMessage(nonce, finId(buyer.finId), finId(seller.finId), assetTerm, settlementTerm),
+        buyer.privateKey,
+      )
+      : undefined;
+
+    return {
+      nonce,
+      operationId: params.operationId,
+      numberOfReceipts,
+      asset: {
+        source: { finId: seller.finId, asset },
+        destination: { finId: buyer.finId, asset },
+        quantity: `${amount}`,
+        signature: sellerSignature,
+      },
+      settlement: {
+        source: { finId: buyer.finId, asset: settlementAsset },
+        destination: { finId: seller.finId, asset: settlementAsset },
+        quantity: `${settlementAmount}`,
+        signature: buyerSignature,
+      },
+      deadline: params.deadline ?? Math.floor(Date.now() / 1000) + 600,
     };
   }
 

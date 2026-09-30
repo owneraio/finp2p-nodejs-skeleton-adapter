@@ -3,6 +3,7 @@ import { businessLogicTests } from './business-logic.test';
 import { tokenLifecycleTests } from './token-lifecycle.test';
 import { insufficientBalanceTest } from './insufficient-balance.test';
 import { mappingOperationsTests } from './mapping-operations.test';
+import { swapOperationsTests } from './swap-operations.test';
 import { LedgerProfile } from './utils/ledger-profile';
 
 export * as callbackServer from './callback-server/server';
@@ -10,6 +11,8 @@ export { LedgerProfile, DEFAULT_LEDGER_PROFILE } from './utils/ledger-profile';
 
 export interface AdapterTestConfig {
   mapping?: boolean;
+  /** Runs the `POST /assets/swap` suite; only for adapters implementing `TokenService.swap`. */
+  swap?: boolean;
   /**
    * Ledger-specific identifier formats (network, standard, tokenId generator)
    * and signing parameters. Merged over `global.ledgerProfile` (set by the
@@ -35,6 +38,9 @@ export function runAdapterTests(config?: AdapterTestConfig) {
     insufficientBalanceTest(config?.ledger);
     if (config?.mapping) {
       mappingOperationsTests();
+    }
+    if (config?.swap) {
+      swapOperationsTests(config?.ledger);
     }
   });
 }

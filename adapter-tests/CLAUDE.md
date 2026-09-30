@@ -36,6 +36,9 @@ Comprehensive tests including:
 ### Insufficient balance (`src/insufficient-balance.test.ts`)
 Validates error handling when operations exceed available balances.
 
+### Swap operations (`src/swap-operations.test.ts`)
+Opt-in via `runAdapterTests({ swap: true })`. Exercises `POST /assets/swap` with `numberOfReceipts` 2 (both legs, two receipts sharing one `transactionId`) and 1 (asset leg only), plus deadline rejection.
+
 ## Test infrastructure
 
 ### API client (`src/api/`)

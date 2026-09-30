@@ -24,6 +24,10 @@ export class TokensLedgerAPI extends ClientBase {
     return this.post('/assets/transfer', req);
   }
 
+  public async swap(req: LedgerAPI['schemas']['SwapAssetsRequest']): Promise<LedgerAPI['schemas']['SwapAssetsResponse']> {
+    return this.post('/assets/swap', req);
+  }
+
 }
 
 export class EscrowLedgerAPI extends ClientBase {
