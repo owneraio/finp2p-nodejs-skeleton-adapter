@@ -661,6 +661,7 @@ enum OperationType {
     Hold
     Redeem
     Move
+    Swap
 }
 
 type TradeDetails {
@@ -1142,7 +1143,7 @@ type InstructionApproval {
     reason: String!
 }
 
-union InstructionDetails = IssueInstruction | TransferInstruction | HoldInstruction | ReleaseInstruction | RevertHoldInstruction | AwaitInstruction | RedeemInstruction | MoveInstruction
+union InstructionDetails = IssueInstruction | TransferInstruction | HoldInstruction | ReleaseInstruction | RevertHoldInstruction | AwaitInstruction | RedeemInstruction | MoveInstruction | SwapInstruction
 
 union InstructionCompletionState = UnknownState | ErrorState | SuccessState
 
@@ -1259,6 +1260,39 @@ type MoveInstruction {
     amount: String!
 }
 
+"One side of an atomic exchange: who gives up what, and to whom."
+type SwapLeg {
+    "resource id of the owner giving up this leg's asset"
+    sourceOwner: String!
+
+    "source account information"
+    source: LedgerAccountAsset!
+
+    "resource id of the owner receiving this leg's asset"
+    destinationOwner: String!
+
+    "destination account information"
+    destination: LedgerAccountAsset!
+
+    "this leg's amount"
+    amount: String!
+}
+
+"""
+An atomic two-legged exchange settled in a single ledger transaction. `asset` and `settlement` are
+trade roles fixed by position, not per-organization perspectives.
+"""
+type SwapInstruction {
+    "the leg giving up the traded asset"
+    asset: SwapLeg!
+
+    "the leg giving up what pays for it"
+    settlement: SwapLeg!
+
+    "absolute epoch-second cutoff after which the exchange may no longer settle"
+    deadline: Int!
+}
+
 type ExecutionPlanInstructions {
     nodes: [ExecutionPlanInstruction!]
 }
@@ -1268,7 +1302,15 @@ type ErrorState {
     message: String!
 }
 
-union SuccessStateOutput = Receipt
+"""
+The receipts of one instruction that attested MORE than one movement. Named InstructionReceipts
+because `Receipts` is already the paginated receipt-query result.
+"""
+type InstructionReceipts {
+    receipts: [Receipt!]!
+}
+
+union SuccessStateOutput = Receipt | InstructionReceipts
 type SuccessState {
     output: SuccessStateOutput
 }
