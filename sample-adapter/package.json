@@ -19,7 +19,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@owneraio/finp2p-client": "0.29.0-swap-rc.0",
+    "@owneraio/finp2p-client": "^0.29.0",
     "@owneraio/finp2p-nodejs-skeleton-adapter": "0.29.0-swap-rc.0",
     "axios": "1.11.0",
     "ethers": "^6.11.1",
