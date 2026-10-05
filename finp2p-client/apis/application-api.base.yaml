@@ -3007,7 +3007,7 @@ components:
           type: string
         operationType:
           type: string
-          enum: [ 'hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'unknown' ]
+          enum: [ 'hold', 'issue', 'redeem', 'release', 'transfer', 'move', 'swap', 'unknown' ]
         timestamp:
           type: integer
 

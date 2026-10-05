@@ -992,7 +992,16 @@ export type InstructionApprovals = {
 
 export type InstructionCompletionState = ErrorState | SuccessState | UnknownState;
 
-export type InstructionDetails = AwaitInstruction | HoldInstruction | IssueInstruction | MoveInstruction | RedeemInstruction | ReleaseInstruction | RevertHoldInstruction | TransferInstruction;
+export type InstructionDetails = AwaitInstruction | HoldInstruction | IssueInstruction | MoveInstruction | RedeemInstruction | ReleaseInstruction | RevertHoldInstruction | SwapInstruction | TransferInstruction;
+
+/**
+ * The receipts of one instruction that attested MORE than one movement. Named InstructionReceipts
+ * because `Receipts` is already the paginated receipt-query result.
+ */
+export type InstructionReceipts = {
+  __typename?: 'InstructionReceipts';
+  receipts: Array<Receipt>;
+};
 
 export type InstructionTransition = {
   __typename?: 'InstructionTransition';
@@ -1408,6 +1417,7 @@ export enum OperationType {
   Move = 'Move',
   Redeem = 'Redeem',
   Release = 'Release',
+  Swap = 'Swap',
   Transfer = 'Transfer',
   Unknown = 'Unknown',
 }
@@ -2244,7 +2254,36 @@ export type SuccessState = {
   output?: Maybe<SuccessStateOutput>;
 };
 
-export type SuccessStateOutput = Receipt;
+export type SuccessStateOutput = InstructionReceipts | Receipt;
+
+/**
+ * An atomic two-legged exchange settled in a single ledger transaction. `asset` and `settlement` are
+ * trade roles fixed by position, not per-organization perspectives.
+ */
+export type SwapInstruction = {
+  __typename?: 'SwapInstruction';
+  /** the leg giving up the traded asset */
+  asset: SwapLeg;
+  /** absolute epoch-second cutoff after which the exchange may no longer settle */
+  deadline: Scalars['Int']['output'];
+  /** the leg giving up what pays for it */
+  settlement: SwapLeg;
+};
+
+/** One side of an atomic exchange: who gives up what, and to whom. */
+export type SwapLeg = {
+  __typename?: 'SwapLeg';
+  /** this leg's amount */
+  amount: Scalars['String']['output'];
+  /** destination account information */
+  destination: LedgerAccountAsset;
+  /** resource id of the owner receiving this leg's asset */
+  destinationOwner: Scalars['String']['output'];
+  /** source account information */
+  source: LedgerAccountAsset;
+  /** resource id of the owner giving up this leg's asset */
+  sourceOwner: Scalars['String']['output'];
+};
 
 export type Template = Eip712Template | HashlistTemplate;
 
