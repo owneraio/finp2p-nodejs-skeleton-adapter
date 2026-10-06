@@ -6,7 +6,7 @@ import {
   LedgerAssetIdentifier, ReceiptOperation, Source, failedAssetCreation, successfulAssetCreation, successfulReceiptOperation,
   TokenService,
   Asset, ExecutionContext,
-  Signature,
+  Signature, SwapLeg, SwapOperation, failedSwapOperation, successfulSwapOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
@@ -94,6 +94,50 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       receipt = await this.proofProvider.ledgerProof(receipt);
     }
     return successfulReceiptOperation(receipt);
+  }
+
+  public async swap(idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
+    numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined,
+  ): Promise<SwapOperation> {
+    logger.info(`Swapping ${asset.quantity} of ${asset.asset.assetId} for ${settlement.quantity} of ${settlement.asset.assetId}`, { operationId, numberOfReceipts });
+
+    if (numberOfReceipts !== 1 && numberOfReceipts !== 2) {
+      return failedSwapOperation(1, `numberOfReceipts must be 1 or 2, got ${numberOfReceipts}`);
+    }
+    if (numberOfReceipts === 2 && !settlement.signature) {
+      return failedSwapOperation(1, 'settlement leg signature is required');
+    }
+    if (deadline && deadline <= Math.floor(Date.now() / 1000)) {
+      return failedSwapOperation(1, `swap deadline ${deadline} has already passed`);
+    }
+
+    this.storage.move(asset.source.finId, asset.destination.finId, asset.quantity, asset.asset.assetId);
+    if (numberOfReceipts === 2) {
+      try {
+        this.storage.move(settlement.source.finId, settlement.destination.finId, settlement.quantity, settlement.asset.assetId);
+      } catch (e: any) {
+        this.storage.move(asset.destination.finId, asset.source.finId, asset.quantity, asset.asset.assetId);
+        return failedSwapOperation(1, e?.message ?? String(e));
+      }
+    }
+
+    const assetTx = new Transaction(asset.quantity, asset.asset, asset.source, asset.destination, exCtx, 'swap', operationId);
+    this.storage.registerTransaction(assetTx);
+    if (numberOfReceipts === 1) {
+      return successfulSwapOperation(await this.proven(assetTx));
+    }
+    // receiptToAPI reads counterpartyAssetId for the destination asset; the settlement leg sees them swapped
+    const settlementExCtx = exCtx && {
+      ...exCtx, counterpartyAssetId: exCtx.counterpartySettlementId, counterpartySettlementId: exCtx.counterpartyAssetId,
+    };
+    const settlementTx = new Transaction(settlement.quantity, settlement.asset, settlement.source, settlement.destination, settlementExCtx, 'swap', operationId, assetTx.id);
+    this.storage.registerTransaction(settlementTx);
+    return successfulSwapOperation(await this.proven(assetTx), await this.proven(settlementTx));
+  }
+
+  private async proven(tx: Transaction) {
+    const receipt = tx.toReceipt();
+    return this.proofProvider ? this.proofProvider.ledgerProof(receipt) : receipt;
   }
 
   public async redeem(idempotencyKey: string, nonce: string, source: Source, asset: Asset, quantity: string, operationId: string | undefined,
