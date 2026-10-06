@@ -47,6 +47,28 @@ export class ReceiptAssertions {
   }
 
   /**
+   * Asserts that a receipt matches one executed swap leg
+   */
+  static expectSwapReceipt(
+    receipt: LedgerAPI['schemas']['receipt'],
+    expected: {
+      asset: LedgerAPI['schemas']['asset'];
+      quantity: number;
+      sourceFinId: string;
+      destinationFinId: string;
+      operationId: string;
+    },
+  ) {
+    expect(receipt.source?.asset).toStrictEqual(expected.asset);
+    expect(receipt.destination?.asset).toStrictEqual(expected.asset);
+    expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
+    expect(receipt.source?.finId).toBe(expected.sourceFinId);
+    expect(receipt.destination?.finId).toBe(expected.destinationFinId);
+    expect(receipt.operationType).toBe('swap');
+    expect(receipt.transactionDetails?.operationId).toBe(expected.operationId);
+  }
+
+  /**
    * Asserts that a receipt matches expected hold operation details
    */
   static expectHoldReceipt(
@@ -180,6 +202,20 @@ export class TestHelpers {
     request: LedgerAPI['schemas']['TransferAssetRequest'],
   ): Promise<LedgerAPI['schemas']['receipt']> {
     return this.executeAndWaitForReceipt(client, () => client.tokens.transfer(request));
+  }
+
+  /**
+   * Swaps assets and waits for the receipts of the legs this adapter executed
+   */
+  static async swapAndGetReceipts(
+    client: LedgerAPIClient,
+    request: LedgerAPI['schemas']['SwapAssetsRequest'],
+  ): Promise<LedgerAPI['schemas']['receipt'][]> {
+    const result = await this.executeAndWaitForCompletion(client, () => client.tokens.swap(request));
+    if (!result.response) {
+      throw new ClientError(`swap did not complete with receipts: ${JSON.stringify(result.error)}`);
+    }
+    return Promise.all(result.response.receipts.map(async ({ id }) => (await client.common.getReceipt(id)).response!));
   }
 
   /**
