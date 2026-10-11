@@ -217,9 +217,13 @@ export const register = (app: Application,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
       const { nonce, operationId, asset, settlement, numberOfReceipts, deadline, executionContext } = req.body;
-      const exCtx = executionContextOptFromAPI(executionContext, asset.destination.asset?.resourceId, settlement.destination.asset?.resourceId);
+      // Legs mirror: we send `asset` (source is ours, destination the counterparty's)
+      // and receive `settlement` (source is the counterparty's, destination ours).
+      const exCtx = executionContextOptFromAPI(executionContext, asset.destination.asset?.resourceId, settlement.source.asset?.resourceId);
 
-      const rsp = await tokenService.swap(ik, nonce, operationId, swapLegFromAPI(asset), swapLegFromAPI(settlement), numberOfReceipts ?? 1, deadline, exCtx);
+      const rsp = await tokenService.swap(ik, nonce, operationId,
+        swapLegFromAPI(asset, 'source'), swapLegFromAPI(settlement, 'destination'),
+        numberOfReceipts ?? 1, deadline, exCtx);
 
       res.json(swapOperationToAPI(rsp));
     });

@@ -61,13 +61,25 @@ export type LedgerAccount = {
 export type ExecutionContext = {
   planId: string
   sequence: number
+  /** the counterparty's resource id for the leg sent from here: transfer destination, swap `asset.destination` */
   counterpartyAssetId?: string
-  /** swap only: the settlement leg's counterparty resource id */
+  /** swap only: the counterparty's resource id for the leg arriving here, `settlement.source` */
   counterpartySettlementId?: string
+  /**
+   * Which way the movement a receipt attests runs, relative to THIS adapter: `outbound` is
+   * sent from here (transfer, swap asset leg) — the counterparty's binding sits on
+   * `destination`; `inbound` arrives here (swap settlement leg) — it sits on `source`.
+   * Unset means `outbound`; an adapter executing both swap legs sets `inbound` on the
+   * settlement receipt's context.
+   */
+  direction?: 'outbound' | 'inbound'
 };
 
 /**
- * One swap leg. `signature` covers the full swap terms (both legs);
+ * One swap leg. `asset` is the leg's asset under THIS adapter's binding: `source`'s on the
+ * asset leg (sent from here), `destination`'s on the settlement leg (arriving here); the
+ * counterparty's binding of the other side travels in `ExecutionContext`.
+ * `signature` covers the full swap terms (both legs);
  * on the settlement leg it is present only when this adapter executes both legs.
  */
 export type SwapLeg = {
