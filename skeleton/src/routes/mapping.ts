@@ -480,17 +480,22 @@ export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt']
     proof,
     timestamp,
   } = receipt;
-  const sourceAsset = assetToAPI(asset);
+  const ownAsset = assetToAPI(asset);
   // Cross-org DvP: each side binds the same on-chain token as its own FinP2P
-  // resource. The service receives the destination's binding via
-  // `exCtx.counterpartyAssetId` and lets it ride through on the in-memory
-  // receipt's tradeDetails.executionContext. Here we use it to populate the
-  // destination side of the wire account schema; the wire executionContext
-  // gets stripped to {planId, sequence} by `executionContextOptToAPI`.
-  const counterpartyAssetId = tradeDetails.executionContext?.counterpartyAssetId;
-  const destinationAsset = counterpartyAssetId
-    ? { ...sourceAsset, resourceId: counterpartyAssetId }
-    : sourceAsset;
+  // resource. The service receives the counterparty's binding via
+  // `exCtx.counterpartyAssetId` / `counterpartySettlementId` and lets it ride
+  // through on the in-memory receipt's tradeDetails.executionContext. Here we
+  // use it to populate the counterparty's side of the wire account schema; the
+  // wire executionContext gets stripped to {planId, sequence} by
+  // `executionContextOptToAPI`. Which side is the counterparty's follows
+  // `direction`: outbound (transfer, swap asset leg) is sent from here, so the
+  // counterparty is the destination; inbound (swap settlement leg) arrives here,
+  // so the counterparty is the source.
+  const { counterpartyAssetId, counterpartySettlementId, direction } = tradeDetails.executionContext ?? {};
+  const bound = (resourceId: string | undefined) => (resourceId ? { ...ownAsset, resourceId } : ownAsset);
+  const [sourceAsset, destinationAsset] = direction === 'inbound'
+    ? [bound(counterpartySettlementId), ownAsset]
+    : [ownAsset, bound(counterpartyAssetId)];
   return {
     id,
     quantity,
@@ -529,11 +534,17 @@ export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas
   }
 };
 
+/**
+ * `own` is the side bound under THIS adapter's resource id; the other side carries the
+ * counterparty's binding. Legs mirror: the asset leg is sent from here (`source` is ours),
+ * the settlement leg arrives here (`destination` is ours).
+ */
 export const swapLegFromAPI = (
   leg: components['schemas']['swapAssetLeg'] | components['schemas']['swapSettlementLeg'],
+  own: 'source' | 'destination',
 ): SwapLeg => {
   return {
-    asset: assetFromAPI(leg.source.asset),
+    asset: assetFromAPI(leg[own].asset),
     source: sourceFromAPI(leg.source),
     destination: destinationFromAPI(leg.destination),
     quantity: leg.quantity,
