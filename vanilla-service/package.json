@@ -21,7 +21,7 @@
   "license": "TBD",
   "dependencies": {
     "@owneraio/finp2p-client": "^0.29.0",
-    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.29.0",
+    "@owneraio/finp2p-nodejs-skeleton-adapter": "^0.29.1",
     "bs58": "^6.0.0",
     "pg": "^8.15.6",
     "winston": "^3.18.3"

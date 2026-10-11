@@ -184,10 +184,8 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
       await moveLeg({ ...asset, source: { finId: asset.destination.finId }, destination: { finId: asset.source.finId } }, 'revert');
       return failedSwapOperation(1, e?.message ?? String(e));
     }
-    // receiptToAPI reads counterpartyAssetId for the destination asset; the settlement leg sees them swapped
-    const settlementExCtx = exCtx && {
-      ...exCtx, counterpartyAssetId: exCtx.counterpartySettlementId, counterpartySettlementId: exCtx.counterpartyAssetId,
-    };
+    // the settlement leg arrives here: receiptToAPI puts the counterparty's binding on source
+    const settlementExCtx = exCtx && { ...exCtx, direction: 'inbound' as const };
     const settlementReceipt: Receipt = buildReceipt(
       settlementTx, settlement.asset, settlement.source, settlement.destination, settlement.quantity, 'swap', settlementExCtx, operationId, assetTx.id,
     );
