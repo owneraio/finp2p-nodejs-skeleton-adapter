@@ -268,6 +268,12 @@ export class TestDataBuilder {
   /**
    * Creates a SwapAssetsRequest body: the seller's leg (`asset`) signed by the seller,
    * the buyer's leg (`settlement`) signed by the buyer only when this adapter executes both legs.
+   *
+   * Legs mirror the adapter's perspective: `asset` is sent from here, so its `source` carries
+   * `asset` (our binding) and its `destination` the counterparty's (`counterpartyAsset`);
+   * `settlement` arrives here, so its `source` carries the counterparty's binding
+   * (`counterpartySettlementAsset`) and its `destination` ours (`settlementAsset`).
+   * Omitted counterparty bindings default to our own, as in a same-org swap.
    * @example await client.tokens.swap(await builder.buildSignedSwapRequest({ ... }));
    */
   async buildSignedSwapRequest(params: {
@@ -275,13 +281,18 @@ export class TestDataBuilder {
     buyer: TestActor;
     asset: LedgerAPI['schemas']['asset'];
     settlementAsset: LedgerAPI['schemas']['asset'];
+    counterpartyAsset?: LedgerAPI['schemas']['asset'];
+    counterpartySettlementAsset?: LedgerAPI['schemas']['asset'];
     amount: number;
     settlementAmount: number;
     operationId: string;
     numberOfReceipts: 1 | 2;
     deadline?: number;
+    executionContext?: LedgerAPI['schemas']['executionContext'];
   }): Promise<LedgerAPI['schemas']['SwapAssetsRequest']> {
     const { seller, buyer, asset, settlementAsset, amount, settlementAmount, numberOfReceipts } = params;
+    const counterpartyAsset = params.counterpartyAsset ?? asset;
+    const counterpartySettlementAsset = params.counterpartySettlementAsset ?? settlementAsset;
     const nonce = generateNonce().toString('hex');
     const assetTerm = eip712Term(asset.resourceId, 'finp2p', `${amount}`);
     const settlementTerm = eip712Term(settlementAsset.resourceId, 'finp2p', `${settlementAmount}`);
@@ -305,17 +316,18 @@ export class TestDataBuilder {
       numberOfReceipts,
       asset: {
         source: { finId: seller.finId, asset },
-        destination: { finId: buyer.finId, asset },
+        destination: { finId: buyer.finId, asset: counterpartyAsset },
         quantity: `${amount}`,
         signature: sellerSignature,
       },
       settlement: {
-        source: { finId: buyer.finId, asset: settlementAsset },
+        source: { finId: buyer.finId, asset: counterpartySettlementAsset },
         destination: { finId: seller.finId, asset: settlementAsset },
         quantity: `${settlementAmount}`,
         signature: buyerSignature,
       },
       deadline: params.deadline ?? Math.floor(Date.now() / 1000) + 600,
+      executionContext: params.executionContext,
     };
   }
 

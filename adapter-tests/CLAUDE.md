@@ -37,7 +37,7 @@ Comprehensive tests including:
 Validates error handling when operations exceed available balances.
 
 ### Swap operations (`src/swap-operations.test.ts`)
-Opt-in via `runAdapterTests({ swap: true })`. Exercises `POST /assets/swap` with `numberOfReceipts` 2 (both legs, two receipts sharing one `transactionId`) and 1 (asset leg only), plus deadline rejection.
+Opt-in via `runAdapterTests({ swap: true })`. Exercises `POST /assets/swap` with `numberOfReceipts` 2 (both legs, two receipts sharing one `transactionId`) and 1 (asset leg only), cross-org bindings (each account carries its holder's org resource id; receipts echo the counterparty id on the side it holds &mdash; destination on the sent leg, source on the received one; requires skeleton &ge; 0.29.1), plus deadline rejection.
 
 ## Test infrastructure
 

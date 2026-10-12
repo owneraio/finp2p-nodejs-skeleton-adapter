@@ -47,20 +47,23 @@ export class ReceiptAssertions {
   }
 
   /**
-   * Asserts that a receipt matches one executed swap leg
+   * Asserts that a receipt matches one executed swap leg. `sourceAsset` / `destinationAsset`
+   * override `asset` on the side bound under the counterparty's resource id.
    */
   static expectSwapReceipt(
     receipt: LedgerAPI['schemas']['receipt'],
     expected: {
       asset: LedgerAPI['schemas']['asset'];
+      sourceAsset?: LedgerAPI['schemas']['asset'];
+      destinationAsset?: LedgerAPI['schemas']['asset'];
       quantity: number;
       sourceFinId: string;
       destinationFinId: string;
       operationId: string;
     },
   ) {
-    expect(receipt.source?.asset).toStrictEqual(expected.asset);
-    expect(receipt.destination?.asset).toStrictEqual(expected.asset);
+    expect(receipt.source?.asset).toStrictEqual(expected.sourceAsset ?? expected.asset);
+    expect(receipt.destination?.asset).toStrictEqual(expected.destinationAsset ?? expected.asset);
     expect(parseFloat(receipt.quantity)).toBeCloseTo(expected.quantity, 4);
     expect(receipt.source?.finId).toBe(expected.sourceFinId);
     expect(receipt.destination?.finId).toBe(expected.destinationFinId);
