@@ -4,7 +4,7 @@ import { LedgerProfile, resolveLedgerProfile } from './utils/ledger-profile';
 import { ReceiptAssertions, TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ACTOR_NAMES, SCENARIOS } from './utils/test-constants';
-import { generateId } from './utils/utils';
+import { ASSET, generateId, randomResourceId } from './utils/utils';
 
 export function swapOperationsTests(ledger?: Partial<LedgerProfile>) {
   describe('Swap Operations', () => {
@@ -78,6 +78,38 @@ export function swapOperationsTests(ledger?: Partial<LedgerProfile>) {
       await client.expectBalance({ finId: buyer.finId, asset }, scenario.AMOUNT);
       await client.expectBalance({ finId: buyer.finId, asset: settlementAsset }, scenario.ISSUED);
       await client.expectBalance({ finId: seller.finId, asset: settlementAsset }, 0);
+    });
+
+    test('cross-org bindings: receipts carry the counterparty resource id on the mirrored side', async () => {
+      const { seller, buyer, asset, settlementAsset } = await setupParties();
+      const operationId = generateId();
+      // The counterparty binds the same tokens under its own resource ids: on the asset leg
+      // that is the destination (we send), on the settlement leg the source (we receive).
+      const counterpartyAsset = { ...asset, resourceId: randomResourceId(`${orgId}-cp`, ASSET) };
+      const counterpartySettlementAsset = { ...settlementAsset, resourceId: randomResourceId(`${orgId}-cp`, ASSET) };
+
+      const receipts = await TestHelpers.swapAndGetReceipts(client, await builder.buildSignedSwapRequest({
+        seller, buyer, asset, settlementAsset, counterpartyAsset, counterpartySettlementAsset, operationId, numberOfReceipts: 2,
+        amount: scenario.AMOUNT, settlementAmount: scenario.SETTLEMENT_AMOUNT,
+        executionContext: { executionPlanId: generateId(), instructionSequenceNumber: 1 },
+      }));
+
+      expect(receipts).toHaveLength(2);
+      const [assetReceipt, settlementReceipt] = receipts;
+      ReceiptAssertions.expectSwapReceipt(assetReceipt, {
+        asset, destinationAsset: counterpartyAsset,
+        quantity: scenario.AMOUNT, sourceFinId: seller.finId, destinationFinId: buyer.finId, operationId,
+      });
+      ReceiptAssertions.expectSwapReceipt(settlementReceipt, {
+        asset: settlementAsset, sourceAsset: counterpartySettlementAsset,
+        quantity: scenario.SETTLEMENT_AMOUNT, sourceFinId: buyer.finId, destinationFinId: seller.finId, operationId,
+      });
+
+      // Balances move under OUR bindings on both legs, never the counterparty's ids.
+      await client.expectBalance({ finId: seller.finId, asset }, scenario.ISSUED - scenario.AMOUNT);
+      await client.expectBalance({ finId: buyer.finId, asset }, scenario.AMOUNT);
+      await client.expectBalance({ finId: buyer.finId, asset: settlementAsset }, scenario.ISSUED - scenario.SETTLEMENT_AMOUNT);
+      await client.expectBalance({ finId: seller.finId, asset: settlementAsset }, scenario.SETTLEMENT_AMOUNT);
     });
 
     test('rejects an expired deadline without moving funds', async () => {
