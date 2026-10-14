@@ -126,10 +126,8 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     if (numberOfReceipts === 1) {
       return successfulSwapOperation(await this.proven(assetTx));
     }
-    // receiptToAPI reads counterpartyAssetId for the destination asset; the settlement leg sees them swapped
-    const settlementExCtx = exCtx && {
-      ...exCtx, counterpartyAssetId: exCtx.counterpartySettlementId, counterpartySettlementId: exCtx.counterpartyAssetId,
-    };
+    // the settlement leg arrives here: receiptToAPI puts the counterparty's binding on source
+    const settlementExCtx = exCtx && { ...exCtx, direction: 'inbound' as const };
     const settlementTx = new Transaction(settlement.quantity, settlement.asset, settlement.source, settlement.destination, settlementExCtx, 'swap', operationId, assetTx.id);
     this.storage.registerTransaction(settlementTx);
     return successfulSwapOperation(await this.proven(assetTx), await this.proven(settlementTx));
