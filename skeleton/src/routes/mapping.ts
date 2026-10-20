@@ -425,7 +425,7 @@ export const eip712MessageToAPI = (message: EIP712Message): {
 export const eip712TypesToAPI = (types: EIP712Types): LedgerAPI['schemas']['EIP712Types'] => {
   // Echo the router's declaration; rebuilding from the map drops EIP712Domain.
   if (types.definitions) {
-    return { definitions: types.definitions.map(d => ({ name: d.name, fields: [...d.fields] })) };
+    return { definitions: types.definitions.map(d => ({ ...d })) };
   }
   return {
     definitions: Object.entries(types)

@@ -54,6 +54,15 @@ describe('EIP712 types mapping', () => {
     expect(eip712TypesToAPI(types)).toEqual(apiTypes);
   });
 
+  // `fields` is optional in the schema; a declaration without it must not throw.
+  test('a declaration with no fields survives both directions', () => {
+    const sparse = { definitions: [{ name: 'EIP712Domain' }, { name: 'FinId', fields: [{ name: 'idkey', type: 'string' }] }] };
+    const { types } = eip712TemplateFromAPI({ ...apiTemplate, types: sparse } as any);
+
+    expect(types.definitions!.map(d => d.name)).toEqual(['EIP712Domain', 'FinId']);
+    expect(eip712TypesToAPI(types)).toEqual(sparse);
+  });
+
   test('the swap leg carries the definitions through to the adapter', () => {
     const leg: components['schemas']['swapAssetLeg'] = {
       source: { finId: finId('01'), asset: { resourceId: 'org1:102:a', ledgerIdentifier } },
