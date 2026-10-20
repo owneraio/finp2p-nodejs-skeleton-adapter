@@ -174,12 +174,22 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
   if (!types.definitions) {
     throw new ValidationError('EIP712 types definitions are missing');
   }
-  return types.definitions
+  const map = types.definitions
     .filter(d => d.name && d.name !== 'EIP712Domain')
     .reduce((d, { name, fields }) => {
       d[name!] = fields as EIP712Types[string];
       return d;
     }, {} as EIP712Types);
+
+  // Adapters read the declaration, not the map. Non-enumerable so nothing that
+  // walks the map sees it.
+  Object.defineProperty(map, 'definitions', {
+    value: Object.freeze(types.definitions.map(d => Object.freeze({ ...d }))),
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+  return map;
 };
 
 export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Template']): EIP712Template => {
@@ -413,10 +423,14 @@ export const eip712MessageToAPI = (message: EIP712Message): {
 };
 
 export const eip712TypesToAPI = (types: EIP712Types): LedgerAPI['schemas']['EIP712Types'] => {
+  // Echo the router's declaration; rebuilding from the map drops EIP712Domain.
+  if (types.definitions) {
+    return { definitions: types.definitions.map(d => ({ ...d })) };
+  }
   return {
     definitions: Object.entries(types)
       .map(([name, fields]) => {
-        return { name, fields };
+        return { name, fields: fields as EIP712Types[string] };
       }),
   };
 };
