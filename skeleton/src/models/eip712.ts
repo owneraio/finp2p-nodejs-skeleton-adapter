@@ -205,7 +205,14 @@ export const RECEIPT_PROOF_TYPES = {
 };
 
 
-export type EIP712Types = Record<string, Array<{ name: string; type: string }>>;
+export type EIP712TypeDefinition = { name: string; fields: Array<{ name: string; type: string }> };
+
+/** Map keyed by type name, the shape ethers wants (EIP712Domain excluded).
+ *  `definitions` is the router's list verbatim, EIP712Domain included, and is
+ *  non-enumerable so Object.keys/JSON/ethers never see it. */
+export type EIP712Types = Record<string, Array<{ name: string; type: string }>> & {
+  readonly definitions?: ReadonlyArray<EIP712TypeDefinition>;
+};
 
 export interface EIP712Message {
 }
