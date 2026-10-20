@@ -371,6 +371,10 @@ export type EIP712Template = {
   message: EIP712Message;
   types: EIP712Types
   hash: string
+  /** The router's declaration verbatim, EIP712Domain included. Prefer this over
+   *  `types.definitions`, which is non-enumerable and so is lost whenever the
+   *  template is serialized — notably the workflow proxy's replay. */
+  typeDefinitions?: ReadonlyArray<EIP712TypeDefinition>
 };
 
 

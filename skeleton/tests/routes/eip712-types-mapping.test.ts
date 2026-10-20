@@ -1,4 +1,4 @@
-import { eip712TemplateFromAPI, eip712TypesToAPI, swapLegFromAPI } from '../../src/routes/mapping';
+import { eip712TemplateFromAPI, eip712TemplateToAPI, eip712TypesToAPI, swapLegFromAPI } from '../../src/routes/mapping';
 import { components } from '../../src/routes/model-gen';
 
 const finId = (n: string) => n.padEnd(66, '0');
@@ -61,6 +61,24 @@ describe('EIP712 types mapping', () => {
 
     expect(types.definitions!.map(d => d.name)).toEqual(['EIP712Domain', 'FinId']);
     expect(eip712TypesToAPI(types)).toEqual(sparse);
+  });
+
+  // The workflow proxy persists inputs with JSON.stringify and replays them on
+  // restart (workflows/storage.ts, workflows/service.ts). A non-enumerable
+  // property does not survive that, so the declaration also rides the template.
+  test('the declaration survives a JSON round-trip, as replay does it', () => {
+    const template = eip712TemplateFromAPI(apiTemplate as any);
+    const replayed = JSON.parse(JSON.stringify(template));
+
+    expect(replayed.types.definitions).toBeUndefined();
+    expect(replayed.typeDefinitions.map((d: any) => d.name))
+      .toEqual(['EIP712Domain', 'FinId', 'Term', 'Selling']);
+  });
+
+  test('a replayed template still maps back to the API with its declaration', () => {
+    const replayed = JSON.parse(JSON.stringify(eip712TemplateFromAPI(apiTemplate as any)));
+
+    expect(eip712TemplateToAPI(replayed).types).toEqual(apiTypes);
   });
 
   test('the swap leg carries the definitions through to the adapter', () => {

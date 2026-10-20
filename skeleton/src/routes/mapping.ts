@@ -201,6 +201,7 @@ export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Tem
     message: message as EIP712Message,
     types: eip712TypesFromAPI(types),
     hash,
+    typeDefinitions: types.definitions?.map(d => ({ ...d })),
   } as EIP712Template;
 };
 
@@ -436,14 +437,16 @@ export const eip712TypesToAPI = (types: EIP712Types): LedgerAPI['schemas']['EIP7
 };
 
 export const eip712TemplateToAPI = (template: EIP712Template): components['schemas']['EIP712Template'] => {
-  const { domain, primaryType, message, types, hash } = template;
+  const { domain, primaryType, message, types, hash, typeDefinitions } = template;
   return {
     type: 'EIP712',
     domain: domain,
     primaryType,
     message: eip712MessageToAPI(message),
     hash,
-    types: eip712TypesToAPI(types),
+    types: typeDefinitions
+      ? { definitions: typeDefinitions.map(d => ({ ...d })) }
+      : eip712TypesToAPI(types),
   };
 };
 
