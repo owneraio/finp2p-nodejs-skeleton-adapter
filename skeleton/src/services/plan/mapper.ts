@@ -7,6 +7,7 @@ import {
   Leg,
   PlanContract,
   PlanInvestor,
+  SwapInstructionLeg,
   ValidationError,
 } from '../../models';
 import { OpComponents } from '@owneraio/finp2p-client';
@@ -29,6 +30,17 @@ const finIdAccountFromAPI = (account: OpComponents['schemas']['ledgerAccountAsse
 const finIdAccountOptFromAPI = (account?: OpComponents['schemas']['ledgerAccountAsset']): FinIdAccount | undefined => {
   if (!account) return undefined;
   return finIdAccountFromAPI(account);
+};
+
+const swapInstructionLegFromAPI = (leg: OpComponents['schemas']['swapInstructionLeg']): SwapInstructionLeg => {
+  const { source, destination, amount } = leg;
+  return {
+    asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+    destinationAsset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
+    source: finIdAccountFromAPI(source),
+    destination: finIdAccountFromAPI(destination),
+    amount,
+  };
 };
 
 const legFromSourceDestinationExecuteAsset = (order: OpComponents['schemas']['sourceDestinationExecuteAsset']): Leg => {
@@ -231,6 +243,32 @@ const epOperationFromAPI = (instruction: OpComponents['schemas']['executionPlanO
         waitUntil,
       };
     }
+    case 'swap': {
+      const { asset, settlement, deadline } = instruction;
+      return {
+        type: 'swap',
+        asset: swapInstructionLegFromAPI(asset),
+        settlement: swapInstructionLegFromAPI(settlement),
+        deadline,
+      };
+    }
+    case 'move': {
+      const { investor, source, destination, amount } = instruction;
+      return {
+        type: 'move',
+        investor,
+        asset: assetFromFinp2pAsset(source.finp2pAccount.asset),
+        destinationAsset: assetFromFinp2pAsset(destination.finp2pAccount.asset),
+        source: finIdAccountFromAPI(source),
+        destination: finIdAccountFromAPI(destination),
+        amount,
+      };
+    }
+    default:
+      // A router newer than this adapter's client can send a type absent from the
+      // union; without this the switch falls through and yields `undefined`.
+      throw new ValidationError(
+        `Unsupported execution plan instruction type: ${(instruction as { type: string }).type}`);
   }
 };
 

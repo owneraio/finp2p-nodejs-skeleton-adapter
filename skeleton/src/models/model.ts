@@ -238,7 +238,43 @@ export type RedemptionInstruction = {
   amount: string;
 };
 
-export type ExecutionPlanOperation = HoldInstruction | ReleaseInstruction | IssueInstruction | TransferInstruction | AwaitInstruction | RevertHoldInstruction | RedemptionInstruction;
+export type SwapInstructionLeg = {
+  /** Source-side binding of the asset (the adapter's local resource when outbound). */
+  asset: Asset;
+  /** Destination-side binding; as in {@link TransferInstruction}, each side binds
+   *  the same on-chain token as its own FinP2P resource, so this can differ. */
+  destinationAsset: Asset;
+  source: FinIdAccount;
+  destination: FinIdAccount;
+  amount: string;
+};
+
+/** Atomic exchange of two legs in one ledger transaction, both on the same ledger.
+ *  `asset` and `settlement` keep the router's naming; which one this adapter
+ *  executes depends on the plan, so read the legs rather than assuming. */
+export type SwapInstruction = {
+  type: 'swap';
+  asset: SwapInstructionLeg;
+  settlement: SwapInstructionLeg;
+  /** Absolute epoch seconds, identical on both legs. Expiry refunds. */
+  deadline: number;
+};
+
+/** Moves an investor's holding from a source asset to a destination asset. */
+export type MoveInstruction = {
+  type: 'move';
+  /** Resource id of the investor whose holding moves. */
+  investor: string;
+  /** Source-side binding of the asset. */
+  asset: Asset;
+  /** Destination-side binding — a move crosses assets, so this normally differs. */
+  destinationAsset: Asset;
+  source: FinIdAccount;
+  destination: FinIdAccount;
+  amount: string;
+};
+
+export type ExecutionPlanOperation = HoldInstruction | ReleaseInstruction | IssueInstruction | TransferInstruction | AwaitInstruction | RevertHoldInstruction | RedemptionInstruction | SwapInstruction | MoveInstruction;
 
 export type ExecutionInstruction = {
   sequence: number;
