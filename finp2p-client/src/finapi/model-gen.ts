@@ -2539,6 +2539,15 @@ export interface components {
       closeDate: number;
       conditions: components['schemas']['loanConditions'];
     };
+    /** @description an account a loan policy may route the collateral through. owner is the profile that owns the account: the Transfer seller when the account is a source, the buyer when it is a destination, and a plan participant. It may be the borrower, the lender or a third party such as a custodian. */
+    additionalAccount: {
+      account: components['schemas']['finp2pAssetAccount'];
+      owner: components['schemas']['resourceId'];
+    };
+    /** @description OPTIONAL. Accounts beyond the borrower's and lender's own that a loan policy may route the collateral through, keyed by an alias the policy references as contract_details.loan.additional_accounts.<alias>.account (for example lender_escrow). Aliases are lower snake case, up to 64 characters; `settlement` and `asset` are reserved. */
+    additionalAccounts: {
+      [key: string]: components['schemas']['additionalAccount'];
+    };
     loanIntent: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -2552,6 +2561,7 @@ export interface components {
       asset: components['schemas']['loanIntentAsset'];
       settlement: components['schemas']['loanIntentSettlements'];
       loanInstruction?: components['schemas']['loanInstruction'];
+      additionalAccounts?: components['schemas']['additionalAccounts'];
       signaturePolicy?: components['schemas']['presignedSignaturePolicy'];
     };
     /** @description describes account information */
@@ -2894,6 +2904,44 @@ export interface components {
       amount: string;
       signature: components['schemas']['signature'];
     };
+    swapInstructionLeg: {
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature?: components['schemas']['signature'];
+    };
+    /**
+         * @description Atomic exchange of two legs in one ledger transaction: both legs settle together or
+         *     neither does. Both legs must be on the same ledger.
+         */
+    swapInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swap';
+      asset: components['schemas']['swapInstructionLeg'];
+      settlement: components['schemas']['swapInstructionLeg'];
+      /**
+             * Format: int64
+             * @description Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds.
+             */
+      deadline: number;
+    };
+    /** @description Moves an investor's holding from a source asset to a destination asset. */
+    moveInstruction: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'move';
+      /** @description Resource id of the investor whose holding moves. */
+      investor: string;
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature?: components['schemas']['signature'];
+    };
     revertHoldInstruction: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -2903,7 +2951,7 @@ export interface components {
       source?: components['schemas']['ledgerAccountAsset'];
       destination: components['schemas']['ledgerAccountAsset'];
     };
-    executionPlanOperation: components['schemas']['holdInstruction'] | components['schemas']['releaseInstruction'] | components['schemas']['issueInstruction'] | components['schemas']['transferInstruction'] | components['schemas']['awaitInstruction'] | components['schemas']['revertHoldInstruction'] | components['schemas']['redemptionInstruction'];
+    executionPlanOperation: components['schemas']['holdInstruction'] | components['schemas']['releaseInstruction'] | components['schemas']['issueInstruction'] | components['schemas']['transferInstruction'] | components['schemas']['awaitInstruction'] | components['schemas']['revertHoldInstruction'] | components['schemas']['redemptionInstruction'] | components['schemas']['swapInstruction'] | components['schemas']['moveInstruction'];
     executionInstruction: {
       /** Format: uint32 */
       sequence: number;
@@ -2963,6 +3011,10 @@ export interface components {
       assetTerm: components['schemas']['assetTerm'];
       assetInstruction: components['schemas']['BorrowerLenderAccountLedgerAssetInstruction'];
     };
+    additionalLedgerAccount: {
+      account: components['schemas']['ledgerAccountAsset'];
+      owner: components['schemas']['resourceId'];
+    };
     loanContractDetails: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -2972,6 +3024,10 @@ export interface components {
       asset?: components['schemas']['loanExecuteAsset'];
       settlement?: components['schemas']['loanExecuteAsset'];
       instruction?: components['schemas']['loanInstruction'];
+      /** @description the intent's additionalAccounts as ledger accounts, keyed by the same alias */
+      additionalAccounts?: {
+        [key: string]: components['schemas']['additionalLedgerAccount'];
+      };
     };
     transferContractDetails: {
       /**
