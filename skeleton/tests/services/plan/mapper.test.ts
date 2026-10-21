@@ -121,3 +121,14 @@ describe("plan mapper instructions", () => {
       .toThrow(ValidationError);
   });
 });
+
+describe("plan mapper public surface", () => {
+  // Canton's approval service parses plans itself; without this export it
+  // hand-copies executionFromAPI and drifts from the instruction union.
+  test("executionFromAPI is reachable from the package entry point", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const pkg = require("../../../src");
+    expect(typeof pkg.executionFromAPI).toBe("function");
+    expect(typeof pkg.assetFromFinp2pAsset).toBe("function");
+  });
+});
