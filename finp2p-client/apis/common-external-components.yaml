@@ -271,7 +271,7 @@ components:
           properties:
             status:
               type: string
-              example: 'ok/unavailable'
+              examples: ['ok/unavailable']
               pattern: .*\S.*
               x-autoMinLength: true
     PlanApproved:
@@ -441,8 +441,8 @@ components:
           enum: [relative]
         duration:
           type: string
-          description: ISO-8601 duration format
-          example: PT5M (5Min duration), P1DT30M (1 Day and 30 Minutes )
+          description: ISO-8601 duration format, e.g. PT5M (5 minutes) or P1DT30M (1 day and 30 minutes)
+          examples: [PT5M, P1DT30M]
           pattern: .*\S.*
           x-autoMinLength: true
     absolutePollingInterval:
@@ -678,7 +678,7 @@ components:
       description: 'Owner resource id'
       pattern: '^[^:](?:.+):101:(?:.+)'
       maxLength: 150
-      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+      examples: ['bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01']
     walletAccount:
       type: object
       required:
@@ -998,7 +998,7 @@ components:
       description: 'finp2p resource id format'
       pattern: '^[^:](?:.+):(101|102|103|104|105):(?:.+)'
       maxLength: 150
-      example: 'bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388'
+      examples: ['bank-x:101:9929ccaf-8967-4ba3-9198-a4b8e3128388']
     receiptAssetDetails:
       type: object
       required: [transactionDetails]
@@ -1061,7 +1061,7 @@ components:
       description: 'The Owner resource id'
       pattern: '^[^:](?:.+):101:(?:.+)'
       maxLength: 150
-      example: 'bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+      examples: ['bank-x:101:511c1d7f-4ed8-410d-887c-a10e3e499a01']
     # Intent Schemas
     intentType:
       type: string
@@ -1190,6 +1190,8 @@ components:
           $ref: '#/components/schemas/loanIntentSettlements'
         loanInstruction:
           $ref: '#/components/schemas/loanInstruction'
+        additionalAccounts:
+          $ref: '#/components/schemas/additionalAccounts'
         signaturePolicy:
           oneOf:
             - $ref: '#/components/schemas/presignedSignaturePolicy'
@@ -1197,6 +1199,21 @@ components:
             propertyName: type
             mapping:
               presignedPolicy: '#/components/schemas/presignedSignaturePolicy'
+    additionalAccounts:
+      type: object
+      description: 'OPTIONAL. Accounts beyond the borrower''s and lender''s own that a loan policy may route the collateral through, keyed by an alias the policy references as contract_details.loan.additional_accounts.<alias>.account (for example lender_escrow). Aliases are lower snake case, up to 64 characters; `settlement` and `asset` are reserved.'
+      maxProperties: 16
+      additionalProperties:
+        $ref: '#/components/schemas/additionalAccount'
+    additionalAccount:
+      type: object
+      description: 'an account a loan policy may route the collateral through. owner is the profile that owns the account: the Transfer seller when the account is a source, the buyer when it is a destination, and a plan participant. It may be the borrower, the lender or a third party such as a custodian.'
+      required: [account, owner]
+      properties:
+        account:
+          $ref: '#/components/schemas/finp2pAssetAccount'
+        owner:
+          $ref: '#/components/schemas/resourceId'
     redemptionIntent:
       type: object
       required: [type, issuer, asset, settlement]
@@ -2027,7 +2044,7 @@ components:
       type: string
       description: 'The execution plan  resource id'
       pattern: '^[^:](?:.+):106:(?:.+)'
-      example: 'bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01'
+      examples: ['bank-x:106:511c1d7f-4ed8-410d-887c-a10e3e499a01']
     executionPlanOperation:
       oneOf:
         - $ref: '#/components/schemas/holdInstruction'
@@ -2037,6 +2054,8 @@ components:
         - $ref: '#/components/schemas/awaitInstruction'
         - $ref: '#/components/schemas/revertHoldInstruction'
         - $ref: '#/components/schemas/redemptionInstruction'
+        - $ref: '#/components/schemas/swapInstruction'
+        - $ref: '#/components/schemas/moveInstruction'
       discriminator:
         propertyName: type
         mapping:
@@ -2046,6 +2065,8 @@ components:
           transfer: '#/components/schemas/transferInstruction'
           await: '#/components/schemas/awaitInstruction'
           redeem: '#/components/schemas/redemptionInstruction'
+          swap: '#/components/schemas/swapInstruction'
+          move: '#/components/schemas/moveInstruction'
     field:
       type: object
       description: 'describing a field in the hash group'
@@ -2178,6 +2199,19 @@ components:
           $ref: '#/components/schemas/loanExecuteAsset'
         instruction:
           $ref: '#/components/schemas/loanInstruction'
+        additionalAccounts:
+          type: object
+          description: 'the intent''s additionalAccounts as ledger accounts, keyed by the same alias'
+          additionalProperties:
+            $ref: '#/components/schemas/additionalLedgerAccount'
+    additionalLedgerAccount:
+      type: object
+      required: [account, owner]
+      properties:
+        account:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        owner:
+          $ref: '#/components/schemas/resourceId'
     moveContractDetails:
       type: object
       required: [type]
@@ -2225,6 +2259,61 @@ components:
         type:
           type: string
           enum: ["redemption"]
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    swapInstruction:
+      type: object
+      description: |
+        Atomic exchange of two legs in one ledger transaction: both legs settle together or
+        neither does. Both legs must be on the same ledger.
+      required: [type, asset, settlement, deadline]
+      properties:
+        type:
+          type: string
+          enum: ["swap"]
+        asset:
+          $ref: '#/components/schemas/swapInstructionLeg'
+        settlement:
+          $ref: '#/components/schemas/swapInstructionLeg'
+        deadline:
+          type: integer
+          format: int64
+          description: Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds.
+    swapInstructionLeg:
+      type: object
+      required: [source, destination, amount]
+      properties:
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
+    moveInstruction:
+      type: object
+      description: Moves an investor's holding from a source asset to a destination asset.
+      required: [type, investor, source, destination, amount]
+      properties:
+        type:
+          type: string
+          enum: ["move"]
+        investor:
+          type: string
+          description: Resource id of the investor whose holding moves.
+          pattern: .*\S.*
+          x-autoMinLength: true
         source:
           $ref: '#/components/schemas/ledgerAccountAsset'
         destination:
