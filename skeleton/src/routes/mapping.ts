@@ -7,6 +7,7 @@ import {
   AssetCreationStatus,
   ReceiptOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
+  attachEip712Definitions, eip712Definitions,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
   AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
@@ -181,15 +182,8 @@ const eip712TypesFromAPI = (types: components['schemas']['EIP712Types']): EIP712
       return d;
     }, {} as EIP712Types);
 
-  // Adapters read the declaration, not the map. Non-enumerable so nothing that
-  // walks the map sees it.
-  Object.defineProperty(map, 'definitions', {
-    value: Object.freeze(types.definitions.map(d => Object.freeze({ ...d }))),
-    enumerable: false,
-    writable: false,
-    configurable: false,
-  });
-  return map;
+  // Adapters read the declaration, not the map.
+  return attachEip712Definitions(map, types.definitions);
 };
 
 export const eip712TemplateFromAPI = (template: components['schemas']['EIP712Template']): EIP712Template => {
@@ -424,8 +418,9 @@ export const eip712MessageToAPI = (message: EIP712Message): {
 
 export const eip712TypesToAPI = (types: EIP712Types): LedgerAPI['schemas']['EIP712Types'] => {
   // Echo the router's declaration; rebuilding from the map drops EIP712Domain.
-  if (types.definitions) {
-    return { definitions: types.definitions.map(d => ({ ...d })) };
+  const definitions = eip712Definitions(types);
+  if (definitions) {
+    return { definitions: definitions.map(d => ({ ...d })) };
   }
   return {
     definitions: Object.entries(types)
