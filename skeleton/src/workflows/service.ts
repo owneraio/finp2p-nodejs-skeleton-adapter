@@ -224,7 +224,7 @@ const rehydrateInputs = (inputs: any): any => {
     return inputs;
   }
   if (inputs.type === 'EIP712' && inputs.types && typeof inputs.types === 'object') {
-    return { ...inputs, types: rehydrateEip712Definitions(inputs.types) };
+    return { ...inputs, types: rehydrateEip712Definitions(inputs.types, inputs.domain) };
   }
   return Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, rehydrateInputs(v)]));
 };

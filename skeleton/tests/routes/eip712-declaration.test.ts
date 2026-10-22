@@ -36,8 +36,39 @@ describe('EIP-712 declaration: workflow replay', () => {
     const replayed = JSON.parse(JSON.stringify(attached)) as EIP712Types;
     expect(eip712Definitions(replayed)).toBeUndefined();
 
-    const names = (eip712Definitions(rehydrateEip712Definitions(replayed)) ?? []).map(d => d.name);
+    const domain = { name: 'FinP2P', version: '1', chainId: 1, verifyingContract: '0x0' };
+    const names = (eip712Definitions(rehydrateEip712Definitions(replayed, domain)) ?? []).map(d => d.name);
     expect(names).toEqual(['EIP712Domain', 'FinId', 'Selling']);
+  });
+
+  // The router sends domain subsets; inventing the absent members would change
+  // the domain type hash and could reject a signature that was valid before.
+  test('EIP712Domain is rebuilt from the domain, not from a fixed field list', () => {
+    const partialDeclaration = [
+      { name: 'EIP712Domain', fields: [{ name: 'name', type: 'string' }, { name: 'chainId', type: 'uint256' }] },
+      { name: 'Selling', fields: sellingFields },
+    ];
+    const attached = attachEip712Definitions(
+      { Selling: sellingFields } as unknown as EIP712Types, partialDeclaration);
+    const replayed = JSON.parse(JSON.stringify(attached)) as EIP712Types;
+
+    const rebuilt = eip712Definitions(rehydrateEip712Definitions(replayed, { name: 'FinP2P', chainId: 1 })) ?? [];
+
+    expect(rebuilt.find(d => d.name === 'EIP712Domain')?.fields)
+      .toEqual(partialDeclaration[0].fields);
+  });
+
+  test('salt is carried, and an absent domain omits the entry rather than guessing', () => {
+    const replayed = () => JSON.parse(JSON.stringify(
+      attachEip712Definitions(bareMap(), declaration))) as EIP712Types;
+
+    const salted = eip712Definitions(
+      rehydrateEip712Definitions(replayed(), { name: 'F', chainId: 1, salt: '0xab' })) ?? [];
+    expect(salted.find(d => d.name === 'EIP712Domain')?.fields?.map(f => f.name))
+      .toEqual(['name', 'chainId', 'salt']);
+
+    const noDomain = (eip712Definitions(rehydrateEip712Definitions(replayed())) ?? []).map(d => d.name);
+    expect(noDomain).toEqual(['FinId', 'Selling']);
   });
 
   test('rehydration leaves an already-attached declaration alone', () => {
@@ -64,6 +95,19 @@ describe('EIP-712 declaration: a struct named `definitions`', () => {
     expect(Object.keys(attached)).toEqual(['Selling', 'definitions']);
     expect(() => TypedDataEncoder.hash({ name: 'test' }, attached as any, { data: { x: 'hello' } }))
       .not.toThrow();
+  });
+
+  // After a round trip the symbol is gone but the struct remains an array, so
+  // a value-only check would hand consumers field entries as the declaration.
+  test('after replay the colliding struct is not mistaken for the declaration', () => {
+    const attached = attachEip712Definitions(collidingMap(), collidingDeclaration);
+    const replayed = JSON.parse(JSON.stringify(attached)) as EIP712Types;
+
+    expect(eip712Definitions(replayed)).toBeUndefined();
+
+    const names = (eip712Definitions(rehydrateEip712Definitions(replayed, { name: 'F' })) ?? [])
+      .map(d => d.name);
+    expect(names).toEqual(['EIP712Domain', 'Selling', 'definitions']);
   });
 
   test('the declaration is read from the symbol, not the colliding struct', () => {
