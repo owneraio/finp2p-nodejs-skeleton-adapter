@@ -207,11 +207,65 @@ export const RECEIPT_PROOF_TYPES = {
 
 export type EIP712TypeDefinition = { name?: string; fields?: Array<{ name: string; type: string }> };
 
+/** Keyed by the router's own symbol, so a struct named `definitions` can't
+ *  shadow the declaration. Read it with {@link eip712Definitions}. */
+export const EIP712_DEFINITIONS = Symbol.for('finp2p.eip712.definitions');
+
 /** Map keyed by type name, the shape ethers wants (EIP712Domain excluded).
- *  `definitions` is the router's list verbatim, EIP712Domain included, and is
- *  non-enumerable so Object.keys/JSON/ethers never see it. */
+ *  The router's declaration hangs off {@link EIP712_DEFINITIONS}, and off a
+ *  non-enumerable `definitions` alias when no struct claims that name. Both are
+ *  invisible to Object.keys/JSON/ethers — which also means JSON.stringify drops
+ *  them, so a replayed operation arrives with the map alone and the declaration
+ *  is rebuilt by {@link rehydrateEip712Definitions}. */
 export type EIP712Types = Record<string, Array<{ name: string; type: string }>> & {
   readonly definitions?: ReadonlyArray<EIP712TypeDefinition>;
+  readonly [EIP712_DEFINITIONS]?: ReadonlyArray<EIP712TypeDefinition>;
+};
+
+/** The router's declaration, EIP712Domain included, however it was attached. */
+export const eip712Definitions = (types: EIP712Types): ReadonlyArray<EIP712TypeDefinition> | undefined =>
+  (types as any)[EIP712_DEFINITIONS] ?? (
+    Array.isArray((types as any).definitions) ? (types as any).definitions : undefined);
+
+/** EIP712Domain is fixed by {@link EIP712Domain}, so a dropped declaration can
+ *  be rebuilt from the map without the router round-tripping it. */
+const EIP712_DOMAIN_DEFINITION: EIP712TypeDefinition = {
+  name: 'EIP712Domain',
+  fields: [
+    { name: 'name', type: 'string' },
+    { name: 'version', type: 'string' },
+    { name: 'chainId', type: 'uint256' },
+    { name: 'verifyingContract', type: 'address' },
+  ],
+};
+
+export const attachEip712Definitions = (
+  map: EIP712Types, definitions: ReadonlyArray<{ name?: string; fields?: any }>,
+): EIP712Types => {
+  const frozen = Object.freeze(definitions.map(d => Object.freeze({ ...d })));
+  Object.defineProperty(map, EIP712_DEFINITIONS, {
+    value: frozen, enumerable: false, writable: false, configurable: false,
+  });
+  // Only when no struct owns the name — defining it otherwise would hide that
+  // struct from ethers, which is the collision this symbol exists to avoid.
+  if (!Object.prototype.hasOwnProperty.call(map, 'definitions')) {
+    Object.defineProperty(map, 'definitions', {
+      value: frozen, enumerable: false, writable: false, configurable: false,
+    });
+  }
+  return map;
+};
+
+/** Re-attach a declaration lost to JSON.stringify, reconstructing it from the
+ *  map's own keys. Order follows the map, with EIP712Domain first. */
+export const rehydrateEip712Definitions = (map: EIP712Types): EIP712Types => {
+  if (eip712Definitions(map)) {
+    return map;
+  }
+  const structs = Object.keys(map).map(name => ({
+    name, fields: map[name] as Array<{ name: string; type: string }>,
+  }));
+  return attachEip712Definitions(map, [EIP712_DOMAIN_DEFINITION, ...structs]);
 };
 
 export interface EIP712Message {

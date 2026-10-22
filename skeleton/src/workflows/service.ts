@@ -1,3 +1,4 @@
+import { rehydrateEip712Definitions } from '../models';
 import {
   OperationStatus,
   CommonService,
@@ -209,6 +210,25 @@ async function executeAndFinalize(
   }
 }
 
+/**
+ * JSON.stringify drops the EIP-712 declaration (it hangs off the type map
+ * non-enumerably), so an operation replayed after a restart would reach the
+ * adapter with the map alone. Rebuild it on the way back in. The stored bytes
+ * are untouched, so the `(method, inputs)` dedupe key is unchanged.
+ */
+const rehydrateInputs = (inputs: any): any => {
+  if (Array.isArray(inputs)) {
+    return inputs.map(rehydrateInputs);
+  }
+  if (inputs === null || typeof inputs !== 'object') {
+    return inputs;
+  }
+  if (inputs.type === 'EIP712' && inputs.types && typeof inputs.types === 'object') {
+    return { ...inputs, types: rehydrateEip712Definitions(inputs.types) };
+  }
+  return Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, rehydrateInputs(v)]));
+};
+
 export function createServiceProxy<T extends object>(
   migrationJob: () => Promise<void>,
   storage: WorkflowStorage,
@@ -228,7 +248,7 @@ export function createServiceProxy<T extends object>(
       storage.getPendingOperations(String(m)).then(
         (operations) => {
           for (const op of operations) {
-            executeAndFinalize(method, op.inputs, op.method, op.cid, opMetadata, storage, finP2PClient);
+            executeAndFinalize(method, rehydrateInputs(op.inputs), op.method, op.cid, opMetadata, storage, finP2PClient);
           }
         },
         (error) => logger.error('Failed to fetch pending operations', { error }),
