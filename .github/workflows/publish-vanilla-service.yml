@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish-vanilla-service:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./vanilla-service

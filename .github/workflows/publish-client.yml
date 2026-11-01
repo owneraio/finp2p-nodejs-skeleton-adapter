@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish-finp2p-client:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./finp2p-client

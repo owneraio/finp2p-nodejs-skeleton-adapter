@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish-adapter-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./adapter-tests

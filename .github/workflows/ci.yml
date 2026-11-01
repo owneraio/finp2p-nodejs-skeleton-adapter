@@ -24,7 +24,7 @@ jobs:
   # `npm ci` catches package.json/package-lock.json dependency drift, but not
   # a `version` field edited by hand without `npm version --no-git-tag-version`.
   lockfile-version-sync:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: check package.json version matches package-lock.json
@@ -45,7 +45,7 @@ jobs:
           exit $fail
 
   finp2p-client:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./finp2p-client
@@ -64,7 +64,7 @@ jobs:
         run: npm run build
 
   skeleton:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./skeleton
@@ -89,7 +89,7 @@ jobs:
         run: npm run test
 
   adapter-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./adapter-tests
@@ -108,7 +108,7 @@ jobs:
         run: npm run build
 
   vanilla-service:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./vanilla-service
@@ -133,7 +133,7 @@ jobs:
         run: npm run test
 
   sample-adapter:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./sample-adapter
