@@ -26,7 +26,7 @@ jobs:
   lockfile-version-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: check package.json version matches package-lock.json
         run: |
           fail=0
@@ -50,7 +50,7 @@ jobs:
       run:
         working-directory: ./finp2p-client
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -69,7 +69,7 @@ jobs:
       run:
         working-directory: ./skeleton
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -94,7 +94,7 @@ jobs:
       run:
         working-directory: ./adapter-tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -113,7 +113,7 @@ jobs:
       run:
         working-directory: ./vanilla-service
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -138,7 +138,7 @@ jobs:
       run:
         working-directory: ./sample-adapter
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
