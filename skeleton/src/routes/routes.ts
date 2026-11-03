@@ -30,6 +30,7 @@ import {
   executionContextOptFromAPI,
   operationStatusToAPI, planApprovalOperationToAPI, planProposalFromAPI,
   receiptOperationToAPI,
+  authorizeOperationToAPI,
   signatureFromAPI,
   signatureOptFromAPI,
   sourceFromAPI,
@@ -216,14 +217,14 @@ export const register = (app: Application,
     `/${basePath}/assets/swap`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, operationId, asset, settlement, numberOfReceipts, deadline, executionContext } = req.body;
+      const { nonce, operationId, asset, settlement, numberOfReceipts, deadline, executionContext, role } = req.body;
       // Legs mirror: we send `asset` (source is ours, destination the counterparty's)
       // and receive `settlement` (source is the counterparty's, destination ours).
       const exCtx = executionContextOptFromAPI(executionContext, asset.destination.asset?.resourceId, settlement.source.asset?.resourceId);
 
       const rsp = await tokenService.swap(ik, nonce, operationId,
         swapLegFromAPI(asset, 'source'), swapLegFromAPI(settlement, 'destination'),
-        numberOfReceipts ?? 1, deadline, exCtx);
+        numberOfReceipts ?? 1, deadline, exCtx, role);
 
       res.json(swapOperationToAPI(rsp));
     });
@@ -268,6 +269,23 @@ export const register = (app: Application,
 
       const rsp = await escrowService.hold(ik, nonce, src, dst, ast, quantity, sgn, operationId, exCtx);
       res.json(receiptOperationToAPI(rsp));
+    });
+
+  app.post<{},
+  LedgerAPI['schemas']['AuthorizeOperationResponse'],
+  LedgerAPI['schemas']['AuthorizeOperationRequest']>(
+    `/${basePath}/assets/authorize`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { nonce, source, destination, quantity, operationId, expiry, signature, executionContext } = req.body;
+      const src = sourceFromAPI(source);
+      const dst = destinationOptFromAPI(destination);
+      const ast = assetFromAPI(source.asset);
+      const sgn = signatureFromAPI(signature);
+      const exCtx = executionContextOptFromAPI(executionContext, destination?.asset?.resourceId);
+
+      const rsp = await tokenService.authorize(ik, nonce, src, dst, ast, quantity, sgn, operationId, expiry, exCtx);
+      res.json(authorizeOperationToAPI(rsp));
     });
 
   app.post<{},

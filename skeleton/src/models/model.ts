@@ -90,6 +90,14 @@ export type SwapLeg = {
   signature?: Signature
 };
 
+/**
+ * This org's part in a swap, derived by the router from the legs:
+ * 'executor' (asset-leg org) settles the whole crossing; 'observer'
+ * (settlement-leg org) verifies it happened and attests. Undefined for
+ * the legacy role-less flow where both orgs submit and rendezvous.
+ */
+export type SwapRole = 'executor' | 'observer';
+
 export type ErrorDetails = {
   code: number;
   message: string;
@@ -461,6 +469,45 @@ export const failedReceiptOperation = (code: number, message: string): ReceiptOp
 
 export const pendingReceiptOperation = (correlationId: string, metadata: OperationMetadata | undefined): ReceiptOperation => ({
   operation: 'receipt',
+  type: 'pending',
+  correlationId,
+  metadata,
+});
+
+export type SuccessAuthorizeStatus = {
+  operation: 'authorize',
+  type: 'success';
+};
+
+export type FailedAuthorizeStatus = {
+  operation: 'authorize',
+  type: 'failure';
+  error: ErrorDetails
+};
+
+export type PendingAuthorizeStatus = {
+  operation: 'authorize',
+  type: 'pending';
+  correlationId: string;
+  metadata: OperationMetadata | undefined
+};
+
+export type AuthorizeOperation = PendingAuthorizeStatus | FailedAuthorizeStatus | SuccessAuthorizeStatus;
+
+
+export const successfulAuthorizeOperation = (): AuthorizeOperation => ({
+  operation: 'authorize',
+  type: 'success',
+});
+
+export const failedAuthorizeOperation = (code: number, message: string): AuthorizeOperation => ({
+  operation: 'authorize',
+  type: 'failure',
+  error: { code, message },
+});
+
+export const pendingAuthorizeOperation = (correlationId: string, metadata: OperationMetadata | undefined): AuthorizeOperation => ({
+  operation: 'authorize',
   type: 'pending',
   correlationId,
   metadata,
