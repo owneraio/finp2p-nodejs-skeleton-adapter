@@ -68,6 +68,25 @@ Provides **idempotent async operation persistence** backed by PostgreSQL:
   7. On restart, replays all `in_progress` operations
 - **`migrator.ts`** &mdash; Runs database migrations using [goose](https://github.com/pressly/goose) (Go-based migration tool). Migrations are in `migrations/*.sql`.
 
+### Durable sub-steps (`src/storage/steps.ts`)
+
+`createServiceProxy` replays an unfinished operation from the top of the method, which is safe only while every effect is idempotent. `StepExecutor` records each sub-step's outcome, so a replay skips what already completed and resumes at the first step that didn't &mdash; an order submitted, a transaction broadcast. Values pass forward through the stored outcome: `place-order` returns the order reference and `await-settlement` reads it back on the next run.
+
+```ts
+const steps = new PgStepExecutors(pool, schemaName).forScope('wisdomtree');
+const { orderReference } = await steps.step(idempotencyKey, 'place-order', request,
+  async (ctx) => placeOrder(request, ctx.token));
+```
+
+- **The host names the scope, never the plugin** &mdash; `forScope()` returns a bound executor, because a plugin that could name its own scope could read another's steps. Scope also disambiguates operation ids, which are not unique on their own (the same reason the `operations` unique index had to become `(method, inputs)`).
+- **Return vs throw is the contract.** A body that *returns* completes the step, including one returning a failure value &mdash; a 4xx refusal is a final outcome and must not be re-sent. A body that *throws* records nothing and leaves the step open, and the next attempt gets `ctx.priorAttempt`.
+- **`ctx.token`** is stable per (scope, operationId, name) across every attempt and restart, for use as a remote idempotency key &mdash; the only thing that closes the window between an effect and its outcome being recorded. It is derived from the step name, so **renaming a step changes the token**, and the derivation is a compatibility commitment.
+- **Takeover, not a lease.** Another process's in-flight attempt is left alone for `takeoverAfterMs` (default 2 min) and then taken over, with `priorAttempt` set so a non-idempotent body can reconcile rather than repeat. `0` disables exclusion for read-only bodies such as polling. All comparisons use database time, never the process clock, so replicas with skewed clocks agree.
+- **Completion is first-writer-wins on state**, not on attempt number: whoever records an outcome first keeps it, and a later finisher returns that outcome. Matching on attempt as well would fail both runners when they take the claim from each other, which `takeoverAfterMs: 0` invites.
+- **Outcomes are JSON.** `undefined`, `Date`, `BigInt`, `Map` and non-enumerable properties do not survive the round trip &mdash; return plain JSON-safe values.
+
+`ResourceClaims` is deliberately separate: it expresses uniqueness spanning operations (one ledger burn settling one redemption), carries no outcome and is never replayed.
+
 ### Service defaults (`src/services/`)
 
 Default implementations that adapter developers can extend or replace:
