@@ -48,8 +48,7 @@ export interface TokenService {
    * Atomic same-ledger swap. `asset` is the leg this adapter executes, `settlement` the counter-leg.
    * `numberOfReceipts`: 1 = cross-org (counterparty executes `settlement`), 2 = both legs here.
    * `deadline` is absolute epoch seconds. `role` (when the router sends it) tells this org whether
-   * it is the `executor` (settles the crossing) or the `observer` (verifies and attests);
-   * undefined selects the legacy role-less flow.
+   * it is the `executor` (settles the crossing) or the `observer` (verifies and attests).
    */
   swap(idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
     numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined, role?: SwapRole

@@ -91,7 +91,6 @@ export type SwapLeg = {
 };
 
 // executor (asset-leg org) settles the whole crossing; observer (settlement-leg org) verifies it.
-// Undefined for the legacy role-less flow where both orgs submit and rendezvous.
 export type SwapRole = 'executor' | 'observer';
 
 export type ErrorDetails = {

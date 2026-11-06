@@ -442,10 +442,7 @@ export interface paths {
     put?: never;
     /**
          * Authorize Asset
-         * @description Grant an on-chain spending authorization (allowance) from the source's wallet to the
-         *     spender the adapter is configured for (e.g. the swap venue), so a later delegated action
-         *     — a swap, a pull-based settlement — can move the authorized amount. Same request payload
-         *     as holdOperation; the authorization is taken down again via rollbackOperation.
+         * @description Grant an on-chain spending authorization (allowance) from the source's wallet to the spender.
          */
     post: operations['authorizeOperation'];
     delete?: never;
