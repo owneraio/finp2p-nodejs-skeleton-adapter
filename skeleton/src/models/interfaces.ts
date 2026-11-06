@@ -56,10 +56,9 @@ export interface TokenService {
   ): Promise<SwapOperation>
 
   /**
-   * Grant an on-chain spending authorization (allowance) from `source` to the spender the adapter is
-   * configured for (e.g. the swap venue), so a later delegated action can pull up to `quantity`. Same
-   * payload shape as `hold`; `expiry` is optional (honoured only by rails that support time-bounded
-   * approvals). The authorization is taken down again via `rollback`.
+   * Grant an on-chain spending authorization (allowance) from `source` to the adapter's configured
+   * spender (e.g. the swap venue), so a later delegated action can pull up to `quantity`. Same payload
+   * shape as `hold`; `expiry` is optional. Taken down again via `rollback`.
    */
   authorize(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
     quantity: string, signature: Signature, operationId: string, expiry: number | undefined, exCtx: ExecutionContext | undefined

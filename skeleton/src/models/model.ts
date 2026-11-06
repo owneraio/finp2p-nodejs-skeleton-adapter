@@ -90,12 +90,8 @@ export type SwapLeg = {
   signature?: Signature
 };
 
-/**
- * This org's part in a swap, derived by the router from the legs:
- * 'executor' (asset-leg org) settles the whole crossing; 'observer'
- * (settlement-leg org) verifies it happened and attests. Undefined for
- * the legacy role-less flow where both orgs submit and rendezvous.
- */
+// executor (asset-leg org) settles the whole crossing; observer (settlement-leg org) verifies it.
+// Undefined for the legacy role-less flow where both orgs submit and rendezvous.
 export type SwapRole = 'executor' | 'observer';
 
 export type ErrorDetails = {
