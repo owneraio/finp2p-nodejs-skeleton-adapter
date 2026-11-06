@@ -752,7 +752,7 @@ export interface components {
       quantity: string;
       /**
              * Format: uint64
-             * @description Optional ttl for the authorization, honoured by rails that support time-bounded approvals
+             * @description Absolute epoch seconds after which the authorization is no longer valid; absent or 0 means no expiry
              */
       expiry?: number;
       signature: components['schemas']['signature'];
