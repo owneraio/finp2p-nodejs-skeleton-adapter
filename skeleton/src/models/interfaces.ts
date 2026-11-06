@@ -5,10 +5,10 @@ import {
   ExecutionContext,
   Signature,
   Source,
-  ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
+  ReceiptOperation, AuthorizeOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
-  SwapLeg, SwapOperation,
+  SwapLeg, SwapOperation, SwapRole,
 } from './model';
 
 
@@ -47,11 +47,21 @@ export interface TokenService {
   /**
    * Atomic same-ledger swap. `asset` is the leg this adapter executes, `settlement` the counter-leg.
    * `numberOfReceipts`: 1 = cross-org (counterparty executes `settlement`), 2 = both legs here.
-   * `deadline` is absolute epoch seconds.
+   * `deadline` is absolute epoch seconds. `role` (when the router sends it) tells this org whether
+   * it is the `executor` (settles the crossing) or the `observer` (verifies and attests).
    */
   swap(idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
-    numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined
+    numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined, role?: SwapRole
   ): Promise<SwapOperation>
+
+  /**
+   * Grant an on-chain spending authorization (allowance) from `source` to the adapter's configured
+   * spender (e.g. the swap venue), so a later delegated action can pull up to `quantity`. Same payload
+   * shape as `hold`; `expiry` is optional. Taken down again via `rollback`.
+   */
+  authorize(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
+    quantity: string, signature: Signature, operationId: string, expiry: number | undefined, exCtx: ExecutionContext | undefined
+  ): Promise<AuthorizeOperation>
 
 }
 
