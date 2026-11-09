@@ -132,22 +132,38 @@ class PgStepExecutor implements StepExecutor {
   }
 
   /**
-   * Take the step, retrying while the statement comes back empty.
+   * Take the step: an upsert that either takes it or matches nothing, then —
+   * only when it matched nothing — a *separate* statement that classifies the
+   * row as completed or held elsewhere.
    *
-   * Empty means two callers raced the row into existence: `ON CONFLICT` re-reads
-   * the index and sees the other transaction's committed insert, so the upsert
-   * matches nothing, while the fallback `SELECT` still runs under the snapshot
-   * taken before that commit and cannot see the row either. Neither arm
-   * produces a row. A fresh statement takes a fresh snapshot and sees it — the
-   * window is one commit wide, so a single retry is almost always enough.
+   * The classifying read cannot share the upsert's statement. `ON CONFLICT`
+   * re-reads the index, while a `SELECT` beside it reads the statement's
+   * snapshot, taken before any concurrent commit the upsert can see. The two
+   * disagree in both directions, and both were observed:
+   *
+   * - the row is visible to `ON CONFLICT` but not to the snapshot, so the
+   *   upsert matches nothing, the select finds nothing, and the statement
+   *   returns no row at all;
+   * - the row completed after the snapshot, so `ON CONFLICT` rightly declines
+   *   to take a `completed` row while the select still shows `running` and
+   *   calls it busy — discarding an outcome sitting in the table.
+   *
+   * A second statement takes a fresh snapshot and sees what the upsert saw.
    */
   private async acquire(operationId: string, name: string, hash: string,
     takeoverAfterMs: number): Promise<ClaimRow> {
     for (let left = ACQUIRE_RETRIES; left > 0; left--) {
-      const row = await this.acquireOnce(operationId, name, hash, takeoverAfterMs);
-      if (row) {
-        return row;
+      const taken = await this.tryTake(operationId, name, hash, takeoverAfterMs);
+      if (taken) {
+        return taken;
       }
+      const existing = await this.readClaim(operationId, name, takeoverAfterMs);
+      if (existing) {
+        return existing;
+      }
+      // Took nothing and found nothing: another caller's insert is mid-commit,
+      // so it is neither ours to take nor yet visible. The next statement's
+      // snapshot includes it.
     }
     // Retryable rather than fatal: the caller waits and comes back, which is
     // right for contention and harmless if the row really did vanish.
@@ -157,60 +173,54 @@ class PgStepExecutor implements StepExecutor {
   }
 
   /**
-   * One attempt at taking the step, in a single statement so concurrent callers
-   * cannot both win. Undefined when the statement matched nothing at all.
-   *
-   * `ON CONFLICT DO UPDATE` with a WHERE guard: the row is taken only when no
-   * attempt is in flight (`attempt_started_at IS NULL`) or the one in flight is
-   * older than the takeover window. Otherwise the update matches nothing and
-   * the existing row comes back via the second select, which is how a completed
-   * step and a busy step are told apart.
+   * One statement, so concurrent callers cannot both win. The row is taken only
+   * when no attempt is in flight (`attempt_started_at IS NULL`) or the one in
+   * flight is older than the takeover window; otherwise nothing matches and the
+   * caller classifies the row separately.
    */
-  private async acquireOnce(operationId: string, name: string, hash: string,
+  private async tryTake(operationId: string, name: string, hash: string,
     takeoverAfterMs: number): Promise<ClaimRow | undefined> {
     const { rows } = await this.pool.query(
-      `WITH taken AS (
-         INSERT INTO ${this.schema}.operation_steps
-           (scope, operation_id, step_name, request_hash, state, attempt, attempt_started_at)
-         VALUES ($1, $2, $3, $4, 'running', 1, CURRENT_TIMESTAMP)
-         ON CONFLICT (scope, operation_id, step_name) DO UPDATE
-           SET attempt = ${this.schema}.operation_steps.attempt + 1,
-               attempt_started_at = CURRENT_TIMESTAMP
-         WHERE ${this.schema}.operation_steps.state = 'running'
-           AND (${this.schema}.operation_steps.attempt_started_at IS NULL
-                OR $5::bigint = 0
-                OR ${this.schema}.operation_steps.attempt_started_at
-                     < CURRENT_TIMESTAMP - ($5::bigint * INTERVAL '1 millisecond'))
-         RETURNING state, attempt, request_hash, output, FALSE AS busy,
-                   NULL::timestamptz AS prior_started_at, 0::bigint AS retry_after_ms
-       )
-       SELECT * FROM taken
-       UNION ALL
-       SELECT state, attempt, request_hash, output,
-              state = 'running' AS busy, attempt_started_at AS prior_started_at,
-              GREATEST(0, $5::bigint - (EXTRACT(EPOCH FROM
-                (CURRENT_TIMESTAMP - attempt_started_at)) * 1000))::bigint AS retry_after_ms
-       FROM ${this.schema}.operation_steps
-       WHERE scope = $1 AND operation_id = $2 AND step_name = $3
-         AND NOT EXISTS (SELECT 1 FROM taken)
-       LIMIT 1`,
+      `INSERT INTO ${this.schema}.operation_steps
+         (scope, operation_id, step_name, request_hash, state, attempt, attempt_started_at)
+       VALUES ($1, $2, $3, $4, 'running', 1, CURRENT_TIMESTAMP)
+       ON CONFLICT (scope, operation_id, step_name) DO UPDATE
+         SET attempt = ${this.schema}.operation_steps.attempt + 1,
+             attempt_started_at = CURRENT_TIMESTAMP
+       WHERE ${this.schema}.operation_steps.state = 'running'
+         AND (${this.schema}.operation_steps.attempt_started_at IS NULL
+              OR $5::bigint = 0
+              OR ${this.schema}.operation_steps.attempt_started_at
+                   < CURRENT_TIMESTAMP - ($5::bigint * INTERVAL '1 millisecond'))
+       RETURNING state, attempt, request_hash, output, FALSE AS busy,
+                 first_started_at AS prior_started_at, 0::bigint AS retry_after_ms`,
       [this.scope, operationId, name, hash, String(takeoverAfterMs)],
     );
     if (!rows.length) {
       return undefined;
     }
     const row = rows[0] as ClaimRow;
-    // A row taken over keeps whatever first_started_at it had; report the
-    // previous attempt's start so the body knows to reconcile.
-    if (!row.busy && row.attempt > 1 && !row.prior_started_at) {
-      const prior = await this.pool.query(
-        `SELECT first_started_at FROM ${this.schema}.operation_steps
-         WHERE scope = $1 AND operation_id = $2 AND step_name = $3`,
-        [this.scope, operationId, name],
-      );
-      row.prior_started_at = prior.rows[0]?.first_started_at ?? null;
+    // A first attempt has no history to reconcile against; a later one reports
+    // when the step was first started, which a taken-over row still carries.
+    if (row.attempt <= 1) {
+      row.prior_started_at = null;
     }
     return row;
+  }
+
+  /** Classify a row we did not take, under a snapshot of its own. */
+  private async readClaim(operationId: string, name: string,
+    takeoverAfterMs: number): Promise<ClaimRow | undefined> {
+    const { rows } = await this.pool.query(
+      `SELECT state, attempt, request_hash, output,
+              state = 'running' AS busy, attempt_started_at AS prior_started_at,
+              GREATEST(0, $4::bigint - (EXTRACT(EPOCH FROM
+                (CURRENT_TIMESTAMP - attempt_started_at)) * 1000))::bigint AS retry_after_ms
+       FROM ${this.schema}.operation_steps
+       WHERE scope = $1 AND operation_id = $2 AND step_name = $3`,
+      [this.scope, operationId, name, String(takeoverAfterMs)],
+    );
+    return rows.length ? (rows[0] as ClaimRow) : undefined;
   }
 
   /**

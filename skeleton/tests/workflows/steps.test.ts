@@ -264,6 +264,53 @@ describe('operation steps', () => {
       expect(isStepBusy(c)).toBe(true);
     }, 30_000);
 
+    /**
+     * The mirror of the empty read, and why the classifying read cannot share
+     * the upsert's statement: `ON CONFLICT` blocks on a row locked by an
+     * uncommitted transaction, so by the time it re-reads, the step has
+     * completed and it rightly declines to take it — while a `SELECT` beside it
+     * still answers from the snapshot taken before that commit and reports
+     * `running`, i.e. busy, discarding an outcome already in the table.
+     *
+     * The uncommitted UPDATE below is not artificial: it is exactly what the
+     * completing runner's own transaction looks like from the acquirer's side.
+     */
+    test('a step completing mid-acquisition yields its outcome, not busy', async () => {
+      const NAME = 'await-mint';
+      let release: () => void = () => {};
+      const held = executors.forScope('wisdomtree')
+        .step(OP, NAME, {}, () => new Promise<{ minted: boolean }>(r => {
+          release = () => r({ minted: false });
+        }), { takeoverAfterMs: 0 });
+      await until(async () => (await attemptOf(NAME)) === 1);
+
+      // The holder completes but has not committed: the row is locked.
+      const holder = new Pool({ connectionString: container.connectionString });
+      const tx = await holder.connect();
+      await tx.query('BEGIN');
+      await tx.query(
+        `UPDATE ledger_adapter.operation_steps
+         SET state = 'completed', output = '{"minted":true}', attempt_started_at = NULL
+         WHERE scope = 'wisdomtree' AND operation_id = $1 AND step_name = $2`, [OP, NAME]);
+
+      // This blocks inside the upsert until the holder commits.
+      let bodyRan = false;
+      const acquirer = executors.forScope('wisdomtree')
+        .step(OP, NAME, {}, async () => { bodyRan = true; return { minted: false }; },
+          { takeoverAfterMs: 0 });
+
+      await sleep(150);
+      await tx.query('COMMIT');
+      tx.release();
+
+      await expect(acquirer).resolves.toEqual({ minted: true });
+      expect(bodyRan).toBe(false);
+
+      await holder.end();
+      release();
+      await held;
+    }, 30_000);
+
     /** The in-process join must not answer a different question. */
     test('concurrent calls with different requests do not share a run', async () => {
       const settled = await Promise.allSettled([
