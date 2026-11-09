@@ -7,6 +7,10 @@ import {
 
 const DEFAULT_TAKEOVER_AFTER_MS = 120_000;
 
+/** Attempts at reading the step's state when callers race its first insert. */
+const ACQUIRE_RETRIES = 5;
+const ACQUIRE_RETRY_DELAY_MS = 50;
+
 /**
  * Stable identity for a step, handed to the body as {@link StepContext.token}
  * so it can be used as a remote idempotency key.
@@ -74,21 +78,25 @@ class PgStepExecutor implements StepExecutor {
 
   async step<T>(operationId: string, name: string, request: unknown,
     fn: (ctx: StepContext) => Promise<T>, options?: StepOptions): Promise<T> {
-    const key = `${operationId}\u0000${name}`;
+    const hash = requestHash(request);
+    // The request hash is part of the join key, not just the step's identity:
+    // keyed on (operationId, name) alone, a concurrent call with *different*
+    // inputs would join the in-flight run and receive an outcome answering a
+    // different question, where a sequential call gets StepRequestMismatchError.
+    const key = `${operationId}\u0000${name}\u0000${hash}`;
     const running = this.inFlight.get(key);
     if (running) {
       return running as Promise<T>;
     }
-    const run = this.runStep(operationId, name, request, fn, options)
+    const run = this.runStep(operationId, name, hash, fn, options)
       .finally(() => this.inFlight.delete(key));
     this.inFlight.set(key, run);
     return run;
   }
 
-  private async runStep<T>(operationId: string, name: string, request: unknown,
+  private async runStep<T>(operationId: string, name: string, hash: string,
     fn: (ctx: StepContext) => Promise<T>, options?: StepOptions): Promise<T> {
     const takeoverAfterMs = options?.takeoverAfterMs ?? DEFAULT_TAKEOVER_AFTER_MS;
-    const hash = requestHash(request);
     const claim = await this.acquire(operationId, name, hash, takeoverAfterMs);
 
     if (claim.request_hash !== hash) {
@@ -117,14 +125,40 @@ class PgStepExecutor implements StepExecutor {
       // claim so the next caller runs immediately, but keep first_started_at so
       // it is told an attempt came before (a crash, by contrast, leaves the
       // claim held until takeoverAfterMs elapses).
-      await this.release(operationId, name);
+      await this.release(operationId, name, claim.attempt);
       throw e;
     }
     return this.complete(operationId, name, output);
   }
 
   /**
-   * Take the step, in one statement so concurrent callers cannot both win.
+   * Take the step, retrying while the statement comes back empty.
+   *
+   * Empty means two callers raced the row into existence: `ON CONFLICT` re-reads
+   * the index and sees the other transaction's committed insert, so the upsert
+   * matches nothing, while the fallback `SELECT` still runs under the snapshot
+   * taken before that commit and cannot see the row either. Neither arm
+   * produces a row. A fresh statement takes a fresh snapshot and sees it — the
+   * window is one commit wide, so a single retry is almost always enough.
+   */
+  private async acquire(operationId: string, name: string, hash: string,
+    takeoverAfterMs: number): Promise<ClaimRow> {
+    for (let left = ACQUIRE_RETRIES; left > 0; left--) {
+      const row = await this.acquireOnce(operationId, name, hash, takeoverAfterMs);
+      if (row) {
+        return row;
+      }
+    }
+    // Retryable rather than fatal: the caller waits and comes back, which is
+    // right for contention and harmless if the row really did vanish.
+    throw new StepBusyError(
+      `Step '${name}' of operation ${operationId} is contended; could not read its state`,
+      ACQUIRE_RETRY_DELAY_MS);
+  }
+
+  /**
+   * One attempt at taking the step, in a single statement so concurrent callers
+   * cannot both win. Undefined when the statement matched nothing at all.
    *
    * `ON CONFLICT DO UPDATE` with a WHERE guard: the row is taken only when no
    * attempt is in flight (`attempt_started_at IS NULL`) or the one in flight is
@@ -132,8 +166,8 @@ class PgStepExecutor implements StepExecutor {
    * the existing row comes back via the second select, which is how a completed
    * step and a busy step are told apart.
    */
-  private async acquire(operationId: string, name: string, hash: string,
-    takeoverAfterMs: number): Promise<ClaimRow> {
+  private async acquireOnce(operationId: string, name: string, hash: string,
+    takeoverAfterMs: number): Promise<ClaimRow | undefined> {
     const { rows } = await this.pool.query(
       `WITH taken AS (
          INSERT INTO ${this.schema}.operation_steps
@@ -162,6 +196,9 @@ class PgStepExecutor implements StepExecutor {
        LIMIT 1`,
       [this.scope, operationId, name, hash, String(takeoverAfterMs)],
     );
+    if (!rows.length) {
+      return undefined;
+    }
     const row = rows[0] as ClaimRow;
     // A row taken over keeps whatever first_started_at it had; report the
     // previous attempt's start so the body knows to reconcile.
@@ -206,11 +243,22 @@ class PgStepExecutor implements StepExecutor {
     return winner;
   }
 
-  private async release(operationId: string, name: string): Promise<void> {
+  /**
+   * Free the claim after a throw — but only if we still hold it.
+   *
+   * Matched on the attempt number, unlike {@link complete}, and for the
+   * opposite reason. Completion records an outcome, so the first writer should
+   * win whoever they are; a release records nothing, so a superseded attempt
+   * clearing `attempt_started_at` would hand the step to a third runner while
+   * the real owner is still mid-flight — two live attempts at an effect the
+   * exclusion exists to keep single.
+   */
+  private async release(operationId: string, name: string, attempt: number): Promise<void> {
     await this.pool.query(
       `UPDATE ${this.schema}.operation_steps SET attempt_started_at = NULL
-       WHERE scope = $1 AND operation_id = $2 AND step_name = $3 AND state = 'running'`,
-      [this.scope, operationId, name],
+       WHERE scope = $1 AND operation_id = $2 AND step_name = $3 AND state = 'running'
+         AND attempt = $4`,
+      [this.scope, operationId, name, attempt],
     );
   }
 }

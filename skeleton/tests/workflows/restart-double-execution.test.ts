@@ -270,12 +270,17 @@ describe('restart does not re-execute a placed order', () => {
 
     const first = adapter(naive({ afterPost: () => new Promise<never>(() => {}) }));
     await first.issue(KEY, REQUEST);
-    await waitFor(async () => connect.posts.length === 1);
+    await waitFor(async () => connect.posts.length >= 1);
 
     adapter(naive());
-    await waitFor(async () => connect.posts.length === 2);
+    // More than one post is the property under test. Not exactly two: replay is
+    // fire-and-forget and `ready` does not await it, so a proxy's own startup
+    // replay can also pick up the operation saved moments after it queried —
+    // the count is 2 or 3 depending on timing, and pinning it to 2 made this
+    // test fail in CI while passing locally.
+    await waitFor(async () => connect.posts.length > 1);
 
-    expect(connect.posts).toHaveLength(2);
+    expect(connect.posts.length).toBeGreaterThan(1);
   });
 });
 

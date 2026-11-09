@@ -55,6 +55,15 @@ export interface StepExecutor {
   /**
    * Run `fn` once per (operationId, name) and remember what it returned.
    *
+   * **A step name must be unique across service methods.** `operationId` is
+   * typically the idempotency key, which does *not* include the method — the
+   * reason the `operations` unique index is `(method, inputs)`. So `issue` and
+   * `redeem` can arrive under one key, and a step name shared between them (a
+   * helper called from both, say) is one step: the second method reads the
+   * first's outcome. Identical inputs fingerprint alike, so the request guard
+   * below does not catch it. Name steps for the method — `place-purchase`,
+   * `place-sale` — not for the shared helper.
+   *
    * A completed step returns its stored outcome and `fn` does not run. A body
    * that **returns** completes the step — including one returning a failure
    * value, which is a final outcome and must not be retried. A body that

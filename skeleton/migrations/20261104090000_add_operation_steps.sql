@@ -40,6 +40,32 @@ CREATE TABLE IF NOT EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.re
 -- +goose StatementEnd
 -- +goose ENVSUB OFF
 
+-- +goose StatementBegin
+-- The runtime role is granted separately from table creation, as every other
+-- table migration does: a deployment that runs migrations as an owner and the
+-- adapter as LEDGER_ADAPTER_USER gets permission errors on the new tables
+-- otherwise.
+DO $$
+    DECLARE
+-- +goose ENVSUB ON
+        ledger_adapter_user TEXT := '${LEDGER_ADAPTER_USER:-}';
+        ledger_adapter_schema TEXT := '${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}';
+-- +goose ENVSUB OFF
+        users_exist BOOLEAN;
+    BEGIN
+        SELECT EXISTS(
+            SELECT 1 FROM pg_catalog.pg_roles
+            WHERE rolname = ledger_adapter_user
+        )
+        INTO users_exist;
+
+        IF users_exist THEN
+            EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE %I.operation_steps TO %I;', ledger_adapter_schema, ledger_adapter_user);
+            EXECUTE format('GRANT SELECT, UPDATE, DELETE, INSERT ON TABLE %I.resource_claims TO %I;', ledger_adapter_schema, ledger_adapter_user);
+        END IF;
+    END $$;
+-- +goose StatementEnd
+
 -- +goose Down
 -- +goose ENVSUB ON
 -- +goose StatementBegin
