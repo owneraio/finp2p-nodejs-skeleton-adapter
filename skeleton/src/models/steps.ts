@@ -96,9 +96,18 @@ export interface ResourceClaims {
 export class StepBusyError extends Error {
   readonly code = 'STEP_BUSY';
 
-  constructor(message: string) {
+  /**
+   * How long until the holder's claim goes stale and may be taken over, as the
+   * database measures it. A restart is the common case: the holder is a dead
+   * process and its claim simply has to age out, so the caller waits this long
+   * rather than treating the step as failed.
+   */
+  readonly retryAfterMs: number;
+
+  constructor(message: string, retryAfterMs = 0) {
     super(message);
     this.name = 'StepBusyError';
+    this.retryAfterMs = retryAfterMs;
   }
 }
 

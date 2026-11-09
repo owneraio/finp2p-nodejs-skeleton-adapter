@@ -46,6 +46,7 @@ interface ClaimRow {
   request_hash: string;
   output: unknown;
   prior_started_at: Date | null;
+  retry_after_ms: string | number | null;
   /** Database time, so takeover never compares against a process clock. */
   busy: boolean;
 }
@@ -99,7 +100,8 @@ class PgStepExecutor implements StepExecutor {
     }
     if (claim.busy) {
       throw new StepBusyError(
-        `Step '${name}' of operation ${operationId} is being run by another process`);
+        `Step '${name}' of operation ${operationId} is being run by another process`,
+        Number(claim.retry_after_ms ?? 0));
     }
 
     const ctx: StepContext = {
@@ -146,12 +148,14 @@ class PgStepExecutor implements StepExecutor {
                 OR ${this.schema}.operation_steps.attempt_started_at
                      < CURRENT_TIMESTAMP - ($5::bigint * INTERVAL '1 millisecond'))
          RETURNING state, attempt, request_hash, output, FALSE AS busy,
-                   NULL::timestamptz AS prior_started_at
+                   NULL::timestamptz AS prior_started_at, 0::bigint AS retry_after_ms
        )
        SELECT * FROM taken
        UNION ALL
        SELECT state, attempt, request_hash, output,
-              state = 'running' AS busy, attempt_started_at AS prior_started_at
+              state = 'running' AS busy, attempt_started_at AS prior_started_at,
+              GREATEST(0, $5::bigint - (EXTRACT(EPOCH FROM
+                (CURRENT_TIMESTAMP - attempt_started_at)) * 1000))::bigint AS retry_after_ms
        FROM ${this.schema}.operation_steps
        WHERE scope = $1 AND operation_id = $2 AND step_name = $3
          AND NOT EXISTS (SELECT 1 FROM taken)
