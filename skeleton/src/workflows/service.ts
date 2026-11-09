@@ -1,4 +1,4 @@
-import { rehydrateEip712Definitions } from '../models';
+import { isCodedError, rehydrateEip712Definitions } from '../models';
 import {
   OperationStatus,
   CommonService,
@@ -186,6 +186,15 @@ async function finalize(
   }
 }
 
+const GENERIC_FAILURE_CODE = 1;
+
+function failureFromError(err: unknown): { code: number, message: string } {
+  if (isCodedError(err)) {
+    return { code: err.code, message: err.message };
+  }
+  return { code: GENERIC_FAILURE_CODE, message: err instanceof Error ? err.message : String(err) };
+}
+
 /**
  * Execute a service method and finalize the result (persist + callback).
  * Catches both sync throws and async rejections from the method.
@@ -205,7 +214,8 @@ async function executeAndFinalize(
     await finalize(storage, finP2PClient, cid, dbStatus(outputs), outputs);
   } catch (error: any) {
     logger.error('Operation failed', { method: methodName, cid, ...describeError(error) });
-    const wrp = wrappedResponse(methodName, opMetadata, [cid, 1, String(error)]);
+    const { code, message } = failureFromError(error);
+    const wrp = wrappedResponse(methodName, opMetadata, [cid, code, message]);
     await finalize(storage, finP2PClient, cid, 'failed', wrp);
   }
 }
