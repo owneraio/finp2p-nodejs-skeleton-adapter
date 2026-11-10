@@ -311,12 +311,12 @@ export const register = (app: Application,
     `/${basePath}/assets/rollback`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { source, quantity, operationId, executionContext } = req.body;
+      const { source, quantity, operationId, executionContext, rollbackType } = req.body;
       const src = sourceFromAPI(source);
       const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx);
+      const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx, rollbackType);
 
       res.json(receiptOperationToAPI(rsp));
     });

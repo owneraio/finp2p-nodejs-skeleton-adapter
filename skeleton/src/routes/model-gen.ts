@@ -787,6 +787,11 @@ export interface components {
       /** @description How many units of the asset tokens */
       quantity: string;
       executionContext?: components['schemas']['executionContext'];
+      /**
+             * @description What this rollback reverts: a prior hold or a prior authorization. Optional for backward compatibility — an omitted value reverts a hold (the original behaviour of this endpoint).
+             * @enum {string}
+             */
+      rollbackType?: 'hold' | 'authorize';
     };
     RollbackOperationResponse: components['schemas']['receiptOperation'];
     GetOperationStatusRequest: {

@@ -8,7 +8,7 @@ import {
   ReceiptOperation, AuthorizeOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
-  SwapLeg, SwapOperation, SwapRole,
+  SwapLeg, SwapOperation, SwapRole, RollbackType,
 } from './model';
 
 
@@ -74,7 +74,8 @@ export interface EscrowService {
   release(idempotencyKey: string, source: Source, destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
-  rollback(idempotencyKey: string, source: Source, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
+  rollback(idempotencyKey: string, source: Source, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
+    rollbackType: RollbackType | undefined
   ): Promise<ReceiptOperation>
 
 }

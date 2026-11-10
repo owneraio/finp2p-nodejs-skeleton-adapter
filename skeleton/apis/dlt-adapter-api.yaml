@@ -1524,6 +1524,12 @@ components:
           x-autoMinLength: true
         executionContext:
           $ref: '#/components/schemas/executionContext'
+        rollbackType:
+          type: 'string'
+          enum: ['hold', 'authorize']
+          description: >-
+            What this rollback reverts: a prior hold or a prior authorization. Optional for backward
+            compatibility — an omitted value reverts a hold (the original behaviour of this endpoint).
     RollbackOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'

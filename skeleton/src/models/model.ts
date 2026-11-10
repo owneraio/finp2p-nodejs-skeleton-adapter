@@ -428,6 +428,10 @@ export const pendingAssetCreation = (correlationId: string, metadata: OperationM
 
 // -------------------------------------------------------------------
 
+/** What a rollback reverts. Absent (undefined) means a hold rollback — the endpoint's original,
+ *  backward-compatible behaviour. 'authorize' reverts a prior authorization. */
+export type RollbackType = 'hold' | 'authorize';
+
 export type SuccessReceiptStatus = {
   operation: 'receipt',
   type: 'success';
