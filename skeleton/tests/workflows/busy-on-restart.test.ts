@@ -71,7 +71,7 @@ describe('restart inside the takeover window', () => {
 
     const issue = (hang: boolean) => async (key: string) => {
       const steps = executors.forScope('wisdomtree');
-      return steps.step(key, 'place-order', { qty: '5' }, async (ctx) => {
+      return steps.step({ id: key, method: 'issue' }, 'place-order', { qty: '5' }, async (ctx) => {
         // Reconcile rather than repeat, exactly as the plugin would.
         if (ctx.priorAttempt) {
           return { orderReference: posts[0] };

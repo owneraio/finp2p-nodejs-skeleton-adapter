@@ -1,6 +1,7 @@
+import { createHash } from 'crypto'
 import { migrateIfNeeded } from '../../src/workflows'
-import { PgStepExecutors, PgResourceClaims, stepToken } from '../../src/storage'
-import { StepExecutor, isStepBusy, isStepRequestMismatch } from '../../src/models'
+import { PgStepExecutors, PgResourceClaims, stepToken, requestHash } from '../../src/storage'
+import { StepExecutor, StepOperation, isStepBusy, isStepRequestMismatch } from '../../src/models'
 import { Pool } from 'pg'
 
 describe('operation steps', () => {
@@ -9,7 +10,7 @@ describe('operation steps', () => {
   let executors: PgStepExecutors;
   let steps: StepExecutor;
 
-  const OP = 'idem-key-1';
+  const OP: StepOperation = { id: 'idem-key-1', method: 'issue' };
 
   beforeEach(async () => {
     // @ts-ignore
@@ -78,14 +79,29 @@ describe('operation steps', () => {
 
     expect(await steps.stored(OP, 'place-order')).toBeUndefined();
 
-    let seen: Date | undefined;
+    let seen: number | undefined;
     const out = await steps.step(OP, 'place-order', {}, async (ctx) => {
       seen = ctx.priorAttempt?.startedAt;
       return { orderReference: 'adopted' };
     });
 
-    expect(seen).toBeInstanceOf(Date);
+    // Epoch ms, not a Date: the SPI a plugin compiles against says number.
+    expect(typeof seen).toBe('number');
+    expect(seen).toBeGreaterThan(0);
     expect(out).toEqual({ orderReference: 'adopted' });
+  });
+
+  test('a released step is taken over at once, without waiting out the window', async () => {
+    await steps.step(OP, 'place-order', {}, async () => { throw new Error('boom'); })
+      .catch(() => undefined);
+
+    // A long takeover window would hold off a *running* attempt; a released one
+    // is 'open', so the next caller runs immediately.
+    const out = await executors.forScope('wisdomtree')
+      .step(OP, 'place-order', {}, async () => ({ orderReference: 'second' }),
+        { takeoverAfterMs: 10 * 60_000 });
+
+    expect(out).toEqual({ orderReference: 'second' });
   });
 
   test('the same step name with different inputs is refused', async () => {
@@ -169,14 +185,97 @@ describe('operation steps', () => {
     expect(await other.stored(OP, 'place-order')).toBeUndefined();
   });
 
-  test('the token is stable and scope-dependent', () => {
-    expect(stepToken('wisdomtree', OP, 'place-order'))
-      .toBe(stepToken('wisdomtree', OP, 'place-order'));
-    expect(stepToken('other', OP, 'place-order'))
-      .not.toBe(stepToken('wisdomtree', OP, 'place-order'));
-    // Renaming a step changes the remote idempotency key — a documented cost.
-    expect(stepToken('wisdomtree', OP, 'place-order2'))
-      .not.toBe(stepToken('wisdomtree', OP, 'place-order'));
+  /**
+   * The operation id is the caller's idempotency key and carries no method, so
+   * `issue` and `redeem` can arrive under one key. Before `method` joined the
+   * primary key, a step name shared between two methods was one step and the
+   * second method read the first's outcome.
+   */
+  test('the same step name under two methods is two steps', async () => {
+    const issue: StepOperation = { id: 'shared-key', method: 'issue' };
+    const redeem: StepOperation = { id: 'shared-key', method: 'redeem' };
+    let calls = 0;
+
+    const first = await steps.step(issue, 'move-tokens', {}, async () => {
+      calls++;
+      return { tx: 'issue-tx' };
+    });
+    const second = await steps.step(redeem, 'move-tokens', {}, async () => {
+      calls++;
+      return { tx: 'redeem-tx' };
+    });
+
+    expect(first).toEqual({ tx: 'issue-tx' });
+    expect(second).toEqual({ tx: 'redeem-tx' });
+    expect(calls).toBe(2);
+    expect(await steps.stored(issue, 'move-tokens')).toEqual({ tx: 'issue-tx' });
+  });
+
+  /**
+   * The token goes to a remote API as its idempotency key and that API
+   * remembers it for hours, so the derivation is pinned, not merely stable:
+   * changing it would make the resend of an operation already in flight look
+   * like a new one.
+   */
+  describe('the step token', () => {
+    test('is the first 32 hex digits of sha256(method, id, name), as a UUID', () => {
+      const h = createHash('sha256').update('issue\u0000idem-key-1\u0000place-order').digest('hex');
+      expect(stepToken(OP, 'place-order'))
+        .toBe(`${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`);
+      expect(stepToken(OP, 'place-order'))
+        .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    });
+
+    test('varies with method, operation and name', () => {
+      expect(stepToken({ id: OP.id, method: 'redeem' }, 'place-order'))
+        .not.toBe(stepToken(OP, 'place-order'));
+      expect(stepToken({ id: 'other', method: OP.method }, 'place-order'))
+        .not.toBe(stepToken(OP, 'place-order'));
+      // Renaming a step changes the remote idempotency key — a documented cost.
+      expect(stepToken(OP, 'place-order2')).not.toBe(stepToken(OP, 'place-order'));
+    });
+
+    /** Scope is deliberately not an input: the host that derives the token on a
+     *  retry is not always the one that first sent it. */
+    test('does not depend on scope', () => {
+      const a = executors.forScope('wisdomtree');
+      const b = executors.forScope('other-plugin');
+      expect(a).not.toBe(b);
+      expect(stepToken(OP, 'place-order')).toBe(stepToken(OP, 'place-order'));
+    });
+  });
+
+  /**
+   * The canonical bytes are shared with the plugin host in
+   * generic-custody-adapter (generic-custody-adapter#49). The same vectors are
+   * pinned on both sides: if either drifts, one store would call a replayed
+   * request a mismatch and fail the operation.
+   */
+  describe('canonical request bytes', () => {
+    const sha = (s: string) => createHash('sha256').update(s).digest('hex');
+
+    test('keys sort by code point; null members drop; array nulls stay', () => {
+      expect(requestHash({ b: 1, B: { z: null, Y: 'y', a: 'a' }, a: [1, null] }))
+        .toBe(sha('{"B":{"Y":"y","a":"a"},"a":[1,null],"b":1}'));
+    });
+
+    test('a string request is its JSON', () => {
+      expect(requestHash('side|0xabc|0xdef|10')).toBe(sha('"side|0xabc|0xdef|10"'));
+    });
+
+    /**
+     * The proxy replays arguments it stored as JSON, where an omitted optional
+     * comes back as null, so absent and null have to fingerprint alike.
+     */
+    test('an absent member and a null member are the same request', () => {
+      expect(requestHash({ a: 1, b: null })).toBe(requestHash({ a: 1 }));
+      expect(requestHash({ a: 1, b: undefined })).toBe(requestHash({ a: 1 }));
+    });
+
+    /** An array is positional: dropping a hole would renumber everything after it. */
+    test('a null array element is not dropped', () => {
+      expect(requestHash([1, null, 3])).not.toBe(requestHash([1, 3]));
+    });
   });
 
   describe('concurrency', () => {
@@ -185,7 +284,8 @@ describe('operation steps', () => {
     const attemptOf = async (name: string): Promise<number | undefined> => {
       const { rows } = await pool.query(
         `SELECT attempt FROM ledger_adapter.operation_steps
-         WHERE scope = 'wisdomtree' AND operation_id = $1 AND step_name = $2`, [OP, name]);
+         WHERE scope = 'wisdomtree' AND method = $1 AND operation_id = $2 AND step_name = $3`,
+        [OP.method, OP.id, name]);
       return rows[0]?.attempt;
     };
 
@@ -199,11 +299,12 @@ describe('operation steps', () => {
     };
 
     /**
-     * Two callers racing the step's first insert: `ON CONFLICT` sees the other
-     * transaction's committed row and matches nothing, while the fallback
-     * `SELECT` reads an older snapshot and cannot see it either, so the
-     * statement returns no row at all. Unretried that is a TypeError on
-     * `rows[0]`, surfacing as a failed operation rather than contention.
+     * Two callers racing the step's first insert. Acquisition must never come
+     * back empty: a single upsert whose fallback `SELECT` sat in the same
+     * statement returned no row at all here, because `ON CONFLICT` re-reads the
+     * index while the `SELECT` beside it answers from the statement's older
+     * snapshot. Unretried that is a TypeError on `rows[0]`, surfacing as a
+     * failed operation rather than as contention.
      */
     test('a raced first acquisition never comes back empty', async () => {
       for (let i = 0; i < 20; i++) {
@@ -265,12 +366,13 @@ describe('operation steps', () => {
     }, 30_000);
 
     /**
-     * The mirror of the empty read, and why the classifying read cannot share
-     * the upsert's statement: `ON CONFLICT` blocks on a row locked by an
-     * uncommitted transaction, so by the time it re-reads, the step has
-     * completed and it rightly declines to take it — while a `SELECT` beside it
-     * still answers from the snapshot taken before that commit and reports
-     * `running`, i.e. busy, discarding an outcome already in the table.
+     * The mirror of the empty read, and why acquisition is a loop of separate
+     * statements. The take is a compare-and-set on `attempt`, which blocks on a
+     * row locked by an uncommitted transaction; when that transaction commits
+     * the step is `done`, so the CAS rightly matches nothing. The loop must
+     * then go back and read the stored outcome rather than report busy from a
+     * snapshot taken before the commit — which is how an outcome already in the
+     * table got discarded.
      *
      * The uncommitted UPDATE below is not artificial: it is exactly what the
      * completing runner's own transaction looks like from the acquirer's side.
@@ -290,10 +392,11 @@ describe('operation steps', () => {
       await tx.query('BEGIN');
       await tx.query(
         `UPDATE ledger_adapter.operation_steps
-         SET state = 'completed', output = '{"minted":true}', attempt_started_at = NULL
-         WHERE scope = 'wisdomtree' AND operation_id = $1 AND step_name = $2`, [OP, NAME]);
+         SET state = 'done', output = '{"minted":true}'
+         WHERE scope = 'wisdomtree' AND method = $1 AND operation_id = $2 AND step_name = $3`,
+        [OP.method, OP.id, NAME]);
 
-      // This blocks inside the upsert until the holder commits.
+      // This blocks inside the compare-and-set until the holder commits.
       let bodyRan = false;
       const acquirer = executors.forScope('wisdomtree')
         .step(OP, NAME, {}, async () => { bodyRan = true; return { minted: false }; },
@@ -328,11 +431,18 @@ describe('operation steps', () => {
 
   describe('resource claims', () => {
     test('one resource settles exactly one operation', async () => {
-      const claims = new PgResourceClaims(pool, 'ledger_adapter');
+      const claims = new PgResourceClaims(pool, 'ledger_adapter').forScope('wisdomtree');
 
       expect(await claims.claim('burn', 'burn-1', 'op-a')).toBe('op-a');
       expect(await claims.claim('burn', 'burn-1', 'op-b')).toBe('op-a');
       expect(await claims.claim('burn', 'burn-2', 'op-b')).toBe('op-b');
+    });
+
+    test('scopes are isolated', async () => {
+      const factory = new PgResourceClaims(pool, 'ledger_adapter');
+
+      expect(await factory.forScope('wisdomtree').claim('burn', 'burn-1', 'op-a')).toBe('op-a');
+      expect(await factory.forScope('other-plugin').claim('burn', 'burn-1', 'op-b')).toBe('op-b');
     });
   });
 });

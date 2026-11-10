@@ -74,7 +74,8 @@ const issuance = (
   steps: StepExecutor, connect: FakeConnect,
   behaviour: { afterPost?: () => Promise<never> } = {},
 ) => async (idempotencyKey: string, request: string) => {
-  const { orderReference } = await steps.step(idempotencyKey, 'place-order', request,
+  const operation = { id: idempotencyKey, method: 'issue' };
+  const { orderReference } = await steps.step(operation, 'place-order', request,
     async (ctx) => {
       // An earlier attempt started and never recorded an outcome, so the order
       // may already exist. Adopt it rather than open a second one. With an
@@ -94,7 +95,7 @@ const issuance = (
     }, { takeoverAfterMs: 100 });
 
   // Polling is read-only, so concurrent runs are harmless and exclusion is off.
-  return steps.step(idempotencyKey, 'await-mint', request, async () => {
+  return steps.step(operation, 'await-mint', request, async () => {
     for (let i = 0; i < 200; i++) {
       if ((await connect.getOrder(orderReference)).minted) {
         return { orderReference, minted: true };
@@ -206,7 +207,7 @@ describe('restart does not re-execute a placed order', () => {
     const first = adapter(issuance(processSteps(), connect));
     const pending = await first.issue(KEY, REQUEST);
     const cid = (pending as any).correlationId;
-    await waitFor(async () => (await processSteps().stored(KEY, 'place-order')) !== undefined);
+    await waitFor(async () => (await processSteps().stored({ id: KEY, method: 'issue' }, 'place-order')) !== undefined);
     expect(connect.posts).toHaveLength(1);
 
     // --- restart ---
@@ -228,7 +229,7 @@ describe('restart does not re-execute a placed order', () => {
     const pending = await first.issue(KEY, REQUEST);
     const cid = (pending as any).correlationId;
     await waitFor(async () => connect.posts.length === 1);
-    expect(await processSteps().stored(KEY, 'place-order')).toBeUndefined();
+    expect(await processSteps().stored({ id: KEY, method: 'issue' }, 'place-order')).toBeUndefined();
 
     // The dead process's claim goes stale, then the restart takes it over.
     await setTimeoutPromise(150);

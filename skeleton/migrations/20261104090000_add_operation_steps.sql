@@ -5,25 +5,37 @@
 -- operation from the top of the method; a completed step is skipped on replay
 -- and its outcome reused, so a submitted order is not submitted twice.
 --
--- `scope` namespaces a step: the operation id alone is not unique, which is why
--- the operations unique index had to become (method, inputs). Callers get a
--- scope-bound executor rather than passing scope per call, so one plugin cannot
--- read another's steps.
+-- `scope` namespaces a step to one plugin on one ledger (or to the adapter's
+-- own code). Callers get a scope-bound executor rather than passing scope per
+-- call, so one plugin cannot read another's steps.
+--
+-- `method` is part of the key because `operation_id` is typically the caller's
+-- idempotency key, which carries no method — the same reason the operations
+-- unique index is (method, inputs). Without it, `issue` and `redeem` arriving
+-- under one key would share any step name they have in common, and the second
+-- would read the first's outcome.
+--
+-- An adapter embedding a plugin host creates these same two tables with the
+-- same shape from its own migration; whichever runs first creates them, so
+-- each create is conditional and the columns must match exactly.
 CREATE TABLE IF NOT EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.operation_steps(
   scope VARCHAR(255) NOT NULL,
+  method VARCHAR(64) NOT NULL,
   operation_id VARCHAR(255) NOT NULL,
-  step_name VARCHAR(255) NOT NULL,
+  step_name VARCHAR(128) NOT NULL,
   request_hash CHAR(64) NOT NULL,
-  state VARCHAR(16) NOT NULL,
-  attempt INTEGER NOT NULL DEFAULT 1,
-  -- NULL means no attempt is in flight: the body threw and released the claim,
-  -- so the next caller takes over at once. A process that died leaves this set,
-  -- so its claim is honoured until takeoverAfterMs has passed.
-  attempt_started_at TIMESTAMPTZ,
-  first_started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  completed_at TIMESTAMPTZ,
+  -- 'running': an attempt is in flight, honoured until takeoverAfterMs passes.
+  -- 'open':    no attempt in flight — the body threw and released it, so the
+  --            next caller takes over at once. A process that died instead
+  --            leaves the row 'running' and its claim simply ages out.
+  -- 'done':    an outcome is stored in `output` and the body never runs again.
+  state VARCHAR(16) NOT NULL CHECK (state IN ('running', 'open', 'done')),
+  attempt INTEGER NOT NULL,
+  first_started_at TIMESTAMPTZ NOT NULL,
+  attempt_started_at TIMESTAMPTZ NOT NULL,
   output JSONB,
-  PRIMARY KEY (scope, operation_id, step_name)
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (scope, method, operation_id, step_name)
 );
 -- +goose StatementEnd
 
@@ -31,11 +43,12 @@ CREATE TABLE IF NOT EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.op
 -- Uniqueness spanning operations, which a per-operation step cannot express:
 -- one ledger burn settles exactly one redemption.
 CREATE TABLE IF NOT EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.resource_claims(
-  namespace VARCHAR(255) NOT NULL,
+  scope VARCHAR(255) NOT NULL,
+  namespace VARCHAR(128) NOT NULL,
   resource VARCHAR(255) NOT NULL,
   operation_id VARCHAR(255) NOT NULL,
-  claimed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (namespace, resource)
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (scope, namespace, resource)
 );
 -- +goose StatementEnd
 -- +goose ENVSUB OFF

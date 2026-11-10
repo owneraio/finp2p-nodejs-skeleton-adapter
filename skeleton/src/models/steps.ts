@@ -12,16 +12,27 @@
  *
  * **Outcomes are stored as JSON.** `undefined`, `Date`, `BigInt`, `Map`, class
  * instances and non-enumerable properties do not survive — a `Date` comes back
- * a string. Return plain JSON-safe values.
+ * a string. Return plain JSON-safe values. The outcome is read back from the
+ * store before it is returned, so the run that produced it sees exactly what a
+ * later replay will see rather than its own in-memory value.
  */
+
+/** Which operation a step belongs to. The method is part of a step's identity
+ *  because `id` is typically the caller's idempotency key, which carries no
+ *  method — so `issue` and `redeem` can arrive under one key. */
+export interface StepOperation {
+  readonly id: string;
+  readonly method: string;
+}
 
 /** Passed to the step body. */
 export interface StepContext {
   /**
-   * Stable per (scope, operationId, name) and identical on every attempt,
+   * Stable per (method, operation id, name) and identical on every attempt,
    * including after a restart — suitable as an idempotency key for a remote
    * API, which is the only thing that closes the window between an effect and
-   * its outcome being recorded.
+   * its outcome being recorded. A UUID, because that is the shape the remote
+   * APIs this was built for accept.
    *
    * Derived from the step's name, so **renaming a step changes the token** and
    * a remote system keying on it treats the retry as a new request. The
@@ -35,7 +46,11 @@ export interface StepContext {
    * happened, so a body with a non-idempotent effect should reconcile (look the
    * effect up remotely and adopt it) rather than repeat it blindly.
    */
-  readonly priorAttempt?: { readonly startedAt: Date };
+  readonly priorAttempt?: {
+    /** Epoch ms, as the database measured it, of the step's *first* attempt —
+     *  the window a reconciling body has to search. */
+    readonly startedAt: number;
+  };
 }
 
 export interface StepOptions {
@@ -53,16 +68,7 @@ export interface StepOptions {
 
 export interface StepExecutor {
   /**
-   * Run `fn` once per (operationId, name) and remember what it returned.
-   *
-   * **A step name must be unique across service methods.** `operationId` is
-   * typically the idempotency key, which does *not* include the method — the
-   * reason the `operations` unique index is `(method, inputs)`. So `issue` and
-   * `redeem` can arrive under one key, and a step name shared between them (a
-   * helper called from both, say) is one step: the second method reads the
-   * first's outcome. Identical inputs fingerprint alike, so the request guard
-   * below does not catch it. Name steps for the method — `place-purchase`,
-   * `place-sale` — not for the shared helper.
+   * Run `fn` once per (operation, name) and remember what it returned.
    *
    * A completed step returns its stored outcome and `fn` does not run. A body
    * that **returns** completes the step — including one returning a failure
@@ -78,11 +84,11 @@ export interface StepExecutor {
    * Throws {@link StepBusyError} while another process holds the step and its
    * attempt is younger than `takeoverAfterMs`.
    */
-  step<T>(operationId: string, name: string, request: unknown,
+  step<T>(operation: StepOperation, name: string, request: unknown,
     fn: (ctx: StepContext) => Promise<T>, options?: StepOptions): Promise<T>;
 
   /** The stored outcome, or undefined if the step never completed. */
-  stored<T>(operationId: string, name: string): Promise<T | undefined>;
+  stored<T>(operation: StepOperation, name: string): Promise<T | undefined>;
 }
 
 /**
