@@ -248,6 +248,24 @@ const rehydrateInputs = (inputs: any): any => {
   return Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, rehydrateInputs(v)]));
 };
 
+/**
+ * The arguments to replay a stored operation with.
+ *
+ * `JSON.stringify` writes `undefined` as `null` when it is an *array element*,
+ * and the stored inputs are the argument array — so an omitted optional
+ * argument comes back as `null` and the adapter sees a value where the first
+ * call saw nothing. Every optional positional on the service interfaces is
+ * declared `| undefined`, not `| null`, so this is a real difference between a
+ * first run and its replay.
+ *
+ * Only the arguments themselves are restored. A `null` nested inside one was
+ * written as a real null and means it.
+ */
+const replayArgs = (inputs: any): any => {
+  const args = rehydrateInputs(inputs);
+  return Array.isArray(args) ? args.map((arg: any) => (arg === null ? undefined : arg)) : args;
+};
+
 export function createServiceProxy<T extends object>(
   migrationJob: () => Promise<void>,
   storage: WorkflowStorage,
@@ -267,7 +285,7 @@ export function createServiceProxy<T extends object>(
       storage.getPendingOperations(String(m)).then(
         (operations) => {
           for (const op of operations) {
-            executeAndFinalize(method, rehydrateInputs(op.inputs), op.method, op.cid, opMetadata, storage, finP2PClient);
+            executeAndFinalize(method, replayArgs(op.inputs), op.method, op.cid, opMetadata, storage, finP2PClient);
           }
         },
         (error) => logger.error('Failed to fetch pending operations', { error }),
