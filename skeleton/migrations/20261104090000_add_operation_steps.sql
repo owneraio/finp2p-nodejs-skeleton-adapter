@@ -18,6 +18,9 @@
 -- An adapter embedding a plugin host creates these same two tables with the
 -- same shape from its own migration; whichever runs first creates them, so
 -- each create is conditional and the columns must match exactly.
+--
+-- Neither migration owns these tables, which is why the Down below drops
+-- nothing. See the note there before changing it.
 CREATE TABLE IF NOT EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.operation_steps(
   scope VARCHAR(255) NOT NULL,
   method VARCHAR(64) NOT NULL,
@@ -80,9 +83,19 @@ DO $$
 -- +goose StatementEnd
 
 -- +goose Down
--- +goose ENVSUB ON
 -- +goose StatementBegin
-DROP TABLE IF EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.resource_claims;
-DROP TABLE IF EXISTS ${LEDGER_SCHEMA?LEDGER_SCHEMA env var is required}.operation_steps;
+-- Deliberately drops nothing.
+--
+-- An adapter embedding a plugin host creates `operation_steps` and
+-- `resource_claims` from its own migration, with `CREATE TABLE IF NOT EXISTS`
+-- on both sides, so whichever ran first created them and neither migration
+-- owns them. Dropping them here would take the other side's rows with them
+-- while its migration is still applied: a lost `done` step means a step that
+-- already ran is run again after a restart, which for an order placed with an
+-- external venue means placing it twice. That is the exact failure this table
+-- exists to prevent, so a rollback must not cause it.
+--
+-- A migration that adds something belonging to the skeleton alone should drop
+-- that thing here, and still leave these two tables in place.
+SELECT 1;
 -- +goose StatementEnd
--- +goose ENVSUB OFF
