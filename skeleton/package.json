@@ -23,6 +23,9 @@
     "*": {
       "plugin": [
         "dist/plugin.d.ts"
+      ],
+      "durable": [
+        "dist/durable.d.ts"
       ]
     }
   },

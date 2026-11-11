@@ -16,6 +16,11 @@ describe('the durable entry point stays light', () => {
   const src = (...parts: string[]) =>
     readFileSync(join(__dirname, '..', '..', 'src', ...parts), 'utf8')
 
+  const pkg = () => JSON.parse(src('..', 'package.json')) as {
+    exports: Record<string, { types: string; default: string }>
+    typesVersions: Record<string, Record<string, string[]>>
+  }
+
   /** Comments are stripped first: these files document their own usage with
    *  an `import ... from '@owneraio/...'` example, which is not an import. */
   const importsOf = (text: string): string[] => {
@@ -37,10 +42,24 @@ describe('the durable entry point stays light', () => {
   })
 
   test('the package exposes it as a subpath', () => {
-    const pkg = JSON.parse(src('..', 'package.json')) as {
-      exports: Record<string, { types: string; default: string }>
-    }
-    expect(pkg.exports['./durable'])
+    expect(pkg().exports['./durable'])
       .toEqual({ types: './dist/durable.d.ts', default: './dist/durable.js' })
+  })
+
+  /**
+   * `exports` is invisible to TypeScript under `moduleResolution: "node"`,
+   * which every plugin in finp2p-ethereum-tools still uses: the import
+   * resolves at run time and `tsc` reports TS2307. `typesVersions` is the
+   * fallback it does read, so every subpath needs an entry or it is
+   * unusable from those projects.
+   */
+  test('every subpath has a typesVersions entry, so older tsc resolves it', () => {
+    const { exports: map, typesVersions } = pkg()
+    const subpaths = Object.keys(map).filter((k) => k !== '.').map((k) => k.replace('./', ''))
+
+    expect(subpaths.length).toBeGreaterThan(0)
+    for (const subpath of subpaths) {
+      expect(typesVersions['*'][subpath]).toEqual([map[`./${subpath}`].types.replace('./', '')])
+    }
   })
 })

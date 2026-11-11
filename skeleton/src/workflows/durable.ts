@@ -293,10 +293,16 @@ export class DurableFlow<TInput, TResult> {
           return { status: 'refused', block: block.name, reason: e.reason };
         }
         if (isStepBusy(e)) {
+          // Coerced rather than cast. `isStepBusy` matches on `code`, so the
+          // error may come from an executor that only matches this package's
+          // shape -- taking it by shape is the documented way to implement one
+          // -- and such an executor need not carry `retryAfterMs`. Casting
+          // would put `undefined` behind a field this type declares a number.
+          const retryAfterMs = Number((e as Partial<StepBusyError>).retryAfterMs);
           return {
             status: 'busy',
             block: block.name,
-            retryAfterMs: (e as StepBusyError).retryAfterMs,
+            retryAfterMs: Number.isFinite(retryAfterMs) ? retryAfterMs : 0,
             reason: (e as Error).message,
           };
         }
