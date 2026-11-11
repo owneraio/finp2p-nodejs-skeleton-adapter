@@ -25,6 +25,22 @@ describe('fromConsole', () => {
     expect(typeof line.time).toBe('string');
   });
 
+  it('json never throws: bigint, plain and class-instance cycles, shared refs', () => {
+    const t = target();
+    class Ring { next?: Ring; }
+    const ring = new Ring();
+    ring.next = ring;
+    const plain: Record<string, unknown> = { v: 1 };
+    plain.self = plain;
+    const shared = { v: 2 };
+    fromConsole({ target: t, format: 'json' }).info('x', {
+      balance: 10n, ring, plain, a: shared, b: shared,
+    });
+    expect(JSON.parse(t.info.mock.calls[0][0])).toMatchObject({
+      balance: '10', ring: { next: '[circular]' }, plain: { v: 1, self: '[circular]' }, a: { v: 2 }, b: { v: 2 },
+    });
+  });
+
   it('json: meta cannot clobber level/msg', () => {
     const t = target();
     fromConsole({ target: t, format: 'json' }).info('real', { level: 'error', msg: 'fake' });

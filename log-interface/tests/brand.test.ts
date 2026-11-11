@@ -1,6 +1,6 @@
 import * as winston from 'winston';
 import {
-  Log, fromSink, isLevel, silentLog,
+  Log, fromSink, isLevel, isLog, silentLog,
 } from '../src';
 
 describe('Log brand', () => {
@@ -15,9 +15,16 @@ describe('Log brand', () => {
     expect([fromRaw, fromLiteral, ok]).toHaveLength(3);
   });
 
+  it('brand is a string key set at runtime: survives a spread, isLog() guards', () => {
+    const spread: Log = { ...silentLog() };
+    expect(isLog(spread)).toBe(true);
+    expect(isLog(winston.createLogger())).toBe(false);
+    expect(isLog(null)).toBe(false);
+  });
+
   it('fromSink forwards level, message and merged meta', () => {
     const sink = jest.fn();
-    fromSink(sink, { base: 1 }).child({ c: 2 }).warn('m', { m: 3 });
+    fromSink(sink, { base: { base: 1 } }).child({ c: 2 }).warn('m', { m: 3 });
     expect(sink).toHaveBeenCalledWith('warn', 'm', { base: 1, c: 2, m: 3 });
   });
 

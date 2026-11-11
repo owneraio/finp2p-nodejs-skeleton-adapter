@@ -82,6 +82,14 @@ describe('fromWinston', () => {
     expect(JSON.parse(JSON.stringify(capture.entries[0])).error.stack).toContain('kaboom');
   });
 
+  it('passes base and redact options through', () => {
+    const { w, capture } = withLevels(winston.config.npm.levels, 'debug');
+    fromWinston(w, { base: { svc: 'x' }, redact: { secrets: ['pw'] } }).info('pw ok', { password: 'pw' });
+    expect(capture.entries).toEqual([{
+      level: 'info', message: '[redacted] ok', svc: 'x', password: '[redacted]',
+    }]);
+  });
+
   it('rejects a levels table lacking warn/warning at construction time', () => {
     const { w } = withLevels({ error: 0, info: 1, debug: 2 }, 'debug');
     expect(() => fromWinston(w)).toThrow(UnsupportedWinstonLevelsError);

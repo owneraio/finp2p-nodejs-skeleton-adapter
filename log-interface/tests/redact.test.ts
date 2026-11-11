@@ -24,9 +24,10 @@ describe('redactText', () => {
     expect(redactText('x abcdef y abc', { secrets })).toBe(`x ${REDACTED} y ${REDACTED}`);
   });
 
-  it('applies custom keys and patterns', () => {
+  it('applies custom keys and patterns, global flag or not', () => {
     expect(redactText('finId=f1 otp=1234 ssn 123-45-6789', { keys: ['otp'], patterns: [/\d{3}-\d{2}-\d{4}/g] }))
       .toBe(`finId=f1 otp=${REDACTED} ssn ${REDACTED}`);
+    expect(redactText('a 1-1 b 2-2', { patterns: [/\d-\d/] })).toBe(`a ${REDACTED} b ${REDACTED}`);
   });
 });
 
@@ -44,10 +45,11 @@ describe('redactMeta', () => {
     });
   });
 
-  it('survives cycles', () => {
-    const a: Record<string, unknown> = { s: 'x' };
+  it('survives cycles, keeps shared references', () => {
+    const shared = { s: 'x' };
+    const a: Record<string, unknown> = { l: shared, r: shared };
     a.self = a;
-    expect(redactMeta(a)).toEqual({ s: 'x', self: '[circular]' });
+    expect(redactMeta(a)).toEqual({ l: { s: 'x' }, r: { s: 'x' }, self: '[circular]' });
   });
 });
 
@@ -57,6 +59,14 @@ describe('secretsFromEnv', () => {
       DB_PASSWORD: 'a"b', NETWORK_AUTH: 'n', LOG_LEVEL: 'debug', RPC_URL: 'https://x', EMPTY_SECRET: '',
     };
     expect(secretsFromEnv(env)).toEqual(['a\\"b', 'a"b', 'n']);
+  });
+});
+
+describe('fromSink({ redact })', () => {
+  it('redacts message and meta in the pipeline; children inherit it', () => {
+    const sink = jest.fn();
+    fromSink(sink, { redact: { secrets: ['s3cr3t'] } }).child({ apiKey: 'k' }).info('s3cr3t leaked');
+    expect(sink).toHaveBeenCalledWith('info', `${REDACTED} leaked`, { apiKey: REDACTED });
   });
 });
 
