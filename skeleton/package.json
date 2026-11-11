@@ -13,6 +13,10 @@
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "default": "./dist/plugin.js"
+    },
+    "./durable": {
+      "types": "./dist/durable.d.ts",
+      "default": "./dist/durable.js"
     }
   },
   "typesVersions": {

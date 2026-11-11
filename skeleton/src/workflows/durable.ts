@@ -1,7 +1,6 @@
-import { logger as defaultLogger } from '../helpers';
 import {
   StepBusyError, StepExecutor, StepOptions, isStepBusy, isStepRequestMismatch,
-} from '../models';
+} from '../models/steps';
 
 /**
  * Durable flows: a method written as named blocks that each run at most once.
@@ -36,6 +35,12 @@ import {
  * declared conditionally; a flow that needs to skip work should have the block
  * return a sentinel, so that the decision is itself recorded.
  *
+ * **Adding a block in front of existing ones runs it on resume.** An
+ * operation that started before the block existed has no row for it, so a
+ * resume runs it first — after the later blocks have already had their
+ * effects. If the new block can refuse, or has an effect of its own, adopt it
+ * only once no operation predating it is still in flight.
+ *
  * **A block's name is its identity, permanently.** The name is the step name,
  * so it feeds `ctx.token` — the remote idempotency key. Renaming a block
  * changes the token and a remote system keying on it treats the retry as a new
@@ -49,6 +54,17 @@ import {
 export interface FlowLogger {
   info(message: string, ...meta: unknown[]): void;
 }
+
+/**
+ * The default when `run` is given no logger: it discards.
+ *
+ * Deliberately not the skeleton's winston logger — importing it would drag
+ * winston, and through the models index keccak and secp256k1, into a module a
+ * plugin wants for the flow runner alone. **Pass `run.logger`**: the only
+ * thing this records is which block a resume started at, which is exactly what
+ * you want in the log after a restart.
+ */
+const discard: FlowLogger = { info: () => undefined };
 
 /**
  * A reference to a block's output, redeemed by a later block with `get`.
@@ -88,7 +104,14 @@ export interface BlockContext<TInput, TResult> {
 
   readonly logger: FlowLogger;
 
-  /** The output of an earlier block. Throws if the block has not run. */
+  /**
+   * The output of an earlier block.
+   *
+   * Throws **at run time**, not when the flow is declared: a body is not
+   * executed during declaration, so which handles it reads is not knowable
+   * then. Reading a block that is later in the order, or this block itself,
+   * throws on the first run that reaches it.
+   */
   get<T>(handle: Handle<T>): T;
 
   /**
@@ -162,27 +185,30 @@ class RefuseSignal extends Error {
 }
 
 /**
- * A block's output is wrapped so that a `stop` survives a restart: without the
- * wrapper there is no way to tell a stored result that ended the flow from one
- * that fed the next block.
+ * A block stores what its body returned, unchanged. Only a {@link
+ * BlockContext.stop} is wrapped, because a stop has to be told from a value
+ * that feeds the next block and nothing in the value itself says so.
+ *
+ * The asymmetry is deliberate and load-bearing. Wrapping every value would
+ * change the stored shape of every row, so a release using flows could not be
+ * rolled back to one using `step()` directly, and anything reading the rows
+ * another way — `stored()`, an operator's query — would find its fields one
+ * level down. Leaving values bare keeps every ordinary row in exactly the
+ * format it has today, in both directions. Only a stopped row is new, and a
+ * stop is terminal, so the one-way door narrows to "an older release cannot
+ * read a stopped row".
  */
-interface Wrapped<T> {
-  __durableBlock: 'value' | 'stop';
+interface Stopped<T> {
+  __durableBlock: 'stop';
   value: T;
 }
 
-const wrap = <T>(kind: 'value' | 'stop', value: T): Wrapped<T> =>
-  ({ __durableBlock: kind, value });
+const stopped = <T>(value: T): Stopped<T> => ({ __durableBlock: 'stop', value });
 
-/**
- * A row written by a direct `step()` call, before this flow runner existed,
- * holds the value itself rather than a wrapper. Reading it as a plain value
- * keeps adoption free of a data migration.
- */
 const unwrap = (stored: unknown): { stop: boolean; value: unknown } => {
-  if (stored !== null && typeof stored === 'object' && '__durableBlock' in stored) {
-    const w = stored as Wrapped<unknown>;
-    return { stop: w.__durableBlock === 'stop', value: w.value };
+  if (stored !== null && typeof stored === 'object'
+      && (stored as Partial<Stopped<unknown>>).__durableBlock === 'stop') {
+    return { stop: true, value: (stored as Stopped<unknown>).value };
   }
   return { stop: false, value: stored };
 };
@@ -214,7 +240,7 @@ export class DurableFlow<TInput, TResult> {
   async run(steps: StepExecutor, run: FlowRun<TInput>): Promise<FlowOutcome<TResult>> {
     const operation = { id: run.id, method: this.method };
     const tag = run.tag ?? `${this.method} ${run.id}`;
-    const log = run.logger ?? (defaultLogger as unknown as FlowLogger);
+    const log = run.logger ?? discard;
     const values: unknown[] = new Array(this.blocks.length);
     let skipped = 0;
 
@@ -249,11 +275,16 @@ export class DurableFlow<TInput, TResult> {
             refuse: (reason: string): never => { throw new RefuseSignal(reason); },
           };
           try {
-            return wrap('value', await block.body(blockCtx));
+            // Awaited into a local, not returned directly: a returned promise
+            // rejects *after* this try block, so `stop` would escape uncaught.
+            // Stored bare, so the row is indistinguishable from one a direct
+            // `step()` call wrote.
+            const output = await block.body(blockCtx);
+            return output;
           } catch (e) {
             // A stop is an outcome, so it is stored and the flow ends here on
             // every replay. A refusal is not: it leaves the block open.
-            if (e instanceof StopSignal) return wrap('stop', e.result);
+            if (e instanceof StopSignal) return stopped(e.result);
             throw e;
           }
         }, block.options);

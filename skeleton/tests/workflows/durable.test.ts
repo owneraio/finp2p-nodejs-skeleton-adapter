@@ -200,6 +200,53 @@ describe('durable flows', () => {
   })
 
   /**
+   * The compatibility guarantee in both directions: an ordinary block's row is
+   * byte-for-byte what a direct `step()` call would have written. A release
+   * using flows can be rolled back to one using `step()`, and anything reading
+   * the rows another way — `stored()`, an operator's query — finds the fields
+   * where they have always been.
+   *
+   * Only a `stop` is wrapped, because nothing in a value says it ended the
+   * flow. A stop is terminal, so that is the whole of the incompatibility.
+   */
+  describe('what a block stores', () => {
+    const outputOf = async (name: string): Promise<unknown> => {
+      const { rows } = await pool.query(
+        `SELECT output FROM ledger_adapter.operation_steps
+         WHERE operation_id = $1 AND step_name = $2`, [ID, name])
+      return rows[0]?.output
+    }
+
+    test('an ordinary block stores its value bare, with no wrapper', async () => {
+      await run(issuance([]))
+
+      const stored = await outputOf('resolve-order')
+
+      expect(stored).toEqual({ qty: '5', venue: 'wt' })
+      expect(stored).not.toHaveProperty('__durableBlock')
+    })
+
+    test('stored() reads a flow-written block directly, as an older release would', async () => {
+      await run(issuance([]))
+
+      // This is the read path of a release that predates the flow runner.
+      const placed = await steps.stored<{ ref: string }>({ id: ID, method: 'issue' }, 'place-order')
+
+      expect(placed?.ref).toBe('ord-5')
+    })
+
+    test('only a stop carries the marker', async () => {
+      await run(issuance([], { stopAt: 'place-order' }))
+
+      expect(await outputOf('resolve-order')).not.toHaveProperty('__durableBlock')
+      expect(await outputOf('place-order')).toEqual({
+        __durableBlock: 'stop',
+        value: { status: 'failure', ref: 'refused-by-venue' },
+      })
+    })
+  })
+
+  /**
    * A deployment already using `step()` directly has rows holding the value
    * itself, not the runner's wrapper. Adopting a flow must read those, or
    * every in-flight operation would re-run its completed blocks.
