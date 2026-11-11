@@ -45,6 +45,7 @@ Plan approval is not mandatory but gives the adapter context about the orchestra
 
 | Package | npm name | Purpose | CLAUDE.md |
 |---------|----------|---------|-----------|
+| [log-interface](log-interface/) | `@owneraio/log-interface` | Branded `Log` interface (debug/info/warn/error + child) and `fromWinston`/`fromConsole`/`fromSink`/`silentLog` factories &mdash; no `warn` vs `warning` runtime trap | [CLAUDE.md](log-interface/CLAUDE.md) |
 | [finp2p-adapter-models](finp2p-adapter-models/) | `@owneraio/finp2p-adapter-models` | Domain types and service interfaces &mdash; the contract every adapter implements | [CLAUDE.md](finp2p-adapter-models/CLAUDE.md) |
 | [skeleton](skeleton/) | `@owneraio/finp2p-nodejs-skeleton-adapter` | Express routes, API mapping, async workflow persistence, plugin system, default service implementations | [CLAUDE.md](skeleton/CLAUDE.md) |
 | [finp2p-client](finp2p-client/) | `@owneraio/finp2p-client` | TypeScript client for the FinP2P router (REST + GraphQL) | [CLAUDE.md](finp2p-client/CLAUDE.md) |
@@ -87,12 +88,13 @@ Each subproject has its own GitHub Actions workflow triggered by git tags:
 
 | Tag pattern | Package published | Registry |
 |-------------|------------------|----------|
+| `log-interface-v*` | `@owneraio/log-interface` | GitHub Packages |
 | `finp2p-adapter-models-v*` | `@owneraio/finp2p-adapter-models` | npm public + GitHub Packages |
 | `skeleton-v*` | `@owneraio/finp2p-nodejs-skeleton-adapter` | GitHub Packages |
 | `finp2p-client-v*` | `@owneraio/finp2p-client` | GitHub Packages |
 | `adapter-tests-v*` | `@owneraio/adapter-tests` | GitHub Packages |
 
-**Publish order matters** due to dependencies: adapter-models first, then skeleton and finp2p-client, then adapter-tests, then sample-adapter.
+**Publish order matters** due to dependencies: log-interface and adapter-models first, then skeleton and finp2p-client, then adapter-tests, then sample-adapter.
 
 ## CI
 
@@ -100,6 +102,7 @@ The CI workflow (`.github/workflows/ci.yml`) runs on every PR and push to master
 
 | Job | Steps |
 |-----|-------|
+| log-interface | build + test |
 | finp2p-client | build |
 | skeleton | build + test (PostgreSQL via testcontainers + goose) |
 | adapter-tests | build |

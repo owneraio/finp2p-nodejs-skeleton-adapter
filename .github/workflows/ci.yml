@@ -30,7 +30,7 @@ jobs:
       - name: check package.json version matches package-lock.json
         run: |
           fail=0
-          for d in finp2p-client skeleton adapter-tests vanilla-service sample-adapter skeleton-test-environment; do
+          for d in log-interface finp2p-client skeleton adapter-tests vanilla-service sample-adapter skeleton-test-environment; do
             node -e "
               const p = require('./$d/package.json');
               const l = require('./$d/package-lock.json');
@@ -43,6 +43,27 @@ jobs:
             " || fail=1
           done
           exit $fail
+
+  log-interface:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./log-interface
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: https://npm.pkg.github.com/
+          scope: '@owneraio'
+      - name: install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: build
+        run: npm run build
+      - name: test
+        run: npm test
 
   finp2p-client:
     runs-on: ubuntu-latest
