@@ -4,6 +4,7 @@ export * from './hashList';
 export * from './interfaces';
 export * from './utils';
 export * from './errors';
+export * from './steps';
 export * from './plugins';
 export * from './logger';
 

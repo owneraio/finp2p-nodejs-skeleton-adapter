@@ -1,4 +1,4 @@
-import { rehydrateEip712Definitions } from '../models';
+import { rehydrateEip712Definitions, isStepBusy } from '../models';
 import {
   OperationStatus,
   CommonService,
@@ -191,6 +191,9 @@ async function finalize(
  * Catches both sync throws and async rejections from the method.
  * Used by both crash recovery and the live proxy path.
  */
+/** Enough to outlast a takeover window; a step held this long is stuck. */
+const MAX_BUSY_RETRIES = 10;
+
 async function executeAndFinalize(
   method: Function,
   args: any[],
@@ -199,11 +202,27 @@ async function executeAndFinalize(
   opMetadata: OperationMetadata | undefined,
   storage: WorkflowStorage,
   finP2PClient: FinP2PClient | undefined,
+  busyRetriesLeft = MAX_BUSY_RETRIES,
 ): Promise<void> {
   try {
     const outputs: OperationStatus = await method(...args);
     await finalize(storage, finP2PClient, cid, dbStatus(outputs), outputs);
   } catch (error: any) {
+    // A step held by another process is not a failure. On a restart the holder
+    // is usually the dead previous process and its claim only has to age out;
+    // finalizing here would report the operation failed while its effect — an
+    // order already placed — is live. Wait for the claim to go stale and retry.
+    if (isStepBusy(error) && busyRetriesLeft > 0) {
+      const delay = Math.max(error.retryAfterMs ?? 0, 250);
+      logger.info('Operation step held elsewhere, retrying', {
+        method: methodName, cid, delay, retriesLeft: busyRetriesLeft,
+      });
+      setTimeout(() => {
+        executeAndFinalize(method, args, methodName, cid, opMetadata, storage, finP2PClient,
+          busyRetriesLeft - 1);
+      }, delay).unref();
+      return;
+    }
     logger.error('Operation failed', { method: methodName, cid, ...describeError(error) });
     const wrp = wrappedResponse(methodName, opMetadata, [cid, 1, String(error)]);
     await finalize(storage, finP2PClient, cid, 'failed', wrp);
@@ -229,6 +248,24 @@ const rehydrateInputs = (inputs: any): any => {
   return Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, rehydrateInputs(v)]));
 };
 
+/**
+ * The arguments to replay a stored operation with.
+ *
+ * `JSON.stringify` writes `undefined` as `null` when it is an *array element*,
+ * and the stored inputs are the argument array — so an omitted optional
+ * argument comes back as `null` and the adapter sees a value where the first
+ * call saw nothing. Every optional positional on the service interfaces is
+ * declared `| undefined`, not `| null`, so this is a real difference between a
+ * first run and its replay.
+ *
+ * Only the arguments themselves are restored. A `null` nested inside one was
+ * written as a real null and means it.
+ */
+const replayArgs = (inputs: any): any => {
+  const args = rehydrateInputs(inputs);
+  return Array.isArray(args) ? args.map((arg: any) => (arg === null ? undefined : arg)) : args;
+};
+
 export function createServiceProxy<T extends object>(
   migrationJob: () => Promise<void>,
   storage: WorkflowStorage,
@@ -248,7 +285,7 @@ export function createServiceProxy<T extends object>(
       storage.getPendingOperations(String(m)).then(
         (operations) => {
           for (const op of operations) {
-            executeAndFinalize(method, rehydrateInputs(op.inputs), op.method, op.cid, opMetadata, storage, finP2PClient);
+            executeAndFinalize(method, replayArgs(op.inputs), op.method, op.cid, opMetadata, storage, finP2PClient);
           }
         },
         (error) => logger.error('Failed to fetch pending operations', { error }),
