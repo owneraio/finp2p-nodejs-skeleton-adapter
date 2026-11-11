@@ -91,6 +91,32 @@ const { orderReference } = await steps.step(operation, 'place-order', request,
 - **The request hash is shared with the plugin host in generic-custody-adapter**, byte for byte, with the same vectors pinned in both test suites. Keys sort by code point (never by locale &mdash; collation depends on how Node was built, so two replicas could disagree); an object member that is `null` or `undefined` is dropped, because the proxy replays arguments stored as JSON where an omitted optional returns as `null`; an array element keeps its `null`, since dropping a hole would renumber the array.
 - **Outcomes are JSON.** `undefined`, `Date`, `BigInt`, `Map` and non-enumerable properties do not survive the round trip &mdash; return plain JSON-safe values.
 
+### Durable flows (`src/workflows/durable.ts`)
+
+`StepExecutor` makes one effect survive a replay. A method with several effects had to hand-wire a `step()` call per effect, a try/catch around each, and a mapping from `STEP_BUSY`/`STEP_REQUEST_MISMATCH` to results. `durable` declares the blocks once and does that in one place.
+
+```ts
+const issue = durable<IssueInput, TokenOperationResult>('issue', (op) => {
+  const order = op.block('resolve-order', { takeoverAfterMs: 0 },
+    ({ input, refuse }) => resolveOrder(input) ?? refuse('no such asset'));
+  const placed = op.block('place-order',
+    ({ get, token, priorAttempt }) => priorAttempt
+      ? findOrder(get(order))          // reconcile, do not place again
+      : connect.createOrder(get(order), token));
+  return op.block('await-settlement', { takeoverAfterMs: 0 },
+    ({ get }) => awaitSettlement(get(placed)));
+});
+
+const outcome = await issue.run(steps, { id: operationId, request, input });
+```
+
+- **The declaration runs once**, when `durable()` is called &mdash; not per execution. `op.block` returns a `Handle` and a later block redeems it with `get`, because at declaration time there is no value to pass. So a flow is a fixed list of blocks in a fixed order, which is what makes a resume comprehensible. **A block cannot be declared conditionally**; a flow that needs to skip work has the block return a sentinel, so the decision is itself recorded. The two-leg swap in `tests/workflows/durable.test.ts` shows the shape: the revert cannot be a failure-path-only block, so the settlement block returns whether it settled and a final block acts on that.
+- **A block name is its step name, permanently**, so it feeds `ctx.token`. Renaming a block changes the remote idempotency key, which for an order in flight means placing it twice. Nothing derives a name from a function name, a variable name or a position &mdash; deliberately, so that a refactor cannot change a token.
+- **`run()` is the resume.** Calling it again walks the same blocks; completed ones return their rows without running, and the first unfinished one runs with `priorAttempt` set if an earlier attempt was taken over. There is no separate resume path.
+- **Two ways to end early.** `stop(result)` is stored as the block's outcome, so every replay ends the same way &mdash; for a venue's refusal or a 409. `refuse(reason)` ends this call and stores nothing, so a retry runs the block again &mdash; for a condition an operator can fix, such as a missing asset. **`refuse` is only safe in a block that has had no effect yet**, since the retry repeats whatever the body already did.
+- **`request` is passed to `run()` explicitly** and never defaults to `input`. An existing deployment hashes a particular shape (the WisdomTree plugin hashes a flat `side|token|wallet|amount` string); changing it would make every stored block report a mismatch.
+- **Adoption needs no migration.** A block's output is wrapped so a `stop` can be told from a value that feeds the next block, but a row written by a direct `step()` call holds the bare value and is read as one.
+
 `ResourceClaims` is deliberately separate: it expresses uniqueness spanning operations (one ledger burn settling one redemption), carries no outcome and is never replayed. It is scope-bound the same way &mdash; `new PgResourceClaims(pool, schemaName).forScope('wisdomtree')`.
 
 Both tables are created by `migrations/20261104090000_add_operation_steps.sql` with `CREATE TABLE IF NOT EXISTS`, because an adapter embedding its own plugin host creates the same two tables from its own migration and either may run first. **The columns must match that migration exactly**, in both repositories.
