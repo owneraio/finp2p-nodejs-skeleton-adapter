@@ -122,6 +122,29 @@ When workflow persistence is enabled, the skeleton uses PostgreSQL with a consum
 
 Migrations run automatically on startup via goose.
 
+### Field-level encryption at rest (`src/storage/encryption/`)
+
+Rails `encrypts :col` model: the process gets a key at boot, the DB only ever holds ciphertext. Three pure pieces, no SQL of their own; a store passes rows through them and keeps writing its own queries.
+
+| piece | what |
+|-------|------|
+| `Keyring` | `DB_ENCRYPTION_KEYS="current,previous,…"` (base64 or hex, 32 bytes each; `openssl rand -base64 32`). First key encrypts, all decrypt. HKDF fans each master into per-purpose subkeys (`random`, `deterministic`, `deterministicIv`). Optional `DB_ENCRYPTION_SALT` separates deployments sharing a key. |
+| `cipher.ts` | AES-256-GCM, stored as `v1.<r|d>.<kid>.<base64url(iv‖ct‖tag)>`. `r` = random IV (opaque), `d` = IV derived from `HMAC(plaintext)` (equal plaintext → equal ciphertext). AAD = `<table>.<column>`, so a value copied into another column fails to open. `isEncrypted()` distinguishes legacy plaintext for lazy migrations. |
+| `EncryptedColumns` | Per-table spec `{ col: { mode: 'random' \| 'deterministic' } }`. `toDb(row)` / `fromDb(row)` / `where(col, value)` → `{ column, values }` for `WHERE column = ANY($1)` (one candidate per keyring key, so lookups survive a rotation) / `staleColumns(row)` for re-encryption. |
+
+Choosing a mode:
+
+| need | mode | DDL |
+|------|------|-----|
+| never queried by value | `random` | `TEXT` |
+| `WHERE col = $1`, index, `UNIQUE (col)` | `deterministic` | `TEXT`, constraint/index on the ciphertext |
+
+Deterministic leaks which rows share a value, nothing else. Only byte-exact equality is possible: no `LIKE`, ranges, sorting or case folding (normalise before `toDb` if you need case-insensitive equality). Ciphertext is ~37 bytes plus 4/3 of the plaintext, so use `TEXT`, not `VARCHAR(255)`. Values must be strings; serialise objects first. `NULL` passes through (and Postgres `UNIQUE` admits many NULLs).
+
+Rotation: prepend the new key to `DB_ENCRYPTION_KEYS`, deploy, rewrite rows where `staleColumns()` is non-empty (`fromDb` → `toDb` → `UPDATE`), then drop the old key. Deterministic columns must be rewritten before the old key is dropped or lookups for old rows stop matching; `where()` covers the window in between. `UNIQUE` is per key during that window: the same plaintext under the old and the new key are two different strings, and a write touches only its own row. To enforce uniqueness across keys, guard the insert: `INSERT … SELECT … WHERE NOT EXISTS (SELECT 1 FROM t WHERE col = ANY($candidates))` with `where().values` as the candidates (remaining race: concurrent inserts from pods on different key sets).
+
+`tests/storage/encryption-pg.test.ts` is the worked example: a `PocStore` with both modes, raw-row assertions, `23505` on a deterministic `UNIQUE`, and a full rotation. No migration ships for it; the table is the POC.
+
 ## Build & publish
 
 ```bash
