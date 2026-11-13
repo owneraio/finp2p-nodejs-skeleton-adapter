@@ -1824,6 +1824,7 @@ components:
         - $ref: '#/components/schemas/operationStatusApproval'
         - $ref: '#/components/schemas/operationStatusAccount'
         - $ref: '#/components/schemas/operationStatusSwap'
+        - $ref: '#/components/schemas/operationStatusAuthorize'
       discriminator:
         propertyName: 'type'
         mapping:
@@ -1833,6 +1834,7 @@ components:
           approval: '#/components/schemas/operationStatusApproval'
           account: '#/components/schemas/operationStatusAccount'
           swap: '#/components/schemas/operationStatusSwap'
+          authorize: '#/components/schemas/operationStatusAuthorize'
     operationStatusCreateAsset:
       type: 'object'
       required: ['type', 'operation']
@@ -1891,6 +1893,43 @@ components:
           enum: ['swap']
         operation:
           $ref: '#/components/schemas/swapReceiptOperation'
+    operationStatusAuthorize:
+      type: 'object'
+      description: |
+        Status of an asynchronous `POST /assets/authorize`: carries the same authorizationProof
+        as the synchronous call, so a polled completion returns a proof rather than a receipt.
+      required: ['type', 'operation']
+      properties:
+        type:
+          type: 'string'
+          enum: ['authorize']
+        operation:
+          $ref: '#/components/schemas/authorizeOperation'
+    authorizeOperation:
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - type: 'object'
+          properties:
+            error:
+              $ref: '#/components/schemas/receiptOperationErrorInformation'
+            response:
+              $ref: '#/components/schemas/authorizationProof'
+    authorizationProof:
+      description: Proof that an authorize operation established the authorization on the ledger.
+      oneOf:
+        - $ref: '#/components/schemas/erc20AllowanceProof'
+      discriminator:
+        propertyName: 'type'
+        mapping:
+          erc20: '#/components/schemas/erc20AllowanceProof'
+    erc20AllowanceProof:
+      type: 'object'
+      description: Proof that an ERC20 spending allowance was set on-chain.
+      required: ['type']
+      properties:
+        type:
+          type: 'string'
+          enum: ['erc20']
     networkAccountOperation:
       description: |
         Status of an investor network-account create/bind/lookup/unbind operation, polled via

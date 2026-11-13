@@ -2089,7 +2089,27 @@ export interface components {
       type: 'swap';
       operation: components['schemas']['swapReceiptOperation'];
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
+    operationStatusAuthorize: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'authorize';
+      operation: components['schemas']['authorizeOperation'];
+    };
+    authorizeOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['authorizationProof'];
+    };
+    authorizationProof: components['schemas']['erc20AllowanceProof'];
+    erc20AllowanceProof: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'erc20';
+    };
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'] | components['schemas']['operationStatusAuthorize'];
     CustomError: {
       code: number;
       message: string;

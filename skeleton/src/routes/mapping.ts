@@ -6,6 +6,7 @@ import {
   ExecutionContext,
   AssetCreationStatus,
   ReceiptOperation,
+  AuthorizeOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   attachEip712Definitions, eip712Definitions,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
@@ -543,6 +544,30 @@ export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas
   }
 };
 
+export const authorizeOperationToAPI = (op: AuthorizeOperation): components['schemas']['authorizeOperation'] => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId: cid, metadata } = op;
+      return {
+        isCompleted: false, cid,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    case 'failure':
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: '',
+        error: { code, message },
+      };
+    case 'success':
+      return {
+        isCompleted: true,
+        cid: '',
+        response: { type: 'erc20' },
+      };
+  }
+};
+
 /**
  * `own` is the side bound under THIS adapter's resource id; the other side carries the
  * counterparty's binding. Legs mirror: the asset leg is sent from here (`source` is ours),
@@ -818,6 +843,11 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'swap',
         operation: swapOperationToAPI(op),
+      };
+    case 'authorize':
+      return {
+        type: 'authorize',
+        operation: authorizeOperationToAPI(op),
       };
   }
 };
