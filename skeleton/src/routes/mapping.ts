@@ -844,6 +844,11 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
         type: 'swap',
         operation: swapOperationToAPI(op),
       };
+    case 'authorize':
+      return {
+        type: 'authorize',
+        operation: authorizeOperationToAPI(op),
+      };
   }
 };
 

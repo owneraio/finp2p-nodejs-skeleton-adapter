@@ -737,7 +737,7 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation;
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation | AuthorizeOperation;
 
 
 // -------------------------------------------------------------------

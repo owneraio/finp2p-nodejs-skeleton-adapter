@@ -1043,7 +1043,7 @@ export interface components {
              */
       instructionSequenceNumber: number;
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'] | components['schemas']['operationStatusAuthorize'];
     operationStatusCreateAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1096,6 +1096,14 @@ export interface components {
              */
       type: 'swap';
       operation: components['schemas']['swapReceiptOperation'];
+    };
+    operationStatusAuthorize: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'authorize';
+      operation: components['schemas']['authorizeOperation'];
     };
     /**
          * @description Status of an investor network-account create/bind/lookup/unbind operation, polled via
