@@ -1,28 +1,36 @@
 import {
-  Keyring, ENV_KEYS, encrypt, decrypt, parse, isEncrypted, EncryptedColumns,
+  Keyring, ENV_KEY_CURRENT, ENV_KEYS_PREVIOUS, encrypt, decrypt, parse, isEncrypted, EncryptedColumns,
 } from '../../src/storage/encryption';
 
 const K1 = Keyring.generateKey();
 const K2 = Keyring.generateKey();
 const AAD = 't.c';
+const env = (current: string, ...previous: string[]) =>
+  ({ [ENV_KEY_CURRENT]: current, [ENV_KEYS_PREVIOUS]: previous.join(',') });
 
 describe('Keyring', () => {
-  test('fromEnv: missing variable names it', () => {
-    expect(() => Keyring.fromEnv({})).toThrow(ENV_KEYS);
+  test('fromEnv: missing current key names the variable', () => {
+    expect(() => Keyring.fromEnv({})).toThrow(ENV_KEY_CURRENT);
+    expect(() => Keyring.fromEnv({ [ENV_KEYS_PREVIOUS]: K1 })).toThrow(ENV_KEY_CURRENT);
   });
 
-  test('fromEnv: first key is current, all keys are known', () => {
-    const ring = Keyring.fromEnv({ [ENV_KEYS]: `${K2}, ${K1}` });
+  test('fromEnv: current encrypts, previous are known; previous optional, comma or semicolon', () => {
+    const k2 = new Keyring([Buffer.from(K2, 'base64')]).current.kid;
+    const k1 = new Keyring([Buffer.from(K1, 'base64')]).current.kid;
+    const ring = Keyring.fromEnv(env(K2, K1));
     expect(ring.all()).toHaveLength(2);
-    expect(ring.current.kid).toBe(new Keyring([Buffer.from(K2, 'base64')]).current.kid);
-    expect(ring.find(new Keyring([Buffer.from(K1, 'base64')]).current.kid)).toBeDefined();
+    expect(ring.current.kid).toBe(k2);
+    expect(ring.find(k1)).toBeDefined();
+    expect(Keyring.fromEnv(env(K2)).all()).toHaveLength(1);
+    expect(Keyring.fromEnv({ [ENV_KEY_CURRENT]: K2, [ENV_KEYS_PREVIOUS]: ` ${K1} ; ` }).find(k1)).toBeDefined();
+    expect(() => Keyring.fromEnv({ [ENV_KEY_CURRENT]: `${K2},${K1}` })).toThrow(/exactly one key/);
   });
 
   test('accepts hex, rejects wrong length and duplicates', () => {
     const hex = Buffer.from(K1, 'base64').toString('hex');
-    expect(Keyring.fromEnv({ [ENV_KEYS]: hex }).current.kid).toBe(Keyring.fromEnv({ [ENV_KEYS]: K1 }).current.kid);
-    expect(() => Keyring.fromEnv({ [ENV_KEYS]: 'c2hvcnQ=' })).toThrow(/32 bytes/);
-    expect(() => Keyring.fromEnv({ [ENV_KEYS]: `${K1},${K1}` })).toThrow(/duplicate/);
+    expect(Keyring.fromEnv(env(hex)).current.kid).toBe(Keyring.fromEnv(env(K1)).current.kid);
+    expect(() => Keyring.fromEnv(env('c2hvcnQ='))).toThrow(/32 bytes/);
+    expect(() => Keyring.fromEnv(env(K1, K1))).toThrow(/duplicate/);
   });
 
   test('salt separates deployments sharing a master key', () => {
@@ -34,7 +42,7 @@ describe('Keyring', () => {
 });
 
 describe('cipher', () => {
-  const ring = Keyring.fromEnv({ [ENV_KEYS]: K1 });
+  const ring = Keyring.fromEnv(env(K1));
 
   test('random: round-trips, never repeats', () => {
     const a = encrypt(ring, 'random', 'secret', AAD);
@@ -62,7 +70,7 @@ describe('cipher', () => {
 
   test('wrong key, bit flip, column swap all fail closed', () => {
     const stored = encrypt(ring, 'random', 'secret', AAD);
-    expect(() => decrypt(Keyring.fromEnv({ [ENV_KEYS]: K2 }), stored, AAD)).toThrow(/no key in keyring/);
+    expect(() => decrypt(Keyring.fromEnv(env(K2)), stored, AAD)).toThrow(/no key in keyring/);
     const flipped = stored.slice(0, -1) + (stored.endsWith('A') ? 'B' : 'A');
     expect(() => decrypt(ring, flipped, AAD)).toThrow();
     expect(() => decrypt(ring, stored, 'other.col')).toThrow();
@@ -70,10 +78,10 @@ describe('cipher', () => {
 
   test('rotation: old ciphertext opens while the old key stays in the ring', () => {
     const old = encrypt(ring, 'random', 'secret', AAD);
-    const rotated = Keyring.fromEnv({ [ENV_KEYS]: `${K2},${K1}` });
+    const rotated = Keyring.fromEnv(env(K2, K1));
     expect(decrypt(rotated, old, AAD)).toBe('secret');
     expect(parse(encrypt(rotated, 'random', 'secret', AAD))?.kid).toBe(rotated.current.kid);
-    expect(() => decrypt(Keyring.fromEnv({ [ENV_KEYS]: K2 }), old, AAD)).toThrow(ring.current.kid);
+    expect(() => decrypt(Keyring.fromEnv(env(K2)), old, AAD)).toThrow(ring.current.kid);
   });
 });
 
@@ -83,7 +91,7 @@ describe('EncryptedColumns', () => {
     det: string | null;
     rnd: string | null;
   }
-  const ring = Keyring.fromEnv({ [ENV_KEYS]: K1 });
+  const ring = Keyring.fromEnv(env(K1));
   const cols = new EncryptedColumns<Row>(ring, 'tbl', {
     det: { mode: 'deterministic' },
     rnd: { mode: 'random' },
@@ -113,7 +121,7 @@ describe('EncryptedColumns', () => {
     expect(() => cols.where('rnd', 'b')).toThrow(/cannot be queried/);
     expect(() => cols.where('id', 'x')).toThrow(/not an encrypted column/);
 
-    const rotated = new EncryptedColumns<Row>(Keyring.fromEnv({ [ENV_KEYS]: `${K2},${K1}` }), 'tbl', { det: { mode: 'deterministic' } });
+    const rotated = new EncryptedColumns<Row>(Keyring.fromEnv(env(K2, K1)), 'tbl', { det: { mode: 'deterministic' } });
     expect(rotated.where('det', 'a').values).toHaveLength(2);
     expect(rotated.where('det', 'a').values[1]).toBe(cols.where('det', 'a').values[0]);
   });
@@ -121,7 +129,7 @@ describe('EncryptedColumns', () => {
   test('staleColumns names columns not on the current key', () => {
     const db = cols.toDb({ id: '1', det: 'a', rnd: 'b' });
     expect(cols.staleColumns(db)).toEqual([]);
-    const rotated = new EncryptedColumns<Row>(Keyring.fromEnv({ [ENV_KEYS]: `${K2},${K1}` }), 'tbl', {
+    const rotated = new EncryptedColumns<Row>(Keyring.fromEnv(env(K2, K1)), 'tbl', {
       det: { mode: 'deterministic' }, rnd: { mode: 'random' },
     });
     expect(rotated.staleColumns(db)).toEqual(['det', 'rnd']);

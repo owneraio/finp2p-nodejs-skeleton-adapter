@@ -1,14 +1,16 @@
 import { createHash, hkdfSync, randomBytes } from 'node:crypto';
 
-// DB_ENCRYPTION_KEYS="new,old": first encrypts, all decrypt.
+// DB_ENCRYPTION_KEY_CURRENT encrypts; it and DB_ENCRYPTION_KEYS_PREVIOUS="old1,old2" decrypt.
 
 export const MASTER_KEY_BYTES = 32;
 const SUBKEY_BYTES = 32;
 const KID_HEX_CHARS = 8;
 const INFO_PREFIX = 'finp2p-adapter/at-rest/v1/';
 
-export const ENV_KEYS = 'DB_ENCRYPTION_KEYS';
+export const ENV_KEY_CURRENT = 'DB_ENCRYPTION_KEY_CURRENT';
+export const ENV_KEYS_PREVIOUS = 'DB_ENCRYPTION_KEYS_PREVIOUS';
 export const ENV_SALT = 'DB_ENCRYPTION_SALT';
+const SEPARATOR = /[,;]/;
 
 export interface DerivedKeys {
   readonly kid: string;
@@ -67,11 +69,18 @@ export class Keyring {
   }
 
   static fromEnv(env: NodeJS.ProcessEnv = process.env): Keyring {
-    const raw = env[ENV_KEYS];
-    if (!raw || raw.trim().length === 0) {
-      throw new Error(`${ENV_KEYS} is not set. Generate one with: openssl rand -base64 32`);
+    const current = env[ENV_KEY_CURRENT]?.trim();
+    if (!current) {
+      throw new Error(`${ENV_KEY_CURRENT} is not set. Generate one with: openssl rand -base64 32`);
     }
-    return new Keyring(raw.split(',').map(parseMasterKey), env[ENV_SALT] ?? '');
+    if (SEPARATOR.test(current)) {
+      throw new Error(`${ENV_KEY_CURRENT} holds exactly one key; older keys go to ${ENV_KEYS_PREVIOUS}`);
+    }
+    const previous = (env[ENV_KEYS_PREVIOUS] ?? '')
+      .split(SEPARATOR)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    return new Keyring([current, ...previous].map(parseMasterKey), env[ENV_SALT] ?? '');
   }
 
   static generateKey(): string {

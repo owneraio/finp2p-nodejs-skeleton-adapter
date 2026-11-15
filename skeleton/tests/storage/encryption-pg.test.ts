@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { Keyring, EncryptedColumns, ENV_KEYS } from '../../src/storage/encryption';
+import { Keyring, EncryptedColumns, ENV_KEY_CURRENT, ENV_KEYS_PREVIOUS } from '../../src/storage/encryption';
 
 // Stand-in for the planned per-asset config store. Table created here, not by a migration.
 
@@ -25,7 +25,8 @@ const DDL = `
 
 const K1 = Keyring.generateKey();
 const K2 = Keyring.generateKey();
-const ring = (...keys: string[]) => Keyring.fromEnv({ [ENV_KEYS]: keys.join(',') });
+const ring = (current: string, ...previous: string[]) =>
+  Keyring.fromEnv({ [ENV_KEY_CURRENT]: current, [ENV_KEYS_PREVIOUS]: previous.join(',') });
 
 /** Adapter store with the brick plugged in. */
 class PocStore {
