@@ -23,6 +23,17 @@ jobs:
           scope: "@owneraio"
       - run: npm install
       - run: npm run build
-      - run: npm publish
+      # `npm publish` with no --tag moves `latest`, so publishing an RC from a
+      # branch -- which is the documented way to coordinate a breaking change
+      # across repos -- would hand the RC to everyone installing fresh.
+      - name: Publish
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if [[ "$version" == *-* ]]; then
+            echo "publishing prerelease $version under the 'next' tag"
+            npm publish --tag next
+          else
+            npm publish
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

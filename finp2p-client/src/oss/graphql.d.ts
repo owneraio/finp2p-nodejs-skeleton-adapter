@@ -17,6 +17,97 @@ export type Scalars = {
 /** Account identifier - supports FinP2P, crypto wallets, and IBAN */
 export type AccountIdentifier = CryptoWalletAccount | FinP2PAccount | Iban;
 
+/** Custody account creation. */
+export type AccountOperation = Operation & {
+  __typename?: 'AccountOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  custodyAccountKey?: Maybe<Scalars['String']['output']>;
+  error?: Maybe<OperationError>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  workflowIds?: Maybe<Array<Scalars['String']['output']>>;
+};
+
+/** Account-scoped authorization policy (provisioningSpec template projection; signer payloads are not exposed). */
+export type AccountPolicy = {
+  __typename?: 'AccountPolicy';
+  /** resource id of the agreement the policy is projected from */
+  agreementRef: Scalars['String']['output'];
+  /** agreement roles allowed to initiate movements on the governed accounts */
+  allowedInitiatorRoles: Array<Scalars['String']['output']>;
+  /** standing M-of-N authorization rule */
+  authorization?: Maybe<AccountPolicyAuthorization>;
+  /** agreement role of the beneficial owner of the governed accounts */
+  beneficialOwnerRole: Scalars['String']['output'];
+  /** STAMPED: the specific investor party the governed container is bounded to; empty = role-bounded */
+  boundParty: Scalars['String']['output'];
+  /** named conditions overriding the standing rules once asserted */
+  conditions: Array<AccountPolicyCondition>;
+  constraints?: Maybe<AccountPolicyConstraints>;
+  /** movement directions the policy governs (POLICY_DIRECTION_INFLOW, POLICY_DIRECTION_OUTFLOW, POLICY_DIRECTION_BOTH) */
+  direction: Scalars['String']['output'];
+  eligibility?: Maybe<AccountPolicyEligibility>;
+  /** stable policy identity, kept across amendments */
+  policyId: Scalars['String']['output'];
+  /** party co-signature entries (identities only) */
+  signers: Array<AccountPolicySigner>;
+  /** policy version; amendments strictly increase it */
+  version: Scalars['Int']['output'];
+};
+
+/** M-of-N rule over roles: the threshold counts satisfied roles. */
+export type AccountPolicyAuthorization = {
+  __typename?: 'AccountPolicyAuthorization';
+  requiredRoles: Array<Scalars['String']['output']>;
+  requiredSigners: Array<Scalars['String']['output']>;
+  threshold: Scalars['Int']['output'];
+};
+
+/** Named policy condition; while active its authorization and constraints replace the standing rules. */
+export type AccountPolicyCondition = {
+  __typename?: 'AccountPolicyCondition';
+  authorization?: Maybe<AccountPolicyAuthorization>;
+  constraints?: Maybe<AccountPolicyConstraints>;
+  name: Scalars['String']['output'];
+  trigger?: Maybe<AccountPolicyTrigger>;
+};
+
+/** Counterparty constraints of an account policy. */
+export type AccountPolicyConstraints = {
+  __typename?: 'AccountPolicyConstraints';
+  allowedCounterAssetTypes: Array<Scalars['String']['output']>;
+  allowedCounterFinIds: Array<Scalars['String']['output']>;
+  allowedCounterOrganizations: Array<Scalars['String']['output']>;
+  allowedCounterRoles: Array<Scalars['String']['output']>;
+};
+
+/** Asset-matching eligibility criteria of an account policy. */
+export type AccountPolicyEligibility = {
+  __typename?: 'AccountPolicyEligibility';
+  assetCodes: Array<Scalars['String']['output']>;
+  assetNameRegexp: Scalars['String']['output'];
+  assetTypes: Array<Scalars['String']['output']>;
+  ledgerNames: Array<Scalars['String']['output']>;
+};
+
+/** One policy co-signature entry - the signing party identity (no signature payload). */
+export type AccountPolicySigner = {
+  __typename?: 'AccountPolicySigner';
+  signerParty: Scalars['String']['output'];
+};
+
+/** What activates a policy condition; type carries the PolicyTriggerType value name (POLICY_TRIGGER_TYPE_*). */
+export type AccountPolicyTrigger = {
+  __typename?: 'AccountPolicyTrigger';
+  asserterRole: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+};
+
 export enum ActionType {
   Request = 'request',
   Send = 'send',
@@ -53,6 +144,477 @@ export type AggregateResult = {
   /** The AggregateFunc which this AggregateResult refers to. */
   func: AggregateFunc;
   result: Scalars['String']['output'];
+};
+
+/** Multi-party Agreement resource (resource type 107) projected into the read model. */
+export type Agreement = {
+  __typename?: 'Agreement';
+  /** container accounts registry (owner-materialized current state) */
+  accounts: Array<AgreementAccount>;
+  /**
+   * position in the definition's state machine. Empty until the machine assigns
+   * the initial state on approval, and empty on agreements with no definition.
+   * Router-governed: never authored, never amended, and outside the signed
+   * contract zone
+   */
+  businessState: Scalars['String']['output'];
+  /** roles whose signatures bind the agreement */
+  consentRoles: Array<Scalars['String']['output']>;
+  /** epoch seconds the owning router first persisted the agreement; the same on every org. 0 when unset */
+  createdAt: Scalars['Int']['output'];
+  /** co-signed state machine of the contract zone, fixed at proposal time; null when the agreement declares none */
+  definition?: Maybe<AgreementDefinition>;
+  /** explicit CAIP-19 list of assets eligible under the agreement */
+  eligibleAssets: Array<AgreementEligibleAsset>;
+  /** append-only operational event log */
+  events: Array<AgreementEventEntry>;
+  /** agreement resource id (orgId:107:rawId), the identifier account policies reference via agreementRef */
+  id: Scalars['String']['output'];
+  /** organization owning (originating) the agreement resource */
+  organizationId: Scalars['String']['output'];
+  /** org-level access list */
+  participants: Array<AgreementParticipant>;
+  /**
+   * every refusal this agreement attracted, oldest first. Non-empty implies
+   * status AGREEMENT_STATUS_REJECTED.
+   *
+   * Empty says nothing on its own: an agreement may also be
+   * AGREEMENT_STATUS_TERMINATED by running its course, and the two terminal
+   * statuses mean opposite things - one was turned down, the other completed
+   */
+  rejections?: Maybe<Array<AgreementRejection>>;
+  /** role bindings: open-string role to the parties bound to it */
+  roles: Array<AgreementRoleBinding>;
+  /** the agreement's setup arm; null when the agreement declares none */
+  setup?: Maybe<AgreementSetup>;
+  /** party consent signatures over the contract zone (who signed for which role; no signature payloads) */
+  signatures: Array<AgreementConsentSignature>;
+  /** lifecycle status (AGREEMENT_STATUS_DRAFT, AGREEMENT_STATUS_PROPOSED, AGREEMENT_STATUS_ACTIVE, AGREEMENT_STATUS_SUSPENDED, AGREEMENT_STATUS_TERMINATED) */
+  status: Scalars['String']['output'];
+  /** base64-encoded application terms payload, opaque to the network */
+  terms: Scalars['String']['output'];
+  /** application schema tag telling apps how to parse the terms payload */
+  termsType: Scalars['String']['output'];
+  /** epoch seconds of the owning router's last write to the agreement; the same on every org once replicated, never moving back. 0 when unset. Several writes can share a second: to find changes since a time, filter with GTE and de-duplicate by id */
+  updatedAt: Scalars['Int']['output'];
+  /** validity window start (epoch seconds) */
+  validFrom: Scalars['Int']['output'];
+  /** validity window end (epoch seconds) */
+  validUntil: Scalars['Int']['output'];
+  /** amendment number; contract-zone changes bump it */
+  version: Scalars['Int']['output'];
+};
+
+/** One entry of an agreement's container accounts registry. */
+export type AgreementAccount = {
+  __typename?: 'AgreementAccount';
+  /** id of the agreement the registry entry belongs to */
+  agreementId: Scalars['String']['output'];
+  /** custodian organization of the account, empty when none */
+  custodianOrgId: Scalars['String']['output'];
+  /** container account finId (hex-encoded public key) */
+  finId: Scalars['String']['output'];
+  /** per-asset ledger footprints of the container */
+  footprints: Array<AgreementAssetFootprint>;
+  /** every provisioning step that failed for the container, each with its reason; what a provisioning retry re-runs. Assets that onboarded show up in footprints */
+  issues: Array<AgreementContainerIssue>;
+  /** organization where the account is registered */
+  orgId: Scalars['String']['output'];
+  /** account policy governing the container */
+  policyId: Scalars['String']['output'];
+  policyVersion: Scalars['Int']['output'];
+  /** role of the provisioner that materialized the container */
+  provisionerRole: Scalars['String']['output'];
+  /** agreement roles the container serves */
+  servesRoles: Array<Scalars['String']['output']>;
+  /** the authored container declaration this entry materializes (copy+verify binding) */
+  spec?: Maybe<ContainerSpec>;
+  /** registry entry status: ACTIVE, DEGRADED (provisioned with issues: some eligible assets failed to onboard, or the container could not be shared with a participant), ONBOARDING_FAILED (no asset onboarded, the container holds no asset) or RETIRED */
+  status: Scalars['String']['output'];
+};
+
+/** Results for agreementAccounts query - the container accounts registry across agreements. */
+export type AgreementAccounts = {
+  __typename?: 'AgreementAccounts';
+  /** Collection of container account registry entries, conforms to the Filter input if provided. */
+  nodes?: Maybe<Array<AgreementAccount>>;
+  /** Keeps pagination info in-case limit input was provided */
+  pageInfo?: Maybe<PageInfo>;
+};
+
+/** Ledger-level footprint of a container account for one CAIP-19 asset. */
+export type AgreementAssetFootprint = {
+  __typename?: 'AgreementAssetFootprint';
+  network: Scalars['String']['output'];
+  /** ledger account (e.g. on-chain address) serving the asset */
+  networkAccount: Scalars['String']['output'];
+  standard: Scalars['String']['output'];
+  tokenId: Scalars['String']['output'];
+};
+
+/** Consent signature entry of an agreement's contract zone (signature payload not exposed). */
+export type AgreementConsentSignature = {
+  __typename?: 'AgreementConsentSignature';
+  /** consent role the signature satisfies */
+  role: Scalars['String']['output'];
+  /** bound party that signed */
+  signerParty: Scalars['String']['output'];
+};
+
+/** One failed provisioning step of a container. */
+export type AgreementContainerIssue = {
+  __typename?: 'AgreementContainerIssue';
+  /** error code of the failure; null when none was reported */
+  errorCode?: Maybe<Scalars['Int']['output']>;
+  /** reason of the failure; null when none was reported */
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  /** CAIP-19 network of the asset the issue concerns; null when the issue is not about an asset */
+  network?: Maybe<Scalars['String']['output']>;
+  /** CAIP-19 standard of the asset; null when the issue is not about an asset */
+  standard?: Maybe<Scalars['String']['output']>;
+  /** state of the issue, such as failed; new statuses may appear */
+  status: Scalars['String']['output'];
+  /** the provisioning step that failed, such as asset-onboarding or profile-share; new steps may appear, so treat unknown values as opaque */
+  step: Scalars['String']['output'];
+  /** what the step failed for: the asset id (the asset's CAIP-19 when it resolves to no asset) for asset-onboarding, the participant organization id for profile-share */
+  subject: Scalars['String']['output'];
+  /** CAIP-19 token id of the asset; null when the issue is not about an asset */
+  tokenId?: Maybe<Scalars['String']['output']>;
+};
+
+/**
+ * The agreement's authored state machine, part of the co-signed contract zone and fixed once proposed.
+ * Projected verbatim: the read model neither evaluates transitions nor derives a current state.
+ */
+export type AgreementDefinition = {
+  __typename?: 'AgreementDefinition';
+  /** event types the definition admits */
+  allowedEvents: Array<AgreementDefinitionAllowedEvent>;
+  /**
+   * reference to the published document this machine was taken from - fetch
+   * `dslSource.reference.fullUrl` to show the DSL source. Digest-pinned like every
+   * other schema reference, because the proposing router read it and each
+   * approving org re-read it before signing. Null when the agreement declares
+   * none, which is every agreement proposed before the field existed.
+   *
+   * Informational, and NOT how the machine is obtained: the definition on this
+   * same node IS the machine, co-signed and authoritative, and is what a
+   * visualization must be drawn from. The referenced document is the published
+   * TEMPLATE and differs from the copy here - it carries none of the paths,
+   * digests and urls the router pins at propose - and nothing checks that this
+   * agreement's machine was actually taken from it
+   */
+  dslSource?: Maybe<AgreementSchema>;
+  /** agreement roles allowed to emit events against this definition */
+  emitterRoles: Array<Scalars['String']['output']>;
+  /** definition-level guard expression, opaque to the network */
+  guard: Scalars['String']['output'];
+  /** a human label for the machine, not an identifier: it need not be unique, nothing resolves an agreement by it, and it is co-signed so an amendment cannot change it */
+  name: Scalars['String']['output'];
+  /** payload schema reference for the definition; null when none is declared */
+  schema?: Maybe<AgreementSchema>;
+  /** state vocabulary and the two router-assigned entry points; null when the definition declares no machine */
+  states?: Maybe<AgreementDefinitionStates>;
+  /** edges of the machine */
+  transitions: Array<AgreementDefinitionTransition>;
+  /** definition version, authored by the application; like name, a label rather than a key */
+  version: Scalars['String']['output'];
+};
+
+/** One event type the definition admits, with its optional payload schema. */
+export type AgreementDefinitionAllowedEvent = {
+  __typename?: 'AgreementDefinitionAllowedEvent';
+  /**
+   * ADMISSION guard for this event type: it must hold for an event of this type
+   * to be appended. Distinct from a transition guard, which decides which state
+   * edge fires. Empty when the type is unconditionally admissible
+   */
+  guard: Scalars['String']['output'];
+  /** payload schema reference; null when none is declared */
+  schema?: Maybe<AgreementSchema>;
+  /** the event type */
+  type: Scalars['String']['output'];
+};
+
+/**
+ * The state machine's vocabulary plus the two entry points the ROUTER assigns from
+ * protocol facts: onCreation when the agreement is proposed, onApproval once every
+ * consentRole has signed. Neither is authored on an event nor moved by a
+ * transition - everything after onApproval moves only through transitions.
+ *
+ * onApproval is also where the event-driven life begins: while the agreement is
+ * still in onCreation it has not been consented, so no event is admissible.
+ */
+export type AgreementDefinitionStates = {
+  __typename?: 'AgreementDefinitionStates';
+  /** every state the machine may occupy - a closed vocabulary */
+  allowedStates: Array<Scalars['String']['output']>;
+  /** terminal states; reaching one TERMINATES the agreement, which closes the event log */
+  finalStates: Array<Scalars['String']['output']>;
+  /** state entered once every consentRole has signed - the first state of the event-driven life */
+  onApproval: Scalars['String']['output'];
+  /** state a newly proposed agreement enters */
+  onCreation: Scalars['String']['output'];
+};
+
+/** One edge of the definition state machine. */
+export type AgreementDefinitionTransition = {
+  __typename?: 'AgreementDefinitionTransition';
+  /** event type driving the transition */
+  event: Scalars['String']['output'];
+  /** states the transition may fire from */
+  fromStates: Array<Scalars['String']['output']>;
+  /** transition guard expression, opaque to the network */
+  guard: Scalars['String']['output'];
+  /**
+   * narrows what a declaring event may choose to this subset of allowedStates;
+   * only meaningful with targetSelectableByEvent. Null means UNCONSTRAINED (any
+   * allowedStates member) - distinct from an empty list, which the authoring
+   * surface rejects outright
+   */
+  selectableStates?: Maybe<Array<Scalars['String']['output']>>;
+  /**
+   * when true the EVENT names the state this edge moves to, in
+   * after.changeStateTo, instead of the edge fixing it. The transition table
+   * stays an authorisation list either way: allowedStates membership,
+   * fromStates and the guard all still apply
+   */
+  targetSelectableByEvent: Scalars['Boolean']['output'];
+  /**
+   * state entered when the transition fires. With targetSelectableByEvent set
+   * this is the DEFAULT, used only when the event declares nothing — read it
+   * alongside that flag, never alone, or a selectable edge reads as fixed
+   */
+  toState: Scalars['String']['output'];
+};
+
+/** CAIP-19 ledger asset identifier listed as eligible under an agreement. */
+export type AgreementEligibleAsset = {
+  __typename?: 'AgreementEligibleAsset';
+  network: Scalars['String']['output'];
+  standard: Scalars['String']['output'];
+  tokenId: Scalars['String']['output'];
+};
+
+/**
+ * An event's assertion about the agreement after it is applied - the `do` oneof
+ * of the event envelope, at most one member set.
+ *
+ * Kept as an OBJECT rather than flattened onto the event (the way both arms of
+ * the reference oneof flatten into referencedEventIds) because these are not two
+ * shapes of one fact: the oneof is a discriminated union of different assertions,
+ * built to grow. A new arm becomes another optional member here, and the object
+ * being null still reads as "this event asserted nothing" - which a flattened
+ * field could not express once a second arm existed. It also keeps the read model
+ * spelled the same way as the write API, where an author sends after.changeStateTo.
+ */
+export type AgreementEventAfter = {
+  __typename?: 'AgreementEventAfter';
+  /**
+   * the state this event declares the agreement moves to. Honoured only on an
+   * edge declaring targetSelectableByEvent; the router refuses a declaration no
+   * edge authorises rather than ignoring it, so a value here that reached the
+   * log was accepted by the machine
+   */
+  changeStateTo?: Maybe<Scalars['String']['output']>;
+};
+
+/** One entry of an agreement's append-only event log. */
+export type AgreementEventEntry = {
+  __typename?: 'AgreementEventEntry';
+  /**
+   * what this event ASSERTS about the agreement after it is applied; null when
+   * it asserts nothing, which is the common case. Signed by the emitter (event
+   * digest v2) because it selects the transition target and therefore finality
+   */
+  after?: Maybe<AgreementEventAfter>;
+  /**
+   * organization that SENT this event, observed by the router from the request
+   * envelope rather than taken from the body. Empty on events appended before the
+   * field existed.
+   *
+   * Use this, not emitterRole, to attribute an event: a role may bind several
+   * organizations
+   */
+  emitterOrgId: Scalars['String']['output'];
+  /** agreement role of the emitter */
+  emitterRole: Scalars['String']['output'];
+  /** open-string event type (application vocabulary) */
+  eventType: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  /** event time (epoch seconds) */
+  occurredAt: Scalars['Int']['output'];
+  /** base64-encoded opaque payload, null when the event carries none */
+  payload?: Maybe<Scalars['String']['output']>;
+  /** application schema tag for the payload */
+  payloadType: Scalars['String']['output'];
+  /**
+   * organizations this event is DIRECTED AT, in authored order; null when
+   * directed at no one, the ordinary case.
+   *
+   * NOT an access control list - an addressed event is readable by every
+   * participant, exactly as an undirected one is. It lets a definition express a
+   * lifecycle precisely, so render it as addressing and never as permission
+   */
+  receiverOrgIds?: Maybe<Array<Scalars['String']['output']>>;
+  /**
+   * ids of the events this one points at, in the order authored; null when it
+   * references nothing. Both arms of the reference oneof flatten into this one
+   * list - a single reference is a list of one. Every id is guaranteed to
+   * resolve to an event on the same agreement, so walking lineage never hits a
+   * dangling pointer
+   */
+  referencedEventIds?: Maybe<Array<Scalars['String']['output']>>;
+  /** monotonic per-agreement sequence */
+  sequence: Scalars['Int']['output'];
+};
+
+export type AgreementOrder = {
+  direction?: InputMaybe<SortOrder>;
+  field?: InputMaybe<AgreementOrderField>;
+};
+
+export enum AgreementOrderField {
+  /** Ordered by when the owning router first persisted the agreement */
+  CreatedAt = 'CREATED_AT',
+  /** Ordered by the agreement resource id */
+  Id = 'ID',
+  /** Ordered by the owning router's last write to the agreement */
+  UpdatedAt = 'UPDATED_AT',
+}
+
+/** One entry of an agreement's org-level access list. */
+export type AgreementParticipant = {
+  __typename?: 'AgreementParticipant';
+  organizationId: Scalars['String']['output'];
+  /** access roles of the organization (Observer, Contributor) */
+  roles: Array<Scalars['String']['output']>;
+};
+
+/** Co-signed provisioning outline: default provisioner role and template, plus the declared container whitelist. */
+export type AgreementProvisioningSpec = {
+  __typename?: 'AgreementProvisioningSpec';
+  /** declared containers (closed whitelist); empty = one implicit multi-chain default container */
+  containers: Array<ContainerSpec>;
+  /** DEFAULT role-native account policy template (instance fields stay empty until stamped at provisioning) */
+  policyTemplate?: Maybe<AccountPolicy>;
+  /** DEFAULT agreement role whose bound organization provisions containers not overriding it */
+  provisionerRole: Scalars['String']['output'];
+};
+
+/**
+ * One party's refusal of an agreement, recorded by the owner.
+ *
+ * The ORGANIZATION identifies a rejector. The role is context only, because the
+ * same role name binds in several organizations - and more than one may refuse the
+ * same proposal independently, which is why an agreement carries a list.
+ */
+export type AgreementRejection = {
+  __typename?: 'AgreementRejection';
+  /** the amendment number that was refused */
+  agreementVersion?: Maybe<Scalars['Int']['output']>;
+  /** machine-readable cause, e.g. UnsupportedTermsType */
+  code?: Maybe<Scalars['String']['output']>;
+  /** the organization that refused */
+  orgId: Scalars['String']['output'];
+  /** human-readable detail */
+  reason?: Maybe<Scalars['String']['output']>;
+  /** when it was refused (epoch seconds) */
+  rejectedAt?: Maybe<Scalars['Int']['output']>;
+  /** the bound role it refused under; context, not identity */
+  role?: Maybe<Scalars['String']['output']>;
+};
+
+/** Binding of an open-string agreement role to the parties that may act for it. */
+export type AgreementRoleBinding = {
+  __typename?: 'AgreementRoleBinding';
+  parties: Array<Scalars['String']['output']>;
+  role: Scalars['String']['output'];
+};
+
+/**
+ * A named, versioned schema reference. When it carries a url, the router fetches
+ * the document at propose, records its digest here, and validates the matching
+ * payload against it — the terms for an agreement's own schema, the event payload
+ * for an allowed event type's. A reference with no url is documentation: nothing
+ * is fetched and nothing is validated.
+ */
+export type AgreementSchema = {
+  __typename?: 'AgreementSchema';
+  /** schema name */
+  name: Scalars['String']['output'];
+  /** the reference arm, if one is set */
+  reference?: Maybe<AgreementSchemaReference>;
+  /** schema version */
+  version: Scalars['String']['output'];
+};
+
+/**
+ * The document-KEY arm of a schema reference: the document is named within the
+ * network's schema registry and the router prepends its configured prefix, so a
+ * published definition authors no host. `fullUrl` records the one the proposing
+ * router actually read from.
+ */
+export type AgreementSchemaDocumentReference = {
+  __typename?: 'AgreementSchemaDocumentReference';
+  /** format of the schema document (e.g. json-schema) */
+  format: Scalars['String']['output'];
+  /** where the PROPOSING router read this document from - its configured prefix joined to key and path, recorded at propose beside the digest of what it read. Null on agreements proposed before the field existed. A SNAPSHOT, not an address: nothing resolves against it, and the definition cannot be amended, so it can never be corrected. Use it to show provenance, and re-derive from key and path when you need a location that is still live */
+  fullUrl?: Maybe<Scalars['String']['output']>;
+  /** content digest of the document as SERVED. It matters more on this arm than on a url: a registry key is not content-addressed, so the digest is what detects a published version being edited underneath a signature */
+  hash?: Maybe<AgreementSchemaHash>;
+  /** the versioned bundle the document belongs to - the agreement's termsType verbatim, e.g. collateral-terms/v1 */
+  key: Scalars['String']['output'];
+  /** location within the key. Derived from the schema name when the author leaves it out, and pinned by the router at propose, so a stored agreement always names the document it resolved */
+  path: Scalars['String']['output'];
+};
+
+/** Content digest of an external schema document, with the algorithm that produced it. */
+export type AgreementSchemaHash = {
+  __typename?: 'AgreementSchemaHash';
+  /** the digest */
+  hash: Scalars['String']['output'];
+  /** the algorithm that produced it */
+  hashAlgorithm: Scalars['String']['output'];
+};
+
+/**
+ * Arms of a schema reference (a oneof). Which arm a definition uses says how the
+ * document is ADDRESSED: a url names it outright and is the only way to reference
+ * something immutable, while a document key names it within the network's schema
+ * registry and lets the router supply the host.
+ */
+export type AgreementSchemaReference = AgreementSchemaDocumentReference | AgreementSchemaUrlReference;
+
+/** The URL arm of a schema reference. */
+export type AgreementSchemaUrlReference = {
+  __typename?: 'AgreementSchemaUrlReference';
+  /** format of the schema document (e.g. json-schema) */
+  format: Scalars['String']['output'];
+  /** content digest of the document as SERVED, written by the router at propose and re-verified by every org before it signs, so the parties consent to schema content rather than to a pointer. Null when the reference carries no url */
+  hash?: Maybe<AgreementSchemaHash>;
+  /** location of the schema document */
+  url: Scalars['String']['output'];
+};
+
+/**
+ * The agreement's type-specific setup, a mutually-exclusive arm of the protocol's
+ * `setup` oneof. A provisioning outline is a COLLATERAL concern — an agreement type
+ * that owns no containers has no use for one — so setup arms are per-type rather
+ * than a field every agreement carries and most leave null.
+ *
+ * One arm today. A second is purely additive: add the member here, and consumers
+ * already writing `... on` fragments keep compiling.
+ */
+export type AgreementSetup = AgreementProvisioningSpec;
+
+/** Results for agreements query. */
+export type Agreements = {
+  __typename?: 'Agreements';
+  /** Collection of Agreement objects, conforms to the Filter input if provided. */
+  nodes?: Maybe<Array<Agreement>>;
+  /** Keeps pagination info in-case limit input was provided */
+  pageInfo?: Maybe<PageInfo>;
 };
 
 export type ApprovalConfig = {
@@ -297,6 +859,22 @@ export type AwaitInstruction = {
   waitTime: Scalars['Int']['output'];
 };
 
+/** Ledger balance sync, completed once its holding record is stored. */
+export type BalanceSyncOperation = Operation & {
+  __typename?: 'BalanceSyncOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  holdingKey?: Maybe<Scalars['String']['output']>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  workflowIds?: Maybe<Array<Scalars['String']['output']>>;
+};
+
 export type BuyingContractDetails = {
   __typename?: 'BuyingContractDetails';
   asset: AssetOrder;
@@ -376,6 +954,24 @@ export type Caip19Identifier = {
   tokenId: Scalars['String']['output'];
 };
 
+/** Vote to cancel an execution plan, tracked by proposal consensus. */
+export type CancelExecutionOperation = Operation & {
+  __typename?: 'CancelExecutionOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  /** Same as planId, named to match FinAPI's executionPlanId for client parity. */
+  executionPlanId?: Maybe<Scalars['String']['output']>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  planId?: Maybe<Scalars['String']['output']>;
+  proposalId?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+};
+
 /** Represents a Certificate in the network. */
 export type Certificate = {
   __typename?: 'Certificate';
@@ -427,6 +1023,25 @@ export type CloseAmountRate = {
   repaymentVolume: Scalars['String']['output'];
 };
 
+/** One authored container declaration of the provisioning outline (multi-container agreements). */
+export type ContainerSpec = {
+  __typename?: 'ContainerSpec';
+  /** specific investor party this container is bounded to; empty = role-bounded only */
+  boundParty: Scalars['String']['output'];
+  /** the subset of the agreement's eligible assets this container holds; empty = all of them */
+  eligibleAssets: Array<AgreementEligibleAsset>;
+  /** stable authoring key; identity across amendments (drives the deterministic policy id) */
+  key: Scalars['String']['output'];
+  /** override of the spec-level policy template; null = default */
+  policyTemplate?: Maybe<AccountPolicy>;
+  /** the org of the provisioner role that provisions this container; empty = the role's single party */
+  provisionerParty: Scalars['String']['output'];
+  /** override of the spec-level provisioner role; empty = default */
+  provisionerRole: Scalars['String']['output'];
+  /** agreement roles this container serves */
+  servesRoles: Array<Scalars['String']['output']>;
+};
+
 export type ContractDetails = {
   __typename?: 'ContractDetails';
   additionalContractDetails?: Maybe<AdditionalContractDetails>;
@@ -458,6 +1073,19 @@ export type CustodialAccount = {
 export type Custodian = {
   __typename?: 'Custodian';
   orgId: Scalars['String']['output'];
+};
+
+export type CustodyAccount = {
+  __typename?: 'CustodyAccount';
+  custodyProvider: Scalars['String']['output'];
+  providerAccountId: Scalars['String']['output'];
+  publicKey: Scalars['String']['output'];
+};
+
+export type CustodyAccounts = {
+  __typename?: 'CustodyAccounts';
+  nodes?: Maybe<Array<CustodyAccount>>;
+  pageInfo?: Maybe<PageInfo>;
 };
 
 export type CustodyProvider = {
@@ -572,6 +1200,22 @@ export type Delivered = {
 
 export type DeliveryStatus = Delivered | NotDelivered | PendingDelivery;
 
+/** Deposit instruction request, completed once its receipt (if any) is stored. */
+export type DepositOperation = Operation & {
+  __typename?: 'DepositOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  receiptIds?: Maybe<Array<Scalars['String']['output']>>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  workflowIds?: Maybe<Array<Scalars['String']['output']>>;
+};
+
 /** Certificate related Document metadata informaiton */
 export type Document = {
   __typename?: 'Document';
@@ -606,6 +1250,24 @@ export type ExecutionContext = {
   executionPlanId?: Maybe<Scalars['String']['output']>;
   /** The associated instruction sequence number */
   instructionSequenceNumber?: Maybe<Scalars['Int']['output']>;
+};
+
+/** Issuance, secondary-market buy/sell, loan, redemption, private offer, request-for-transfer, or move - tracked by its execution plan. */
+export type ExecutionOperation = Operation & {
+  __typename?: 'ExecutionOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  /** Same as planId, named to match FinAPI's executionOperationResult for client parity. */
+  executionPlanId?: Maybe<Scalars['String']['output']>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  planId?: Maybe<Scalars['String']['output']>;
+  receiptIds?: Maybe<Array<Scalars['String']['output']>>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
 };
 
 /** Information about organization in an Execution Plan context */
@@ -684,6 +1346,8 @@ export type ExecutionPlanInstruction = {
   details: InstructionDetails;
   organizations: Array<ExecutionOrganization>;
   sequence: Scalars['Int']['output'];
+  /** signatures attached to the instruction's operation, empty when the operation carries no signature */
+  signatures: Array<InstructionSignature>;
   state: InstructionCompletionState;
   status: ExecutionPlanInstructionStatus;
   transitions: InstructionTransition;
@@ -778,14 +1442,18 @@ export type Field = {
 
 /**
  * Filter capabilities that can be applied on queries which return multiple results of a given Entity.
- * A filter key names a field of the underlying record, matched case-insensitively; nested fields are
- * reachable with dot notation (e.g. "correspondent.assetId"). Multiple filters combine with AND —
+ * A filter key names a top-level field of the underlying record, matched case-insensitively. Fields inside
+ * a nested object, a union or the elements of a list cannot be filtered on: such a key (e.g.
+ * "correspondent.assetId") fails the query. Some collections take keys of their own for a nested
+ * value: receipts take executionPlanId and instructionSequenceNumber (the receipt's
+ * tradeDetails.executionContext), workflows take health_status (EQ and IN), reference_id and
+ * correlation_id (EQ, NEQ and CONTAINS). Multiple filters combine with AND —
  * for boolean combinations (OR, nesting) use the sibling where argument, where offered, taking a FilterExpr.
  */
 export type Filter = {
   /**
-   * The Object's key to which apply the filter rule.
-   * Dot notation also addresses entries of a key-value map field: `labels.<key>` filters on a
+   * The Object's key to which apply the filter rule: a top-level field of the record.
+   * Dot notation addresses only entries of a key-value map field: `labels.<key>` filters on a
    * label, `customMetadata.<key>` on a custom-metadata entry, and the whole remainder of the
    * path is taken as one map key, so a label named `a.b` is addressed as `labels.a.b`.
    * Map keys are matched case-insensitively, like field names: an exact-case key wins, and when
@@ -817,6 +1485,8 @@ export type FilterExpr =
 /** FinP2P account - represents a user account in the FinP2P network */
 export type FinP2PAccount = {
   __typename?: 'FinP2PAccount';
+  /** Account-scoped authorization policy embedded on the account; null for ungoverned accounts */
+  accountPolicy?: Maybe<AccountPolicy>;
   /** Custodian for the finId */
   custodian?: Maybe<Custodian>;
   /** FinId -- a user's public key represented as a hexadecimal string */
@@ -1001,6 +1671,24 @@ export type InstructionDetails = AwaitInstruction | HoldInstruction | IssueInstr
 export type InstructionReceipts = {
   __typename?: 'InstructionReceipts';
   receipts: Array<Receipt>;
+};
+
+/** Signature attached to an execution plan instruction operation */
+export type InstructionSignature = {
+  __typename?: 'InstructionSignature';
+  signature: InstructionSignatureData;
+};
+
+export type InstructionSignatureData = {
+  __typename?: 'InstructionSignatureData';
+  /** hash function used by the signature template (e.g. sha3-256, keccak-256, blake2b) */
+  hashFunction: Scalars['String']['output'];
+  /** hex-encoded public key the operation is signed with (signer's finId) */
+  publicKey: Scalars['String']['output'];
+  /** hex-encoded signature payload */
+  signature: Scalars['String']['output'];
+  /** signature template type (e.g. HashListTemplate, EIP712Template) */
+  templateType: Scalars['String']['output'];
 };
 
 export type InstructionTransition = {
@@ -1411,6 +2099,47 @@ export type NotDelivered = {
   status: Scalars['String']['output'];
 };
 
+/** A FinAPI operation, keyed by its correlation id (cid). isCompleted is only true once every side-effect entity listed on this record is already queryable in this OSS instance. Mirrors finp2p-core's operationResponse oneOf/discriminator shape (api/application-api.base.yaml) - one concrete type per FinAPI operation kind, holding only the side-effect ids that kind actually projects. */
+export type Operation = {
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  /** Owning service status, verbatim from finp2p-core. */
+  status: Scalars['String']['output'];
+  /** One of: token profile deposit withdraw execution cancel-execution reset-execution account workflow balance-sync */
+  type: Scalars['String']['output'];
+};
+
+export type OperationError = {
+  __typename?: 'OperationError';
+  code: Scalars['Int']['output'];
+  message: Scalars['String']['output'];
+};
+
+/** Fields to subscribe on */
+export enum OperationField {
+  IsCompleted = 'IsCompleted',
+  IsFailed = 'IsFailed',
+  Status = 'Status',
+}
+
+export type OperationOrder = {
+  direction?: InputMaybe<SortOrder>;
+  field?: InputMaybe<OperationOrderField>;
+};
+
+export enum OperationOrderField {
+  Cid = 'CID',
+  CompletionTimestamp = 'COMPLETION_TIMESTAMP',
+  CreationTimestamp = 'CREATION_TIMESTAMP',
+  Status = 'STATUS',
+  Type = 'TYPE',
+}
+
 export enum OperationType {
   Hold = 'Hold',
   Issue = 'Issue',
@@ -1421,6 +2150,14 @@ export enum OperationType {
   Transfer = 'Transfer',
   Unknown = 'Unknown',
 }
+
+export type Operations = {
+  __typename?: 'Operations';
+  /** Collection of Operation Objects, conforms to the Filter input if provided. */
+  nodes?: Maybe<Array<Operation>>;
+  /** Keeps pagination info in-case limit input was provided */
+  pageInfo?: Maybe<PageInfo>;
+};
 
 /** Operators available to be used  */
 export enum Operator {
@@ -1733,6 +2470,22 @@ export type ProfileMetadata = {
   dataAccess?: Maybe<Array<DataAccess>>;
 };
 
+/** Asset or user profile creation. */
+export type ProfileOperation = Operation & {
+  __typename?: 'ProfileOperation';
+  assetId?: Maybe<Scalars['String']['output']>;
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  workflowIds?: Maybe<Array<Scalars['String']['output']>>;
+};
+
 export type Proof = NoProof | SignatureProof;
 
 export type ProofPolicy = NoProofPolicy | SignatureProofPolicy;
@@ -1740,6 +2493,10 @@ export type ProofPolicy = NoProofPolicy | SignatureProofPolicy;
 /** The query root of Ownera's GraphQL interface. */
 export type Query = {
   __typename?: 'Query';
+  /** Look up agreement container accounts across all agreements (the accounts registry view). Filter by agreementId or finId. */
+  agreementAccounts: AgreementAccounts;
+  /** Look up Agreements (resource type 107), Optional provide Filter. Ordered by id unless orderBy says otherwise. */
+  agreements: Agreements;
   approvalConfigs: ApprovalConfigs;
   /** Look up Asset Data, Optional provide Filter. */
   assetDatas: AssetDatas;
@@ -1747,6 +2504,8 @@ export type Query = {
   assets: Assets;
   /** Look up Certificates, Optional provide Filter or Aggregate. */
   certificates: Certificates;
+  /** Look up custody provider accounts. */
+  custodyAccounts: CustodyAccounts;
   custodyProviders: CustodyProviders;
   /** Look up Data Provider bindings. */
   dataProviders: DataProviderBindings;
@@ -1757,6 +2516,8 @@ export type Query = {
   /** Look up Issuers, Optional provide Filter. */
   issuers: Issuers;
   ledgers: LedgerBindings;
+  /** Look up FinAPI Operations. Lookup by cid: filter: [{key:"cid", operator: EQ, value: "<cid>"}]. */
+  operations: Operations;
   /** Look up Organizations, Optional provide Filter or Aggregate. */
   organizations: Organizations;
   pinningConfig?: Maybe<PinningConfigs>;
@@ -1768,6 +2529,21 @@ export type Query = {
   users: Users;
   /** Look up Workflows, Optional provide Filter. */
   workflows: Workflows;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryAgreementAccountsArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryAgreementsArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<AgreementOrder>;
+  paginate?: InputMaybe<PaginateInput>;
 };
 
 
@@ -1800,6 +2576,14 @@ export type QueryCertificatesArgs = {
   aggregate?: InputMaybe<Array<Aggregate>>;
   filter?: InputMaybe<Array<Filter>>;
   orderBy?: InputMaybe<CertificateOrder>;
+  paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryCustodyAccountsArgs = {
+  filter?: InputMaybe<Array<Filter>>;
   paginate?: InputMaybe<PaginateInput>;
   where?: InputMaybe<FilterExpr>;
 };
@@ -1849,6 +2633,15 @@ export type QueryIssuersArgs = {
 /** The query root of Ownera's GraphQL interface. */
 export type QueryLedgersArgs = {
   filter?: InputMaybe<Array<Filter>>;
+  paginate?: InputMaybe<PaginateInput>;
+  where?: InputMaybe<FilterExpr>;
+};
+
+
+/** The query root of Ownera's GraphQL interface. */
+export type QueryOperationsArgs = {
+  filter?: InputMaybe<Array<Filter>>;
+  orderBy?: InputMaybe<OperationOrder>;
   paginate?: InputMaybe<PaginateInput>;
   where?: InputMaybe<FilterExpr>;
 };
@@ -2074,6 +2867,24 @@ export type RequestForTransferSendInstruction = {
 
 export type RequestForTransferSignaturePolicy = ManualIntentSignaturePolicy | PresignedRequestForTransferIntentSignaturePolicy;
 
+/** Vote to reset an execution plan, tracked by proposal consensus. */
+export type ResetExecutionOperation = Operation & {
+  __typename?: 'ResetExecutionOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  /** Same as planId, named to match FinAPI's executionPlanId for client parity. */
+  executionPlanId?: Maybe<Scalars['String']['output']>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  planId?: Maybe<Scalars['String']['output']>;
+  proposalId?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+};
+
 export type RevertHoldInstruction = {
   __typename?: 'RevertHoldInstruction';
   /** destination account information */
@@ -2205,16 +3016,35 @@ export type StatusTransition = {
 
 export type Subscription = {
   __typename?: 'Subscription';
+  /** Fires when a new agreement is committed to the read model. orgIds matches the agreement's owner org or any participant org; omitted matches everything. */
+  agreementAdded: Agreement;
+  /** Fires when any field of an existing agreement changes (status, version, appended events, accounts registry). Filters AND together; omitted matches everything. */
+  agreementChanged: Agreement;
   assetDataChanged: AssetDataItem;
   /** Fires when a new intent is committed. Filters AND together; if a filter is omitted it matches everything. ownerOrgIds matches the org ids OSS derives for the intent. For Move this is the source asset's org; for two-sided intents like RequestForTransfer and Loan it may include both sides. */
   intentAdded: Intent;
   /** Fires when an intent field listed in fieldNames changes. Same filter semantics as intentAdded. */
   intentChanged: Intent;
+  /** Fires when an operation is first projected. Filters AND together; an omitted filter matches everything. */
+  operationAdded: Operation;
+  /** Fires when an operation field listed in fieldNames changes — use IsCompleted for completion and IsFailed for failure. Same filter semantics as operationAdded. */
+  operationChanged: Operation;
   planAdded: ExecutionPlan;
   plansChangedBy: ExecutionPlan;
   receiptAdded: Receipt;
   userHoldingAdded: User;
   userHoldingChanged: User;
+};
+
+
+export type SubscriptionAgreementAddedArgs = {
+  orgIds?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+export type SubscriptionAgreementChangedArgs = {
+  agreementIds?: InputMaybe<Array<Scalars['String']['input']>>;
+  orgIds?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
@@ -2237,6 +3067,21 @@ export type SubscriptionIntentChangedArgs = {
   fieldNames: Array<IntentField>;
   intentTypes?: InputMaybe<Array<IntentTypes>>;
   ownerOrgIds?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+export type SubscriptionOperationAddedArgs = {
+  cids?: InputMaybe<Array<Scalars['String']['input']>>;
+  orgIds?: InputMaybe<Array<Scalars['String']['input']>>;
+  types?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+export type SubscriptionOperationChangedArgs = {
+  cids?: InputMaybe<Array<Scalars['String']['input']>>;
+  fieldNames: Array<OperationField>;
+  orgIds?: InputMaybe<Array<Scalars['String']['input']>>;
+  types?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
@@ -2302,6 +3147,24 @@ export type TokenBalance = {
   userId: Scalars['String']['output'];
   /** Owner's display name; empty when the owner profile carries no name claim. */
   userName: Scalars['String']['output'];
+};
+
+/** Plain token transfer, tracked by its execution plan. */
+export type TokenOperation = Operation & {
+  __typename?: 'TokenOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  /** Same as planId, named to match FinAPI's executionOperationResult for client parity. */
+  executionPlanId?: Maybe<Scalars['String']['output']>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  planId?: Maybe<Scalars['String']['output']>;
+  receiptIds?: Maybe<Array<Scalars['String']['output']>>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
 };
 
 /** Results for tokens query. */
@@ -2458,6 +3321,22 @@ export type WalletAccount = {
   type: Scalars['String']['output'];
 };
 
+/** Withdraw request, completed once its receipt is stored. */
+export type WithdrawOperation = Operation & {
+  __typename?: 'WithdrawOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  receiptIds?: Maybe<Array<Scalars['String']['output']>>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  workflowIds?: Maybe<Array<Scalars['String']['output']>>;
+};
+
 export type Workflow = {
   __typename?: 'Workflow';
   /** Admin operations history and metadata */
@@ -2557,6 +3436,21 @@ export type WorkflowMetadata = {
   traceId: Scalars['String']['output'];
   /** TTL of the workflow */
   ttl: Scalars['Int']['output'];
+};
+
+/** An admin command laid onto an arbitrary target workflow, or an investor network-account bind. */
+export type WorkflowOperation = Operation & {
+  __typename?: 'WorkflowOperation';
+  cid: Scalars['String']['output'];
+  completionTimestamp?: Maybe<Scalars['Int']['output']>;
+  creationTimestamp?: Maybe<Scalars['Int']['output']>;
+  error?: Maybe<OperationError>;
+  isCompleted: Scalars['Boolean']['output'];
+  isFailed: Scalars['Boolean']['output'];
+  organizationId?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+  workflowIds?: Maybe<Array<Scalars['String']['output']>>;
 };
 
 export type WorkflowOrder = {

@@ -42,6 +42,49 @@ Two things to know:
 - **`Idempotency-Key` is required** on all four routes &mdash; they are the only application-API routes where it is not optional. The client defaults it to `generateNonce().toString('hex')`; every method takes an optional trailing `idempotencyKey` to override.
 - **`walletAccount.type` must be exactly `'walletAccount'`.** The router compares the adapter's onboarding echo byte-for-byte against the account named on an operation leg, so any other token (e.g. `'wallet'`) causes a spurious 7351 `AccountNotWhitelisted` on every operation after a successful bind.
 
+### Repo agreements (`src/repo/`)
+
+`RepoAgreementsClient` &mdash; the router's repo facade, mirroring `io.ownera.finp2p.repo.RepoAgreementsClient` in the Java SDK. A standing agreement is proposed once and every later trade cites its id.
+
+| Method | Route |
+|--------|-------|
+| `proposeAgreement` | `POST /repo/agreements` &rarr; `{ agreementId }` |
+| `approveAgreement` | `POST /repo/agreements/{id}/approve` &mdash; body `{ role, agreementVersion }` |
+| `rejectAgreement` | `POST /repo/agreements/{id}/reject` &mdash; body `{ role, reason? }` |
+| `agreementAction` / `terminate`, `serveDefaultNotice`, &hellip; | `POST /repo/agreements/{id}/{action}` |
+| `openTrade`, `tradeAction` and its aliases | `POST /repo/agreements/{id}/trades[/{tradeId}/{action}]` |
+| `reportAction` / `proposeLines`, `setReportStatus` | `POST /repo/agreements/{id}/reports/{reportEventId}/{action}` |
+| `proposalAction` / `approveLines`, `postLine`, &hellip; | `POST /repo/agreements/{id}/reports/_/proposals/{proposalEventId}/{action}` |
+| `closeBasket` | `POST /repo/agreements/{id}/baskets/{basketId}/close` |
+
+Things that are easy to get wrong:
+
+- **`reject` is not `approve` with a different verb.** Approve carries `agreementVersion`; reject carries `reason`. Sending the approve body to reject silently drops the reason.
+- **Role values are kebab-case on the wire** (`valuation-engine`, `calculation-agent`) while the `parties` field names are camelCase (`valuationEngine`). The two are deliberately not the same strings.
+- **The `_` in the proposal route is literal.** The facade reads the proposal off the log by its event id, so the report segment is informational and must not be filled in.
+- **`Idempotency-Key` is sent on every command**, defaulted to a fresh 32-byte hex nonce. A fresh key per call gives no deduplication on retry &mdash; if you own the retry loop, mint one key and pass it to every attempt.
+- **`pathSegment` refuses rather than escapes.** An id that is empty, `.`, `..`, or contains `/`, `\` or `%` throws instead of being encoded, because the router decodes the path a second time and an escaped separator would become a separator after all. `:` is left literal. This is ported from the Java SDK and the two must agree &mdash; the same id has to address the same resource from either.
+
+**Terms and documents are open objects** (`Record<string, unknown>`), not generated or hand-ported types. Two reasons, and both matter:
+
+1. The repo facade is **not in `application-api.base.yaml`**. It lives on `feature/agreement-repo` in finp2p-core and is not on master, so there is no spec to generate from. Generating from a moving feature branch would make every core commit a release of this package.
+2. The Java SDK's `RepoTerms` is **behind core** &mdash; no `eligibleAssets`, `cashCurrency`, `collateralPlatform`, `addressBook` or `haircutConvention`, all of which callers send today. Copying it would have shipped a type that rejects valid payloads.
+
+Terms are opaque to the network &mdash; the router stores them base64-encoded and parses nothing &mdash; so typing them here buys no safety. Name the shape in your own code if you want one.
+
+### Reading agreements back (`OssClient`)
+
+| Method | Purpose |
+|--------|---------|
+| `getAgreements(filter?, paginate?, orderBy?)` | Raw lookup over the `agreements` query |
+| `getAgreement(id)` | One agreement, or `ItemNotFoundError` |
+| `findActiveAgreementsBetween(partyA, partyB, opts?)` | The "did we already set one up?" lookup |
+
+- **`agreements` is a top-level query field**, not `repo.agreements`. `repo` is the application vocabulary written into `termsType`, not a GraphQL namespace; the same query serves every agreement type.
+- **Filter keys address top-level fields of the record** &mdash; `id`, `organizationId`, `status`, `businessState`, `version`, `termsType`, `validFrom`, `validUntil`, `createdAt`, `updatedAt`. A key naming no field at all **fails the whole query** rather than returning nothing, so never guess one. `findActiveAgreementsBetween` therefore filters `status` and `termsType` server-side and matches the parties client-side against `roles[].parties` &mdash; which means `paginate.limit` bounds the rows *scanned*, not the rows returned.
+- **`terms` comes back base64-encoded**, while the write side takes a JSON object. The asymmetry is the router's, not this client's. Decode with `decodeAgreementTerms(agreement)`, which returns `undefined` rather than throwing on a payload it cannot parse &mdash; terms belong to whichever application owns `termsType`, and a scan over many agreements must not die on one bad row.
+- **An empty `rejections` says nothing on its own.** Non-empty implies `AGREEMENT_STATUS_REJECTED`, but an agreement may also be `AGREEMENT_STATUS_TERMINATED` by running its course. The two terminal statuses mean opposite things.
+
 ### OSS client (`src/oss/`)
 
 GraphQL client for the router's Object Storage Service:
@@ -86,6 +129,8 @@ The operational API post-processor (`scripts/postprocess-model-gen.ts`) handles 
 `dlt-adapter-api.yaml` and `custody-adapter-api.yaml` are reference copies only &mdash; no script generates from them, so nothing detects their drift. Re-sync them by hand when consulting them.
 
 ### OSS version floor
+
+`apis/ownership.graphql` was re-synced wholesale from `owneraio/oss` master on 2026-11-15 to pick up the `agreements` query (2340 &rarr; 3245 lines). Every pre-existing document still validates against it, so the re-sync broke nothing &mdash; but the floor moved: the queries here now require an OSS deployment that has `agreements`, and `src/oss/graphql/agreements.graphql` fails against an older one.
 
 The OSS `NetworkAccount` was an object with a `wallet` field until [oss#557](https://github.com/owneraio/oss/pull/557) (2026-07-29) turned it into a `union NetworkAccount = WalletAccount | Caip10Account | CustodialAccount`. The two forms are mutually exclusive, so the queries here **require OSS at or past that commit**; against an older deployment they fail with `Cannot query field ... on type "NetworkAccount"`. If you ever need to target a pre-#557 router, revert the vendored schema and all three selections together &mdash; `owners.graphql`, `receipts.graphql`, `plans.graphql` &mdash; not just one.
 
