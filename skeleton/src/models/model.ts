@@ -90,6 +90,9 @@ export type SwapLeg = {
   signature?: Signature
 };
 
+// executor (asset-leg org) settles the whole crossing; observer (settlement-leg org) verifies it.
+export type SwapRole = 'executor' | 'observer';
+
 export type ErrorDetails = {
   code: number;
   message: string;
@@ -425,6 +428,10 @@ export const pendingAssetCreation = (correlationId: string, metadata: OperationM
 
 // -------------------------------------------------------------------
 
+/** What a rollback reverts. Absent (undefined) means a hold rollback — the endpoint's original,
+ *  backward-compatible behaviour. 'authorize' reverts a prior authorization. */
+export type RollbackType = 'hold' | 'authorize';
+
 export type SuccessReceiptStatus = {
   operation: 'receipt',
   type: 'success';
@@ -461,6 +468,45 @@ export const failedReceiptOperation = (code: number, message: string): ReceiptOp
 
 export const pendingReceiptOperation = (correlationId: string, metadata: OperationMetadata | undefined): ReceiptOperation => ({
   operation: 'receipt',
+  type: 'pending',
+  correlationId,
+  metadata,
+});
+
+export type SuccessAuthorizeStatus = {
+  operation: 'authorize',
+  type: 'success';
+};
+
+export type FailedAuthorizeStatus = {
+  operation: 'authorize',
+  type: 'failure';
+  error: ErrorDetails
+};
+
+export type PendingAuthorizeStatus = {
+  operation: 'authorize',
+  type: 'pending';
+  correlationId: string;
+  metadata: OperationMetadata | undefined
+};
+
+export type AuthorizeOperation = PendingAuthorizeStatus | FailedAuthorizeStatus | SuccessAuthorizeStatus;
+
+
+export const successfulAuthorizeOperation = (): AuthorizeOperation => ({
+  operation: 'authorize',
+  type: 'success',
+});
+
+export const failedAuthorizeOperation = (code: number, message: string): AuthorizeOperation => ({
+  operation: 'authorize',
+  type: 'failure',
+  error: { code, message },
+});
+
+export const pendingAuthorizeOperation = (correlationId: string, metadata: OperationMetadata | undefined): AuthorizeOperation => ({
+  operation: 'authorize',
   type: 'pending',
   correlationId,
   metadata,
@@ -691,7 +737,7 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation;
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation | AuthorizeOperation;
 
 
 // -------------------------------------------------------------------

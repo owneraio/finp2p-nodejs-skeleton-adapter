@@ -431,6 +431,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/assets/authorize': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Authorize Asset
+         * @description Grant an on-chain spending authorization (allowance) from the source's wallet to the spender.
+         */
+    post: operations['authorizeOperation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/assets/release': {
     parameters: {
       query?: never;
@@ -639,6 +659,14 @@ export interface components {
              * @default 1
              */
       numberOfReceipts: number;
+      /**
+             * @description This org's part in the swap, derived by the router from the legs. `executor`
+             *     (the asset-leg org) settles the whole crossing in one call; `observer` (the
+             *     settlement-leg org) submits nothing, verifies the crossing happened and attests.
+             *     Absent for the legacy role-less flow, where both orgs submit and rendezvous.
+             * @enum {string}
+             */
+      role?: 'executor' | 'observer';
       asset: components['schemas']['swapAssetLeg'];
       settlement: components['schemas']['swapSettlementLeg'];
       /**
@@ -706,6 +734,42 @@ export interface components {
       executionContext?: components['schemas']['executionContext'];
     };
     HoldOperationResponse: components['schemas']['receiptOperation'];
+    /**
+         * @description Same payload as HoldOperationRequest, with one difference: `expiry` is optional. Where the
+         *     rail primitive supports time-bounded approvals the adapter honours it; where it does not it
+         *     is absent.
+         */
+    AuthorizeOperationRequest: {
+      nonce: components['schemas']['nonce'];
+      /** @description A unique operation ID for this authorization, carried back into rollbackOperation to take it down */
+      operationId: string;
+      source: components['schemas']['account'];
+      destination?: components['schemas']['account'];
+      /** @description How many units of the asset the spender is authorized to pull */
+      quantity: string;
+      /**
+             * Format: uint64
+             * @description Absolute epoch seconds after which the authorization is no longer valid; absent or 0 means no expiry
+             */
+      expiry?: number;
+      signature: components['schemas']['signature'];
+      executionContext?: components['schemas']['executionContext'];
+    };
+    AuthorizeOperationResponse: components['schemas']['authorizeOperation'];
+    authorizeOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['authorizationProof'];
+    };
+    /** @description Proof that an authorize operation established the authorization on the ledger. */
+    authorizationProof: components['schemas']['erc20AllowanceProof'];
+    /** @description Proof that an ERC20 spending allowance was set on-chain. */
+    erc20AllowanceProof: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'erc20';
+    };
     ReleaseOperationRequest: {
       /** @description The operation ID from the hold request, required to authorize the asset release */
       operationId: string;
@@ -723,6 +787,11 @@ export interface components {
       /** @description How many units of the asset tokens */
       quantity: string;
       executionContext?: components['schemas']['executionContext'];
+      /**
+             * @description What this rollback reverts: a prior hold or a prior authorization. Optional for backward compatibility — an omitted value reverts a hold (the original behaviour of this endpoint).
+             * @enum {string}
+             */
+      rollbackType?: 'hold' | 'authorize';
     };
     RollbackOperationResponse: components['schemas']['receiptOperation'];
     GetOperationStatusRequest: {
@@ -974,7 +1043,7 @@ export interface components {
              */
       instructionSequenceNumber: number;
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'] | components['schemas']['operationStatusAuthorize'];
     operationStatusCreateAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1027,6 +1096,14 @@ export interface components {
              */
       type: 'swap';
       operation: components['schemas']['swapReceiptOperation'];
+    };
+    operationStatusAuthorize: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'authorize';
+      operation: components['schemas']['authorizeOperation'];
     };
     /**
          * @description Status of an investor network-account create/bind/lookup/unbind operation, polled via
@@ -2675,6 +2752,71 @@ export interface operations {
                      *         {
                      *           "code": 1100,
                      *           "message": "Resource not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  authorizeOperation: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['AuthorizeOperationRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AuthorizeOperationResponse'];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
                      *         }
                      *       ]
                      *     }

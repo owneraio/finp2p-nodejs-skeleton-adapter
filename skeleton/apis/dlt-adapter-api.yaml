@@ -824,6 +824,53 @@ paths:
                 errors:
                   - code: 2202
                     message: 'Internal service failure'
+  /assets/authorize:
+    post:
+      tags:
+        - 'tokens'
+      summary: 'Authorize Asset'
+      description: |
+        Grant an on-chain spending authorization (allowance) from the source's wallet to the spender.
+      operationId: 'authorizeOperation'
+      parameters:
+        - in: 'header'
+          name: 'Idempotency-Key'
+          description: 'hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds)'
+          schema:
+            type: 'string'
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeOperationRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizeOperationResponse'
+        '400':
+          description: 'Bad Request'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 1002
+                    message: 'Invalid request format'
+        '500':
+          description: 'Internal Server Error'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 2202
+                    message: 'Internal service failure'
   /assets/release:
     post:
       tags:
@@ -1256,6 +1303,14 @@ components:
             response carries in `response.receipts`: 1 when only `asset` is executed here (the
             counterparty's adapter executes `settlement`), 2 when this adapter custodies both wallets
             and executes both. When 2, `settlement.signature` MUST be present.
+        role:
+          type: 'string'
+          enum: ['executor', 'observer']
+          description: |
+            This org's part in the swap, derived by the router from the legs. `executor`
+            (the asset-leg org) settles the whole crossing in one call; `observer` (the
+            settlement-leg org) submits nothing, verifies the crossing happened and attests.
+            Absent for the legacy role-less flow, where both orgs submit and rendezvous.
         asset:
           $ref: '#/components/schemas/swapAssetLeg'
         settlement:
@@ -1368,6 +1423,66 @@ components:
     HoldOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
+    AuthorizeOperationRequest:
+      type: 'object'
+      description: |
+        Same payload as HoldOperationRequest, with one difference: `expiry` is optional. Where the
+        rail primitive supports time-bounded approvals the adapter honours it; where it does not it
+        is absent.
+      required: ['nonce', 'operationId', 'source', 'quantity', 'signature']
+      properties:
+        nonce:
+          $ref: 'common-external-components.yaml#/components/schemas/nonce'
+        operationId:
+          type: 'string'
+          description: 'A unique operation ID for this authorization, carried back into rollbackOperation to take it down'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        source:
+          $ref: '#/components/schemas/account'
+        destination:
+          $ref: '#/components/schemas/account'
+        quantity:
+          type: 'string'
+          description: 'How many units of the asset the spender is authorized to pull'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        expiry:
+          type: 'integer'
+          format: 'uint64'
+          description: 'Absolute epoch seconds after which the authorization is no longer valid; absent or 0 means no expiry'
+        signature:
+          $ref: '#/components/schemas/signature'
+        executionContext:
+          $ref: '#/components/schemas/executionContext'
+    AuthorizeOperationResponse:
+      allOf:
+        - $ref: '#/components/schemas/authorizeOperation'
+    authorizeOperation:
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
+        - type: 'object'
+          properties:
+            error:
+              $ref: '#/components/schemas/receiptOperationErrorInformation'
+            response:
+              $ref: '#/components/schemas/authorizationProof'
+    authorizationProof:
+      description: 'Proof that an authorize operation established the authorization on the ledger.'
+      oneOf:
+        - $ref: '#/components/schemas/erc20AllowanceProof'
+      discriminator:
+        propertyName: type
+        mapping:
+          erc20: '#/components/schemas/erc20AllowanceProof'
+    erc20AllowanceProof:
+      type: 'object'
+      description: 'Proof that an ERC20 spending allowance was set on-chain.'
+      required: ['type']
+      properties:
+        type:
+          type: 'string'
+          enum: ['erc20']
     ReleaseOperationRequest:
       type: 'object'
       required: ['operationId', 'source', 'destination', 'quantity']
@@ -1409,6 +1524,12 @@ components:
           x-autoMinLength: true
         executionContext:
           $ref: '#/components/schemas/executionContext'
+        rollbackType:
+          type: 'string'
+          enum: ['hold', 'authorize']
+          description: >-
+            What this rollback reverts: a prior hold or a prior authorization. Optional for backward
+            compatibility — an omitted value reverts a hold (the original behaviour of this endpoint).
     RollbackOperationResponse:
       allOf:
         - $ref: '#/components/schemas/receiptOperation'
@@ -1824,6 +1945,7 @@ components:
         - $ref: '#/components/schemas/operationStatusApproval'
         - $ref: '#/components/schemas/operationStatusAccount'
         - $ref: '#/components/schemas/operationStatusSwap'
+        - $ref: '#/components/schemas/operationStatusAuthorize'
       discriminator:
         propertyName: 'type'
         mapping:
@@ -1833,6 +1955,7 @@ components:
           approval: '#/components/schemas/operationStatusApproval'
           account: '#/components/schemas/operationStatusAccount'
           swap: '#/components/schemas/operationStatusSwap'
+          authorize: '#/components/schemas/operationStatusAuthorize'
     operationStatusCreateAsset:
       type: 'object'
       required: ['type', 'operation']
@@ -1891,6 +2014,18 @@ components:
           enum: ['swap']
         operation:
           $ref: '#/components/schemas/swapReceiptOperation'
+    operationStatusAuthorize:
+      type: 'object'
+      description: |
+        Status of an asynchronous `POST /assets/authorize`: carries the same authorizationProof
+        as the synchronous call, so a polled completion returns a proof rather than a receipt.
+      required: ['type', 'operation']
+      properties:
+        type:
+          type: 'string'
+          enum: ['authorize']
+        operation:
+          $ref: '#/components/schemas/authorizeOperation'
     networkAccountOperation:
       description: |
         Status of an investor network-account create/bind/lookup/unbind operation, polled via
