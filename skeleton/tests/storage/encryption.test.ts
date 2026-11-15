@@ -71,7 +71,8 @@ describe('cipher', () => {
   test('wrong key, bit flip, column swap all fail closed', () => {
     const stored = encrypt(ring, 'random', 'secret', AAD);
     expect(() => decrypt(Keyring.fromEnv(env(K2)), stored, AAD)).toThrow(/no key in keyring/);
-    const flipped = stored.slice(0, -1) + (stored.endsWith('A') ? 'B' : 'A');
+    const i = stored.lastIndexOf('.') + 1;
+    const flipped = stored.slice(0, i) + (stored[i] === 'A' ? 'B' : 'A') + stored.slice(i + 1);
     expect(() => decrypt(ring, flipped, AAD)).toThrow();
     expect(() => decrypt(ring, stored, 'other.col')).toThrow();
   });
