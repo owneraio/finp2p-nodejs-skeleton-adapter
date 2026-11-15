@@ -19,6 +19,8 @@ import {
   NetworkAccountService,
   pendingAccountOperation,
   failedAccountOperation,
+  pendingAuthorizeOperation,
+  failedAuthorizeOperation,
   OperationResponseStrategy,
   OperationMetadata,
 } from '../models';
@@ -77,6 +79,8 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
       return pendingOrError(cid => pendingReceiptOperation(cid, opMetadata), (cid, code, message) => failedReceiptOperation(code, message));
     case compiletimeMethodName<TokenService>('swap'):
       return pendingOrError(cid => pendingSwapOperation(cid, opMetadata), (cid, code, message) => failedSwapOperation(code, message));
+    case compiletimeMethodName<TokenService>('authorize'):
+      return pendingOrError(cid => pendingAuthorizeOperation(cid, opMetadata), (cid, code, message) => failedAuthorizeOperation(code, message));
     case compiletimeMethodName<PlanApprovalService>('approvePlan'):
     case compiletimeMethodName<PlanApprovalService>('proposeCancelPlan'):
     case compiletimeMethodName<PlanApprovalService>('proposeResetPlan'):

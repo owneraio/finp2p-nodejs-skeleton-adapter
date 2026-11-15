@@ -1,5 +1,8 @@
 import {
   approvedPlan,
+  failedAuthorizeOperation,
+  pendingAuthorizeOperation,
+  successfulAuthorizeOperation,
   OperationStatus,
   pendingAssetCreation,
   pendingDepositOperation,
@@ -354,5 +357,27 @@ describe("Service operation tests", () => {
     expect(JSON.stringify(await storage().getOperationByCid(row3.cid))).toMatch(
       "OSS failed to return proper data",
     );
+  });
+
+  test("proxied authorize returns a pending placeholder, then success or failure", async () => {
+    class Service {
+      async authorize(idempotencyKey: string, nonce: string): Promise<OperationStatus> {
+        if (nonce === "bad") throw new Error("approve reverted");
+        return setTimeoutPromise(500, successfulAuthorizeOperation());
+      }
+    }
+    const proxied = createServiceProxy(() => Promise.resolve(), storage(), finP2PClient, new Service(), "authorize");
+
+    const ok = await proxied.authorize("ik-auth-1", "good");
+    const okRow = (await storage().getOperations()).find((o) => o.method === "authorize")!;
+    expect(ok).toEqual(pendingAuthorizeOperation(okRow.cid, { responseStrategy: "callback" }));
+    await expect(waitForOperationCompletion(proxied as any, okRow.cid)).resolves.toEqual(successfulAuthorizeOperation());
+
+    await proxied.authorize("ik-auth-2", "bad");
+    const badRow = (await storage().getOperations()).find((o) => o.method === "authorize" && o.cid !== okRow.cid)!;
+    await expect(waitForOperationCompletion(proxied as any, badRow.cid)).resolves.toEqual(
+      failedAuthorizeOperation(1, "Error: approve reverted"),
+    );
+    expect((await storage().getOperationByCid(badRow.cid))!.status).toEqual("failed");
   });
 });
