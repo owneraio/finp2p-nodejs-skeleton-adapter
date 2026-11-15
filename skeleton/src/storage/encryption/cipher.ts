@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto';
-import { DerivedKeys, Keyring } from './keyring';
+import { DerivedKeys, ENV_KEYS_PREVIOUS, Keyring } from './keyring';
 
 // v1.<r|d>.<kid>.<base64url(iv || ct || tag)>
 // d: same plaintext → same ciphertext, leaks equality. aad binds the value to its column.
@@ -55,7 +55,7 @@ export function decrypt(keyring: Keyring, stored: string, aad: string): string {
   const parsed = parse(stored);
   if (!parsed) throw new Error('value is not in the encrypted-at-rest format');
   const key = keyring.find(parsed.kid);
-  if (!key) throw new Error(`no key in keyring for kid ${parsed.kid}; add it to ${'DB_ENCRYPTION_KEYS'} to read this value`);
+  if (!key) throw new Error(`no key in keyring for kid ${parsed.kid}; add it to ${ENV_KEYS_PREVIOUS} to read this value`);
   const { body } = parsed;
   const iv = body.subarray(0, IV_BYTES);
   const tag = body.subarray(body.length - TAG_BYTES);
