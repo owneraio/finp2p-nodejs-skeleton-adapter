@@ -360,8 +360,10 @@ describe("Service operation tests", () => {
   });
 
   test("proxied authorize returns a pending placeholder, then success or failure", async () => {
+    let calls = 0;
     class Service {
       async authorize(idempotencyKey: string, nonce: string): Promise<OperationStatus> {
+        calls += 1;
         if (nonce === "bad") throw new Error("approve reverted");
         return setTimeoutPromise(500, successfulAuthorizeOperation());
       }
@@ -372,6 +374,10 @@ describe("Service operation tests", () => {
     const okRow = (await storage().getOperations()).find((o) => o.method === "authorize")!;
     expect(ok).toEqual(pendingAuthorizeOperation(okRow.cid, { responseStrategy: "callback" }));
     await expect(waitForOperationCompletion(proxied as any, okRow.cid)).resolves.toEqual(successfulAuthorizeOperation());
+
+    // A retry with the same idempotency key returns the stored result. It does not call authorize again.
+    await expect(proxied.authorize("ik-auth-1", "good")).resolves.toEqual(successfulAuthorizeOperation());
+    expect(calls).toBe(1);
 
     await proxied.authorize("ik-auth-2", "bad");
     const badRow = (await storage().getOperations()).find((o) => o.method === "authorize" && o.cid !== okRow.cid)!;
