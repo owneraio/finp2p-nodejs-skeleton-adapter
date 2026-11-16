@@ -70,6 +70,7 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
     case compiletimeMethodName<TokenService>('issue'):
     case compiletimeMethodName<TokenService>('transfer'):
     case compiletimeMethodName<TokenService>('redeem'):
+    case compiletimeMethodName<TokenService>('move'):
     case compiletimeMethodName<EscrowService>('hold'):
     case compiletimeMethodName<EscrowService>('release'):
     case compiletimeMethodName<EscrowService>('rollback'):
