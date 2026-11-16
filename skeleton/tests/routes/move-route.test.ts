@@ -2,6 +2,7 @@ import express, { Application } from 'express';
 import { Server } from 'http';
 import axios from 'axios';
 import { register } from '../../src/routes/routes';
+import { receiptToAPI } from '../../src/routes/mapping';
 import { createServiceProxy, WorkflowStorage } from '../../src/workflows';
 import {
   Asset,
@@ -58,6 +59,7 @@ type MoveCall = {
 const receiptFor = (call: MoveCall): Receipt => ({
   id: 'r-1',
   asset: call.asset,
+  destinationAsset: call.destinationAsset,
   source: call.source,
   destination: call.destination,
   quantity: call.quantity,
@@ -209,5 +211,74 @@ describe('move through the workflow proxy', () => {
     // The route's "not supported" branch is reached by this being undefined; a
     // proxy that handed back a wrapper for every name would hide it.
     expect(proxied.move).toBeUndefined();
+  });
+});
+
+describe('receiptToAPI with an explicit destination binding', () => {
+  const DST_LEDGER = {
+    assetIdentifierType: 'CAIP-19', network: 'eip155:11155111', standard: 'ERC20', tokenId: '0x3ff8',
+  } as const;
+  const SRC_LEDGER = {
+    assetIdentifierType: 'CAIP-19', network: 'dtcc', standard: 'DTCC_CLASSIC', tokenId: 'MCKUSTB4W',
+  } as const;
+
+  const base = (extra: Partial<Receipt>): Receipt => ({
+    id: 'r-1',
+    asset: { assetId: SRC_ASSET, assetType: 'finp2p', ledgerIdentifier: SRC_LEDGER },
+    source: { finId: SRC_FINID },
+    destination: { finId: DST_FINID },
+    quantity: '100',
+    operationType: 'move',
+    tradeDetails: { executionContext: undefined },
+    transactionDetails: { transactionId: 'tx-1', operationId: undefined },
+    proof: undefined,
+    timestamp: 0,
+    ...extra,
+  });
+
+  test('the destination carries its OWN ledgerIdentifier, not the source one', () => {
+    const r = receiptToAPI(base({
+      destinationAsset: { assetId: DST_ASSET, assetType: 'finp2p', ledgerIdentifier: DST_LEDGER },
+    }));
+
+    expect(r.source?.asset.resourceId).toBe(SRC_ASSET);
+    expect(r.source?.asset.ledgerIdentifier).toEqual(SRC_LEDGER);
+    expect(r.destination?.asset.resourceId).toBe(DST_ASSET);
+    // The bug this fixes: the destination used to inherit the source's
+    // ledgerIdentifier under the destination's resourceId, so the router saw an
+    // ERC20 resource described as a DTCC_CLASSIC token.
+    expect(r.destination?.asset.ledgerIdentifier).toEqual(DST_LEDGER);
+  });
+
+  test('it works with no executionContext at all', () => {
+    const r = receiptToAPI(base({
+      tradeDetails: { executionContext: undefined },
+      destinationAsset: { assetId: DST_ASSET, assetType: 'finp2p', ledgerIdentifier: DST_LEDGER },
+    }));
+
+    // A direct move has no plan, so there is no counterpartyAssetId to ride on.
+    expect(r.destination?.asset.resourceId).toBe(DST_ASSET);
+    expect(r.destination?.asset.ledgerIdentifier).toEqual(DST_LEDGER);
+  });
+
+  test('it beats the executionContext when both are present', () => {
+    const r = receiptToAPI(base({
+      tradeDetails: { executionContext: { planId: 'p', sequence: 1, counterpartyAssetId: 'other:102:asset' } },
+      destinationAsset: { assetId: DST_ASSET, assetType: 'finp2p', ledgerIdentifier: DST_LEDGER },
+    }));
+
+    expect(r.destination?.asset.resourceId).toBe(DST_ASSET);
+  });
+
+  test('without it, transfer and swap keep inferring from the executionContext', () => {
+    const r = receiptToAPI(base({
+      operationType: 'transfer',
+      tradeDetails: { executionContext: { planId: 'p', sequence: 1, counterpartyAssetId: DST_ASSET } },
+    }));
+
+    // Unchanged behaviour: both sides bind the same on-chain token, so sharing
+    // the ledgerIdentifier under the counterparty's resourceId is correct.
+    expect(r.destination?.asset.resourceId).toBe(DST_ASSET);
+    expect(r.destination?.asset.ledgerIdentifier).toEqual(SRC_LEDGER);
   });
 });

@@ -724,6 +724,13 @@ export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue'
 export type Receipt = {
   id: string,
   asset: Asset
+  /** The binding the holding landed in, when it differs from `asset` by more than its
+   *  resource id. Set this on a `move` receipt: the two ends of a move are genuinely
+   *  different tokens, so the destination needs its own `ledgerIdentifier` and cannot
+   *  borrow the source's. When it is absent the destination binding is derived from
+   *  `tradeDetails.executionContext`, which is right for transfer and swap, where both
+   *  sides bind the same on-chain token. */
+  destinationAsset?: Asset,
   source: Source | undefined,
   destination: Destination | undefined,
   quantity: string,
