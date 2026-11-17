@@ -38,7 +38,7 @@
   "author": "",
   "license": "ISC",
   "peerDependencies": {
-    "winston": "^3.0.0"
+    "winston": "^3.1.0"
   },
   "peerDependenciesMeta": {
     "winston": {

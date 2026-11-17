@@ -1,6 +1,6 @@
 import type * as winston from 'winston';
 import {
-  Level, LEVELS, Log, LogOptions, fromSink,
+  Level, LEVELS, Log, LogOptions, Sink, fromSink,
 } from './log';
 
 const WINSTON_NAMES: Readonly<Record<Level, readonly string[]>> = {
@@ -30,7 +30,8 @@ function resolveLevels(w: winston.Logger): Record<Level, string> {
 
 export function fromWinston(w: winston.Logger, options?: LogOptions): Log {
   const names = resolveLevels(w);
-  return fromSink((level, message, meta) => {
+  const sink: Sink = (level, message, meta) => {
     w.log({ ...meta, level: names[level], message });
-  }, options);
+  };
+  return fromSink(sink, { ...options, enabled: (level) => w.isLevelEnabled(names[level]) });
 }

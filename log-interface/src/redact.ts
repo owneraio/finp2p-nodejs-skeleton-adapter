@@ -9,6 +9,13 @@ export interface RedactOptions {
   readonly patterns?: readonly RegExp[];
 }
 
+export interface Redactor {
+  readonly text: (text: string) => string;
+  readonly meta: (meta: Meta) => Meta;
+}
+
+type Rule = (text: string) => string;
+
 const SECRET_KEYS = new Set([
   'password', 'passwd', 'pwd', 'secret', 'apikey', 'apisecret', 'privatekey', 'privatekeybase64',
   'mnemonic', 'seedphrase', 'credential', 'credentials', 'authorization', 'cookie', 'setcookie',
@@ -29,14 +36,7 @@ export function isSecretKey(key: string, extra: readonly string[] = []): boolean
     || extra.some((e) => normalizeKey(e) === k);
 }
 
-const URL_USERINFO = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi;
-const HTTP_AUTH = /\b(bearer|basic)\s+[a-z0-9\-._~+/]+=*/gi;
-const PEM_PRIVATE_KEY = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
-const KEY_VALUE = /\b([a-z0-9_.-]+)["']?(\s*[=:]\s*)(["']?)((?:bearer|basic)\s+)?([^\s"',;&]+)\3/gi;
-
 const escapeForJson = (s: string): string => JSON.stringify(s).slice(1, -1);
-const longestFirst = (a: string, b: string): number => b.length - a.length;
-const withGlobalFlag = (p: RegExp): RegExp => (p.global ? p : new RegExp(p.source, `${p.flags}g`));
 
 export function secretsFromEnv(env: NodeJS.ProcessEnv = process.env, extraKeys: readonly string[] = []): string[] {
   const values = new Set<string>();
@@ -45,37 +45,86 @@ export function secretsFromEnv(env: NodeJS.ProcessEnv = process.env, extraKeys: 
     values.add(value);
     values.add(escapeForJson(value));
   });
-  return [...values].sort(longestFirst);
+  return [...values];
 }
 
-export function redactText(text: string, options: RedactOptions = {}): string {
-  let out = text;
-  (options.secrets ?? []).filter(Boolean).forEach((s) => {
-    out = out.replaceAll(s, REDACTED);
-  });
-  out = out.replace(URL_USERINFO, `$1${REDACTED}@`);
-  out = out.replace(HTTP_AUTH, `$1 ${REDACTED}`);
-  out = out.replace(PEM_PRIVATE_KEY, REDACTED);
-  out = out.replace(KEY_VALUE, (match, key: string, sep: string, quote: string, scheme = '') => (
-    isSecretKey(key, options.keys) ? `${key}${quote}${sep}${quote}${scheme}${REDACTED}${quote}` : match
-  ));
-  (options.patterns ?? []).forEach((p) => {
-    out = out.replace(withGlobalFlag(p), REDACTED);
-  });
+function positionsOf(secret: string, text: string): number[] {
+  const found: number[] = [];
+  for (let i = text.indexOf(secret); i !== -1; i = text.indexOf(secret, i + 1)) found.push(i);
+  return found;
+}
+
+function hiddenChars(text: string, secrets: readonly string[]): boolean[] {
+  const hidden = new Array<boolean>(text.length).fill(false);
+  secrets.forEach((secret) => positionsOf(secret, text).forEach((i) => hidden.fill(true, i, i + secret.length)));
+  return hidden;
+}
+
+function collapse(text: string, hidden: readonly boolean[]): string {
+  let out = '';
+  for (let i = 0; i < text.length; i += 1) {
+    if (!hidden[i]) out += text[i];
+    else if (!hidden[i - 1]) out += REDACTED;
+  }
   return out;
 }
 
-function redactValue(value: unknown, options: RedactOptions, ancestors: readonly object[] = []): unknown {
-  if (typeof value === 'string') return redactText(value, options);
-  if (typeof value !== 'object' || value === null) return value;
-  if (ancestors.includes(value)) return '[circular]';
-  const path = [...ancestors, value];
-  const visit = (v: unknown): unknown => redactValue(v, options, path);
-  if (Array.isArray(value)) return value.map(visit);
-  if (isPlainObject(value)) {
-    return mapValues(value, (v, k) => (isSecretKey(k, options.keys) ? REDACTED : visit(v)));
-  }
-  return value;
+function hideSecrets(secrets: readonly string[]): Rule {
+  const unique = [...new Set(secrets)].filter(Boolean);
+  return (text) => {
+    const present = unique.filter((s) => text.includes(s));
+    return present.length === 0 ? text : collapse(text, hiddenChars(text, present));
+  };
 }
 
-export const redactMeta = (meta: Meta, options: RedactOptions = {}): Meta => redactValue(meta, options) as Meta;
+const URL_USERINFO = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi;
+const HTTP_AUTH = /\b(bearer|basic)\s+[a-z0-9\-._~+/]+=*/gi;
+const PEM_PRIVATE_KEY = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
+const QUOTED_PAIR = /\b([a-z0-9_.-]+)(\\?["']?\s*[=:]\s*(\\?["']))((?:\\.|[^\\])*?)\3/gi;
+const BARE_PAIR = /\b([a-z0-9_.-]+)(\\?["']?\s*[=:]\s*(?:(?:bearer|basic)\s+)?)((?!\\["'])[^\s"',;&]+)/gi;
+
+function hidePairs(text: string, keys: readonly string[]): string {
+  const hide = (key: string, value: string): string => (isSecretKey(key, keys) ? REDACTED : hidePairs(value, keys));
+  return text
+    .replace(QUOTED_PAIR, (_, key: string, head: string, quote: string, value: string) => `${key}${head}${hide(key, value)}${quote}`)
+    .replace(BARE_PAIR, (_, key: string, head: string, value: string) => `${key}${head}${hide(key, value)}`);
+}
+
+const replacing = (pattern: RegExp, replacement: string): Rule => (text) => text.replace(pattern, replacement);
+
+const withGlobalFlag = (p: RegExp): RegExp => (p.global ? p : new RegExp(p.source, `${p.flags}g`));
+
+function textRedactor({ secrets = [], keys = [], patterns = [] }: RedactOptions): Rule {
+  const rules: Rule[] = [
+    hideSecrets(secrets),
+    replacing(URL_USERINFO, `$1${REDACTED}@`),
+    replacing(HTTP_AUTH, `$1 ${REDACTED}`),
+    replacing(PEM_PRIVATE_KEY, REDACTED),
+    (text) => hidePairs(text, keys),
+    ...patterns.map((p) => replacing(withGlobalFlag(p), REDACTED)),
+  ];
+  return (text) => rules.reduce((out, rule) => rule(out), text);
+}
+
+function metaRedactor(text: Rule, keys: readonly string[]): (meta: Meta) => Meta {
+  const redact = (value: unknown, ancestors: readonly object[]): unknown => {
+    if (typeof value === 'string') return text(value);
+    if (typeof value !== 'object' || value === null) return value;
+    if (ancestors.includes(value)) return '[circular]';
+    const path = [...ancestors, value];
+    const visit = (v: unknown): unknown => redact(v, path);
+    if (Array.isArray(value)) return value.map(visit);
+    if (isPlainObject(value)) return mapValues(value, (v, k) => (isSecretKey(k, keys) ? REDACTED : visit(v)));
+    return value;
+  };
+  return (meta) => redact(meta, []) as Meta;
+}
+
+export function redactor(options: RedactOptions = {}): Redactor {
+  const text = textRedactor(options);
+  return { text, meta: metaRedactor(text, options.keys ?? []) };
+}
+
+export const redactText = (text: string, options?: RedactOptions): string => redactor(options).text(text);
+
+export const redactMeta = (meta: Meta, options?: RedactOptions): Meta => redactor(options).meta(meta);

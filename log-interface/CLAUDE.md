@@ -33,12 +33,12 @@ interface Log {
 | factory | import | notes |
 |---------|--------|-------|
 | `fromWinston(w, { base, redact })` | `@owneraio/log-interface/winston` | optional peer dep; picks `warn`/`warning` from `w.levels`; throws `UnsupportedWinstonLevelsError`; always `w.log()` |
-| `fromConsole({ level, format, target, base, redact })` | root | `level` default `info`; `format: 'pretty' \| 'json'`; json never throws: bigint → string, cycles → `[circular]` |
-| `fromSink(sink, { base, redact })` | root | any backend: pino, spies. `sink = (level, message, meta) => void` |
+| `fromConsole({ level, format, target, base, redact })` | root | `level` default `info`; `format: 'pretty' \| 'json'`; json: bigint → string, cycles → `[circular]` |
+| `fromSink(sink, { base, redact, enabled })` | root | any backend: pino, spies. `sink = (level, message, meta) => void` |
 | `withRedaction(log, redact)` | root | wraps a `Log` you did not build; prefer the `redact` option |
 | `silentLog()` | root | no-op |
 
-Pipeline per entry: `{ ...base, ...meta }` → `normalizeMeta` → redact (if `redact`) → sink. `child(meta)` extends `base`, keeps `redact`.
+Pipeline per entry: `enabled(level)` → `{ ...base, ...meta }` → `normalizeMeta` → redact (if `redact`) → sink. Any throw → sink gets `(level, message, { logError })`; a log call never throws. `child(meta)` extends `base`.
 
 ## Redaction
 
@@ -55,7 +55,7 @@ log.error('RPC_URL=https://user:pw@host/ failed', { config });
 | PEM private key block | → `[redacted]` |
 | `k=v`, `k: v`, `"k":"v"` in text, `k` secret | `DB_PASSWORD=x` → `DB_PASSWORD=[redacted]` |
 | secret key in meta, any depth | `{ cfg: { API_KEY } }` → `[redacted]` |
-| `options.secrets` literals | `secretsFromEnv()` = env vars named like secrets, longest first, JSON-escaped forms too |
+| `options.secrets` literals | `secretsFromEnv()` = env vars named like secrets, JSON-escaped forms too |
 
 Secret key = lowercase, strip `_`/`-`, then exact (`password`, `secret`, `apiKey`, `privateKey`, `mnemonic`, `authorization`, `accessToken`, `connectionString`, …) or suffix (`*password`, `*secret`, `*privateKey`, `*apiKey`, `*authToken`, …). Bare `token` excluded (`tokenId`, `tokenAddress`); add via `keys: ['token']`.
 Not redacted: bare `0x`+64 hex (looks like a tx hash); pass via `secrets`.
@@ -65,9 +65,9 @@ Options: `secrets: string[]`, `keys: string[]`, `patterns: RegExp[]` (`g` flag a
 ## Files
 
 ```
-src/log.ts      Level, Meta, LogFn, Log, LogOptions, Sink, isLog, isLevel, normalizeMeta, fromSink, withRedaction, silentLog
+src/log.ts      Level, Meta, LogFn, Log, LogOptions, SinkOptions, Sink, isLog, isLevel, atLeast, normalizeMeta, fromSink, withRedaction, silentLog
 src/console.ts  fromConsole, ConsoleOptions
-src/redact.ts   RedactOptions, redactText, redactMeta, secretsFromEnv, isSecretKey, REDACTED
+src/redact.ts   RedactOptions, Redactor, redactor, redactText, redactMeta, secretsFromEnv, isSecretKey, REDACTED
 src/winston.ts  fromWinston, UnsupportedWinstonLevelsError   (subpath only; root never loads winston)
 src/object.ts   isPlainObject, mapValues   (internal)
 src/index.ts    log + console + redact

@@ -15,13 +15,20 @@ describe('redactText', () => {
     ['privateKey: 0xabc tokenAddress: 0xdef', `privateKey: ${REDACTED} tokenAddress: 0xdef`],
     ['SIGNER_PRIVATE_KEY=0xabc', `SIGNER_PRIVATE_KEY=${REDACTED}`],
     ['-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----', REDACTED],
+    ['password="hello world"', `password="${REDACTED}"`],
+    ['password: "x"', `password: "${REDACTED}"`],
+    ["password='p;w'", `password='${REDACTED}'`],
+    ['{"clientSecret":"a,b;c&d"}', `{"clientSecret":"${REDACTED}"}`],
+    ['{"password":"a\\"b","user":"bob"}', `{"password":"${REDACTED}","user":"bob"}`],
+    ['{\\"password\\":\\"x\\"}', `{\\"password\\":\\"${REDACTED}\\"}`],
+    ['GET https://h/api?apikey=k1&module=x', `GET https://h/api?apikey=${REDACTED}&module=x`],
   ])('%s', (input, expected) => {
     expect(redactText(input)).toBe(expected);
   });
 
-  it('erases literal secrets, longest first', () => {
-    const secrets = ['abc', 'abcdef'].sort((a, b) => b.length - a.length);
-    expect(redactText('x abcdef y abc', { secrets })).toBe(`x ${REDACTED} y ${REDACTED}`);
+  it('erases literal secrets in any order, overlaps included', () => {
+    expect(redactText('x abcdef y abc', { secrets: ['abc', 'abcdef'] })).toBe(`x ${REDACTED} y ${REDACTED}`);
+    expect(redactText('abcXdef', { secrets: ['abcX', 'Xdef'] })).toBe(REDACTED);
   });
 
   it('applies custom keys and patterns, global flag or not', () => {
@@ -58,7 +65,7 @@ describe('secretsFromEnv', () => {
     const env = {
       DB_PASSWORD: 'a"b', NETWORK_AUTH: 'n', LOG_LEVEL: 'debug', RPC_URL: 'https://x', EMPTY_SECRET: '',
     };
-    expect(secretsFromEnv(env)).toEqual(['a\\"b', 'a"b', 'n']);
+    expect(secretsFromEnv(env)).toEqual(['a"b', 'a\\"b', 'n']);
   });
 });
 

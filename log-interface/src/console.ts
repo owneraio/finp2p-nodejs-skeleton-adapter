@@ -1,14 +1,14 @@
 import {
-  Level, LEVELS, Log, LogOptions, fromSink,
+  Level, Log, LogOptions, Meta, Sink, atLeast, fromSink,
 } from './log';
+
+type Target = Pick<Console, 'debug' | 'info' | 'warn' | 'error'>;
 
 export interface ConsoleOptions extends LogOptions {
   readonly level?: Level;
-  readonly target?: Pick<Console, 'debug' | 'info' | 'warn' | 'error'>;
+  readonly target?: Target;
   readonly format?: 'pretty' | 'json';
 }
-
-const rank = (level: Level): number => LEVELS.indexOf(level);
 
 function jsonReplacer() {
   const path: object[] = [];
@@ -22,21 +22,22 @@ function jsonReplacer() {
   };
 }
 
+const toJson = (level: Level, message: string, meta: Meta): string => (
+  JSON.stringify({ ...meta, level, time: new Date().toISOString(), msg: message }, jsonReplacer())
+);
+
+const jsonSink = (target: Target): Sink => (level, message, meta) => target[level](toJson(level, message, meta));
+
+const prettySink = (target: Target): Sink => (level, message, meta) => {
+  const tag = `[${level.toUpperCase()}]`;
+  if (Object.keys(meta).length > 0) target[level](tag, message, meta);
+  else target[level](tag, message);
+};
+
 export function fromConsole(options: ConsoleOptions = {}): Log {
   const {
     level = 'info', target = console, format = 'pretty', ...rest
   } = options;
-  const threshold = rank(level);
-
-  return fromSink((lvl, message, meta) => {
-    if (rank(lvl) < threshold) return;
-    if (format === 'json') {
-      const entry = { ...meta, level: lvl, time: new Date().toISOString(), msg: message };
-      target[lvl](JSON.stringify(entry, jsonReplacer()));
-      return;
-    }
-    const tag = `[${lvl.toUpperCase()}]`;
-    if (Object.keys(meta).length > 0) target[lvl](tag, message, meta);
-    else target[lvl](tag, message);
-  }, rest);
+  const sink = format === 'json' ? jsonSink(target) : prettySink(target);
+  return fromSink(sink, { ...rest, enabled: atLeast(level) });
 }
