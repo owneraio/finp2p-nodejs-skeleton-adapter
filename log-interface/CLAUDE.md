@@ -16,6 +16,7 @@ type LogFn = (message: string, meta?: Meta) => void;
 interface Log {
   readonly ['@owneraio/log-interface']: true;  // brand: string key, same in every installed copy
   readonly debug: LogFn; readonly info: LogFn; readonly warn: LogFn; readonly error: LogFn;
+  readonly isLevelEnabled: (level: Level) => boolean; // false → call is a no-op
   child(meta: Meta): Log; // meta attached to every entry; entry meta wins
 }
 ```
@@ -34,11 +35,11 @@ interface Log {
 |---------|--------|-------|
 | `fromWinston(w, { base, redact })` | `@owneraio/log-interface/winston` | optional peer dep; picks `warn`/`warning` from `w.levels`; throws `UnsupportedWinstonLevelsError`; always `w.log()` |
 | `fromConsole({ level, format, target, base, redact })` | root | `level` default `info`; `format: 'pretty' \| 'json'`; json: bigint → string, cycles → `[circular]` |
-| `fromSink(sink, { base, redact, enabled })` | root | any backend: pino, spies. `sink = (level, message, meta) => void` |
+| `fromSink(sink, { base, redact, isLevelEnabled })` | root | any backend: pino, spies. `sink = (level, message, meta) => void` |
 | `withRedaction(log, redact)` | root | wraps a `Log` you did not build; prefer the `redact` option |
 | `silentLog()` | root | no-op |
 
-Pipeline per entry: `enabled(level)` → `{ ...base, ...meta }` → `normalizeMeta` → redact (if `redact`) → sink. Any throw → sink gets `(level, message, { logError })`; a log call never throws. `child(meta)` extends `base`.
+Pipeline per entry: `isLevelEnabled(level)` → `{ ...base, ...meta }` → `normalizeMeta` → redact (if `redact`) → sink. Any throw → sink gets `(level, message, { logError })`; a log call never throws. `child(meta)` extends `base`.
 
 ## Redaction
 

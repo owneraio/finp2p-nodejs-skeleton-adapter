@@ -33,5 +33,5 @@ export function fromWinston(w: winston.Logger, options?: LogOptions): Log {
   const sink: Sink = (level, message, meta) => {
     w.log({ ...meta, level: names[level], message });
   };
-  return fromSink(sink, { ...options, enabled: (level) => w.isLevelEnabled(names[level]) });
+  return fromSink(sink, { ...options, isLevelEnabled: (level) => w.isLevelEnabled(names[level]) });
 }

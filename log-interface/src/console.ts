@@ -39,5 +39,5 @@ export function fromConsole(options: ConsoleOptions = {}): Log {
     level = 'info', target = console, format = 'pretty', ...rest
   } = options;
   const sink = format === 'json' ? jsonSink(target) : prettySink(target);
-  return fromSink(sink, { ...rest, enabled: atLeast(level) });
+  return fromSink(sink, { ...rest, isLevelEnabled: atLeast(level) });
 }

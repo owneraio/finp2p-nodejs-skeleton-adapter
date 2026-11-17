@@ -1,6 +1,6 @@
 import * as winston from 'winston';
 import {
-  Meta, REDACTED, fromConsole, fromSink, silentLog,
+  Meta, REDACTED, fromConsole, fromSink, silentLog, withRedaction,
 } from '../src';
 import { fromWinston } from '../src/winston';
 
@@ -37,13 +37,25 @@ describe('a log call never throws', () => {
 
 describe('disabled levels never touch meta', () => {
   it.each<[string, (meta: Meta) => void]>([
-    ['fromSink', (meta) => fromSink(jest.fn(), { enabled: (level) => level !== 'debug' }).debug('x', meta)],
+    ['fromSink', (meta) => fromSink(jest.fn(), { isLevelEnabled: (level) => level !== 'debug' }).debug('x', meta)],
     ['fromConsole', (meta) => fromConsole({ level: 'info' }).debug('x', meta)],
     ['fromWinston', (meta) => fromWinston(winston.createLogger({ level: 'info' })).debug('x', meta)],
     ['silentLog', (meta) => silentLog().child(meta).error('x', meta)],
+    ['withRedaction', (meta) => withRedaction(fromConsole({ level: 'info' })).debug('x', meta)],
   ])('%s', (_, call) => {
     const { reads, meta } = counting();
     call(meta);
     expect(reads.count).toBe(0);
+  });
+});
+
+describe('log.isLevelEnabled(level)', () => {
+  it('answers with the gate the log itself uses; child and withRedaction inherit it', () => {
+    const log = fromConsole({ level: 'info' });
+    expect([log.isLevelEnabled('debug'), log.isLevelEnabled('info')]).toEqual([false, true]);
+    expect(log.child({ a: 1 }).isLevelEnabled('debug')).toBe(false);
+    expect(withRedaction(log).isLevelEnabled('debug')).toBe(false);
+    expect(fromWinston(winston.createLogger({ level: 'warn' })).isLevelEnabled('info')).toBe(false);
+    expect(silentLog().isLevelEnabled('error')).toBe(false);
   });
 });

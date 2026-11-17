@@ -17,6 +17,7 @@ export interface Log {
   readonly info: LogFn;
   readonly warn: LogFn;
   readonly error: LogFn;
+  readonly isLevelEnabled: (level: Level) => boolean;
   child(meta: Meta): Log;
 }
 
@@ -55,14 +56,14 @@ export interface LogOptions {
 }
 
 export interface SinkOptions extends LogOptions {
-  readonly enabled?: (level: Level) => boolean;
+  readonly isLevelEnabled?: (level: Level) => boolean;
 }
 
 interface Pipeline {
   readonly sink: Sink;
   readonly base: Meta;
   readonly redact: Redactor;
-  readonly enabled: (level: Level) => boolean;
+  readonly isLevelEnabled: (level: Level) => boolean;
 }
 
 const noop = (): void => {};
@@ -91,7 +92,7 @@ function writeFailure(p: Pipeline, level: Level, message: string, error: unknown
 }
 
 function emit(p: Pipeline, level: Level, message: string, meta: Meta = {}): void {
-  if (!p.enabled(level)) return;
+  if (!p.isLevelEnabled(level)) return;
   attempt(
     () => write(p, level, message, meta),
     (error) => attempt(() => writeFailure(p, level, message, error)),
@@ -106,22 +107,29 @@ function build(p: Pipeline): Log {
     info: at('info'),
     warn: at('warn'),
     error: at('error'),
+    isLevelEnabled: p.isLevelEnabled,
     child: (meta) => build({ ...p, base: { ...p.base, ...meta } }),
   };
 }
 
-export function fromSink(sink: Sink, { base = {}, redact, enabled = () => true }: SinkOptions = {}): Log {
+export function fromSink(sink: Sink, { base = {}, redact, isLevelEnabled = () => true }: SinkOptions = {}): Log {
   return build({
-    sink, base, enabled, redact: redact ? redactor(redact) : NO_REDACTION,
+    sink, base, isLevelEnabled, redact: redact ? redactor(redact) : NO_REDACTION,
   });
 }
 
 export const withRedaction = (log: Log, redact: RedactOptions = {}): Log => (
-  fromSink((level, message, meta) => log[level](message, meta), { redact })
+  fromSink((level, message, meta) => log[level](message, meta), { redact, isLevelEnabled: log.isLevelEnabled })
 );
 
 const SILENT: Log = {
-  [LOG]: true, debug: noop, info: noop, warn: noop, error: noop, child: () => SILENT,
+  [LOG]: true,
+  debug: noop,
+  info: noop,
+  warn: noop,
+  error: noop,
+  isLevelEnabled: () => false,
+  child: () => SILENT,
 };
 
 export const silentLog = (): Log => SILENT;
