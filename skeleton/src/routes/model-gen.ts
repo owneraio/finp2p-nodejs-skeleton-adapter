@@ -511,6 +511,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/assets/getCapabilities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Get asset capabilities
+         * @description Get the asset's current capability list from the ledger adapter
+         */
+    post: operations['getAssetCapabilities'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/health': {
     parameters: {
       query?: never;
@@ -561,6 +581,12 @@ export interface components {
       owner: components['schemas']['account'];
     };
     GetAssetBalanceResponse: components['schemas']['balance'];
+    GetAssetCapabilitiesRequest: {
+      asset: components['schemas']['asset'];
+    };
+    GetAssetCapabilitiesResponse: {
+      capabilities: components['schemas']['instructionCapabilities'][];
+    };
     CreateAssetRequest: {
       /** @description The asset metadata */
       metadata?: {
@@ -747,6 +773,27 @@ export interface components {
     asset: {
       ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
     } & components['schemas']['finp2pAssetBase'];
+    /** @description One instruction the asset supports on its ledger and, when the ledger routes it through contracts, the contracts it can use. */
+    instructionCapabilities: {
+      /** @description Instruction capability id (e.g. INSTRUCTION_TRANSFER). INSTRUCTION_AWAIT is a router step and is rejected. */
+      instruction: string;
+      /** @description Absent or empty when the instruction runs without a contract. */
+      contracts?: components['schemas']['contractCapability'][];
+    };
+    contractCapability: {
+      /** @description The contract's address on the asset's network, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example). The only field used for matching; `eip155` addresses compare in any letter case, any other identifier exactly. */
+      address: string;
+      /** @description Display only. */
+      name?: string;
+      /** @description Display only. */
+      description?: string;
+      restrictions?: components['schemas']['contractRestrictions'];
+    };
+    /** @description The contract's own amount limits as the ledger reports them. The router stores and shows them and does not enforce them. */
+    contractRestrictions: {
+      minAmount?: components['schemas']['amount'];
+      maxAmount?: components['schemas']['amount'];
+    };
     payoutAsset: components['schemas']['finp2pAsset'];
     payoutInstruction: {
       /** @description withdrawal description */
@@ -933,6 +980,8 @@ export interface components {
     };
     assetCreateResponse: {
       ledgerAssetInfo: components['schemas']['ledgerAssetInfo'];
+      /** @description The asset's capability list. Absent means the adapter reports no list and the router applies its full instruction set; an empty array means the asset supports nothing. */
+      capabilities?: components['schemas']['instructionCapabilities'][];
     };
     depositOperation: components['schemas']['OperationBase'] & {
       error?: components['schemas']['depositOperationErrorInformation'];
@@ -973,6 +1022,8 @@ export interface components {
              * @description execution instruction sequence number
              */
       instructionSequenceNumber: number;
+      /** @description The contract the instruction must run through, by its address or service identifier as the asset lists it. Sent only when the router chose one. */
+      contract?: string;
     };
     operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
     operationStatusCreateAsset: {
@@ -1674,6 +1725,8 @@ export interface components {
       /** @description Unique code identifying the denomination asset type */
       code: string;
     };
+    /** @description the total number of units */
+    amount: string;
     noneAccount: Record<string, never>;
     networkAccount: components['schemas']['walletAccount'] | components['schemas']['caip10Account'] | components['schemas']['custodialAccount'] | components['schemas']['noneAccount'];
   };
@@ -2971,6 +3024,30 @@ export interface operations {
                      *     }
                      */
           'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  getAssetCapabilities: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GetAssetCapabilitiesRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['GetAssetCapabilitiesResponse'];
         };
       };
     };

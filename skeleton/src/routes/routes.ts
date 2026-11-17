@@ -21,6 +21,7 @@ import {
   assetBindingFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
   balanceToAPI,
+  capabilitiesToAPI,
   bindInfoOptFromAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
@@ -175,6 +176,17 @@ export const register = (app: Application,
     res.send(balanceToAPI(asset, account, balance));
   },
   );
+
+  if (typeof tokenService.getCapabilities === 'function') {
+    app.post<{},
+    LedgerAPI['schemas']['GetAssetCapabilitiesResponse'],
+    LedgerAPI['schemas']['GetAssetCapabilitiesRequest']>(
+      `/${basePath}/assets/getCapabilities`,
+      async (req, res) => {
+        const list = await tokenService.getCapabilities!(assetFromAPI(req.body.asset));
+        res.send({ capabilities: capabilitiesToAPI(list) });
+      });
+  }
 
   app.post<{},
   LedgerAPI['schemas']['IssueAssetsResponse'],

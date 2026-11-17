@@ -8,7 +8,7 @@ import {
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
-  SwapLeg, SwapOperation,
+  SwapLeg, SwapOperation, InstructionCapability,
 } from './model';
 
 
@@ -34,6 +34,9 @@ export interface TokenService {
   getBalance(asset: Asset, finId: string): Promise<string>;
 
   balance(asset: Asset, finId: string): Promise<Balance>;
+
+  /** The asset's current capability list. Optional: when absent the route is not mounted. */
+  getCapabilities?(asset: Asset): Promise<InstructionCapability[]>;
 
   issue(idempotencyKey: string, asset: Asset, destination: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;
 
