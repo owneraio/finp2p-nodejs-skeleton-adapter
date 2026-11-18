@@ -42,6 +42,37 @@ Two things to know:
 - **`Idempotency-Key` is required** on all four routes &mdash; they are the only application-API routes where it is not optional. The client defaults it to `generateNonce().toString('hex')`; every method takes an optional trailing `idempotencyKey` to override.
 - **`walletAccount.type` must be exactly `'walletAccount'`.** The router compares the adapter's onboarding echo byte-for-byte against the account named on an operation leg, so any other token (e.g. `'wallet'`) causes a spurious 7351 `AccountNotWhitelisted` on every operation after a successful bind.
 
+### Move intents (`src/flows.ts`)
+
+A **move** converts one holder's position from one asset into another. Same beneficial owner on both sides, so there is no counterparty and no settlement leg.
+
+| Helper | Does |
+|--------|------|
+| `createMoveIntent` | `POST /profiles/asset/{sourceAsset.id}/intent` with a `moveIntent`, declaring the migration path (source asset plus the destinations it may convert into). No quantity. |
+| `executeMoveIntent` | `POST /tokens/execute` with a `moveIntentExecution`. Returns the execution plan id. |
+| `createMovePolicy` | The policy that makes a move ONE `Move` instruction. |
+
+Node rules the helpers cannot check for you:
+
+- **A move intent is a singleton per source asset.** A second create on the same source asset is a conflict, not an extra path.
+- **Source and destination finId must be equal.** A move converts a position, it does not change who holds it. `executeMoveIntent` builds both accounts from the one `owner`, so this can only break if you reach past it.
+- **Both assets need the same non-empty `financialIdentifier`.** On release-v0.29 only ISIN, ISO4217 and NONE are accepted, so an asset identified by a CUSIP needs an ISIN derived from it before the pair will match.
+- **The seeded default move policy is hold-issue-redeem,** which decomposes a move into three instructions. A plan that should be a single Move needs `createMovePolicy`.
+
+Two details worth knowing:
+
+- **`executeMoveIntent` uses `generateNonce()`, not `hexNonce()`.** The spec's `nonce` is 32 bytes, 24 random plus an 8-byte big-endian epoch-seconds tail. `hexNonce()` is 16 random bytes with no timestamp. Every older execute helper in this file uses `hexNonce()` and the node has not enforced the constraint on them, so they were left alone rather than changed under working flows &mdash; but new helpers follow the spec.
+- **`createMovePolicy`'s default instruction is the body a release-v0.29 node accepts,** confirmed end to end against a live node. Two things in it are load-bearing and were wrong in `0.29.2-rc.1`:
+  - **No `executors`.** An instruction carrying both `target` and `executors` is refused with `1300 instruction 1 cannot have both target and executors defined`, and the target is what scopes this one.
+  - **`target.version: 'v1'`.** Optional in the schema, present on the policy the node accepted.
+  - `failed` rather than `halted` on failure is deliberate: a conversion is atomic, so nothing is parked to unwind, and `halted` belongs to a Hold.
+- **`priority` is required and has no default.** It must be unique among a node's policies for the same intent; a duplicate is refused with `4101`. Any fixed default therefore works exactly once per node and then collides, which is why there is none. Use a value above 1000 to outrank the seeded hold-issue-redeem policy. It is checked at runtime as well as in the type, because this package is consumed from JavaScript suites where the type is invisible.
+- **The smoke test asserts the default instruction WHOLE, not field by field.** Both rc.1 bugs were in fields no partial assertion was looking at. A recording server can only check the bytes against what you believed; it cannot tell you the node disagrees. Anything new that only a real node can reject belongs in E2E's run, not here.
+  - **Scope the policy with a tight `assetMatchingCriteria` name regexp.** A broad one turns every move on the node into a single `Move`, including ones that wanted hold-issue-redeem.
+  - **Adapter capabilities, once finp2p-core #2853 lands.** A policy then attaches only if the adapter's capability list covers its instructions, and a move is checked on **both** sides, source and destination. An adapter reporting no list is read as supporting the full instruction set, so an adapter that has not adopted the capability API keeps attaching everything; an explicit empty list means nothing attaches. The list is served by the adapter over the DLT adapter API (optional `capabilities` on the create-asset response, plus `POST /assets/getCapabilities`), not on a ledger binding or a registration template. Entries are `{instruction: 'INSTRUCTION_MOVE', contracts?: [...]}`; `INSTRUCTION_AWAIT` is rejected. #2853 also moves the router's default protocol version from 3 to 4.
+
+**`OpRequestBody` used to resolve to `never`** for any path whose `requestBody` is optional in the generated types (`requestBody?:`), which silently made `createPolicy` uncallable with any body at all. It now infers through the optional. If a client method takes a body and TypeScript insists the argument is `never`, that is the bug to look for.
+
 ### Repo agreements (`src/repo/`)
 
 `RepoAgreementsClient` &mdash; the router's repo facade, mirroring `io.ownera.finp2p.repo.RepoAgreementsClient` in the Java SDK. A standing agreement is proposed once and every later trade cites its id.
