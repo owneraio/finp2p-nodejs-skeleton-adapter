@@ -207,11 +207,85 @@ export const RECEIPT_PROOF_TYPES = {
 
 export type EIP712TypeDefinition = { name?: string; fields?: Array<{ name: string; type: string }> };
 
+/** Keyed by the router's own symbol, so a struct named `definitions` can't
+ *  shadow the declaration. Read it with {@link eip712Definitions}. */
+export const EIP712_DEFINITIONS = Symbol.for('finp2p.eip712.definitions');
+
 /** Map keyed by type name, the shape ethers wants (EIP712Domain excluded).
- *  `definitions` is the router's list verbatim, EIP712Domain included, and is
- *  non-enumerable so Object.keys/JSON/ethers never see it. */
+ *  The router's declaration hangs off {@link EIP712_DEFINITIONS}, and off a
+ *  non-enumerable `definitions` alias when no struct claims that name. Both are
+ *  invisible to Object.keys/JSON/ethers — which also means JSON.stringify drops
+ *  them, so a replayed operation arrives with the map alone and the declaration
+ *  is rebuilt by {@link rehydrateEip712Definitions}. */
 export type EIP712Types = Record<string, Array<{ name: string; type: string }>> & {
   readonly definitions?: ReadonlyArray<EIP712TypeDefinition>;
+  readonly [EIP712_DEFINITIONS]?: ReadonlyArray<EIP712TypeDefinition>;
+};
+
+/** The router's declaration, EIP712Domain included, however it was attached. */
+export const eip712Definitions = (types: EIP712Types): ReadonlyArray<EIP712TypeDefinition> | undefined => {
+  const viaSymbol = (types as any)[EIP712_DEFINITIONS];
+  if (viaSymbol) {
+    return viaSymbol;
+  }
+  // Only the non-enumerable alias counts. An enumerable `definitions` is a
+  // struct the message declared, and its value is a field list, not a
+  // declaration — which is what survives a JSON round trip.
+  const alias = Object.getOwnPropertyDescriptor(types, 'definitions');
+  return alias && !alias.enumerable && Array.isArray(alias.value) ? alias.value : undefined;
+};
+
+/** Canonical EIP-712 domain fields, in order. The domain type lists exactly the
+ *  members the domain carries, so the declaration is derived from the domain
+ *  rather than assumed — the router sends subsets. */
+const EIP712_DOMAIN_FIELDS: Array<{ name: string; type: string }> = [
+  { name: 'name', type: 'string' },
+  { name: 'version', type: 'string' },
+  { name: 'chainId', type: 'uint256' },
+  { name: 'verifyingContract', type: 'address' },
+  { name: 'salt', type: 'bytes32' },
+];
+
+const eip712DomainDefinition = (domain: Record<string, unknown>): EIP712TypeDefinition => ({
+  name: 'EIP712Domain',
+  fields: EIP712_DOMAIN_FIELDS.filter(f => domain[f.name] !== undefined),
+});
+
+export const attachEip712Definitions = (
+  map: EIP712Types, definitions: ReadonlyArray<{ name?: string; fields?: any }>,
+): EIP712Types => {
+  const frozen = Object.freeze(definitions.map(d => Object.freeze({ ...d })));
+  Object.defineProperty(map, EIP712_DEFINITIONS, {
+    value: frozen, enumerable: false, writable: false, configurable: false,
+  });
+  // Only when no struct owns the name — defining it otherwise would hide that
+  // struct from ethers, which is the collision this symbol exists to avoid.
+  if (!Object.prototype.hasOwnProperty.call(map, 'definitions')) {
+    Object.defineProperty(map, 'definitions', {
+      value: frozen, enumerable: false, writable: false, configurable: false,
+    });
+  }
+  return map;
+};
+
+/**
+ * Re-attach a declaration lost to JSON.stringify, rebuilding it from the map's
+ * own keys. Order follows the map, with EIP712Domain first when `domain` is
+ * given — its members are read off the domain, since the router sends subsets
+ * and inventing absent ones would change the domain type hash. Without a
+ * domain the entry is omitted rather than guessed.
+ */
+export const rehydrateEip712Definitions = (
+  map: EIP712Types, domain?: Record<string, unknown>,
+): EIP712Types => {
+  if (eip712Definitions(map)) {
+    return map;
+  }
+  const structs = Object.keys(map).map(name => ({
+    name, fields: map[name] as Array<{ name: string; type: string }>,
+  }));
+  return attachEip712Definitions(
+    map, domain ? [eip712DomainDefinition(domain), ...structs] : structs);
 };
 
 export interface EIP712Message {
