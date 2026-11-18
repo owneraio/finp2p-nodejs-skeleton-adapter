@@ -184,6 +184,12 @@ async function checkCreateMovePolicy() {
     assert.deepEqual(body.settlementStrategy, ['NOSETTLEMENT']);
     assert.equal(body.instructions.length, 1, 'one Move, not hold-issue-redeem');
     assert.equal(body.instructions[0].instruction, 'Move');
+    assert.equal(body.instructions[0].sequence, 1);
+    // completed/failed, both confirmed on a live node. `halted` would be wrong:
+    // a conversion is atomic, so there is nothing parked to resume.
+    assert.deepEqual(body.instructions[0].onSuccess, { type: 'status', status: 'completed' });
+    assert.deepEqual(body.instructions[0].onFailure, { type: 'status', status: 'failed' });
+    assert.equal(body.priority, 5000, 'priority that beat the seeded default');
     assert.deepEqual(body.instructions[0].target.selectors, [
       { type: 'asset', path: MOVE_SOURCE_ASSET_PATH },
     ]);

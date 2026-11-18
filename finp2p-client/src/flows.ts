@@ -1292,11 +1292,8 @@ export interface MovePolicyParams {
   priority?: number;
   isDefault?: boolean;
   assetMatchingCriteria?: OpComponents['schemas']['assetMatchingCriteria'];
-  /**
-   * Replace the single-Move instruction graph wholesale. Supply this when the
-   * default below is not what your node expects; see the warning on
-   * {@link createMovePolicy}.
-   */
+  /** Replace the single-Move instruction graph wholesale. Rarely needed now that
+   *  the default is confirmed; kept for nodes that want a different graph. */
   instructions?: OpComponents['schemas']['instruction'][];
 }
 
@@ -1306,14 +1303,25 @@ export interface MovePolicyParams {
  * You need this because the seeded default move policy is hold-issue-redeem,
  * which decomposes a move into three instructions instead of one.
  *
- * **One caveat, and it is the reason this helper takes an `instructions`
- * escape hatch.** `intent: 'moveIntent'`, `settlementStrategy:
- * ['NOSETTLEMENT']` and {@link MOVE_SOURCE_ASSET_PATH} are confirmed against a
- * working node. The instruction's transition graph (`onSuccess`, and the
- * absence of `onFailure`/`onTimeout`) is NOT: there is no reference policy in
- * this repo or in the API spec to copy it from, so the default below is
- * inferred. Verify the first plan it produces reaches Completed, and pass
- * `instructions` if your node wants a different graph.
+ * The whole body is confirmed against a working node (policy `9672b296` on a
+ * release-v0.29 deployment, which produced two plans that reached Completed as
+ * a single `MoveInstruction`, chosen over the seeded default): the intent type,
+ * `settlementStrategy: ['NOSETTLEMENT']`, {@link MOVE_SOURCE_ASSET_PATH},
+ * `priority`, and the completed/failed transition pair.
+ *
+ * `failed` rather than `halted` on failure is deliberate. A conversion is
+ * atomic, so there is nothing to unwind and nothing for an operator to resume;
+ * `halted` belongs to a Hold, which leaves tokens parked.
+ *
+ * Two things to get right that this helper cannot check:
+ *
+ * - **Scope it.** Pass an `assetMatchingCriteria` with a tight name regexp. A
+ *   broad one turns EVERY move on the node into a single `Move`, including the
+ *   ones that wanted hold-issue-redeem.
+ * - **The source asset's adapter must advertise `MOVE`.** Once finp2p-core
+ *   #2853 lands, a policy attaches to an asset only if that asset's adapter
+ *   capability list covers the policy's instructions, so a correct policy on an
+ *   asset served by an adapter without `MOVE` will silently not attach.
  */
 export async function createMovePolicy(
   client: FinP2PClient,
@@ -1325,11 +1333,15 @@ export async function createMovePolicy(
     executors: ['self'],
     target: { selectors: [{ type: 'asset', path: MOVE_SOURCE_ASSET_PATH }] },
     onSuccess: { type: 'status', status: 'completed' },
+    onFailure: { type: 'status', status: 'failed' },
   }];
 
   const result = await client.createPolicy({
     policyId: params.policyId,
-    priority: params.priority ?? 1,
+    // 5000 is the value on the confirmed-working policy. The spec documents no
+    // ordering for this field beyond a 1000000 ceiling, so this is copied from
+    // what beat the seeded default rather than reasoned from first principles.
+    priority: params.priority ?? 5000,
     intent: 'moveIntent',
     description: params.description ?? 'Single Move instruction, no settlement',
     ...(params.isDefault !== undefined ? { isDefault: params.isDefault } : {}),
