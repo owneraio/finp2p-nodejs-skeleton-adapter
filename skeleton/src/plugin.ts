@@ -8,6 +8,9 @@
  */
 export {
   // Plugin interfaces
+  PluginLifecycle,
+  AccountClaimPlugin,
+  AccountClaimResult,
   AssetCreationPlugin,
   PlanApprovalPlugin,
   PaymentsPlugin,
@@ -22,6 +25,7 @@ export {
 
 export {
   // Domain types used by plugin method signatures
+  AccountChallenge,
   Asset,
   DepositAsset,
   DepositOperation,
@@ -31,9 +35,14 @@ export {
   PlanApprovalStatus,
   ExecutionPlan,
   ReceiptOperation,
+  NetworkAccount,
   Signature,
   Source,
 } from './models/model';
+
+export {
+  Logger,
+} from './models/logger';
 
 export {
   BusinessError,

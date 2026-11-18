@@ -91,13 +91,52 @@ Default implementations that adapter developers can extend or replace:
 
 - **`plan/service.ts`** &mdash; `PlanApprovalServiceImpl` &mdash; default plan approval that auto-approves if no FinP2P client is configured. When a client is available, fetches the execution plan from the router and validates instructions via plugins. Proposal endpoints (cancel/reset/instruction) default to auto-approve.
 - **`payments/payments.ts`** &mdash; `PaymentsServiceImpl` &mdash; delegates deposit/payout to plugins (sync or async variants). Returns failure if no plugin is registered.
-- **`accounts/service.ts`** &mdash; `NetworkAccountServiceImpl` &mdash; investor account onboarding, **sync trust model**: the caller-supplied wallet is recorded as-is over a `NetworkAccountStore`, no ownership challenge (same trust the old finId&rarr;wallet mapping API extended). Optional `NetworkAccountValidator` hook for ledger address-shape checks. One binding per investor per (organizationId, assetId), keyed by the investor's `finId` carried on the request (required in the OAS): a repeat create for the same finId replays the recorded binding (even with a different wallet &mdash; changing wallets is remove + create). The same address may still be bound by many investors (omnibus &mdash; one shared wallet, many investors). Both methods are single-call and terminal &mdash; safe to wrap in `createServiceProxy`. The wallet also still arrives per operation on the instruction leg (`Source.account` / `Destination.account`). Challenge-based onboarding (signatureTemplate/walletConnect/deposit/fireblocksApproval, still present in the API spec) is deliberately not modeled &mdash; business requirements are unclear; add it when they firm up.
+- **`accounts/service.ts`** &mdash; `NetworkAccountServiceImpl` &mdash; investor account onboarding, **sync trust model**: the caller-supplied wallet is recorded as-is over a `NetworkAccountStore`, no ownership challenge (same trust the old finId&rarr;wallet mapping API extended). Optional `NetworkAccountValidator` hook for ledger address-shape checks. One binding per investor per (organizationId, assetId), keyed by the investor's `finId` carried on the request (required in the OAS): a repeat create for the same finId replays the recorded binding (even with a different wallet &mdash; changing wallets is remove + create). The same address may still be bound by many investors (omnibus &mdash; one shared wallet, many investors). Both methods are single-call and terminal &mdash; safe to wrap in `createServiceProxy`. The wallet also still arrives per operation on the instruction leg (`Source.account` / `Destination.account`). An optional `AccountClaimPlugin` replaces that trust with a link checked against an external authority &mdash; see **Account claim** below. Challenge-based onboarding (signatureTemplate/walletConnect/deposit/fireblocksApproval, present in the API spec) is declared in the types but not yet delivered; see phase 2 below.
 - **`proof/provider.ts`** &mdash; `ProofProvider` &mdash; generates cryptographic proofs (EIP-712 or hash-list) for receipts, fetching proof policies from the FinP2P node.
 - **`verify.ts`** &mdash; Signature verification utilities.
 
 ### Plugin system (`src/plugins/`)
 
-- **`manager.ts`** &mdash; `PluginManager` &mdash; registry for optional plugins: asset creation, plan approval, payments, and transaction hooks. Each plugin slot supports sync or async variants via `Plugin<S, A>`.
+- **`manager.ts`** &mdash; `PluginManager` &mdash; registry for optional plugins: asset creation, plan approval, payments, plan analysis, and account claim.
+
+#### Plugin startup (`PluginLifecycle`)
+
+A plugin that needs a session before it can serve anything &mdash; a service-account login, for instance &mdash; implements `init(logger: Logger): Promise<void>`. `PluginManager.init(logger)` calls it once on every registered plugin that has one, in registration order, and rejects on the first throw.
+
+**The adapter must await `pluginManager.init(logger)` before it starts listening.** The skeleton cannot do this for you: `register()` is handed an Express app that is already constructed and never receives the `PluginManager`, so there is no point inside the skeleton that owns startup. Forget the await and a plugin that needs a session will serve requests without one, failing at the first remote call rather than at boot.
+
+```typescript
+const pluginManager = new PluginManager();
+pluginManager.registerAccountClaimPlugin(new MyClaimPlugin());
+await pluginManager.init(logger);   // a throw here must stop startup
+app.listen(port);
+```
+
+The skeleton never calls `init` a second time. A throw stops startup, so throw only for what will not come right on its own: credentials the remote side rejects, or configuration that cannot be read. A transient problem is the plugin's to absorb &mdash; log it, start anyway, authenticate lazily on first use &mdash; so an outage in one dependency does not take down flows that never touch it. Token refresh, re-authentication and the retry on a 401 all belong to the plugin.
+
+#### Account claim (`AccountClaimPlugin`)
+
+Links an investor's account to its legal entity with an external authority before the binding is recorded. `NetworkAccountValidator` asks whether the skeleton can service an account at all, which is local and about shape; the claim asks whether the account is the investor's to use, which is remote and about identity.
+
+`createAccount` calls `claim(organizationId, assetId, finId, account)` **once, unconditionally, after the validator and before the insert**. Unconditionally because there is no read-before-insert that could tell a first create from a repeat, and adding one would reintroduce the race that `insert()`-returns-existing avoids. A claim must therefore be idempotent and must answer `linked` for an account it has already linked.
+
+| Result | Skeleton behaviour |
+|--------|-------------------|
+| `linked` | Store the binding, as without a plugin. A repeat create replays the stored row. |
+| `refused` | Failed operation carrying the plugin's `code` and `message`. Nothing is stored, **and nothing is removed** &mdash; a refusal on a repeat create never deletes a binding the store already holds. Unbinding is `DELETE /accounts/{accountId}` and nothing else. |
+| `pending` | **Phase 2.** Fails the operation today. |
+| `challenge` | **Phase 2.** Fails the operation today. |
+| no plugin registered | Exactly the previous behaviour. |
+
+Only `code` and `message` reach the node: `networkAccountOperationErrorInformation` in the generated spec is exactly `{ code, message }`. `refused.reason` is for the adapter's own dispatch and logs, so repeat the machine-readable kind in `message` if it needs to survive the wire.
+
+`pending` and `challenge` are declared now so plugins do not change shape later, but they fail rather than store, because recording a binding nobody has proven is the investor's defeats the single thing the claim exists to prevent.
+
+**Phase 2** (not in this release): non-terminal account callbacks, `207` with `AccountOperationChallenge` on create, and `POST /accounts/{cid}/proof` routed to `prove()`. The router API already covers all of it (`networkAccountOperation.challenge`, `expiresInSeconds`, `submitAccountProof`). The cost is skeleton-side: `finalize()` in `workflows/service.ts` does `completeOperation` then exactly one callback, and both results need a callback that reports progress *without* completing the row. `POST /accounts/lookup` (`lookupAccounts`) is also in the spec and still unimplemented.
+
+#### The `/plugin` entry point
+
+Plugin implementations in other repos should import from `@owneraio/finp2p-nodejs-skeleton-adapter/plugin`, a light entry carrying the plugin interfaces, the domain types their signatures use (`NetworkAccount`, `AccountChallenge`, `Asset`, …) and `Logger`. Used with `import type`, it keeps the skeleton a type-only peer dependency. `PluginError`, `BusinessError` and `ValidationError` are runtime classes on that entry &mdash; throwing one makes the dependency real, so return `refused` rather than throwing where the interface offers the choice.
 
 ### Helpers (`src/helpers/`)
 
