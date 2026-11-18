@@ -1289,7 +1289,13 @@ export const MOVE_SOURCE_ASSET_PATH =
 export interface MovePolicyParams {
   policyId: string;
   description?: string;
-  priority?: number;
+  /**
+   * REQUIRED, and must be unique among the policies for this intent ON THIS
+   * NODE: a duplicate is refused with 4101. There is deliberately no default,
+   * because any fixed one works exactly once per node and then collides.
+   * Use something above 1000 to outrank the seeded hold-issue-redeem policy.
+   */
+  priority: number;
   isDefault?: boolean;
   assetMatchingCriteria?: OpComponents['schemas']['assetMatchingCriteria'];
   /** Replace the single-Move instruction graph wholesale. Rarely needed now that
@@ -1303,11 +1309,13 @@ export interface MovePolicyParams {
  * You need this because the seeded default move policy is hold-issue-redeem,
  * which decomposes a move into three instructions instead of one.
  *
- * The whole body is confirmed against a working node (policy `9672b296` on a
- * release-v0.29 deployment, which produced two plans that reached Completed as
- * a single `MoveInstruction`, chosen over the seeded default): the intent type,
- * `settlementStrategy: ['NOSETTLEMENT']`, {@link MOVE_SOURCE_ASSET_PATH},
- * `priority`, and the completed/failed transition pair.
+ * The body is the one a release-v0.29 node accepts, confirmed end to end: two
+ * move intents created, two plans Completed as single `MoveInstruction`s, and
+ * balances synced on both sides.
+ *
+ * `priority` has no default on purpose. It must be unique among the policies
+ * for this intent on the node, so a fixed default works exactly once and then
+ * fails with 4101. Pass something above 1000, unique on that node.
  *
  * `failed` rather than `halted` on failure is deliberate. A conversion is
  * atomic, so there is nothing to unwind and nothing for an operator to resume;
@@ -1332,21 +1340,31 @@ export async function createMovePolicy(
   client: FinP2PClient,
   params: MovePolicyParams,
 ): Promise<void> {
+  // Enforced at runtime, not just in the type: this package is consumed from
+  // JavaScript test suites where the required-ness is invisible, and a silent
+  // fallback here would collide with an existing policy on the node (4101)
+  // rather than fail where the mistake is.
+  if (typeof params.priority !== 'number' || !Number.isFinite(params.priority)) {
+    throw new Error('createMovePolicy requires a numeric `priority`, unique among this intent\'s policies on the node');
+  }
+
+  // Byte-for-byte the instruction from the proven policy. Two things here are
+  // load-bearing and were got wrong once already:
+  //   - NO `executors`. The node refuses an instruction carrying both `target`
+  //     and `executors` with 1300, and a target is what scopes this one.
+  //   - `target.version: 'v1'`. Optional in the schema, present on the policy
+  //     the node accepted.
   const instructions: OpComponents['schemas']['instruction'][] = params.instructions ?? [{
     instruction: 'Move',
     sequence: 1,
-    executors: ['self'],
-    target: { selectors: [{ type: 'asset', path: MOVE_SOURCE_ASSET_PATH }] },
+    target: { version: 'v1', selectors: [{ type: 'asset', path: MOVE_SOURCE_ASSET_PATH }] },
     onSuccess: { type: 'status', status: 'completed' },
     onFailure: { type: 'status', status: 'failed' },
   }];
 
   const result = await client.createPolicy({
     policyId: params.policyId,
-    // 5000 is the value on the confirmed-working policy. The spec documents no
-    // ordering for this field beyond a 1000000 ceiling, so this is copied from
-    // what beat the seeded default rather than reasoned from first principles.
-    priority: params.priority ?? 5000,
+    priority: params.priority,
     intent: 'moveIntent',
     description: params.description ?? 'Single Move instruction, no settlement',
     ...(params.isDefault !== undefined ? { isDefault: params.isDefault } : {}),

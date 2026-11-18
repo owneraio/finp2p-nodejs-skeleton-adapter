@@ -177,19 +177,27 @@ async function checkCreateMovePolicy() {
   try {
     const url = `http://127.0.0.1:${srv.port}`;
     const client = new FinP2PClient(url, url);
-    await createMovePolicy(client, { policyId: 'move-single' });
+    await createMovePolicy(client, { policyId: 'move-single', priority: 5000 });
 
     const { body } = srv.seen[0];
     assert.equal(body.intent, 'moveIntent');
     assert.deepEqual(body.settlementStrategy, ['NOSETTLEMENT']);
     assert.equal(body.instructions.length, 1, 'one Move, not hold-issue-redeem');
-    assert.equal(body.instructions[0].instruction, 'Move');
-    assert.equal(body.instructions[0].sequence, 1);
-    // completed/failed, both confirmed on a live node. `halted` would be wrong:
-    // a conversion is atomic, so there is nothing parked to resume.
-    assert.deepEqual(body.instructions[0].onSuccess, { type: 'status', status: 'completed' });
-    assert.deepEqual(body.instructions[0].onFailure, { type: 'status', status: 'failed' });
-    assert.equal(body.priority, 5000, 'priority that beat the seeded default');
+    assert.equal(body.priority, 5000, 'priority is passed through, never defaulted');
+
+    // The default instruction is asserted WHOLE, not field by field. A node
+    // rejected this body twice for things no partial assertion was looking at:
+    // an `executors` alongside `target` (1300), and a missing `target.version`.
+    // Pinning the entire object is the only form that catches the next one.
+    assert.deepEqual(body.instructions[0], {
+      instruction: 'Move',
+      sequence: 1,
+      target: { version: 'v1', selectors: [{ type: 'asset', path: MOVE_SOURCE_ASSET_PATH }] },
+      onSuccess: { type: 'status', status: 'completed' },
+      onFailure: { type: 'status', status: 'failed' },
+    });
+    assert.ok(!('executors' in body.instructions[0]),
+      'an instruction with both target and executors is refused with 1300');
     assert.deepEqual(body.instructions[0].target.selectors, [
       { type: 'asset', path: MOVE_SOURCE_ASSET_PATH },
     ]);
@@ -207,7 +215,7 @@ async function checkCreateMovePolicyInstructionsOverride() {
     const url = `http://127.0.0.1:${srv.port}`;
     const client = new FinP2PClient(url, url);
     const custom = [{ instruction: 'Move', sequence: 1, onSuccess: { type: 'status', status: 'approved' } }];
-    await createMovePolicy(client, { policyId: 'p', instructions: custom });
+    await createMovePolicy(client, { policyId: 'p', priority: 4000, instructions: custom });
     // The transition graph is the one part of this body that is inferred rather
     // than confirmed, so the escape hatch has to actually replace it.
     assert.deepEqual(srv.seen[0].body.instructions, custom);
@@ -220,8 +228,31 @@ async function checkPolicyErrorSurfaces() {
   try {
     const url = `http://127.0.0.1:${srv.port}`;
     const client = new FinP2PClient(url, url);
-    await assert.rejects(() => createMovePolicy(client, { policyId: 'p' }), /1002/);
+    await assert.rejects(() => createMovePolicy(client, { policyId: 'p', priority: 4000 }), /1002/);
     console.log('  ok  createMovePolicy: a rejected policy throws rather than resolving');
+  } finally { srv.close(); }
+}
+
+async function checkPolicyPriorityIsNeverDefaulted() {
+  const srv = await recordingServer({ policyId: 'p' });
+  try {
+    const url = `http://127.0.0.1:${srv.port}`;
+    const client = new FinP2PClient(url, url);
+    // Priority must be unique per intent on a node (4101 on a duplicate), so a
+    // fixed default would work exactly once per node and then fail. Whatever
+    // the caller passes must arrive untouched, including a value this helper
+    // might be tempted to think too low.
+    for (const priority of [1, 1001, 999999]) {
+      srv.seen.length = 0;
+      await createMovePolicy(client, { policyId: `p-${priority}`, priority });
+      assert.equal(srv.seen[0].body.priority, priority, `priority ${priority} passed through`);
+    }
+    // A JS caller cannot see the type, so omitting priority must fail loudly
+    // here rather than silently reuse a value that collides on the node.
+    srv.seen.length = 0;
+    await assert.rejects(() => createMovePolicy(client, { policyId: 'no-prio' }), /requires a numeric `priority`/);
+    assert.equal(srv.seen.length, 0, 'must not reach the node without a priority');
+    console.log('  ok  createMovePolicy: priority is passed through, never defaulted or clamped');
   } finally { srv.close(); }
 }
 
@@ -234,6 +265,7 @@ async function checkPolicyErrorSurfaces() {
   await checkOrgIdOverride();
   await checkCreateMovePolicy();
   await checkCreateMovePolicyInstructionsOverride();
+  await checkPolicyPriorityIsNeverDefaulted();
   await checkPolicyErrorSurfaces();
   console.log('all assertions passed');
 })().catch((e) => {
