@@ -1504,21 +1504,24 @@ components:
             $ref: '#/components/schemas/contractCapability'
     contractCapability:
       type: 'object'
-      required: ['address']
+      required: ['name', 'address']
       properties:
-        address:
-          type: 'string'
-          description: 'The contract''s address on the asset''s network, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example). The only field used for matching; `eip155` addresses compare in any letter case, any other identifier exactly.'
-          pattern: '.*\S.*'
-          x-autoMinLength: true
         name:
           type: 'string'
-          x-allowEmpty: true
-          description: 'Display only.'
+          description: 'Identifies the contract in the asset''s list. Policies name contracts by it, and the router compares it exactly, letter case included. Within one list a name has one address; a later answer may give it a new one.'
+          pattern: '^[A-Za-z0-9._-]+$'
+          minLength: 1
+          maxLength: 64
+        address:
+          type: 'string'
+          description: 'The contract''s address on the asset''s network, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example). The router reads it from the list when it builds a plan and sends it back as `executionContext.contract`.'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
         description:
           type: 'string'
           x-allowEmpty: true
-          description: 'Display only.'
+          maxLength: 256
+          description: 'Optional, display only.'
         restrictions:
           $ref: '#/components/schemas/contractRestrictions'
     contractRestrictions:

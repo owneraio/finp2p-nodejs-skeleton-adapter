@@ -386,8 +386,9 @@ export type ContractRestrictions = {
 };
 
 export type ContractCapability = {
+  /** identifies the contract within the asset's list: ^[A-Za-z0-9._-]{1,64}$, compared exactly */
+  name: string;
   address: string;
-  name?: string;
   description?: string;
   restrictions?: ContractRestrictions;
 };

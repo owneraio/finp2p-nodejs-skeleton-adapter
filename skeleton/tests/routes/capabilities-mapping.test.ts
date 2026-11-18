@@ -59,12 +59,12 @@ describe('assetCreateResultToAPI capabilities', () => {
       instruction: 'INSTRUCTION_TRANSFER',
       contracts: [
         {
+          name: 'TransferGate',
           address: CONTRACT,
-          name: 'Transfer gate',
           description: 'Limits transfer size',
           restrictions: { minAmount: '1', maxAmount: '1000' },
         },
-        { address: 'custody-api' },
+        { name: 'custody.api', address: 'custody-api' },
       ],
     },
     { instruction: 'INSTRUCTION_ISSUE' },
@@ -75,6 +75,12 @@ describe('assetCreateResultToAPI capabilities', () => {
     { name: 'undefined stays absent', input: undefined, expected: undefined, present: false },
     { name: 'empty list stays empty', input: [], expected: [], present: true },
     { name: 'full list round-trips', input: full, expected: full, present: true },
+    {
+      name: 'name and address survive without optional fields',
+      input: [{ instruction: 'INSTRUCTION_SWAP', contracts: [{ name: 'AllowanceSwap', address: CONTRACT }] }],
+      expected: [{ instruction: 'INSTRUCTION_SWAP', contracts: [{ name: 'AllowanceSwap', address: CONTRACT }] }],
+      present: true,
+    },
   ];
 
   test.each(cases)('$name', ({ input, expected, present }) => {

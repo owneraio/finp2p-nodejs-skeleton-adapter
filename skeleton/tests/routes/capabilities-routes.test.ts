@@ -17,7 +17,7 @@ const body = {
 const listed: InstructionCapability[] = [
   {
     instruction: 'INSTRUCTION_TRANSFER',
-    contracts: [{ address: CONTRACT, name: 'Transfer gate', restrictions: { minAmount: '1' } }, { address: 'custody-api' }],
+    contracts: [{ name: 'TransferGate', address: CONTRACT, restrictions: { minAmount: '1' } }, { name: 'custody.api', address: 'custody-api' }],
   },
   { instruction: 'INSTRUCTION_ISSUE' },
 ];
@@ -25,7 +25,7 @@ const listed: InstructionCapability[] = [
 const expectedListed = [
   {
     instruction: 'INSTRUCTION_TRANSFER',
-    contracts: [{ address: CONTRACT, name: 'Transfer gate', restrictions: { minAmount: '1' } }, { address: 'custody-api' }],
+    contracts: [{ name: 'TransferGate', address: CONTRACT, restrictions: { minAmount: '1' } }, { name: 'custody.api', address: 'custody-api' }],
   },
   { instruction: 'INSTRUCTION_ISSUE' },
 ];

@@ -331,9 +331,9 @@ export const capabilitiesToAPI = (
 ): components['schemas']['instructionCapabilities'][] => list.map(({ instruction, contracts }) => ({
   instruction,
   ...(contracts !== undefined ? {
-    contracts: contracts.map(({ address, name, description, restrictions }) => ({
+    contracts: contracts.map(({ name, address, description, restrictions }) => ({
+      name,
       address,
-      ...(name !== undefined ? { name } : {}),
       ...(description !== undefined ? { description } : {}),
       ...(restrictions !== undefined ? {
         restrictions: {

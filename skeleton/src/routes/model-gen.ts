@@ -781,11 +781,11 @@ export interface components {
       contracts?: components['schemas']['contractCapability'][];
     };
     contractCapability: {
-      /** @description The contract's address on the asset's network, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example). The only field used for matching; `eip155` addresses compare in any letter case, any other identifier exactly. */
+      /** @description Identifies the contract in the asset's list. Policies name contracts by it, and the router compares it exactly, letter case included. Within one list a name has one address; a later answer may give it a new one. */
+      name: string;
+      /** @description The contract's address on the asset's network, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example). The router reads it from the list when it builds a plan and sends it back as `executionContext.contract`. */
       address: string;
-      /** @description Display only. */
-      name?: string;
-      /** @description Display only. */
+      /** @description Optional, display only. */
       description?: string;
       restrictions?: components['schemas']['contractRestrictions'];
     };
