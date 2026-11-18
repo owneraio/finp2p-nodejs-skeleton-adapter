@@ -42,6 +42,30 @@ Two things to know:
 - **`Idempotency-Key` is required** on all four routes &mdash; they are the only application-API routes where it is not optional. The client defaults it to `generateNonce().toString('hex')`; every method takes an optional trailing `idempotencyKey` to override.
 - **`walletAccount.type` must be exactly `'walletAccount'`.** The router compares the adapter's onboarding echo byte-for-byte against the account named on an operation leg, so any other token (e.g. `'wallet'`) causes a spurious 7351 `AccountNotWhitelisted` on every operation after a successful bind.
 
+### Move intents (`src/flows.ts`)
+
+A **move** converts one holder's position from one asset into another. Same beneficial owner on both sides, so there is no counterparty and no settlement leg.
+
+| Helper | Does |
+|--------|------|
+| `createMoveIntent` | `POST /profiles/asset/{sourceAsset.id}/intent` with a `moveIntent`, declaring the migration path (source asset plus the destinations it may convert into). No quantity. |
+| `executeMoveIntent` | `POST /tokens/execute` with a `moveIntentExecution`. Returns the execution plan id. |
+| `createMovePolicy` | The policy that makes a move ONE `Move` instruction. |
+
+Node rules the helpers cannot check for you:
+
+- **A move intent is a singleton per source asset.** A second create on the same source asset is a conflict, not an extra path.
+- **Source and destination finId must be equal.** A move converts a position, it does not change who holds it. `executeMoveIntent` builds both accounts from the one `owner`, so this can only break if you reach past it.
+- **Both assets need the same non-empty `financialIdentifier`.** On release-v0.29 only ISIN, ISO4217 and NONE are accepted, so an asset identified by a CUSIP needs an ISIN derived from it before the pair will match.
+- **The seeded default move policy is hold-issue-redeem,** which decomposes a move into three instructions. A plan that should be a single Move needs `createMovePolicy`.
+
+Two details worth knowing:
+
+- **`executeMoveIntent` uses `generateNonce()`, not `hexNonce()`.** The spec's `nonce` is 32 bytes, 24 random plus an 8-byte big-endian epoch-seconds tail. `hexNonce()` is 16 random bytes with no timestamp. Every older execute helper in this file uses `hexNonce()` and the node has not enforced the constraint on them, so they were left alone rather than changed under working flows &mdash; but new helpers follow the spec.
+- **`createMovePolicy`'s transition graph is inferred, not confirmed.** `intent: 'moveIntent'`, `settlementStrategy: ['NOSETTLEMENT']` and `MOVE_SOURCE_ASSET_PATH` are all confirmed against a working node; the instruction's `onSuccess` is not, because nothing in this repo or in the API spec shows a reference policy. That is why the helper takes an `instructions` escape hatch. Verify the first plan reaches Completed.
+
+**`OpRequestBody` used to resolve to `never`** for any path whose `requestBody` is optional in the generated types (`requestBody?:`), which silently made `createPolicy` uncallable with any body at all. It now infers through the optional. If a client method takes a body and TypeScript insists the argument is `never`, that is the bug to look for.
+
 ### Repo agreements (`src/repo/`)
 
 `RepoAgreementsClient` &mdash; the router's repo facade, mirroring `io.ownera.finp2p.repo.RepoAgreementsClient` in the Java SDK. A standing agreement is proposed once and every later trade cites its id.
