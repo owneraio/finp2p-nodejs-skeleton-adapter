@@ -1,5 +1,6 @@
 export * from './finapi';
 export * from './oss';
+export * from './repo';
 export * from './client';
 export * from './auth';
 export * from './flows';
