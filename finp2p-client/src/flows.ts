@@ -1318,10 +1318,15 @@ export interface MovePolicyParams {
  * - **Scope it.** Pass an `assetMatchingCriteria` with a tight name regexp. A
  *   broad one turns EVERY move on the node into a single `Move`, including the
  *   ones that wanted hold-issue-redeem.
- * - **The source asset's adapter must advertise `MOVE`.** Once finp2p-core
- *   #2853 lands, a policy attaches to an asset only if that asset's adapter
- *   capability list covers the policy's instructions, so a correct policy on an
- *   asset served by an adapter without `MOVE` will silently not attach.
+ * - **Adapter capabilities, once finp2p-core #2853 lands.** A policy then
+ *   attaches only if the adapter's capability list covers its instructions, and
+ *   a move is checked on BOTH sides, source and destination. An adapter that
+ *   reports no list is read as supporting the full instruction set, so an
+ *   adapter which has not adopted the capability API keeps attaching
+ *   everything; an explicit empty list means nothing attaches. The list is
+ *   served by the adapter over the DLT adapter API (optional `capabilities` on
+ *   the create-asset response, plus `POST /assets/getCapabilities`), not set on
+ *   a ledger binding or a registration template.
  */
 export async function createMovePolicy(
   client: FinP2PClient,
