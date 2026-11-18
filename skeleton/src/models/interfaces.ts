@@ -35,7 +35,7 @@ export interface TokenService {
 
   balance(asset: Asset, finId: string): Promise<Balance>;
 
-  /** The asset's current capability list. Optional: when absent the route is not mounted. */
+  /** The asset's current capability list. Optional: when absent the route answers 501. */
   getCapabilities?(asset: Asset): Promise<InstructionCapability[]>;
 
   issue(idempotencyKey: string, asset: Asset, destination: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation>;

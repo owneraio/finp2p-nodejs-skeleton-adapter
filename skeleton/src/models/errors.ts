@@ -84,6 +84,18 @@ export class AccountNotFoundError extends Error {
   }
 }
 
+/** The asset is unknown to this adapter. Mapped to HTTP 404. */
+export class AssetNotFoundError extends Error {
+
+  code: number;
+
+  constructor(message: string, code: number = 0) {
+    super(message);
+    this.name = 'AssetNotFoundError';
+    this.code = code;
+  }
+}
+
 /** A policy refusal, not a fault: the party stays blocked by mechanisms this
  *  deployment does not operate. Mapped to 409, so it is distinguishable from an
  *  outage. Mapped to HTTP 409. */
