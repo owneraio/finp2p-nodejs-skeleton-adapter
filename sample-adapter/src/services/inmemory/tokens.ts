@@ -11,6 +11,7 @@ import {
 import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';
+import { normalizeContractAddress } from './contract-address';
 import {
   generateId,
 } from './utils';
@@ -27,18 +28,18 @@ const TRANSFER_INSTRUCTION = 'INSTRUCTION_TRANSFER';
 const sampleCapabilities = (): InstructionCapability[] => [
   {
     instruction: TRANSFER_INSTRUCTION,
-    contracts: [{
-      name: 'SampleTransferGate',
-      address: 'inmemory:transfer-gate',
-      description: 'In-memory transfer gate',
-      restrictions: { minAmount: '1' },
-    }],
+    contracts: [
+      { address: 'inmemory:mock:transfer-gate', addressFormat: 'caip10', restrictions: { minAmount: '1' } },
+      { address: 'https://gate.sample.example/transfer', addressFormat: 'url' },
+    ],
   },
   { instruction: 'INSTRUCTION_ISSUE' },
 ];
 
+// the router sends an address back as listed, or in another spelling of the same contract
 const listsContract = (instruction: string, contract: string): boolean =>
-  sampleCapabilities().some((c) => c.instruction === instruction && c.contracts?.some((k) => k.address === contract));
+  sampleCapabilities().some((c) => c.instruction === instruction && c.contracts?.some((k) =>
+    normalizeContractAddress(k.address, k.addressFormat) === normalizeContractAddress(contract, k.addressFormat)));
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 

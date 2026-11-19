@@ -40,7 +40,8 @@ Note: `tokenService` implements both `TokenService`, `CommonService`, and `Healt
 
 - **`storage.ts`** &mdash; `Storage` &mdash; in-memory maps for assets, accounts, and hold operations. Tracks balances per (finId, assetId) pair.
 - **`accounts.ts`** &mdash; `Account` &mdash; balance tracking with credit/debit operations.
-- **`tokens.ts`** &mdash; `TokenServiceImpl` implements `TokenService`: create asset, issue (mint), transfer, swap (one or both legs, receipts share a transaction id), redeem (burn), balance queries, asset capabilities (`getCapabilities`, also reported when an asset is created; every asset lists one transfer gate contract, and a transfer through any other contract address is refused). Generates receipts with optional ledger proofs.
+- **`tokens.ts`** &mdash; `TokenServiceImpl` implements `TokenService`: create asset, issue (mint), transfer, swap (one or both legs, receipts share a transaction id), redeem (burn), balance queries, asset capabilities (`getCapabilities`, also reported when an asset is created; every asset lists two transfer contracts, a caip10 gate and a url service; a transfer through an address that is not one of them, compared after normalizing by format, is refused). Generates receipts with optional ledger proofs.
+- **`contract-address.ts`** &mdash; `normalizeContractAddress` &mdash; the router's comparison form for contract addresses (caip10 lowercased; url scheme and host lowercased, default port dropped, empty path `/`; opaque exact).
 - **`escrow.ts`** &mdash; `EscrowServiceImpl` implements `EscrowService`: hold (escrow funds), release (to destination), rollback (return to source).
 - **`common.ts`** &mdash; `CommonServiceImpl` &mdash; base class providing receipt storage, health checks, and `getReceipt`/`operationStatus` from in-memory transaction log.
 - **`model.ts`** &mdash; `Transaction`, `HoldOperation` &mdash; internal models for building receipts.
