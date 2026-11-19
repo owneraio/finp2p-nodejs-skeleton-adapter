@@ -7,7 +7,7 @@ import { TestFixtures } from './utils/test-fixtures';
 import { ACTOR_NAMES, SCENARIOS } from './utils/test-constants';
 import { generateId } from './utils/utils';
 import {
-  CONTRACT_ADDRESS_FORMATS, isValidContractAddress, normalizeContractAddress, respellContractAddress,
+  CONTRACT_ADDRESS_FORMATS, isValidContractAddress, normalizeContractAddress, respellContractAddress, sameContract,
 } from './utils/contract-address';
 
 type Capabilities = LedgerAPI['schemas']['instructionCapabilities'][];
@@ -18,8 +18,11 @@ const ADDRESS = /^\S(.*\S)?$/;
 const AMOUNT = /^[0-9]+(\.[0-9]+)?$/;
 const TRANSFER = 'INSTRUCTION_TRANSFER';
 
-/** The contract key the router compares: its format and the address normalized by that format. */
-const contractKey = ({ address, addressFormat }: Contract) => `${addressFormat}|${normalizeContractAddress(address, addressFormat)}`;
+/** The address in the form the router compares; one that does not parse stays as written. */
+const comparable = ({ address, addressFormat }: Contract) => normalizeContractAddress(address, addressFormat) ?? address;
+
+/** The contract key the router compares: its format and the normalized address. */
+const contractKey = (contract: Contract) => `${contract.addressFormat}|${comparable(contract)}`;
 
 /** Asserts a capability list follows the adapter API: ids, contract addresses and formats, limits. */
 const expectValidCapabilities = (capabilities: Capabilities) => {
@@ -47,7 +50,7 @@ const expectValidCapabilities = (capabilities: Capabilities) => {
 const normalized = (capabilities: Capabilities) => capabilities.map(({ instruction, contracts }) => ({
   instruction,
   contracts: contracts?.map((contract) => ({
-    ...contract, address: normalizeContractAddress(contract.address, contract.addressFormat),
+    ...contract, address: comparable(contract),
   })),
 }));
 
@@ -151,7 +154,7 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
         // opaque addresses have a single spelling, so there is nothing to compare
         return;
       }
-      expect(normalizeContractAddress(respelled, addressFormat)).toBe(normalizeContractAddress(address, addressFormat));
+      expect(sameContract({ address: respelled, addressFormat }, { address, addressFormat })).toBe(true);
 
       const receipt = await TestHelpers.transferAndGetReceipt(client, await buildTransfer(setup, respelled));
 

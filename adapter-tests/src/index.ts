@@ -8,6 +8,7 @@ import { capabilitiesTests } from './capabilities.test';
 import { LedgerProfile } from './utils/ledger-profile';
 
 export * as callbackServer from './callback-server/server';
+export * as contractAddress from './utils/contract-address';
 export { LedgerProfile, DEFAULT_LEDGER_PROFILE } from './utils/ledger-profile';
 
 export interface AdapterTestConfig {
