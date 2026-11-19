@@ -1504,24 +1504,16 @@ components:
             $ref: '#/components/schemas/contractCapability'
     contractCapability:
       type: 'object'
-      required: ['name', 'address']
+      description: 'A contract the instruction can use, identified by its address and format. Names and descriptions for display come from a data provider, not from this list.'
+      required: ['address', 'addressFormat']
       properties:
-        name:
-          type: 'string'
-          description: 'Identifies the contract in the asset''s list. Policies name contracts by it, and the router compares it exactly, letter case included. Within one list a name has one address; a later answer may give it a new one.'
-          pattern: '^[A-Za-z0-9._-]+$'
-          minLength: 1
-          maxLength: 64
         address:
           type: 'string'
-          description: 'The contract''s address on the asset''s network, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example). The router reads it from the list when it builds a plan and sends it back as `executionContext.contract`.'
-          pattern: '.*\S.*'
+          description: 'The contract''s address, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example), with no leading or trailing spaces. It must be valid for addressFormat. The router stores it as sent, and sends it back unchanged as `executionContext.contract`.'
+          pattern: '^\S(.*\S)?$'
           x-autoMinLength: true
-        description:
-          type: 'string'
-          x-allowEmpty: true
-          maxLength: 256
-          description: 'Optional, display only.'
+        addressFormat:
+          $ref: 'common-external-components.yaml#/components/schemas/contractAddressFormat'
         restrictions:
           $ref: '#/components/schemas/contractRestrictions'
     contractRestrictions:

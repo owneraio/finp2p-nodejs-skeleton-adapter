@@ -9,6 +9,7 @@ const apiContext = (contract?: string): components['schemas']['executionContext'
 });
 
 const CONTRACT = '0xAbC0000000000000000000000000000000000001';
+const CAIP10 = 'eip155:11155111:0xAbC0000000000000000000000000000000000001';
 
 describe('executionContextFromAPI contract', () => {
   const cases: { name: string; input: string | undefined; expected: string | undefined }[] = [
@@ -59,12 +60,12 @@ describe('assetCreateResultToAPI capabilities', () => {
       instruction: 'INSTRUCTION_TRANSFER',
       contracts: [
         {
-          name: 'TransferGate',
-          address: CONTRACT,
-          description: 'Limits transfer size',
+          address: CAIP10,
+          addressFormat: 'caip10',
           restrictions: { minAmount: '1', maxAmount: '1000' },
         },
-        { name: 'custody.api', address: 'custody-api' },
+        { address: 'https://custody.example/api', addressFormat: 'url' },
+        { address: 'custody-api', addressFormat: 'opaque' },
       ],
     },
     { instruction: 'INSTRUCTION_ISSUE' },
@@ -76,9 +77,9 @@ describe('assetCreateResultToAPI capabilities', () => {
     { name: 'empty list stays empty', input: [], expected: [], present: true },
     { name: 'full list round-trips', input: full, expected: full, present: true },
     {
-      name: 'name and address survive without optional fields',
-      input: [{ instruction: 'INSTRUCTION_SWAP', contracts: [{ name: 'AllowanceSwap', address: CONTRACT }] }],
-      expected: [{ instruction: 'INSTRUCTION_SWAP', contracts: [{ name: 'AllowanceSwap', address: CONTRACT }] }],
+      name: 'address and format survive without restrictions',
+      input: [{ instruction: 'INSTRUCTION_SWAP', contracts: [{ address: CAIP10, addressFormat: 'caip10' }] }],
+      expected: [{ instruction: 'INSTRUCTION_SWAP', contracts: [{ address: CAIP10, addressFormat: 'caip10' }] }],
       present: true,
     },
   ];

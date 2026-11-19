@@ -385,11 +385,13 @@ export type ContractRestrictions = {
   maxAmount?: string;
 };
 
+/** caip10: namespace:reference:address; url: absolute URL; opaque: any other identifier, compared exactly */
+export type ContractAddressFormat = 'caip10' | 'url' | 'opaque';
+
 export type ContractCapability = {
-  /** identifies the contract within the asset's list: ^[A-Za-z0-9._-]{1,64}$, compared exactly */
-  name: string;
+  /** valid for addressFormat, no leading or trailing spaces; the router sends it back unchanged as executionContext.contract */
   address: string;
-  description?: string;
+  addressFormat: ContractAddressFormat;
   restrictions?: ContractRestrictions;
 };
 
