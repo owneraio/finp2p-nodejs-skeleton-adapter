@@ -11,7 +11,7 @@ import {
 import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';
-import { normalizeContractAddress } from './contract-address';
+import { sameContract } from './contract-address';
 import {
   generateId,
 } from './utils';
@@ -38,8 +38,8 @@ const sampleCapabilities = (): InstructionCapability[] => [
 
 // the router sends an address back as listed, or in another spelling of the same contract
 const listsContract = (instruction: string, contract: string): boolean =>
-  sampleCapabilities().some((c) => c.instruction === instruction && c.contracts?.some((k) =>
-    normalizeContractAddress(k.address, k.addressFormat) === normalizeContractAddress(contract, k.addressFormat)));
+  sampleCapabilities().some((c) => c.instruction === instruction
+    && c.contracts?.some((k) => sameContract(k, { address: contract, addressFormat: k.addressFormat })));
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
