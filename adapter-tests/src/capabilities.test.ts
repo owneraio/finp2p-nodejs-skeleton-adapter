@@ -6,31 +6,34 @@ import { TestHelpers } from './utils/test-assertions';
 import { TestFixtures } from './utils/test-fixtures';
 import { ACTOR_NAMES, SCENARIOS } from './utils/test-constants';
 import { generateId } from './utils/utils';
+import {
+  CONTRACT_ADDRESS_FORMATS, isValidContractAddress, normalizeContractAddress, respellContractAddress,
+} from './utils/contract-address';
 
 type Capabilities = LedgerAPI['schemas']['instructionCapabilities'][];
+type Contract = LedgerAPI['schemas']['contractCapability'];
 
 const INSTRUCTION_ID = /^INSTRUCTION_[A-Z0-9_]+$/;
-const CONTRACT_NAME = /^[A-Za-z0-9._-]{1,64}$/;
+const ADDRESS = /^\S(.*\S)?$/;
 const AMOUNT = /^[0-9]+(\.[0-9]+)?$/;
 const TRANSFER = 'INSTRUCTION_TRANSFER';
 
-/** Asserts a capability list follows the adapter API: ids, contract names, addresses, limits. */
+/** The contract key the router compares: its format and the address normalized by that format. */
+const contractKey = ({ address, addressFormat }: Contract) => `${addressFormat}|${normalizeContractAddress(address, addressFormat)}`;
+
+/** Asserts a capability list follows the adapter API: ids, contract addresses and formats, limits. */
 const expectValidCapabilities = (capabilities: Capabilities) => {
   const instructions = capabilities.map(({ instruction }) => instruction);
   expect(new Set(instructions).size).toBe(instructions.length);
-  const addressByName = new Map<string, string>();
   for (const { instruction, contracts } of capabilities) {
     expect(instruction).toMatch(INSTRUCTION_ID);
     expect(instruction).not.toBe('INSTRUCTION_AWAIT');
-    for (const { name, address, description, restrictions } of contracts ?? []) {
-      expect(name).toMatch(CONTRACT_NAME);
-      expect(typeof address).toBe('string');
-      expect(address.length).toBeGreaterThan(0);
-      expect(addressByName.get(name) ?? address).toBe(address);
-      addressByName.set(name, address);
-      if (description !== undefined) {
-        expect(typeof description).toBe('string');
-      }
+    const keys = (contracts ?? []).map(contractKey);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const { address, addressFormat, restrictions } of contracts ?? []) {
+      expect(address).toMatch(ADDRESS);
+      expect(CONTRACT_ADDRESS_FORMATS).toContain(addressFormat);
+      expect(isValidContractAddress(address, addressFormat)).toBe(true);
       for (const limit of [restrictions?.minAmount, restrictions?.maxAmount]) {
         if (limit !== undefined) {
           expect(limit).toMatch(AMOUNT);
@@ -40,10 +43,19 @@ const expectValidCapabilities = (capabilities: Capabilities) => {
   }
 };
 
+/** Capabilities with every address in its normalized form, as the router would compare two lists. */
+const normalized = (capabilities: Capabilities) => capabilities.map(({ instruction, contracts }) => ({
+  instruction,
+  contracts: contracts?.map((contract) => ({
+    ...contract, address: normalizeContractAddress(contract.address, contract.addressFormat),
+  })),
+}));
+
 /**
  * Opt-in suite for adapters that report asset capabilities. The adapter lists at least
  * one contract for `INSTRUCTION_TRANSFER` and refuses a transfer whose
- * `executionContext.contract` is not the address of a contract the asset lists.
+ * `executionContext.contract` is not the address of a contract the asset lists, comparing
+ * addresses the way the router does: normalized by format.
  */
 export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
   describe('Asset Capabilities', () => {
@@ -74,7 +86,7 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
     const transferContract = (capabilities: Capabilities) => {
       const contract = capabilities.find(({ instruction }) => instruction === TRANSFER)?.contracts?.[0];
       expect(contract).toBeDefined();
-      return contract!.address;
+      return contract!;
     };
 
     const setupTransfer = async () => {
@@ -101,7 +113,7 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
       expect(capabilities).toBeDefined();
       expect(capabilities!.length).toBeGreaterThan(0);
       expectValidCapabilities(capabilities!);
-      expect(transferContract(capabilities!)).not.toHaveLength(0);
+      expect(transferContract(capabilities!).address).not.toHaveLength(0);
     });
 
     test('getCapabilities returns the list reported at creation', async () => {
@@ -110,7 +122,7 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
       const { capabilities } = await client.tokens.getCapabilities({ asset });
 
       expectValidCapabilities(capabilities);
-      expect(capabilities).toStrictEqual(created.response?.capabilities);
+      expect(normalized(capabilities)).toStrictEqual(normalized(created.response?.capabilities ?? []));
     });
 
     test('getCapabilities for an unknown asset answers 404', async () => {
@@ -123,7 +135,25 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
       const setup = await setupTransfer();
       const { seller, buyer, asset, capabilities } = setup;
 
-      const receipt = await TestHelpers.transferAndGetReceipt(client, await buildTransfer(setup, transferContract(capabilities)));
+      const receipt = await TestHelpers.transferAndGetReceipt(client, await buildTransfer(setup, transferContract(capabilities).address));
+
+      expect(receipt.operationType).toBe('transfer');
+      await client.expectBalance({ finId: seller.finId, asset }, scenario.ISSUED - scenario.AMOUNT);
+      await client.expectBalance({ finId: buyer.finId, asset }, scenario.AMOUNT);
+    });
+
+    test('a transfer through another spelling of a listed address executes', async () => {
+      const setup = await setupTransfer();
+      const { seller, buyer, asset, capabilities } = setup;
+      const { address, addressFormat } = transferContract(capabilities);
+      const respelled = respellContractAddress(address, addressFormat);
+      if (respelled === address) {
+        // opaque addresses have a single spelling, so there is nothing to compare
+        return;
+      }
+      expect(normalizeContractAddress(respelled, addressFormat)).toBe(normalizeContractAddress(address, addressFormat));
+
+      const receipt = await TestHelpers.transferAndGetReceipt(client, await buildTransfer(setup, respelled));
 
       expect(receipt.operationType).toBe('transfer');
       await client.expectBalance({ finId: seller.finId, asset }, scenario.ISSUED - scenario.AMOUNT);
@@ -133,7 +163,7 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
     test('a transfer through an address the asset does not list is refused without moving funds', async () => {
       const setup = await setupTransfer();
       const { seller, buyer, asset } = setup;
-      const request = await buildTransfer(setup, 'inmemory:not-listed');
+      const request = await buildTransfer(setup, `not-listed-${generateId()}`);
 
       const result = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(request));
 

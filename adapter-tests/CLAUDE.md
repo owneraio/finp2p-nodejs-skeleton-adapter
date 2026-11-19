@@ -41,9 +41,11 @@ Opt-in via `runAdapterTests({ swap: true })`. Exercises `POST /assets/swap` with
 
 ### Asset capabilities (`src/capabilities.test.ts`)
 Opt-in via `runAdapterTests({ capabilities: true })`; off by default, so adapters that do not report capabilities run exactly the suites above. For adapters implementing `TokenService.getCapabilities` (requires skeleton &ge; 0.29.5). Covers:
-- create asset returns a valid capability list (instruction ids, contract names `^[A-Za-z0-9._-]{1,64}$`, addresses, amount limits)
-- `POST /assets/getCapabilities` returns the list reported at creation, and answers 404 for an unknown asset
-- a transfer whose `executionContext.contract` is a listed contract's address runs, and one with an unlisted address is refused without moving funds (the router sends the address, not the name)
+- create asset returns a valid capability list (instruction ids, contracts as `address` + `addressFormat` with the address valid for its format and no two contracts of one instruction equal after normalizing, amount limits)
+- `POST /assets/getCapabilities` returns the list reported at creation (addresses compared after normalizing), and answers 404 for an unknown asset
+- a transfer whose `executionContext.contract` is a listed address runs, so does one with another spelling of it (caip10 and url addresses; opaque has one spelling), and one with an unlisted address is refused without moving funds
+
+Contracts have no names. The router stores the address as the adapter sent it, sends it back in `executionContext.contract`, and compares two addresses after normalizing by `addressFormat`: caip10 lowercased; url scheme and host lowercased, default port dropped, empty path `/`; opaque exact (`src/utils/contract-address.ts`).
 
 The adapter must list at least one contract for `INSTRUCTION_TRANSFER` and refuse a contract address its asset does not list. The 501 an adapter without `getCapabilities` answers is covered by the skeleton's own route tests.
 
