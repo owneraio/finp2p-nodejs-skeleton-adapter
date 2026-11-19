@@ -780,13 +780,11 @@ export interface components {
       /** @description Absent or empty when the instruction runs without a contract. */
       contracts?: components['schemas']['contractCapability'][];
     };
+    /** @description A contract the instruction can use, identified by its address and format. Names and descriptions for display come from a data provider, not from this list. */
     contractCapability: {
-      /** @description Identifies the contract in the asset's list. Policies name contracts by it, and the router compares it exactly, letter case included. Within one list a name has one address; a later answer may give it a new one. */
-      name: string;
-      /** @description The contract's address on the asset's network, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example). The router reads it from the list when it builds a plan and sends it back as `executionContext.contract`. */
+      /** @description The contract's address, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example), with no leading or trailing spaces. It must be valid for addressFormat. The router stores it as sent and sends it back as `executionContext.contract`. */
       address: string;
-      /** @description Optional, display only. */
-      description?: string;
+      addressFormat: components['schemas']['contractAddressFormat'];
       restrictions?: components['schemas']['contractRestrictions'];
     };
     /** @description The contract's own amount limits as the ledger reports them. The router stores and shows them and does not enforce them. */
@@ -1022,7 +1020,7 @@ export interface components {
              * @description execution instruction sequence number
              */
       instructionSequenceNumber: number;
-      /** @description The contract the instruction must run through, by its address or service identifier as the asset lists it. Sent only when the router chose one. */
+      /** @description The contract the instruction must run through, its address as the asset's list gives it under the instruction. A SWAP, and a settlement instruction the plan carries once for every leg, carry the first asset's spelling, so compare it with your listed addresses after normalizing both by format. Sent only when the router chose one. */
       contract?: string;
     };
     operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
@@ -1725,6 +1723,11 @@ export interface components {
       /** @description Unique code identifying the denomination asset type */
       code: string;
     };
+    /**
+         * @description How a contract address is written, and so how two addresses are compared. caip10 is a CAIP-10 account id (namespace:reference:address); url is an absolute URL with a scheme; opaque is any other identifier, compared exactly. Two addresses name the same contract when their formats match and they are equal once both are normalized by that format.
+         * @enum {string}
+         */
+    contractAddressFormat: 'caip10' | 'url' | 'opaque';
     /** @description the total number of units */
     amount: string;
     noneAccount: Record<string, never>;

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { register } from '../../src/routes/routes';
 import { AssetNotFoundError, InstructionCapability, TokenService } from '../../src/models';
 
-const CONTRACT = '0xAbC0000000000000000000000000000000000001';
+const CAIP10 = 'eip155:11155111:0xAbC0000000000000000000000000000000000001';
 
 const body = {
   asset: {
@@ -17,7 +17,7 @@ const body = {
 const listed: InstructionCapability[] = [
   {
     instruction: 'INSTRUCTION_TRANSFER',
-    contracts: [{ name: 'TransferGate', address: CONTRACT, restrictions: { minAmount: '1' } }, { name: 'custody.api', address: 'custody-api' }],
+    contracts: [{ address: CAIP10, addressFormat: 'caip10', restrictions: { minAmount: '1' } }, { address: 'custody-api', addressFormat: 'opaque' }],
   },
   { instruction: 'INSTRUCTION_ISSUE' },
 ];
@@ -25,7 +25,7 @@ const listed: InstructionCapability[] = [
 const expectedListed = [
   {
     instruction: 'INSTRUCTION_TRANSFER',
-    contracts: [{ name: 'TransferGate', address: CONTRACT, restrictions: { minAmount: '1' } }, { name: 'custody.api', address: 'custody-api' }],
+    contracts: [{ address: CAIP10, addressFormat: 'caip10', restrictions: { minAmount: '1' } }, { address: 'custody-api', addressFormat: 'opaque' }],
   },
   { instruction: 'INSTRUCTION_ISSUE' },
 ];

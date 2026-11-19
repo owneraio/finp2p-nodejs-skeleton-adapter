@@ -1691,6 +1691,13 @@ components:
       description: 'the total number of units'
       pattern: '^\d+\.?\d*$'
       maxLength: 150
+    contractAddressFormat:
+      type: string
+      description: 'How a contract address is written, and so how two addresses are compared. caip10 is a CAIP-10 account id (namespace:reference:address); url is an absolute URL with a scheme; opaque is any other identifier, compared exactly. Two addresses name the same contract when their formats match and they are equal once both are normalized by that format.'
+      enum:
+        - caip10
+        - url
+        - opaque
     # Conditions
     redemptionIntentConditions:
       properties:
