@@ -146,6 +146,47 @@ describe("Crash recovery tests", () => {
     expect(dbOp.updated_at.getTime()).toBeGreaterThanOrEqual(dbOp.created_at.getTime());
   });
 
+  /**
+   * The routes pass every optional positionally — `issue(ik, asset, dest, qty,
+   * exCtx)` with `exCtx` undefined — and `JSON.stringify` writes `undefined` as
+   * `null` when it is an array element. The stored inputs are that argument
+   * array, so without restoring them a replayed call receives `null` where the
+   * first call received nothing, and every such positional is declared
+   * `| undefined`, not `| null`.
+   */
+  test("an omitted optional argument replays as undefined, not null", async () => {
+    const [, inserted] = await storage.saveOperation({
+      cid: "crash-cid-null",
+      method: "issue",
+      status: "in_progress",
+      // Exactly what the route stores for a call with no execution context.
+      inputs: ["idem-null", "asset-1", "user-1", "100", undefined],
+      outputs: {},
+    });
+    expect(inserted).toBe(true);
+    // The stored bytes really do hold a null — the fix is on the way back in,
+    // so the dedupe key `(method, inputs)` is untouched.
+    expect((await storage.getOperationByCid("crash-cid-null"))!.inputs)
+      .toEqual(["idem-null", "asset-1", "user-1", "100", null]);
+
+    let seen: any[] = [];
+    const service = {
+      async issue(...args: any[]): Promise<OperationStatus> {
+        seen = args;
+        return successfulReceiptOperation(fakeReceipt("receipt-null"));
+      },
+      async operationStatus(_cid: string): Promise<any> {},
+    };
+
+    createServiceProxy(() => Promise.resolve(), storage, finP2PClient, service, "issue");
+
+    await waitForStatus(storage, "crash-cid-null", "succeeded");
+
+    expect(seen).toHaveLength(5);
+    expect(seen[4]).toBeUndefined();
+    expect(seen[4]).not.toBeNull();
+  });
+
   test("operation that fails on recovery is marked as failed", async () => {
     const [inserted] = await storage.saveOperation({
       cid: "crash-cid-1",

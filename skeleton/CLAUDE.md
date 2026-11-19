@@ -66,7 +66,62 @@ Provides **idempotent async operation persistence** backed by PostgreSQL:
   5. Updates the operation status on completion
   6. Optionally sends a callback to the router via `FinP2PClient.sendCallback`
   7. On restart, replays all `in_progress` operations
+
+  The replay rebuilds the stored arguments before calling the method. `JSON.stringify` writes `undefined` as `null` for an *array element*, and the stored inputs are the argument array &mdash; so an omitted optional argument comes back as `null` where the first call passed nothing, and every optional positional on the service interfaces is declared `| undefined`, not `| null`. `replayArgs` restores those top-level nulls to `undefined`; a `null` nested inside an argument was written as a real null and is left alone.
 - **`migrator.ts`** &mdash; Runs database migrations using [goose](https://github.com/pressly/goose) (Go-based migration tool). Migrations are in `migrations/*.sql`.
+
+### Durable sub-steps (`src/storage/steps.ts`)
+
+`createServiceProxy` replays an unfinished operation from the top of the method, which is safe only while every effect is idempotent. `StepExecutor` records each sub-step's outcome, so a replay skips what already completed and resumes at the first step that didn't &mdash; an order submitted, a transaction broadcast. Values pass forward through the stored outcome: `place-order` returns the order reference and `await-settlement` reads it back on the next run.
+
+```ts
+const steps = new PgStepExecutors(pool, schemaName).forScope('wisdomtree');
+const operation = { id: idempotencyKey, method: 'issue' };
+const { orderReference } = await steps.step(operation, 'place-order', request,
+  async (ctx) => placeOrder(request, ctx.token));
+```
+
+- **The host names the scope, never the plugin** &mdash; `forScope()` returns a bound executor, because a plugin that could name its own scope could read another's steps. Scope also disambiguates operation ids, which are not unique on their own (the same reason the `operations` unique index had to become `(method, inputs)`).
+- **A step is identified by (scope, method, operation id, name).** The method is in the key because the operation id is normally the idempotency key, which carries no method &mdash; the same reason the `operations` unique index is `(method, inputs)`. `issue` and `redeem` can therefore arrive under one key, and without the method a step name used by both would be a single step, with the second method reading the first's outcome. Identical inputs hash alike, so `request` would not catch it.
+- **Return vs throw is the contract.** A body that *returns* completes the step, including one returning a failure value &mdash; a 4xx refusal is a final outcome and must not be re-sent. A body that *throws* records nothing and leaves the step open, and the next attempt gets `ctx.priorAttempt`.
+- **`ctx.token`** is stable per (method, operation id, name) across every attempt and restart, for use as a remote idempotency key &mdash; the only thing that closes the window between an effect and its outcome being recorded. It is the first 32 hex digits of the SHA-256, formatted as a UUID. The derivation is a **compatibility commitment, not merely a stable value**: the WisdomTree plugin sends it to Connect as `Idempotency-Key` and Connect keeps a key for hours, so a change would make the resend of an order already in flight look like a new order. Scope is deliberately not an input, because the host deriving it on a retry is not always the one that first sent it. Renaming a step changes it, which is the documented cost of a rename &mdash; and the intended way to handle a step whose request format changes: version the name rather than weaken the mismatch check.
+- **Takeover, not a lease.** Another process's in-flight attempt is left alone for `takeoverAfterMs` (default 2 min) and then taken over, with `priorAttempt` set so a non-idempotent body can reconcile rather than repeat. `0` disables exclusion for read-only bodies such as polling. All comparisons use database time, never the process clock, so replicas with skewed clocks agree.
+- **Completion is first-writer-wins on state**, not on attempt number: whoever records an outcome first keeps it, and a later finisher returns that outcome. Matching on attempt as well would fail both runners when they take the claim from each other, which `takeoverAfterMs: 0` invites. **Release matches on attempt**, for the opposite reason: a throw records nothing, so an attempt that was taken over must not clear the new owner's claim and hand the step to a third runner mid-flight.
+- **Three states, and acquisition is a loop of separate statements.** `running` (an attempt is in flight), `open` (an attempt released it, so the next caller runs at once) and `done`. Acquisition is: insert the row if it has none; else read it under a snapshot of its own; else take it with a compare-and-set on `attempt`. The read cannot be folded into the insert &mdash; `ON CONFLICT` re-reads the index while a `SELECT` beside it answers from the statement's older snapshot, and the two disagree in both directions, both observed in CI: no row returned at all, and a finished row reported busy, discarding an outcome already stored. Losing the compare-and-set means another caller took the step, so the loop goes round rather than running alongside it; exhausting the turns raises a *retryable* `StepBusyError` rather than spinning.
+- **The request hash is shared with the plugin host in generic-custody-adapter**, byte for byte, with the same vectors pinned in both test suites. Keys sort by code point (never by locale &mdash; collation depends on how Node was built, so two replicas could disagree); an object member that is `null` or `undefined` is dropped, because the proxy replays arguments stored as JSON where an omitted optional returns as `null`; an array element keeps its `null`, since dropping a hole would renumber the array.
+- **Outcomes are JSON.** `undefined`, `Date`, `BigInt`, `Map` and non-enumerable properties do not survive the round trip &mdash; return plain JSON-safe values.
+
+### Durable flows (`src/workflows/durable.ts`)
+
+`StepExecutor` makes one effect survive a replay. A method with several effects had to hand-wire a `step()` call per effect, a try/catch around each, and a mapping from `STEP_BUSY`/`STEP_REQUEST_MISMATCH` to results. `durable` declares the blocks once and does that in one place.
+
+```ts
+const issue = durable<IssueInput, TokenOperationResult>('issue', (op) => {
+  const order = op.block('resolve-order', { takeoverAfterMs: 0 },
+    ({ input, refuse }) => resolveOrder(input) ?? refuse('no such asset'));
+  const placed = op.block('place-order',
+    ({ get, token, priorAttempt }) => priorAttempt
+      ? findOrder(get(order))          // reconcile, do not place again
+      : connect.createOrder(get(order), token));
+  return op.block('await-settlement', { takeoverAfterMs: 0 },
+    ({ get }) => awaitSettlement(get(placed)));
+});
+
+const outcome = await issue.run(steps, { id: operationId, request, input });
+```
+
+- **The declaration runs once**, when `durable()` is called &mdash; not per execution. `op.block` returns a `Handle` and a later block redeems it with `get`, because at declaration time there is no value to pass. So a flow is a fixed list of blocks in a fixed order, which is what makes a resume comprehensible. **A block cannot be declared conditionally**; a flow that needs to skip work has the block return a sentinel, so the decision is itself recorded. The two-leg swap in `tests/workflows/durable.test.ts` shows the shape: the revert cannot be a failure-path-only block, so the settlement block returns whether it settled and a final block acts on that.
+- **A block name is its step name, permanently**, so it feeds `ctx.token`. Renaming a block changes the remote idempotency key, which for an order in flight means placing it twice. Nothing derives a name from a function name, a variable name or a position &mdash; deliberately, so that a refactor cannot change a token.
+- **`run()` is the resume.** Calling it again walks the same blocks; completed ones return their rows without running, and the first unfinished one runs with `priorAttempt` set if an earlier attempt was taken over. There is no separate resume path.
+- **Two ways to end early.** `stop(result)` is stored as the block's outcome, so every replay ends the same way &mdash; for a venue's refusal or a 409. `refuse(reason)` ends this call and stores nothing, so a retry runs the block again &mdash; for a condition an operator can fix, such as a missing asset. **`refuse` is only safe in a block that has had no effect yet**, since the retry repeats whatever the body already did.
+- **`request` is passed to `run()` explicitly** and never defaults to `input`. An existing deployment hashes a particular shape (the WisdomTree plugin hashes a flat `side|token|wallet|amount` string); changing it would make every stored block report a mismatch.
+- **A block stores its value bare; only a `stop` is wrapped.** An ordinary block's row is byte-for-byte what a direct `step()` call would have written, so a release using flows can be rolled back to one that does not, and `stored()` or an operator's query finds the fields where they have always been. A stop has to carry a marker because nothing in a value says it ended the flow — and a stop is terminal, so the whole of the incompatibility is "an older release cannot read a stopped row".
+- **Adding a block in front of existing ones runs it on resume.** An operation that started before the block existed has no row for it, so a resume runs it first, after the later blocks have already had their effects. If the new block can refuse or has an effect, adopt it only once no operation predating it is in flight.
+- **Import it from the subpath when you do not want the runtime.** `@owneraio/finp2p-nodejs-skeleton-adapter/durable` loads the runner and the step interfaces and nothing else — no Express, pg, winston, keccak or secp256k1, so no native builds. `tests/workflows/durable-imports.test.ts` guards that; the root entry point exports the same things for an adapter that has the whole skeleton loaded anyway. The default logger discards, deliberately, so **pass `run.logger`** — the one thing it records is which block a resume started at.
+
+`ResourceClaims` is deliberately separate: it expresses uniqueness spanning operations (one ledger burn settling one redemption), carries no outcome and is never replayed. It is scope-bound the same way &mdash; `new PgResourceClaims(pool, schemaName).forScope('wisdomtree')`.
+
+Both tables are created by `migrations/20261104090000_add_operation_steps.sql` with `CREATE TABLE IF NOT EXISTS`, because an adapter embedding its own plugin host creates the same two tables from its own migration and either may run first. **The columns must match that migration exactly**, in both repositories.
 
 ### Service defaults (`src/services/`)
 
