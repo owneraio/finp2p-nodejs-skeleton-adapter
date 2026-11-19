@@ -39,12 +39,20 @@ Validates error handling when operations exceed available balances.
 ### Swap operations (`src/swap-operations.test.ts`)
 Opt-in via `runAdapterTests({ swap: true })`. Exercises `POST /assets/swap` with `numberOfReceipts` 2 (both legs, two receipts sharing one `transactionId`) and 1 (asset leg only), cross-org bindings (each account carries its holder's org resource id; receipts echo the counterparty id on the side it holds &mdash; destination on the sent leg, source on the received one; requires skeleton &ge; 0.29.1), plus deadline rejection.
 
+### Asset capabilities (`src/capabilities.test.ts`)
+Opt-in via `runAdapterTests({ capabilities: true })`; off by default, so adapters that do not report capabilities run exactly the suites above. For adapters implementing `TokenService.getCapabilities` (requires skeleton &ge; 0.29.5). Covers:
+- create asset returns a valid capability list (instruction ids, contract names `^[A-Za-z0-9._-]{1,64}$`, addresses, amount limits)
+- `POST /assets/getCapabilities` returns the list reported at creation, and answers 404 for an unknown asset
+- a transfer whose `executionContext.contract` is a listed contract's address runs, and one with an unlisted address is refused without moving funds (the router sends the address, not the name)
+
+The adapter must list at least one contract for `INSTRUCTION_TRANSFER` and refuse a contract address its asset does not list. The 501 an adapter without `getCapabilities` answers is covered by the skeleton's own route tests.
+
 ## Test infrastructure
 
 ### API client (`src/api/`)
 
 - **`api.ts`** &mdash; Typed HTTP client classes mirroring the DLT adapter API:
-  - `TokensLedgerAPI` &mdash; create, issue, redeem, transfer
+  - `TokensLedgerAPI` &mdash; create, issue, redeem, transfer, swap, getCapabilities
   - `EscrowLedgerAPI` &mdash; hold, release, rollback
   - `PaymentsLedgerAPI` &mdash; deposit instruction, payout
   - `PlanLedgerAPI` &mdash; approve, proposal, proposal status
