@@ -5,7 +5,7 @@ import {
   Balance, BusinessError, Destination,
   LedgerAssetIdentifier, ReceiptOperation, Source, failedAssetCreation, successfulAssetCreation, successfulReceiptOperation,
   TokenService,
-  Asset, ExecutionContext,
+  Asset, ExecutionContext, AssetNotFoundError, InstructionCapability, failedReceiptOperation,
   Signature, SwapLeg, SwapOperation, failedSwapOperation, successfulSwapOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
@@ -20,6 +20,25 @@ const SUPPORTED_STANDARD = 'mock';
 
 /** LedgerBindingNotSupportedErr — the ledger does not support the requested network/standard. */
 const LEDGER_BINDING_NOT_SUPPORTED = 7311;
+
+const TRANSFER_INSTRUCTION = 'INSTRUCTION_TRANSFER';
+
+/** Every sample asset lists the same capabilities: transfers run through one in-memory gate. */
+const sampleCapabilities = (): InstructionCapability[] => [
+  {
+    instruction: TRANSFER_INSTRUCTION,
+    contracts: [{
+      name: 'SampleTransferGate',
+      address: 'inmemory:transfer-gate',
+      description: 'In-memory transfer gate',
+      restrictions: { minAmount: '1' },
+    }],
+  },
+  { instruction: 'INSTRUCTION_ISSUE' },
+];
+
+const listsContract = (instruction: string, contract: string): boolean =>
+  sampleCapabilities().some((c) => c.instruction === instruction && c.contracts?.some((k) => k.address === contract));
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
@@ -51,7 +70,14 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     const ledgerIdentifier: LedgerAssetIdentifier = { assetIdentifierType: 'CAIP-19', network, tokenId, standard };
     const asset: Asset = { assetId, assetType: 'finp2p', ledgerIdentifier };
     this.storage.createAsset(assetId, asset);
-    return successfulAssetCreation({ ledgerIdentifier, reference: undefined });
+    return successfulAssetCreation({ ledgerIdentifier, reference: undefined, capabilities: sampleCapabilities() });
+  }
+
+  public async getCapabilities(asset: Asset): Promise<InstructionCapability[]> {
+    if (!this.storage.hasAsset(asset.assetId)) {
+      throw new AssetNotFoundError(`Asset ${asset.assetId} not found`);
+    }
+    return sampleCapabilities();
   }
 
   public async balance(asset: Asset, finId: string): Promise<Balance> {
@@ -85,6 +111,11 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
+
+    // the router sends back the address of a contract the asset lists; anything else is refused
+    if (exCtx?.contract !== undefined && !listsContract(TRANSFER_INSTRUCTION, exCtx.contract)) {
+      return failedReceiptOperation(1, `contract ${exCtx.contract} is not listed for ${TRANSFER_INSTRUCTION}`);
+    }
 
     this.storage.move(source.finId, destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source, destination, exCtx, 'transfer', undefined);
@@ -126,10 +157,8 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     if (numberOfReceipts === 1) {
       return successfulSwapOperation(await this.proven(assetTx));
     }
-    // receiptToAPI reads counterpartyAssetId for the destination asset; the settlement leg sees them swapped
-    const settlementExCtx = exCtx && {
-      ...exCtx, counterpartyAssetId: exCtx.counterpartySettlementId, counterpartySettlementId: exCtx.counterpartyAssetId,
-    };
+    // the settlement leg arrives here, so its receipt carries the counterparty binding on the source
+    const settlementExCtx = exCtx && { ...exCtx, direction: 'inbound' as const };
     const settlementTx = new Transaction(settlement.quantity, settlement.asset, settlement.source, settlement.destination, settlementExCtx, 'swap', operationId, assetTx.id);
     this.storage.registerTransaction(settlementTx);
     return successfulSwapOperation(await this.proven(assetTx), await this.proven(settlementTx));

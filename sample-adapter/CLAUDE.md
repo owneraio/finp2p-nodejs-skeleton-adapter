@@ -40,7 +40,7 @@ Note: `tokenService` implements both `TokenService`, `CommonService`, and `Healt
 
 - **`storage.ts`** &mdash; `Storage` &mdash; in-memory maps for assets, accounts, and hold operations. Tracks balances per (finId, assetId) pair.
 - **`accounts.ts`** &mdash; `Account` &mdash; balance tracking with credit/debit operations.
-- **`tokens.ts`** &mdash; `TokenServiceImpl` implements `TokenService`: create asset, issue (mint), transfer, swap (one or both legs, receipts share a transaction id), redeem (burn), balance queries. Generates receipts with optional ledger proofs.
+- **`tokens.ts`** &mdash; `TokenServiceImpl` implements `TokenService`: create asset, issue (mint), transfer, swap (one or both legs, receipts share a transaction id), redeem (burn), balance queries, asset capabilities (`getCapabilities`, also reported when an asset is created; every asset lists one transfer gate contract, and a transfer through any other contract address is refused). Generates receipts with optional ledger proofs.
 - **`escrow.ts`** &mdash; `EscrowServiceImpl` implements `EscrowService`: hold (escrow funds), release (to destination), rollback (return to source).
 - **`common.ts`** &mdash; `CommonServiceImpl` &mdash; base class providing receipt storage, health checks, and `getReceipt`/`operationStatus` from in-memory transaction log.
 - **`model.ts`** &mdash; `Transaction`, `HoldOperation` &mdash; internal models for building receipts.
@@ -56,7 +56,7 @@ Tests use the shared `@owneraio/adapter-tests` suite:
 ```typescript
 // tests/adapter.test.ts
 import { runAdapterTests } from "@owneraio/adapter-tests";
-runAdapterTests();
+runAdapterTests({ mapping: true, swap: true, capabilities: true, ledger: { network: 'inmemory', standard: 'mock' } });
 ```
 
 The test environment (`tests/test-environment.ts`) starts a PostgreSQL container via testcontainers, runs goose migrations, and starts the sample adapter app.

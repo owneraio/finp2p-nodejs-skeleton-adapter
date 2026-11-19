@@ -24,6 +24,10 @@ export class Storage {
     this.assets[assetId] = asset;
   }
 
+  hasAsset(assetId: string): boolean {
+    return this.assets[assetId] !== undefined;
+  }
+
   checkAssetExists(assetId: string) {
     const asset = this.assets[assetId];
     if (asset === undefined) {
