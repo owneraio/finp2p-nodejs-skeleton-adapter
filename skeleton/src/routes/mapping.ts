@@ -535,11 +535,12 @@ export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas
         error: { code, message },
       };
     case 'success':
-      const { receipt } = op;
+      const { receipt, rollbackType } = op;
       return {
         isCompleted: true,
         cid: '',
-        response: receiptToAPI(receipt),
+        ...(receipt ? { response: receiptToAPI(receipt) } : {}),
+        ...(rollbackType ? { rollbackType } : {}),
       };
   }
 };

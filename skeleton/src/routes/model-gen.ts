@@ -849,6 +849,11 @@ export interface components {
     receiptOperation: components['schemas']['OperationBase'] & {
       error?: components['schemas']['receiptOperationErrorInformation'];
       response?: components['schemas']['receipt'];
+      /**
+             * @description Present only on a rollback's completion, echoing the request's rollbackType. For 'authorize' the completion carries no receipt (response absent) and the router accepts the bare completion; every other receipt operation omits this field and still requires its receipt.
+             * @enum {string}
+             */
+      rollbackType?: 'hold' | 'authorize';
     };
     /**
          * @description Body for `POST /accounts/create`. Single LA-side endpoint covering both create-new
@@ -1097,6 +1102,10 @@ export interface components {
       type: 'swap';
       operation: components['schemas']['swapReceiptOperation'];
     };
+    /**
+         * @description Status of an asynchronous `POST /assets/authorize`: carries the same authorizationProof
+         *     as the synchronous call, so a polled completion returns a proof rather than a receipt.
+         */
     operationStatusAuthorize: {
       /**
              * @description discriminator enum property added by openapi-typescript

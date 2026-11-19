@@ -1652,6 +1652,14 @@ components:
               $ref: '#/components/schemas/receiptOperationErrorInformation'
             response:
               $ref: '#/components/schemas/receipt'
+            rollbackType:
+              type: 'string'
+              enum: ['hold', 'authorize']
+              description: >-
+                Present only on a rollback's completion, echoing the request's rollbackType. For
+                'authorize' the completion carries no receipt (response absent) and the router accepts
+                the bare completion; every other receipt operation omits this field and still requires
+                its receipt.
     # -------- Investor accounts (Phase 1) --------
     CreateAccountRequest:
       type: 'object'

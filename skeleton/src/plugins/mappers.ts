@@ -150,7 +150,7 @@ export const receiptOperationToFinAPI = (operationStatus: ReceiptOperation): OpC
         operation: {
           cid: '',
           isCompleted: true,
-          response: receiptToFinAPI(receipt),
+          ...(receipt ? { response: receiptToFinAPI(receipt) } : {}),
         },
       };
     case 'failure':

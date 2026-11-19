@@ -435,7 +435,12 @@ export type RollbackType = 'hold' | 'authorize';
 export type SuccessReceiptStatus = {
   operation: 'receipt',
   type: 'success';
-  receipt: Receipt;
+  // Absent only for a bare authorize-revert: revoking an allowance moves nothing, so there is no
+  // receipt. Every other successful receipt operation carries one.
+  receipt?: Receipt;
+  // Echoed on a rollback completion. 'authorize' completes with no receipt — the router accepts the
+  // bare completion on this signal rather than requiring a receipt.
+  rollbackType?: RollbackType;
 };
 
 export type FailedReceiptStatus = {
@@ -458,6 +463,14 @@ export const successfulReceiptOperation = (receipt: Receipt): ReceiptOperation =
   operation: 'receipt',
   type: 'success',
   receipt,
+});
+
+// A completed authorize-revert. It carries no receipt — revoking an allowance moves nothing — and
+// echoes rollbackType: 'authorize' so the router accepts the bare completion instead of requiring one.
+export const successfulAuthorizeRevertOperation = (): ReceiptOperation => ({
+  operation: 'receipt',
+  type: 'success',
+  rollbackType: 'authorize',
 });
 
 export const failedReceiptOperation = (code: number, message: string): ReceiptOperation => ({
