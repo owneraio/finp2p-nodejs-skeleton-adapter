@@ -14,7 +14,7 @@ import {
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
   NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
   AccountInvalidShapeError,
-  SwapLeg, SwapOperation,
+  SwapLeg, SwapOperation, InstructionCapability,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -125,12 +125,13 @@ export const executionContextFromAPI = (
   counterpartyAssetId?: string,
   counterpartySettlementId?: string,
 ): ExecutionContext => {
-  const { executionPlanId, instructionSequenceNumber } = ep;
+  const { executionPlanId, instructionSequenceNumber, contract } = ep;
   return {
     planId: executionPlanId,
     sequence: instructionSequenceNumber,
     counterpartyAssetId,
     counterpartySettlementId,
+    ...(contract !== undefined && contract.trim() !== '' ? { contract } : {}),
   };
 };
 
@@ -325,8 +326,27 @@ export const ledgerReferenceOptToAPI = (reference: LedgerReference | undefined):
   return ledgerReferenceToAPI(reference);
 };
 
+export const capabilitiesToAPI = (
+  list: InstructionCapability[],
+): components['schemas']['instructionCapabilities'][] => list.map(({ instruction, contracts }) => ({
+  instruction,
+  ...(contracts !== undefined ? {
+    contracts: contracts.map(({ name, address, description, restrictions }) => ({
+      name,
+      address,
+      ...(description !== undefined ? { description } : {}),
+      ...(restrictions !== undefined ? {
+        restrictions: {
+          ...(restrictions.minAmount !== undefined ? { minAmount: restrictions.minAmount } : {}),
+          ...(restrictions.maxAmount !== undefined ? { maxAmount: restrictions.maxAmount } : {}),
+        },
+      } : {}),
+    })),
+  } : {}),
+}));
+
 export const assetCreateResultToAPI = (result: AssetCreationResult): components['schemas']['assetCreateResponse'] => {
-  const { ledgerIdentifier, reference } = result;
+  const { ledgerIdentifier, reference, capabilities } = result;
   return {
     ledgerAssetInfo: {
       ledgerIdentifier: {
@@ -337,6 +357,7 @@ export const assetCreateResultToAPI = (result: AssetCreationResult): components[
       },
       ledgerReference: ledgerReferenceOptToAPI(reference),
     },
+    ...(capabilities !== undefined ? { capabilities: capabilitiesToAPI(capabilities) } : {}),
   };
 };
 

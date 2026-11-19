@@ -73,6 +73,8 @@ export type ExecutionContext = {
    * settlement receipt's context.
    */
   direction?: 'outbound' | 'inbound'
+  /** the contract the instruction must run through, as the asset lists it; absent when the router chose none */
+  contract?: string
 };
 
 /**
@@ -378,9 +380,29 @@ export const pendingPlan = (correlationId: string, metadata: OperationMetadata |
 
 // -------------------------------------------------------------------
 
+export type ContractRestrictions = {
+  minAmount?: string;
+  maxAmount?: string;
+};
+
+export type ContractCapability = {
+  /** identifies the contract within the asset's list: ^[A-Za-z0-9._-]{1,64}$, compared exactly */
+  name: string;
+  address: string;
+  description?: string;
+  restrictions?: ContractRestrictions;
+};
+
+export type InstructionCapability = {
+  instruction: string;
+  contracts?: ContractCapability[];
+};
+
 export type AssetCreationResult = {
   ledgerIdentifier: LedgerAssetIdentifier;
   reference: LedgerReference | undefined;
+  /** absent: the adapter reports no list (router assumes the full set); empty: supports nothing */
+  capabilities?: InstructionCapability[];
 };
 
 export type SuccessfulAssetCreation = {
