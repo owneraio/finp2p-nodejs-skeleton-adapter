@@ -230,6 +230,7 @@ export class TestDataBuilder {
     amount: number;
     settlementAmount: number;
     settlementAssetCode?: string;
+    executionContext?: LedgerAPI['schemas']['executionContext'];
   }): Promise<LedgerAPI['schemas']['TransferAssetRequest']> {
     const nonce = generateNonce().toString('hex');
     const settlementAssetCode = params.settlementAssetCode || 'USD';
@@ -262,6 +263,7 @@ export class TestDataBuilder {
         } as EIP712SellingMessage,
         params.seller.privateKey,
       ),
+      executionContext: params.executionContext,
     };
   }
 

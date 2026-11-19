@@ -28,6 +28,10 @@ export class TokensLedgerAPI extends ClientBase {
     return this.post('/assets/swap', req);
   }
 
+  public async getCapabilities(req: LedgerAPI['schemas']['GetAssetCapabilitiesRequest']): Promise<LedgerAPI['schemas']['GetAssetCapabilitiesResponse']> {
+    return this.post('/assets/getCapabilities', req);
+  }
+
 }
 
 export class EscrowLedgerAPI extends ClientBase {

@@ -117,4 +117,10 @@ export const SCENARIOS = {
     AMOUNT: 10,
     SETTLEMENT_AMOUNT: 20,
   },
+
+  CAPABILITIES: {
+    ISSUED: 100,
+    AMOUNT: 10,
+    SETTLEMENT_AMOUNT: 20,
+  },
 } as const;
