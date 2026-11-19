@@ -4,6 +4,7 @@ import {
   AccountAlreadyBoundError,
   AccountInvalidShapeError,
   AccountNotFoundError,
+  AssetNotFoundError,
   BusinessError,
   NotSupportedError,
   ValidationError,
@@ -49,6 +50,8 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   } else if (err instanceof AccountInvalidShapeError) {
     return res.status(400).json(apiErrors(err.code, err.message));
   } else if (err instanceof AccountNotFoundError) {
+    return res.status(404).json(apiErrors(err.code, err.message));
+  } else if (err instanceof AssetNotFoundError) {
     return res.status(404).json(apiErrors(err.code, err.message));
   } else if (err instanceof NotSupportedError) {
     return res.status(501).json(apiErrors(0, err.message));
