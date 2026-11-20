@@ -15,7 +15,7 @@ import {
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
   NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
   AccountInvalidShapeError,
-  SwapLeg, SwapOperation,
+  SwapLeg, SwapOperation, RelatedSwap, RelatedSwapLeg,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -586,6 +586,24 @@ export const swapLegFromAPI = (
     signature: leg.signature ? signatureFromAPI(leg.signature) : undefined,
   };
 };
+
+// A swapInstruction leg carries ledgerAccountAsset endpoints. Consumers resolve the on-chain address
+// from the finId, so that is all the domain Source needs here.
+const accountFromLedgerAccountAsset = (la: components['schemas']['ledgerAccountAsset']): Source =>
+  ({ finId: la.finp2pAccount.account.finId });
+
+const relatedSwapLegFromAPI = (leg: components['schemas']['swapInstructionLeg']): RelatedSwapLeg => ({
+  asset: assetFromAPI(leg.source.finp2pAccount.asset),
+  source: accountFromLedgerAccountAsset(leg.source),
+  destination: accountFromLedgerAccountAsset(leg.destination),
+  amount: leg.amount,
+});
+
+export const relatedSwapFromAPI = (ri: components['schemas']['relatedInstruction']): RelatedSwap => ({
+  swapOperationId: ri.swapOperationId,
+  asset: relatedSwapLegFromAPI(ri.asset),
+  settlement: relatedSwapLegFromAPI(ri.settlement),
+});
 
 export const swapOperationToAPI = (op: SwapOperation): components['schemas']['swapReceiptOperation'] => {
   switch (op.type) {

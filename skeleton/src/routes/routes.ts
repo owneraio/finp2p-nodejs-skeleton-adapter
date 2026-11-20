@@ -31,6 +31,7 @@ import {
   operationStatusToAPI, planApprovalOperationToAPI, planProposalFromAPI,
   receiptOperationToAPI,
   authorizeOperationToAPI,
+  relatedSwapFromAPI,
   signatureFromAPI,
   signatureOptFromAPI,
   sourceFromAPI,
@@ -277,14 +278,15 @@ export const register = (app: Application,
     `/${basePath}/assets/authorize`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, destination, quantity, operationId, expiry, signature, executionContext } = req.body;
+      const { nonce, source, destination, quantity, operationId, expiry, signature, executionContext, relatedInstruction } = req.body;
       const src = sourceFromAPI(source);
       const dst = destinationOptFromAPI(destination);
       const ast = assetFromAPI(source.asset);
       const sgn = signatureFromAPI(signature);
       const exCtx = executionContextOptFromAPI(executionContext, destination?.asset?.resourceId);
+      const relatedSwap = relatedSwapFromAPI(relatedInstruction);
 
-      const rsp = await tokenService.authorize(ik, nonce, src, dst, ast, quantity, sgn, operationId, expiry, exCtx);
+      const rsp = await tokenService.authorize(ik, nonce, src, dst, ast, quantity, sgn, operationId, expiry, exCtx, relatedSwap);
       res.json(authorizeOperationToAPI(rsp));
     });
 

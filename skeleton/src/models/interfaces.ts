@@ -8,7 +8,7 @@ import {
   ReceiptOperation, AuthorizeOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
-  SwapLeg, SwapOperation, SwapRole, RollbackType,
+  SwapLeg, SwapOperation, SwapRole, RollbackType, RelatedSwap,
 } from './model';
 
 
@@ -60,7 +60,8 @@ export interface TokenService {
    * shape as `hold`; `expiry` is optional. Taken down again via `rollback`.
    */
   authorize(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
-    quantity: string, signature: Signature, operationId: string, expiry: number | undefined, exCtx: ExecutionContext | undefined
+    quantity: string, signature: Signature, operationId: string, expiry: number | undefined, exCtx: ExecutionContext | undefined,
+    relatedSwap: RelatedSwap
   ): Promise<AuthorizeOperation>
 
 }

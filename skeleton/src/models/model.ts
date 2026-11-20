@@ -90,6 +90,21 @@ export type SwapLeg = {
   signature?: Signature
 };
 
+// The swap an Authorize backs, passed on the authorize request so the adapter can bind the grant to the
+// swap (e.g. record the expected terms on a venue).
+export type RelatedSwapLeg = {
+  asset: Asset
+  source: Source
+  destination: Destination
+  amount: string
+};
+
+export type RelatedSwap = {
+  swapOperationId: string
+  asset: RelatedSwapLeg
+  settlement: RelatedSwapLeg
+};
+
 // executor (asset-leg org) settles the whole crossing; observer (settlement-leg org) verifies it.
 export type SwapRole = 'executor' | 'observer';
 

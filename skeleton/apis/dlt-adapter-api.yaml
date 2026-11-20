@@ -1429,7 +1429,7 @@ components:
         Same payload as HoldOperationRequest, with one difference: `expiry` is optional. Where the
         rail primitive supports time-bounded approvals the adapter honours it; where it does not it
         is absent.
-      required: ['nonce', 'operationId', 'source', 'quantity', 'signature']
+      required: ['nonce', 'operationId', 'source', 'quantity', 'signature', 'relatedInstruction']
       properties:
         nonce:
           $ref: 'common-external-components.yaml#/components/schemas/nonce'
@@ -1455,9 +1455,36 @@ components:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
+        relatedInstruction:
+          description: |
+            The instruction this Authorize backs.
+          $ref: '#/components/schemas/relatedInstruction'
     AuthorizeOperationResponse:
       allOf:
         - $ref: '#/components/schemas/authorizeOperation'
+    relatedInstruction:
+      description: |
+        A oneof wrapper for the instruction an Authorize backs.
+      oneOf:
+        - $ref: '#/components/schemas/relatedSwapInstruction'
+      discriminator:
+        propertyName: type
+        mapping:
+          swap: '#/components/schemas/relatedSwapInstruction'
+    relatedSwapInstruction:
+      description: |
+        The swap variant of relatedInstruction.
+      allOf:
+        - $ref: 'common-external-components.yaml#/components/schemas/swapInstruction'
+        - type: object
+          required:
+            - swapOperationId
+          properties:
+            swapOperationId:
+              type: string
+              description: 'The operationId of the swap this Authorize backs'
+              pattern: .*\S.*
+              x-autoMinLength: true
     authorizeOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'

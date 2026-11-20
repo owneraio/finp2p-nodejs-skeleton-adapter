@@ -754,8 +754,23 @@ export interface components {
       expiry?: number;
       signature: components['schemas']['signature'];
       executionContext?: components['schemas']['executionContext'];
+      /** @description The instruction this Authorize backs. */
+      relatedInstruction: components['schemas']['relatedInstruction'];
     };
     AuthorizeOperationResponse: components['schemas']['authorizeOperation'];
+    /** @description A oneof wrapper for the instruction an Authorize backs. */
+    relatedInstruction: components['schemas']['relatedSwapInstruction'];
+    /** @description The swap variant of relatedInstruction. */
+    relatedSwapInstruction: components['schemas']['swapInstruction'] & {
+      /** @description The operationId of the swap this Authorize backs */
+      swapOperationId: string;
+    } & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swap';
+    };
     authorizeOperation: components['schemas']['OperationBase'] & {
       error?: components['schemas']['receiptOperationErrorInformation'];
       response?: components['schemas']['authorizationProof'];
@@ -1762,6 +1777,115 @@ export interface components {
     };
     noneAccount: Record<string, never>;
     networkAccount: components['schemas']['walletAccount'] | components['schemas']['caip10Account'] | components['schemas']['custodialAccount'] | components['schemas']['noneAccount'];
+    /** @description Organization Id */
+    orgId: string;
+    custodian: {
+      orgId: components['schemas']['orgId'];
+    };
+    finIdAccount: {
+      /** @enum {string} */
+      type: 'finId';
+      finId: components['schemas']['finId'];
+      orgId: components['schemas']['orgId'];
+      custodian: components['schemas']['custodian'];
+    };
+    /** @description describes account and asset information */
+    finp2pAssetAccount: {
+      account: components['schemas']['finIdAccount'];
+      asset: components['schemas']['finp2pAsset'];
+      /**
+             * @description Optional. Investor network account to use for this leg. Must have been
+             *     previously bound via `POST /profiles/investor/{investorId}/account`.
+             *     Whitelist-validated against `investor.data.accounts[org][asset]`
+             *     before forwarding to the LA. Failure → error code 7351 (AccountNotWhitelistedErr, 400).
+             */
+      networkAccount?: components['schemas']['networkAccount'];
+    };
+    /** @description describes account information */
+    ledgerAccountAsset: {
+      finp2pAccount: components['schemas']['finp2pAssetAccount'];
+      networkAccount?: components['schemas']['networkAccount'];
+    };
+    /** @description ordered list of hash groups */
+    'schemas-hashListTemplate': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hashList';
+      /**
+             * @description This version identifies the HashList template specification revision.
+             *     When omitted, the verifier resolves the version from the
+             *     router/ledger/asset-profile resolver chain.
+             */
+      templateVersion?: number;
+      hashGroups: components['schemas']['hashGroup'][];
+      /** @description hex representation of the combined hash groups hash value */
+      hash: string;
+    };
+    'schemas-EIP712FieldDefinition': {
+      name?: string;
+      type?: string;
+    };
+    'schemas-EIP712TypeDefinition': {
+      name?: string;
+      fields?: components['schemas']['schemas-EIP712FieldDefinition'][];
+    };
+    'schemas-EIP712Types': {
+      definitions?: components['schemas']['schemas-EIP712TypeDefinition'][];
+    };
+    'schemas-EIP712Template': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'EIP712';
+      /**
+             * @description Template shape version. When omitted, the verifier resolves the
+             *     version from the router/ledger/asset-profile resolver chain.
+             *     Not to be confused with EIP712Domain.version (the EIP-712
+             *     contract domain version). See pkg/signature/specs/eip712/ for
+             *     versioned specs.
+             */
+      templateVersion?: number;
+      domain: components['schemas']['EIP712Domain'];
+      message: {
+        [key: string]: components['schemas']['EIP712TypedValue'];
+      };
+      types: components['schemas']['schemas-EIP712Types'];
+      primaryType: string;
+      /** @description hex representation of template hash */
+      hash: string;
+    };
+    'schemas-signatureTemplate': components['schemas']['schemas-hashListTemplate'] | components['schemas']['schemas-EIP712Template'];
+    /** @description represent a signature template information */
+    'schemas-signature': {
+      /** @description hex representation of the signature */
+      signature: string;
+      template: components['schemas']['schemas-signatureTemplate'];
+      hashFunc: components['schemas']['hashFunction'];
+    };
+    swapInstructionLeg: {
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature?: components['schemas']['schemas-signature'];
+    };
+    /**
+         * @description Atomic exchange of two legs in one ledger transaction: both legs settle together or
+         *     neither does. Both legs must be on the same ledger.
+         */
+    swapInstruction: {
+      /** @enum {string} */
+      type: 'swap';
+      asset: components['schemas']['swapInstructionLeg'];
+      settlement: components['schemas']['swapInstructionLeg'];
+      /**
+             * Format: int64
+             * @description Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds.
+             */
+      deadline: number;
+    };
   };
   responses: never;
   parameters: never;
