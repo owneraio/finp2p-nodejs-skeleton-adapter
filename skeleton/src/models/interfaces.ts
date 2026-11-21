@@ -45,18 +45,20 @@ export interface TokenService {
   ): Promise<ReceiptOperation>
 
   /**
-   * Moves an investor's holding from one asset binding to another. The same beneficial
-   * owner holds both sides, so this is a conversion, not a trade. `asset` is the source
-   * binding and `destinationAsset` the destination binding; a move normally crosses
-   * assets, so the two differ (unlike {@link transfer}, where one binding serves both).
+   * Moves a holding from one asset binding to another: a conversion, not a trade, so
+   * there is no counterparty leg and no settlement leg. `asset` is the source binding
+   * and `destinationAsset` the destination binding; a move normally crosses assets, so
+   * the two differ (unlike {@link transfer}, where one binding serves both).
    *
    * **Optional.** An adapter whose ledger has no conversion leaves it out and keeps
    * compiling; `POST /assets/move` then answers a failed receipt saying move is not
    * supported, rather than 404. Implementing it is what turns the route on.
    *
-   * Refuse a move whose source and destination assets belong to different organizations:
-   * both legs settle here, so there is no counterparty adapter to attest the other side.
-   * Receipts carry `operationType: 'move'`.
+   * Refuse a move whose two assets this adapter does not both hold: only the adapter
+   * knows its own bindings, so the skeleton cannot make that call for it. Do not infer
+   * it from the assets' organizations, which refuses valid moves on an adapter serving
+   * several, nor from `source.finId` against `destination.finId`, since one investor
+   * can hold several keys. Receipts carry `operationType: 'move'`.
    */
   move?(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
     destinationAsset: Asset, quantity: string, signature: Signature, operationId: string | undefined,
