@@ -54,8 +54,9 @@ export interface TokenService {
    * compiling; `POST /assets/move` then answers a failed receipt saying move is not
    * supported, rather than 404. Implementing it is what turns the route on.
    *
-   * Refuse a move whose source and destination assets belong to different organizations:
-   * both legs settle here, so there is no counterparty adapter to attest the other side.
+   * A move whose source and destination assets belong to different organizations never
+   * reaches the service: the route refuses it, since both legs settle here and there is
+   * no counterparty adapter to attest the other side.
    * Receipts carry `operationType: 'move'`.
    */
   move?(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
