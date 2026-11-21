@@ -635,6 +635,26 @@ export type NetworkAccountRecord = {
   account: NetworkAccount;
 };
 
+/**
+ * A challenge the ledger adapter issues during account onboarding, which the
+ * investor must fulfil before the binding is recorded. Mirrors the router's
+ * `AccountChallenge` oneOf, kept as a domain type so plugins never import the
+ * generated API types.
+ *
+ * Declared in full as of phase 1, but the skeleton does not yet deliver one:
+ * see `AccountClaimResult`.
+ */
+export type AccountChallenge =
+  /** WalletConnect URI or QR-encodable payload. */
+  | { type: 'walletConnect'; uri: string }
+  /** Hex-encoded data to sign with the wallet's private key and submit to
+   *  `POST /accounts/{cid}/proof`. */
+  | { type: 'signatureTemplate'; payload: string }
+  /** A proving deposit the adapter watches for. */
+  | { type: 'deposit'; fromAddress: string; toAddress: string; amount: string }
+  /** A Fireblocks request the investor approves in the Fireblocks app. */
+  | { type: 'fireblocksApproval'; fireblocksRequestId: string };
+
 export type BindInfo = {
   account: NetworkAccount;
   /** Raw hex proof-of-ownership hint supplied by the caller, as the router sends
