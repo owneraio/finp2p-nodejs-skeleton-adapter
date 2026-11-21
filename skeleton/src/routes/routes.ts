@@ -54,9 +54,6 @@ export interface RegisterOptions {
   whitelistService?: InvestorWhitelistService;
 }
 
-/** The organization a FinP2P resource id belongs to: its first segment (`bank-x` in `bank-x:102:<uuid>`). */
-const organizationOf = (resourceId: string | undefined): string | undefined => resourceId?.split(':')[0];
-
 export const register = (app: Application,
   tokenService: TokenService,
   escrowService: EscrowService,
@@ -228,17 +225,6 @@ export const register = (app: Application,
       // elsewhere, where a failed receipt tells it this adapter cannot do the job.
       if (!tokenService.move) {
         res.json(receiptOperationToAPI(failedReceiptOperation(1, 'Move is not supported by this adapter')));
-        return;
-      }
-
-      // Both legs of a move settle here, so no counterparty adapter attests the
-      // other side: assets of two organizations change hands by a transfer. The
-      // organization is the resource id's first segment, as the Go adapters read it.
-      const sourceOrg = organizationOf(source.asset?.resourceId);
-      const destinationOrg = organizationOf(destination.asset?.resourceId);
-      if (sourceOrg !== destinationOrg) {
-        res.json(receiptOperationToAPI(failedReceiptOperation(1,
-          `A move stays within one organization's assets; ${source.asset?.resourceId} and ${destination.asset?.resourceId} are not, so use a transfer`)));
         return;
       }
 

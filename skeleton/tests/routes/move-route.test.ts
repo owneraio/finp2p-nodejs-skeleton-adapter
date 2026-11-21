@@ -161,22 +161,6 @@ describe('POST /api/assets/move', () => {
     expect(receipt.destination.asset.resourceId).toBe(DST_ASSET);
   });
 
-  test('a move across organizations is refused before the adapter sees it', async () => {
-    const service = new MovingTokenService();
-    await mount(service);
-
-    const crossOrg = { ...moveBody, destination: { ...moveBody.destination, asset: apiAsset('bank-y:102:besu') } };
-    const res = await axios.post(`${base}/api/assets/move`, crossOrg, {
-      headers: { 'Idempotency-Key': 'idem-5' },
-      validateStatus: () => true,
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.data.isCompleted).toBe(true);
-    expect(res.data.error.message).toMatch(/one organization/);
-    expect(service.calls).toHaveLength(0);
-  });
-
   test('an adapter without move answers a failed receipt, not 404', async () => {
     await mount(new StillTokenService());
 
