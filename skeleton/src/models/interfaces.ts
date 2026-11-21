@@ -45,6 +45,26 @@ export interface TokenService {
   ): Promise<ReceiptOperation>
 
   /**
+   * Moves an investor's holding from one asset binding to another. The same beneficial
+   * owner holds both sides, so this is a conversion, not a trade. `asset` is the source
+   * binding and `destinationAsset` the destination binding; a move normally crosses
+   * assets, so the two differ (unlike {@link transfer}, where one binding serves both).
+   *
+   * **Optional.** An adapter whose ledger has no conversion leaves it out and keeps
+   * compiling; `POST /assets/move` then answers a failed receipt saying move is not
+   * supported, rather than 404. Implementing it is what turns the route on.
+   *
+   * A move whose source and destination assets belong to different organizations never
+   * reaches the service: the route refuses it, since both legs settle here and there is
+   * no counterparty adapter to attest the other side.
+   * Receipts carry `operationType: 'move'`.
+   */
+  move?(idempotencyKey: string, nonce: string, source: Source, destination: Destination, asset: Asset,
+    destinationAsset: Asset, quantity: string, signature: Signature, operationId: string | undefined,
+    exCtx: ExecutionContext | undefined
+  ): Promise<ReceiptOperation>
+
+  /**
    * Atomic same-ledger swap. `asset` is the leg this adapter executes, `settlement` the counter-leg.
    * `numberOfReceipts`: 1 = cross-org (counterparty executes `settlement`), 2 = both legs here.
    * `deadline` is absolute epoch seconds.

@@ -3,6 +3,7 @@ import {
   Destination,
 
   EscrowService,
+  failedReceiptOperation,
   HealthService,
   AccountMappingService,
   NetworkAccountService,
@@ -52,6 +53,9 @@ export interface RegisterOptions {
    *  the ingress. */
   whitelistService?: InvestorWhitelistService;
 }
+
+/** The organization a FinP2P resource id belongs to: its first segment (`bank-x` in `bank-x:102:<uuid>`). */
+const organizationOf = (resourceId: string | undefined): string | undefined => resourceId?.split(':')[0];
 
 export const register = (app: Application,
   tokenService: TokenService,
@@ -206,6 +210,50 @@ export const register = (app: Application,
       const exCtx = executionContextOptFromAPI(executionContext, destination.asset?.resourceId);
 
       const rsp = await tokenService.transfer(ik, nonce, src, dst, ast, quantity, sgn, exCtx);
+
+      res.json(receiptOperationToAPI(rsp));
+    });
+
+  app.post<{},
+  LedgerAPI['schemas']['MoveAssetsResponse'],
+  LedgerAPI['schemas']['MoveAssetsRequest']>(
+    `/${basePath}/assets/move`,
+    async (req, res) => {
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const { nonce, operationId, source, destination, quantity, signature, executionContext } = req.body;
+
+      // `move` is optional on TokenService so adapters without a conversion path keep
+      // compiling. Answer the API's own failure envelope rather than letting Express
+      // 404: the router reads a 404 as "no such adapter route" and retries the plan
+      // elsewhere, where a failed receipt tells it this adapter cannot do the job.
+      if (!tokenService.move) {
+        res.json(receiptOperationToAPI(failedReceiptOperation(1, 'Move is not supported by this adapter')));
+        return;
+      }
+
+      // Both legs of a move settle here, so no counterparty adapter attests the
+      // other side: assets of two organizations change hands by a transfer. The
+      // organization is the resource id's first segment, as the Go adapters read it.
+      const sourceOrg = organizationOf(source.asset?.resourceId);
+      const destinationOrg = organizationOf(destination.asset?.resourceId);
+      if (sourceOrg !== destinationOrg) {
+        res.json(receiptOperationToAPI(failedReceiptOperation(1,
+          `A move stays within one organization's assets; ${source.asset?.resourceId} and ${destination.asset?.resourceId} are not, so use a transfer`)));
+        return;
+      }
+
+      const src = sourceFromAPI(source);
+      const dst = destinationFromAPI(destination);
+      const ast = assetFromAPI(source.asset);
+      // A move crosses asset bindings for one owner, so the destination binding is
+      // its own argument rather than being reused from the source.
+      const dstAst = assetFromAPI(destination.asset);
+      const sgn = signatureFromAPI(signature);
+      // Same slot `transfer` uses: it is what `receiptToAPI` reads to bind the
+      // destination side of the receipt to the asset the holding moved into.
+      const exCtx = executionContextOptFromAPI(executionContext, destination.asset?.resourceId);
+
+      const rsp = await tokenService.move(ik, nonce, src, dst, ast, dstAst, quantity, sgn, operationId, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
     });
