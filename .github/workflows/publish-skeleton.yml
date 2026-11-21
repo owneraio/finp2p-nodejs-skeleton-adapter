@@ -27,17 +27,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: npm run build
-      # `npm publish` with no --tag moves `latest`, so publishing a prerelease from
-      # a branch, which is the documented way to coordinate a change across repos,
-      # would hand that prerelease to everyone installing fresh.
-      - name: Publish
-        run: |
-          version="$(node -p 'require("./package.json").version')"
-          if [[ "$version" == *-* ]]; then
-            echo "publishing prerelease $version under the 'next' tag"
-            npm publish --tag next
-          else
-            npm publish
-          fi
+      - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
