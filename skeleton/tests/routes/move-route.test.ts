@@ -28,10 +28,18 @@ const ledgerIdentifier = {
 
 const SRC_ASSET = 'bank-x:102:dtcc-classic';
 const DST_ASSET = 'bank-x:102:besu';
+const ELSEWHERE = 'bank-x:102:somewhere-else';
 const SRC_FINID = finId('01');
 const DST_FINID = finId('02');
 
-const apiAsset = (resourceId: string): components['schemas']['asset'] => ({ resourceId, ledgerIdentifier });
+/** The destination binds a DIFFERENT on-chain token, which is the whole point of a move.
+ *  Keeping it distinct from the source is what makes an inferred destination visible. */
+const dstLedgerIdentifier = {
+  assetIdentifierType: 'CAIP-19', network: 'eip155:138', standard: 'ERC20', tokenId: '0x02',
+} as const;
+
+const apiAsset = (resourceId: string, li: unknown = ledgerIdentifier): components['schemas']['asset'] =>
+  ({ resourceId, ledgerIdentifier: li } as components['schemas']['asset']);
 
 const signature: components['schemas']['signature'] = {
   template: { type: 'hashList', hashGroups: [], hash: '' },
@@ -43,7 +51,7 @@ const moveBody: components['schemas']['MoveAssetsRequest'] = {
   nonce: '0xnonce',
   operationId: 'op-1',
   source: { finId: SRC_FINID, asset: apiAsset(SRC_ASSET), ledgerAccount: { type: 'walletAccount', address: '0xaaa' } },
-  destination: { finId: DST_FINID, asset: apiAsset(DST_ASSET) },
+  destination: { finId: DST_FINID, asset: apiAsset(DST_ASSET, dstLedgerIdentifier) },
   quantity: '100',
   signature,
   executionContext: { executionPlanId: 'plan-1', instructionSequenceNumber: 3 },
@@ -83,6 +91,24 @@ class MovingTokenService {
     };
     this.calls.push(call);
     return { operation: 'receipt', type: 'success', receipt: receiptFor(call) };
+  }
+}
+
+/** An adapter that moved the holding but did not name the destination binding. */
+class ForgetfulTokenService extends MovingTokenService {
+  async move(...args: Parameters<MovingTokenService['move']>): Promise<ReceiptOperation> {
+    const op = await super.move(...args);
+    if (op.type !== 'success') return op;
+    return { ...op, receipt: { ...op.receipt, destinationAsset: undefined } };
+  }
+}
+
+/** An adapter that landed the holding somewhere other than the request asked. */
+class WilfulTokenService extends MovingTokenService {
+  async move(...args: Parameters<MovingTokenService['move']>): Promise<ReceiptOperation> {
+    const op = await super.move(...args);
+    if (op.type !== 'success') return op;
+    return { ...op, receipt: { ...op.receipt, destinationAsset: { ...op.receipt.asset, assetId: ELSEWHERE } } };
   }
 }
 
@@ -161,6 +187,49 @@ describe('POST /api/assets/move', () => {
     expect(receipt.destination.asset.resourceId).toBe(DST_ASSET);
   });
 
+  test("a receipt that names no destination binding gets the request's", async () => {
+    await mount(new ForgetfulTokenService());
+
+    const res = await axios.post(`${base}/api/assets/move`, moveBody, {
+      headers: { 'Idempotency-Key': 'idem-6' },
+    });
+
+    // Without the fill the destination is inferred as the SOURCE binding under the
+    // destination resource id, so the ledgerIdentifier is the source's. That is the
+    // wrong token, and it is what the sandbox line was sending.
+    const receipt = res.data.response;
+    expect(receipt.destination.asset.resourceId).toBe(DST_ASSET);
+    expect(receipt.destination.asset.ledgerIdentifier).toEqual(dstLedgerIdentifier);
+  });
+
+  test('a direct move with no execution context still names its destination', async () => {
+    await mount(new ForgetfulTokenService());
+
+    // No plan, so no executionContext, so nothing to infer a destination from at all:
+    // this is the request that produced `4001 Missing required field
+    // "operation.response.destination.asset.ledgerIdentifier"`.
+    const { executionContext, ...direct } = moveBody;
+    const res = await axios.post(`${base}/api/assets/move`, direct, {
+      headers: { 'Idempotency-Key': 'idem-10' },
+    });
+
+    expect(res.data.response.destination.asset.resourceId).toBe(DST_ASSET);
+    expect(res.data.response.destination.asset.ledgerIdentifier).toEqual(dstLedgerIdentifier);
+  });
+
+  test('a destination binding the adapter did name is left alone', async () => {
+    await mount(new WilfulTokenService());
+
+    const res = await axios.post(`${base}/api/assets/move`, moveBody, {
+      headers: { 'Idempotency-Key': 'idem-7' },
+    });
+
+    // The adapter settled the holding somewhere the request did not ask for. That is
+    // its business and its receipt attests what happened; the skeleton does not
+    // overwrite it with the request.
+    expect(res.data.response.destination.asset.resourceId).toBe(ELSEWHERE);
+  });
+
   test('an adapter without move answers a failed receipt, not 404', async () => {
     await mount(new StillTokenService());
 
@@ -202,6 +271,66 @@ describe('move through the workflow proxy', () => {
     expect(result).toEqual(expect.objectContaining({ operation: 'receipt', type: 'pending' }));
     expect(saved).toHaveLength(1);
     expect(saved[0].method).toBe('move');
+  });
+
+  test('a move that completes later still names its destination binding', async () => {
+    const completed: any[] = [];
+    let settle: () => void = () => undefined;
+    const done = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const storage = {
+      getPendingOperations: async () => [],
+      saveOperation: async (op: any) => [op, true],
+      completeOperation: async (_cid: string, _status: string, outputs: any) => {
+        completed.push(outputs);
+        settle();
+      },
+    } as unknown as WorkflowStorage;
+
+    const proxied = createServiceProxy(async () => undefined, storage, undefined,
+      new ForgetfulTokenService() as unknown as TokenService, 'move');
+
+    await proxied.move!('idem-8', '0xnonce', { finId: SRC_FINID }, { finId: DST_FINID },
+      { assetId: SRC_ASSET, assetType: 'finp2p', ledgerIdentifier },
+      { assetId: DST_ASSET, assetType: 'finp2p', ledgerIdentifier },
+      '100', signature as unknown as Signature, 'op-1', undefined);
+
+    await done;
+
+    // The route fills this for a synchronous move; a move that went pending reaches the
+    // router through the callback instead, and would otherwise arrive without it.
+    expect(completed).toHaveLength(1);
+    expect(completed[0].receipt.destinationAsset).toEqual(
+      expect.objectContaining({ assetId: DST_ASSET, ledgerIdentifier }));
+  });
+
+  test('a later move keeps a destination binding the adapter named itself', async () => {
+    const completed: any[] = [];
+    let settle: () => void = () => undefined;
+    const done = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const storage = {
+      getPendingOperations: async () => [],
+      saveOperation: async (op: any) => [op, true],
+      completeOperation: async (_cid: string, _status: string, outputs: any) => {
+        completed.push(outputs);
+        settle();
+      },
+    } as unknown as WorkflowStorage;
+
+    const proxied = createServiceProxy(async () => undefined, storage, undefined,
+      new WilfulTokenService() as unknown as TokenService, 'move');
+
+    await proxied.move!('idem-9', '0xnonce', { finId: SRC_FINID }, { finId: DST_FINID },
+      { assetId: SRC_ASSET, assetType: 'finp2p', ledgerIdentifier },
+      { assetId: DST_ASSET, assetType: 'finp2p', ledgerIdentifier },
+      '100', signature as unknown as Signature, 'op-1', undefined);
+
+    await done;
+
+    expect(completed[0].receipt.destinationAsset.assetId).toBe(ELSEWHERE);
   });
 
   test('an absent move stays absent through the proxy', () => {

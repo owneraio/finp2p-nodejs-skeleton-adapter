@@ -466,6 +466,25 @@ export const pendingReceiptOperation = (correlationId: string, metadata: Operati
   metadata,
 });
 
+/**
+ * Names a move receipt's destination binding from the request when the adapter left it
+ * unset. `receiptToAPI` otherwise infers the destination from the source binding, which
+ * is right for transfer and swap and wrong for a move, where the two ends are different
+ * tokens; a direct move has no execution context to infer from at all and the router
+ * rejects the callback with `4001 Missing required field
+ * "operation.response.destination.asset.ledgerIdentifier"`.
+ *
+ * Deliberately narrow. It fills only a successful `move` receipt that has no
+ * `destinationAsset`, so an adapter that named one, including one deliberately unlike
+ * the request, keeps it. Everything else passes through untouched.
+ */
+export const withMoveDestinationAsset = (op: ReceiptOperation, destinationAsset: Asset): ReceiptOperation => {
+  if (op.type !== 'success') return op;
+  const { receipt } = op;
+  if (receipt.operationType !== 'move' || receipt.destinationAsset !== undefined) return op;
+  return { ...op, receipt: { ...receipt, destinationAsset } };
+};
+
 // -------------------------------------------------------------------
 
 export type SuccessSwapStatus = {

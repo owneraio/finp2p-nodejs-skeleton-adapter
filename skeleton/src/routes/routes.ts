@@ -13,6 +13,7 @@ import {
   PlanApprovalService,
   Source,
   TokenService,
+  withMoveDestinationAsset,
 } from '../models';
 import { NotSupportedNetworkAccountService } from '../services/accounts';
 import { Application } from 'express';
@@ -241,7 +242,11 @@ export const register = (app: Application,
 
       const rsp = await tokenService.move(ik, nonce, src, dst, ast, dstAst, quantity, sgn, operationId, exCtx);
 
-      res.json(receiptOperationToAPI(rsp));
+      // An adapter that did not name the destination binding on its receipt gets the
+      // request's, which is the one the router asked the holding to land in. Without
+      // this the destination is inferred from the source and the router rejects the
+      // receipt with 4001. The proxy does the same for a move that completes later.
+      res.json(receiptOperationToAPI(withMoveDestinationAsset(rsp, dstAst)));
     });
 
   app.post<{},
