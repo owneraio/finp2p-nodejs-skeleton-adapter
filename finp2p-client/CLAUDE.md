@@ -62,7 +62,7 @@ Node rules the helpers cannot check for you:
 Two details worth knowing:
 
 - **`executeMoveIntent` uses `generateNonce()`, not `hexNonce()`.** The spec's `nonce` is 32 bytes, 24 random plus an 8-byte big-endian epoch-seconds tail. `hexNonce()` is 16 random bytes with no timestamp. Every older execute helper in this file uses `hexNonce()` and the node has not enforced the constraint on them, so they were left alone rather than changed under working flows &mdash; but new helpers follow the spec.
-- **`createMovePolicy`'s default instruction is the body a release-v0.29 node accepts,** confirmed end to end against a live node. Two things in it are load-bearing and were wrong in `0.29.2-rc.1`:
+- **`createMovePolicy`'s default instruction is the body a release-v0.29 node accepts,** confirmed end to end against a live node. Two things in it are load-bearing and were wrong in the first version of this helper:
   - **No `executors`.** An instruction carrying both `target` and `executors` is refused with `1300 instruction 1 cannot have both target and executors defined`, and the target is what scopes this one.
   - **`target.version: 'v1'`.** Optional in the schema, present on the policy the node accepted.
   - `failed` rather than `halted` on failure is deliberate: a conversion is atomic, so nothing is parked to unwind, and `halted` belongs to a Hold.
