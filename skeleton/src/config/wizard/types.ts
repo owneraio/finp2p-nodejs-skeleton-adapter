@@ -102,7 +102,9 @@ export type WizardOperation = (call: WizardCall) => Promise<JsonObject>;
 
 export class WizardRefusal extends Error {
   readonly status: number;
+
   readonly field?: string;
+
   readonly retryable: boolean;
 
   /** `code` matches CODE_PATTERN; `field` is a JSON pointer such as `/apiKey`. Never a value. */
