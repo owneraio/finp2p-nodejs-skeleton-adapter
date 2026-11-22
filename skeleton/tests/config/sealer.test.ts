@@ -1,4 +1,4 @@
-import { createPublicKey, webcrypto } from 'node:crypto';
+import { createPublicKey } from 'node:crypto';
 import { SEAL_ALG, SealedValue } from '../../src/config/types';
 import { KeyStore, Sealer } from '../../src/config/interfaces';
 import { openSealed, sealWithPublicKey } from '../../src/config/envelope';
@@ -41,20 +41,6 @@ async function ministackUp(): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-/** The browser path: produce the envelope with WebCrypto only (same code shape as seal-lib.mjs). */
-async function sealWithWebCrypto(publicKeySpki: string, kid: string, plain: string): Promise<SealedValue> {
-  const subtle = (globalThis as unknown as { crypto: webcrypto.Crypto }).crypto.subtle;
-  const rsaKey = await subtle.importKey(
-    'spki', Buffer.from(publicKeySpki, 'base64'), { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['wrapKey'],
-  );
-  const aesKey = await subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
-  const iv = webcrypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, new TextEncoder().encode(plain));
-  const wrappedKey = await subtle.wrapKey('raw', aesKey, rsaKey, { name: 'RSA-OAEP' });
-  const b64 = (b: ArrayBuffer | Uint8Array) => Buffer.from(new Uint8Array(b)).toString('base64');
-  return { enc: SEAL_ALG, kid, wrappedKey: b64(wrappedKey), iv: b64(iv), ciphertext: b64(ciphertext) };
 }
 
 const expectSealedShape = (s: SealedValue, kid: string) => {
@@ -114,12 +100,6 @@ function commonSealerTests(getSealer: () => Sealer) {
     expect(err.message).not.toContain(sealed.wrappedKey.slice(0, 12));
   });
 
-  test('browser (WebCrypto) envelope opens with the sealer', async () => {
-    const sealer = getSealer();
-    const sealed = await sealWithWebCrypto(await sealer.publicKey(), await sealer.kid(), PEM_LIKE);
-    expectSealedShape(sealed, await sealer.kid());
-    await expect(openSealed(sealer, sealed)).resolves.toBe(PEM_LIKE);
-  });
 }
 
 describe('LocalRsaSealer', () => {
@@ -284,14 +264,6 @@ describe('KmsSealer (ministack)', () => {
     const body = Buffer.from(sealed.ciphertext, 'base64');
     body[body.length - 1] ^= 0x01;
     await expect(openSealed(sealer, { ...sealed, ciphertext: body.toString('base64') })).rejects.toThrow();
-  });
-
-  when('browser (WebCrypto) envelope opens through KMS Decrypt', async () => {
-    const sealed = await sealWithWebCrypto(await sealer.publicKey(), await sealer.kid(), PEM_LIKE);
-    expectSealedShape(sealed, await sealer.kid());
-    await expect(openSealed(sealer, sealed)).resolves.toBe(PEM_LIKE);
-    const utf = await sealWithWebCrypto(await sealer.publicKey(), await sealer.kid(), UTF8);
-    await expect(openSealed(sealer, utf)).resolves.toBe(UTF8);
   });
 
   when('a non-RSA / missing key gives a clear error', async () => {

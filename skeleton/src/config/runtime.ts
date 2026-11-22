@@ -15,7 +15,7 @@ import {
 import {
   ACCOUNT_ID_RE, ActiveConfig, ApplyRequest, ApplyResult, CONFIG_ID_RE, CONFIG_KINDS, ConfigCheck, ConfigDescriptor, ConfigError,
   ConfigField, ConfigKind, ConfigPage, ConfigState, ConfigSummary, ConfigValues, DEFAULT_KIND, DescriptorValue,
-  EncryptionInfo, ERROR_CODES, isSealedValue, PROTOCOL, RequestValues, SealedValue, SealedValues, SEAL_ALG,
+  ERROR_CODES, PROTOCOL, RequestValues, SealedValue, SealedValues, SEAL_ALG,
   ValidateRequest, ValidationResult,
 } from './types';
 
@@ -39,8 +39,7 @@ export interface ConfigRuntimeOptions {
   pages: ConfigPage[];
   handler: ConfigHandler;
   store?: ConfigStore;              // undefined = memory only
-  sealer?: Sealer;                  // undefined = no encryption block, plaintext only
-  requireSealedSecrets?: boolean;   // true = plaintext secret in a request is rejected
+  sealer?: Sealer;                  // seals secrets at rest; undefined = the plain pseudo envelope (dev only)
   logger?: ConfigLogger;
   checkTimeoutMs?: number;
   activateTimeoutMs?: number;
@@ -186,9 +185,8 @@ export class ConfigRuntime {
 
   /**
    * Request values on top of `base`. Omitted keeps, "" / null clears, scalars
-   * are stringified. Secrets end up sealed: a SealedValue is kept as is (kid
-   * must match), a plaintext secret is sealed now (or rejected when sealed
-   * secrets are required). Problems are collected in `errors`.
+   * are stringified. Secrets arrive in plaintext and are sealed now for the
+   * store (at rest). Problems are collected in `errors`.
    */
   async merge(kind: ConfigKind, request: RequestValues, base?: StoredConfig): Promise<MergeResult> {
     const fields = this.fieldsOf(kind);
@@ -198,7 +196,7 @@ export class ConfigRuntime {
     const cleared: string[] = [];
     const plainSecrets: Record<string, string> = {};
     const errors: ConfigError[] = [];
-    const { sealer, requireSealedSecrets } = this.opts;
+    const { sealer } = this.opts;
 
     let kid: string | undefined;
     let publicKey: string | undefined;
@@ -207,11 +205,6 @@ export class ConfigRuntime {
       kid = kid ?? await sealer.kid();
       publicKey = publicKey ?? await sealer.publicKey();
       return sealWithPublicKey(publicKey, kid, plain);
-    };
-    const expectedKid = async (): Promise<string> => {
-      if (!sealer) return PLAIN_KID;
-      kid = kid ?? await sealer.kid();
-      return kid;
     };
 
     for (const [name, raw] of Object.entries(request)) {
@@ -228,29 +221,12 @@ export class ConfigRuntime {
         errors.push({ path: name, code: ERROR_CODES.unknownField, message: `${name} is not a known field` });
         continue;
       }
-      if (isSealedValue(raw)) {
-        if (!field.secret) {
-          errors.push({ path: name, code: ERROR_CODES.type, message: `${name} is not a secret field, send it in plaintext` });
-          continue;
-        }
-        if (raw.kid !== await expectedKid()) {
-          errors.push({ path: name, code: ERROR_CODES.unknownKid, message: `${name} is sealed with an unknown key, reload the config page and try again` });
-          continue;
-        }
-        secrets[name] = raw;
-        delete plainSecrets[name];
-        continue;
-      }
       if (typeof raw !== 'string' && typeof raw !== 'number' && typeof raw !== 'boolean') {
         errors.push({ path: name, code: ERROR_CODES.type, message: `${name} must be a string, number or boolean` });
         continue;
       }
       const str = String(raw);
       if (field.secret) {
-        if (requireSealedSecrets) {
-          errors.push({ path: name, code: ERROR_CODES.secretMustBeSealed, message: `${name} must be sealed with the adapter public key` });
-          continue;
-        }
         secrets[name] = await sealNow(str);
         plainSecrets[name] = str;
       } else {
@@ -670,22 +646,13 @@ export class ConfigRuntime {
     return { ready, blocking };
   }
 
-  async describe(): Promise<ConfigDescriptor> {
-    const { sealer } = this.opts;
-    const encryption: EncryptionInfo | undefined = sealer ? {
-      alg: SEAL_ALG,
-      kid: await sealer.kid(),
-      publicKey: await sealer.publicKey(),
-      provider: sealer.provider,
-      required: this.opts.requireSealedSecrets ?? false,
-    } : undefined;
-    return {
+  describe(): Promise<ConfigDescriptor> {
+    return Promise.resolve({
       protocol: PROTOCOL,
       adapter: this.opts.adapter,
-      ...(encryption ? { encryption } : {}),
       pages: this.opts.pages,
       configs: this.list(),
       readiness: this.readiness(),
-    };
+    });
   }
 }
