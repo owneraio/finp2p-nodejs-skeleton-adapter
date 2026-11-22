@@ -9,7 +9,7 @@ import {
  * Holds (or reaches) the private key that can unwrap sealed secrets.
  *
  * `seal` needs only the public key, so both implementations do it locally and
- * produce the same envelope the browser produces. `unwrapKey` is the only
+ * produce the same envelope. `unwrapKey` is the only
  * operation that touches the private half: RSA private key in the adapter DB
  * (LocalRsaSealer) or KMS Decrypt (KmsSealer).
  */

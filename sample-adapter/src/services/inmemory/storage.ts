@@ -24,17 +24,6 @@ export class Storage {
     this.assets[assetId] = asset;
   }
 
-  getAsset(assetId: string): Asset | undefined {
-    return this.assets[assetId];
-  }
-
-  /** Ids of the assets created on `network` (their CAIP-2 ledger). */
-  assetsOnNetwork(network: string): string[] {
-    return Object.entries(this.assets)
-      .filter(([, a]) => a.ledgerIdentifier?.network === network)
-      .map(([id]) => id);
-  }
-
   checkAssetExists(assetId: string) {
     const asset = this.assets[assetId];
     if (asset === undefined) {

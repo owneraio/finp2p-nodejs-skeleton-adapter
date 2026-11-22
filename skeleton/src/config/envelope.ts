@@ -1,6 +1,5 @@
-// Envelope encryption of one secret value: AES-256-GCM for the data, RSA-OAEP
-// (SHA-256) for the AES key. Mirrors what the browser does with WebCrypto, so
-// a value sealed in the browser and a value sealed here are indistinguishable.
+// Envelope encryption of one secret value for the store (at rest): AES-256-GCM
+// for the data, RSA-OAEP (SHA-256) for the AES key.
 import { createCipheriv, createDecipheriv, createPublicKey, publicEncrypt, randomBytes, constants } from 'node:crypto';
 import { Sealer } from './interfaces';
 import { SEAL_ALG, SealedValue } from './types';

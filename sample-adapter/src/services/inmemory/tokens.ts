@@ -3,69 +3,31 @@ import {
   AssetBind, AssetCreationStatus,
   AssetDenomination,
   Balance, BusinessError, Destination,
-  LedgerAssetIdentifier, ReceiptOperation, Source, failedAssetCreation, failedReceiptOperation, successfulAssetCreation,
-  successfulReceiptOperation,
+  LedgerAssetIdentifier, ReceiptOperation, Source, failedAssetCreation, successfulAssetCreation, successfulReceiptOperation,
   TokenService,
   Asset, ExecutionContext,
   Signature, SwapLeg, SwapOperation, failedSwapOperation, successfulSwapOperation,
 } from '@owneraio/finp2p-nodejs-skeleton-adapter';
-import { logger, ProofProvider, config } from '@owneraio/finp2p-nodejs-skeleton-adapter';
+import { logger, ProofProvider } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 import { Transaction } from './model';
 import { Storage } from './storage';
 import {
   generateId,
 } from './utils';
 
-/** LedgerBindingNotSupportedErr: the ledger does not support the requested network/standard. */
+const SUPPORTED_NETWORK = 'inmemory';
+const SUPPORTED_STANDARD = 'mock';
+
+/** LedgerBindingNotSupportedErr — the ledger does not support the requested network/standard. */
 const LEDGER_BINDING_NOT_SUPPORTED = 7311;
-
-/** Token standards accepted per ledger kind. First one is the default. */
-const STANDARDS: Record<string, string[]> = {
-  inmemory: ['mock'],
-  evm: ['ERC20', 'mock'],
-};
-
-/** What the token service needs from the config runtime. ConfigRuntime satisfies it. */
-export interface LedgerConfigs {
-  /** The usable network config of a ledger (CAIP-2), undefined when none. */
-  resolve(network: string): config.ActiveConfig | undefined;
-  /** The ledger createAsset uses when the router names none. */
-  defaultOf(kind: 'network'): config.ActiveConfig | undefined;
-  stateOf(ref: config.ConfigRef): config.ConfigState;
-}
 
 export class TokenServiceImpl extends CommonServiceImpl implements TokenService {
 
   proofProvider: ProofProvider | undefined;
 
-  configs: LedgerConfigs;
-
-  constructor(storage: Storage, proofProvider: ProofProvider | undefined, configs: LedgerConfigs) {
+  constructor(storage: Storage, proofProvider: ProofProvider | undefined) {
     super(storage);
     this.proofProvider = proofProvider;
-    this.configs = configs;
-  }
-
-  /**
-   * The network config of an asset's ledger. The ledger was fixed when the
-   * asset was created (CAIP-19 identifier); the config of that ledger is the
-   * only one ever used: down = the operation fails 7311, never another
-   * ledger. A config mid re-apply is transient and gets a generic code with a
-   * "retry" message, not 7311, so it is not mistaken for an unsupported binding.
-   * Returned as a failed receipt (not thrown) so the code survives the async workflow proxy.
-   */
-  private configOf(asset: Asset): { cfg: config.ActiveConfig; failed?: undefined } | { failed: ReceiptOperation } {
-    const network = this.storage.getAsset(asset.assetId)?.ledgerIdentifier?.network;
-    if (!network) {
-      return { failed: failedReceiptOperation(LEDGER_BINDING_NOT_SUPPORTED, `asset ${asset.assetId} has no ledger: create it first`) };
-    }
-    const cfg = this.configs.resolve(network);
-    if (cfg) return { cfg };
-    const state = this.configs.stateOf({ kind: 'network', id: network });
-    if (state === 'applying') {
-      return { failed: failedReceiptOperation(1, `ledger ${network} of asset ${asset.assetId} is being reconfigured, retry shortly`) };
-    }
-    return { failed: failedReceiptOperation(LEDGER_BINDING_NOT_SUPPORTED, `ledger ${network} of asset ${asset.assetId} is ${state}: fix it at GET /config`) };
   }
 
   public async createAsset(idempotencyKey: string, assetId: string,
@@ -79,18 +41,11 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
       issuerId,
       assetDenomination,
     });
-    const network = assetBind?.network ?? this.configs.defaultOf('network')?.id;
-    const cfg = network ? this.configs.resolve(network) : undefined;
-    if (!network || !cfg) {
+    const network = assetBind?.network ?? SUPPORTED_NETWORK;
+    const standard = assetBind?.standard ?? SUPPORTED_STANDARD;
+    if (network !== SUPPORTED_NETWORK || standard !== SUPPORTED_STANDARD) {
       return failedAssetCreation(LEDGER_BINDING_NOT_SUPPORTED,
-        `no ledger config for network ${network ?? '(default)'}: configure one at GET /config`);
-    }
-    const kind = cfg.values.LEDGER_KIND;
-    const standards = STANDARDS[kind] ?? STANDARDS.inmemory;
-    const standard = assetBind?.standard ?? standards[0];
-    if (!standards.includes(standard)) {
-      return failedAssetCreation(LEDGER_BINDING_NOT_SUPPORTED,
-        `unsupported token standard ${standard} on ${network} (${kind}), expected one of ${standards.join(', ')}`);
+        `unsupported ledger binding ${network}/${standard}, only ${SUPPORTED_NETWORK}/${SUPPORTED_STANDARD} is supported`);
     }
     const tokenId = assetBind?.tokenId ?? generateId();
     const ledgerIdentifier: LedgerAssetIdentifier = { assetIdentifierType: 'CAIP-19', network, tokenId, standard };
@@ -114,8 +69,6 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
 
   public async issue(idempotencyKey: string, asset: Asset, destination: Destination, quantity: string, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
     logger.info(`Issuing ${quantity} of ${asset.assetId} to ${destination.finId}`);
-    const ledger = this.configOf(asset);
-    if (ledger.failed) return ledger.failed;
 
     this.storage.credit(destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, undefined, destination, exCtx, 'issue', undefined);
@@ -132,8 +85,6 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     quantity: string, signature: Signature, exCtx: ExecutionContext | undefined): Promise<ReceiptOperation> {
 
     logger.info(`Transferring ${quantity} of ${asset.assetId} from ${source.finId} to ${destination.finId}`);
-    const ledger = this.configOf(asset);
-    if (ledger.failed) return ledger.failed;
 
     this.storage.move(source.finId, destination.finId, quantity, asset.assetId);
     const tx = new Transaction(quantity, asset, source, destination, exCtx, 'transfer', undefined);
@@ -193,8 +144,6 @@ export class TokenServiceImpl extends CommonServiceImpl implements TokenService 
     signature: Signature, exCtx: ExecutionContext | undefined,
   ): Promise<ReceiptOperation> {
     logger.info(`Redeeming ${quantity} of ${asset.assetId} from ${source.finId}`);
-    const ledger = this.configOf(asset);
-    if (ledger.failed) return ledger.failed;
 
     // if (!await verifySignature(signature, source.finId)) {
     //   return failedReceiptOperation(1, 'Signature verification failed');
