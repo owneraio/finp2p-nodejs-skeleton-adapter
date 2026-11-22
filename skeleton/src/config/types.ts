@@ -1,77 +1,78 @@
-// Wire + domain types of the adapter config contract, protocol `adapter-config/2`.
+// Wire + domain types of the adapter config, protocol `adapter-config/3`.
 //
-// /1 (see ~/owneraio/adapter-config/CONTRACT.md) had ONE config per adapter.
-// /2 keeps the same page/field schema but the adapter holds a config per
-// KIND and KEY:
-//   kind 'network'  id = the ledger (CAIP-2, e.g. eip155:11155111); one per chain
-//   kind 'custody'  id = a name; the custodian (or signer) the adapter uses
-// An asset is never bound to a config: its ledger is already in the asset
-// row (CAIP-19), and that ledger names the network config. Secrets arrive
-// in plaintext and are stored sealed (envelope encrypted with the adapter's
-// key: KMS or a local RSA key pair).
+// No page or field DSL: a wizard outside the adapter knows the fields of each
+// config version. The adapter declares its version; GET /config prints it with
+// the configured values, POST /config merges a document into the stored one
+// and applies it when a value changed.
+//
+//   version   the adapter's config version, e.g. 'gca-config/1'. A wizard matches it.
+//   ledgers   one section per ledger, keyed by CAIP-2 (e.g. eip155:2026041003)
+//   custody   one section: the custodian or signer the adapter uses
+//
+// A section is a flat map of scalar values. Secret keys (declared by the
+// adapter, e.g. private keys) arrive in plaintext, GET shows them as
+// { set: true }, and the store keeps them sealed.
 
-export type Protocol = 'adapter-config/2';
-export const PROTOCOL: Protocol = 'adapter-config/2';
+export type Protocol = 'adapter-config/3';
+export const PROTOCOL: Protocol = 'adapter-config/3';
 
-/** Which slot a config fills. Pages declare theirs; `network` when omitted. */
-export type ConfigKind = 'network' | 'custody';
-export const CONFIG_KINDS: readonly ConfigKind[] = ['network', 'custody'];
-export const DEFAULT_KIND: ConfigKind = 'network';
+export type ConfigScalar = string | number | boolean;
+export type ConfigSection = Record<string, ConfigScalar>;
 
-export type FieldType =
-  | 'string' | 'text'      // text = multiline
-  | 'number' | 'boolean'
-  | 'enum'                 // needs options[]
-  | 'url' | 'address'      // address = 0x + 40 hex
-  | 'hex';                 // 0x-prefixed hex (private keys)
-
-export type ScalarValue = string | number | boolean;
-
-export interface FieldCondition {
-  field: string;
-  equals?: ScalarValue;
-  in?: ScalarValue[];
+/** What the adapter applies: plaintext. Never log it. */
+export interface AdapterConfig {
+  ledgers: Record<string, ConfigSection>;
+  custody?: ConfigSection;
 }
 
-export interface ConfigField {
-  name: string;            // env-var style key, unique across all pages of a kind
-  label: string;
-  type: FieldType;
-  required?: boolean;      // only enforced when the page/field is visible
-  secret?: boolean;        // write-only. GET returns { set: boolean }
-  default?: ScalarValue;
-  placeholder?: string;
-  help?: string;
-  options?: Array<{ value: string; label: string; help?: string }>;
-  pattern?: string;        // regex source, string types
-  min?: number;
-  max?: number;
-  visibleWhen?: FieldCondition;
+/** 'error' = the stored config could not be opened or applied (on boot or after a failed rollback). */
+export type ConfigState = 'unconfigured' | 'configured' | 'error';
+
+export type MaskedValue = ConfigScalar | { set: true };
+export type MaskedSection = Record<string, MaskedValue>;
+
+/** GET /config */
+export interface ConfigDocument {
+  protocol: Protocol;
+  version: string;
+  adapter: { id: string; version: string };
+  state: ConfigState;
+  revision: number;                // bumped on every applied change, 0 = never applied
+  lastError?: string;
+  ledgers: Record<string, MaskedSection>;
+  custody?: MaskedSection;
 }
 
-export interface ConfigPage {
-  id: string;
-  title: string;
-  description?: string;
-  /** Which kind of config this page belongs to. Default 'network'. */
-  kind?: ConfigKind;
-  fields: ConfigField[];
-  visibleWhen?: FieldCondition;
+export type PatchValue = ConfigScalar | null;
+
+/** POST /config body. Omitted keeps; null (or "") clears a key, a ledger or the custody section. */
+export interface ConfigPatch {
+  version?: string;                // when given, it must equal the adapter's version
+  ledgers?: Record<string, Record<string, PatchValue> | null>;
+  custody?: Record<string, PatchValue> | null;
 }
 
-export type ConfigState = 'unconfigured' | 'applying' | 'configured' | 'error';
+export interface ConfigError { path: string; code: string; message: string }   // path: 'ledgers.<id>.<key>', 'custody.<key>', '' = global
 
-// ---- secrets on the wire ----
+/** POST /config answer. */
+export interface ApplyResult {
+  ok: boolean;
+  applied: boolean;                // false = nothing changed, or refused
+  revision: number;
+  state: ConfigState;
+  errors: ConfigError[];
+}
+
+// ---- secrets at rest ----
 
 export const SEAL_ALG = 'RSA-OAEP-256+A256GCM';
 export type SealAlg = typeof SEAL_ALG;
 
 /**
  * Envelope-encrypted secret as the adapter stores it: a fresh AES-256-GCM key
- * encrypts the value, the adapter's RSA
- * public key (RSA-OAEP, SHA-256) wraps that AES key. RSA alone caps the
- * plaintext at 190 bytes; PEM keys are bigger, hence the hybrid.
- * All fields base64 (standard alphabet, padded).
+ * encrypts the value, the adapter's RSA public key (RSA-OAEP, SHA-256) wraps
+ * that AES key. RSA alone caps the plaintext at 190 bytes; PEM keys are
+ * bigger, hence the hybrid. All fields base64 (standard alphabet, padded).
  */
 export interface SealedValue {
   enc: SealAlg;
@@ -81,103 +82,26 @@ export interface SealedValue {
   ciphertext: string;  // AES-GCM(value) with the 16-byte tag appended
 }
 
-// ---- descriptor (GET /config) ----
+export const isSealedValue = (v: unknown): v is SealedValue =>
+  !!v && typeof v === 'object' && (v as SealedValue).enc === SEAL_ALG
+  && typeof (v as SealedValue).kid === 'string'
+  && typeof (v as SealedValue).wrappedKey === 'string'
+  && typeof (v as SealedValue).iv === 'string'
+  && typeof (v as SealedValue).ciphertext === 'string';
 
-export type DescriptorValue = ScalarValue | { set: boolean };
+/** A ledger id: CAIP-2, e.g. `eip155:2026041003`. */
+export const LEDGER_ID_RE = /^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$/;
 
-/** One config. For kind 'network' the id is the ledger (CAIP-2). */
-export interface ConfigSummary {
-  kind: ConfigKind;
-  id: string;
-  name: string;
-  state: ConfigState;
-  version: number;                 // bumped on every apply, 0 never applied
-  lastError?: string;
-  /** Network kind: the ledger createAsset uses when the router names none. One per kind. */
-  isDefault: boolean;
-  values: Record<string, DescriptorValue>;   // secrets ONLY as { set }
-}
-
-export interface ConfigDescriptor {
-  protocol: Protocol;
-  adapter: { id: string; kind: string; version: string };
-  pages: ConfigPage[];             // every kind; `page.kind` tells them apart
-  configs: ConfigSummary[];
-  readiness: { ready: boolean; blocking: string[] };   // ready = at least one configured network config
-}
-
-// ---- requests ----
-
-export type RequestValue = ScalarValue | null;
-export type RequestValues = Record<string, RequestValue>;
-
-export interface ValidateRequest {
-  kind?: ConfigKind;               // default 'network'
-  id?: string;                     // validate on top of this stored config (merge semantics), else from scratch
-  values: RequestValues;
-}
-
-export interface ApplyRequest {
-  kind?: ConfigKind;               // default 'network'
-  id: string;                      // network kind: the ledger (CAIP-2). Existing id = update (merge)
-  name?: string;                   // display name, defaults to id
-  default?: boolean;               // make this the default of its kind
-  values: RequestValues;
-}
-
-// ---- results ----
-
-export interface ConfigError { path: string; code: string; message: string }   // path = field name, '' = global
-export interface ConfigCheck { id: string; label: string; ok: boolean; message?: string }
-
-export interface ValidationResult { ok: boolean; errors: ConfigError[]; checks: ConfigCheck[] }
-
-export interface ApplyResult extends ValidationResult {
-  kind: ConfigKind;
-  id: string;
-  version?: number;
-  state: ConfigState;
-}
-
-// ---- what the adapter keeps ----
-
-/** Everything is a string, like env vars. Secrets are kept in a separate map. */
-export type ConfigValues = Record<string, string>;
-
-/** Sealed secrets as stored: field name -> envelope. */
-export type SealedValues = Record<string, SealedValue>;
-
-/** A config after activation, as handed to the adapter's ConfigHandler. */
-export interface ActiveConfig {
-  kind: ConfigKind;
-  /** Network kind: the ledger (CAIP-2). */
-  id: string;
-  name: string;
-  version: number;
-  isDefault: boolean;
-  /** Non-secret values with defaults applied. */
-  values: ConfigValues;
-  /** Opened (plaintext) secrets. Never log, never persist. */
-  secrets: ConfigValues;
-}
-
-/**
- * Accepted ids: CAIP-2 (`eip155:1`, `stellar:testnet`) and plain names
- * (`inmemory`, `fireblocks-sandbox`). No slash, no whitespace, 64 chars max.
- */
-export const CONFIG_ID_RE = /^[A-Za-z0-9][-_.:A-Za-z0-9]{0,63}$/;
+/** A key inside a section: letters, digits and `_`, 64 chars max. */
+export const CONFIG_KEY_RE = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 
 export const ERROR_CODES = {
-  required: 'required',
+  badRequest: 'bad-request',
+  versionMismatch: 'version-mismatch',
+  badLedger: 'bad-ledger',
+  badKey: 'bad-key',
   type: 'type',
-  pattern: 'pattern',
-  enum: 'enum',
-  min: 'min',
-  max: 'max',
-  unknownField: 'unknown-field',
+  invalid: 'invalid',
+  applyFailed: 'apply-failed',
   sealOpenFailed: 'seal-open-failed',
-  buildFailed: 'build-failed',
-  notFound: 'not-found',
-  inUse: 'in-use',
-  badId: 'bad-id',
 } as const;
