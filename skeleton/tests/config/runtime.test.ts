@@ -1,11 +1,11 @@
 import { sealWithPublicKey } from '../../src/config/envelope';
-import { ConfigRuntime, ConfigRequestError, PLAIN_KID } from '../../src/config/runtime';
+import { accountConfigId, ConfigRuntime, ConfigRequestError, PLAIN_KID } from '../../src/config/runtime';
 import {
   pagesOfKind, sanitizeMessage, staticValidate, visibleFields, withDefaults,
 } from '../../src/config/schema';
 import { ERROR_CODES, SEAL_ALG, SealedValue } from '../../src/config/types';
 import {
-  custody, fakeHandler, NET, NET2, net, networkPages, pages, RPC, SECRET, silentLogger, valid, validCustody,
+  account, ADDR, custody, fakeHandler, NET, NET2, net, networkPages, pages, pagesWithAccount, RPC, SECRET, silentLogger, valid, validCustody,
 } from './support/fixtures';
 import { MemoryStore } from './support/memory-store';
 import { TestSealer } from './support/test-sealer';
@@ -530,5 +530,83 @@ describe('ConfigRuntime restore / remove / resolve', () => {
     expect(rt.networks()).toEqual([NET]);
     // the other ledger is untouched
     expect(rt.resolve(NET)?.id).toBe(NET);
+  });
+});
+
+describe('account kind (per-investor connection)', () => {
+  const ACC = `${NET}:${ADDR}`;
+  const UPPER = ADDR.toUpperCase().replace('0X', '0x');
+  const SOL_LEDGER = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+
+  test('ids: CAIP-10, lowercase on eip155, longer than a name is allowed', () => {
+    expect(ConfigRuntime.refOf('account', ACC)).toEqual({ kind: 'account', id: ACC });
+    const rel = `eip155:2026041003:${ADDR}`;
+    expect(ConfigRuntime.refOf('account', rel).id).toBe(rel);
+    const sol = `${SOL_LEDGER}:7S3P4HxJpyyigGzodYwHtCxZyUQe9JiBMHyRWXArAaKv`;
+    expect(ConfigRuntime.refOf('account', sol).id).toBe(sol);
+    for (const bad of [`${NET}:${UPPER}`, NET, `${NET}:`, 'fb', `${NET}:0xab/cd`, `${NET}:${'a'.repeat(129)}`, 42]) {
+      expect(() => ConfigRuntime.refOf('account', bad)).toThrow(/CAIP-10/);
+    }
+    // the id rule of the other kinds is unchanged
+    expect(() => ConfigRuntime.refOf('network', sol)).toThrow(ConfigRequestError);
+  });
+
+  test('accountConfigId lowercases an eip155 address only', () => {
+    expect(accountConfigId(NET, UPPER)).toBe(ACC);
+    expect(accountConfigId(SOL_LEDGER, 'AbC')).toBe(`${SOL_LEDGER}:AbC`);
+  });
+
+  test('apply: own page, never an implicit default, found by (ledger, address)', async () => {
+    const { rt, handler } = newRuntime({ store: new MemoryStore(), pages: pagesWithAccount });
+    await rt.apply({ id: NET, values: valid });
+    const r = await rt.apply({ kind: 'account', id: ACC, values: { AUTH: 'bearer', TOKEN: SECRET } });
+    expect(r).toMatchObject({ ok: true, kind: 'account', id: ACC, state: 'configured' });
+    expect(handler.activated.at(-1)).toMatchObject({ kind: 'account', id: ACC, isDefault: false, values: { AUTH: 'bearer' }, secrets: { TOKEN: SECRET } });
+    expect(rt.defaultOf('account')).toBeUndefined();
+    expect(rt.account(NET, UPPER)?.id).toBe(ACC);
+    expect(rt.account(NET2, ADDR)).toBeUndefined();
+    expect(rt.account(NET, '0x0000000000000000000000000000000000000001')).toBeUndefined();
+    expect(rt.resolve(NET)?.kind).toBe('network');
+    // an account config does not make the adapter ready, a network does
+    expect(rt.readiness().ready).toBe(true);
+
+    // dtcc-wallet keeps no secret: TOKEN is hidden, so it is not required
+    await rt.apply({ kind: 'account', id: `${NET2}:${ADDR}`, values: { AUTH: 'dtcc-wallet' } });
+    expect(rt.account(NET2, ADDR)?.secrets).toEqual({});
+    const missing = await rt.apply({ kind: 'account', id: `${NET2}:${ADDR}`, values: { AUTH: 'bearer' } });
+    expect(missing.errors.map((e) => [e.path, e.code])).toEqual([['TOKEN', ERROR_CODES.required]]);
+
+    // an explicit default is kept
+    await rt.apply({ kind: 'account', id: `${NET2}:${ADDR}`, default: true, values: {} });
+    expect(rt.defaultOf('account')?.id).toBe(`${NET2}:${ADDR}`);
+    expect(rt.get(account(ACC))?.isDefault).toBe(false);
+  });
+
+  test('a kind with no pages on this adapter is refused', async () => {
+    const { rt, handler } = newRuntime({ pages: networkPages });
+    await expect(rt.apply({ kind: 'account', id: ACC, values: { AUTH: 'dtcc-wallet' } }))
+      .rejects.toMatchObject({ status: 400, code: ERROR_CODES.badId, path: 'kind' });
+    await expect(rt.validate({ kind: 'custody', values: {} })).rejects.toMatchObject({ status: 400, path: 'kind' });
+    expect(handler.activated).toHaveLength(0);
+  });
+
+  test('restore: custody, then network, then account. A kind with no pages is skipped', async () => {
+    const store = new MemoryStore();
+    const first = newRuntime({ store, pages: pagesWithAccount });
+    await first.rt.apply({ kind: 'account', id: ACC, values: { AUTH: 'dtcc-wallet' } });
+    await first.rt.apply({ id: NET, values: valid });
+    await first.rt.apply({ kind: 'custody', id: 'fb', values: validCustody });
+
+    const handler = fakeHandler();
+    const second = new ConfigRuntime({ adapter, pages: pagesWithAccount, handler, store, logger: silentLogger });
+    await second.restore();
+    expect(handler.activated.map((c) => `${c.kind}/${c.id}`)).toEqual(['custody/fb', `network/${NET}`, `account/${ACC}`]);
+    expect(second.account(NET, ADDR)?.values).toEqual({ AUTH: 'dtcc-wallet' });
+
+    const older = fakeHandler();
+    const third = new ConfigRuntime({ adapter, pages, handler: older, store, logger: silentLogger });
+    await third.restore();
+    expect(older.activated.map((c) => c.kind)).toEqual(['custody', 'network']);
+    expect(third.list().map((c) => c.kind)).toEqual(['custody', 'network']);
   });
 });
