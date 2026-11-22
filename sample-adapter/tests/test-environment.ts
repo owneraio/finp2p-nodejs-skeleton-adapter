@@ -6,8 +6,8 @@ import NodeEnvironment from "jest-environment-node";
 import { exec } from 'node:child_process';
 import { RandomPortGenerator } from "testcontainers";
 import createApp, { SAMPLE_ADAPTER_SCHEMA } from "../src/app";
-import { workflows, config } from "@owneraio/finp2p-nodejs-skeleton-adapter";
-import { Pool } from "pg";
+import { workflows } from "@owneraio/finp2p-nodejs-skeleton-adapter";
+import type { Pool } from "pg";
 
 type AdapterParameters = {
   url: string,
@@ -73,20 +73,9 @@ class CustomTestEnvironment extends NodeEnvironment {
       schemaName,
     });
 
-    // headless: the sealer key and every ledger config live in the DB
-    const pool = new Pool({ connectionString });
-    const store = new config.PgConfigStore(pool, schemaName);
-    const sealer = await config.LocalRsaSealer.create(store);
-    const { app, runtime, handler } = createApp("my-org", undefined, { pool, schemaName, sealer })
+    const { app, pool } = createApp("my-org", undefined, { connectionString, schemaName })
     this.pool = pool;
     console.log("App created successfully.");
-
-    // the adapter-tests suite expects an in-memory ledger named `inmemory`: apply it as the default network
-    const applied = await runtime.apply({
-      id: 'inmemory', name: 'in-memory', default: true, values: { LEDGER_KIND: 'inmemory' },
-    });
-    if (!applied.ok) throw new Error(`default config not applied: ${JSON.stringify(applied)}`);
-    this.global.headless = { runtime, handler, connectionString, schemaName };
 
     this.httpServer = app.listen(port, () => {
       console.log(`Server listening on port ${port}`);
