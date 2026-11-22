@@ -1,33 +1,22 @@
-// The wizard files an adapter reads at startup (written by the Control Center setup):
-//   <dir>/adapter.json   pins: issuer, audience, org, env, integrationId, wizardId, grantKid,
-//                        grantPublicKeyPem, manifestPath, manifestDigest
-//   <dir>/manifest.jws   the signed manifest, served as is
-// Nothing in them is secret.
-import { createPrivateKey, createPublicKey, KeyObject } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { has, isP256Key, isPlainObject, JsonObject, parseCompact, parseJsonObject, sha256Hex, signCompact } from './jws';
+// The manifest an adapter serves at GET /config/manifest. Control Center checks it again and
+// fails closed on anything unknown (ownera-apps backend services/AdapterConfig/manifest.ts).
+import { has, hasOnlyKeys, isPlainObject } from './json';
 import {
-  HOST_CONTRACT, ID_PATTERN, MANIFEST_TYP, NETWORK_ID_PATTERN, Wizard, WizardManifest, WizardPins,
+  HOST_CONTRACT, ID_PATTERN, NETWORK_ID_PATTERN, WizardContext, WizardManifest, WizardScope,
 } from './types';
 
-export const WIZARD_DIR_ENV = 'ADAPTER_CONFIG_WIZARD_DIR';
+export const MANIFEST_MAX_BYTES = 64 * 1024;
+const MANIFEST_KEYS = ['manifestVersion', 'wizardId', 'adapter', 'compatibility', 'targets', 'flows', 'status', 'operations'];
+const ADAPTER_KEYS = ['kind', 'name', 'version'];
 
-export const manifestDigest = (compact: string): string => `sha256:${sha256Hex(Buffer.from(compact, 'utf8'))}`;
-
-/** Signs the exact payload bytes: compact JSON, UTF-8, no trailing newline. */
-export function signManifest(manifest: WizardManifest, releaseKeyPem: string, kid: string): string {
-  const key = createPrivateKey(releaseKeyPem);
-  if (!isP256Key(key)) throw new Error('the release key is not a P-256 key');
-  return signCompact({ alg: 'ES256', kid, typ: MANIFEST_TYP }, Buffer.from(JSON.stringify(manifest), 'utf8'), key);
-}
-
-/** The structure the adapter routes by. Control Center checks the signature and the rest. */
+/** The structure the adapter routes by, or the first part that is wrong. Never a value. */
 export function manifestProblem(m: unknown): string | null {
-  if (!isPlainObject(m)) return 'not an object';
+  if (!isPlainObject(m) || !hasOnlyKeys(m, MANIFEST_KEYS)) return 'top-level keys';
   const manifest = m as unknown as WizardManifest;
   if (manifest.manifestVersion !== 1) return 'manifestVersion';
   if (typeof manifest.wizardId !== 'string' || !ID_PATTERN.test(manifest.wizardId)) return 'wizardId';
+  const { adapter } = manifest;
+  if (!isPlainObject(adapter) || !hasOnlyKeys(adapter, ADAPTER_KEYS) || !ID_PATTERN.test(String(adapter.kind))) return 'adapter';
   if (manifest.compatibility?.hostContract !== HOST_CONTRACT) return 'compatibility.hostContract';
   if (!isPlainObject(manifest.operations)) return 'operations';
   for (const [id, op] of Object.entries(manifest.operations)) {
@@ -45,65 +34,30 @@ export function manifestProblem(m: unknown): string | null {
   if (!has(manifest.operations, manifest.status?.operation ?? '')) return 'status.operation';
   const network = manifest.targets?.network;
   if (!Array.isArray(network) || network.some((t) => !NETWORK_ID_PATTERN.test(t?.id))) return 'targets.network';
+  if (Buffer.byteLength(JSON.stringify(manifest), 'utf8') > MANIFEST_MAX_BYTES) return 'size';
   return null;
 }
 
-const textOf = (raw: JsonObject, field: string): string => {
-  const value = raw[field];
-  if (typeof value !== 'string' || value === '') throw new Error(`adapter.json has no ${field}`);
-  return value;
-};
-
-/** Reads and checks the wizard files. Errors name the file and the field, never a value. */
-export function loadWizard(dir: string): Wizard {
-  const adapterPath = resolve(dir, 'adapter.json');
-  let raw: JsonObject | null;
-  try {
-    raw = parseJsonObject(readFileSync(adapterPath));
-  } catch {
-    throw new Error(`cannot read ${adapterPath}`);
-  }
-  if (!raw) throw new Error(`${adapterPath} is not a JSON object`);
-
-  let grantPublicKey: KeyObject;
-  try {
-    grantPublicKey = createPublicKey(textOf(raw, 'grantPublicKeyPem'));
-  } catch {
-    throw new Error('adapter.json grantPublicKeyPem is not a public key');
-  }
-  if (!isP256Key(grantPublicKey)) throw new Error('adapter.json grantPublicKeyPem is not a P-256 key');
-
-  const pins: WizardPins = {
-    issuer: textOf(raw, 'issuer'),
-    audience: textOf(raw, 'audience'),
-    org: textOf(raw, 'org'),
-    env: textOf(raw, 'env'),
-    integrationId: textOf(raw, 'integrationId'),
-    wizardId: textOf(raw, 'wizardId'),
-    grantKid: textOf(raw, 'grantKid'),
-    grantPublicKey,
-    manifestDigest: textOf(raw, 'manifestDigest'),
-  };
-
-  const manifestPath = resolve(dir, typeof raw.manifestPath === 'string' ? raw.manifestPath : 'manifest.jws');
-  let manifestJws: string;
-  try {
-    manifestJws = readFileSync(manifestPath, 'utf8');
-  } catch {
-    throw new Error(`cannot read ${manifestPath}`);
-  }
-  if (manifestDigest(manifestJws) !== pins.manifestDigest) throw new Error(`${manifestPath} does not match manifestDigest in adapter.json`);
-  const parts = parseCompact(manifestJws);
-  const payload = parts && parseJsonObject(parts.payloadBytes);
-  const problem = manifestProblem(payload);
-  if (problem) throw new Error(`the signed manifest is not valid: ${problem}`);
-  const manifest = payload as unknown as WizardManifest;
-  if (manifest.wizardId !== pins.wizardId) throw new Error('the signed manifest has another wizardId than adapter.json');
-  return { pins, manifest, manifestJws };
+/** The manifest, checked. The error names the failing part, never a value. */
+export function checkManifest(m: unknown): WizardManifest {
+  const problem = manifestProblem(m);
+  if (problem) throw new Error(`the wizard manifest is not valid: ${problem}`);
+  return m as WizardManifest;
 }
 
-/** The wizard named by ADAPTER_CONFIG_WIZARD_DIR, or undefined when it is unset (wizard routes off). */
-export function wizardFromEnv(env: NodeJS.ProcessEnv = process.env): Wizard | undefined {
-  const dir = env[WIZARD_DIR_ENV];
-  return dir ? loadWizard(dir) : undefined;
+/** The scopes of the flows that list an operation. The status read is an integration step. */
+export function scopesOf(manifest: WizardManifest, operationId: string): Set<WizardScope> {
+  const scopes = new Set(Object.values(manifest.flows).filter((f) => f.operations.includes(operationId)).map((f) => f.scope));
+  if (manifest.status.operation === operationId) scopes.add('integration');
+  return scopes;
+}
+
+/** The body's context, when it fits a flow that lists the operation and names a declared network. */
+export function contextOf(manifest: WizardManifest, operationId: string, context: unknown): WizardContext | null {
+  if (!isPlainObject(context) || !scopesOf(manifest, operationId).has(context.scope as WizardScope)) return null;
+  if (context.scope === 'integration') return Object.keys(context).length === 1 ? { scope: 'integration' } : null;
+  const fits = Object.keys(context).length === 3
+    && context.targetKind === 'network'
+    && manifest.targets.network.some((t) => t.id === context.targetId);
+  return fits ? { scope: 'network', targetKind: 'network', targetId: context.targetId as string } : null;
 }

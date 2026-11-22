@@ -1,5 +1,5 @@
-// Idempotency at the adapter. The key covers (integration, flow, op, scope, targetId, idem)
-// and an entry remembers the grant's request hash, so a key cannot be reused for another request.
+// Idempotency at the adapter. The key covers (op, scope, targetId, idem)
+// and an entry remembers the hash of the body, so a key cannot be reused for another request.
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface Entry<T> { req: string; expiresAt: number; settled: boolean; promise: Promise<T> }
