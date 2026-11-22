@@ -145,7 +145,7 @@ export class VanillaServiceImpl implements TokenService, EscrowService, CommonSe
 
   async swap(
     idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
-    numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined,
+    numberOfReceipts: number, deadline: number | undefined, exCtx: ExecutionContext | undefined,
   ): Promise<SwapOperation> {
     getLogger().info(`Swapping ${asset.quantity} of ${asset.asset.assetId} for ${settlement.quantity} of ${settlement.asset.assetId}`, { operationId, numberOfReceipts });
 

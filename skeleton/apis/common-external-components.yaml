@@ -951,7 +951,7 @@ components:
       description: |
         Atomic exchange of two legs in one ledger transaction: both legs settle together or
         neither does. Both legs must be on the same ledger.
-      required: [type, asset, settlement, deadline]
+      required: [type, asset, settlement]
       properties:
         type:
           type: string
@@ -963,7 +963,7 @@ components:
         deadline:
           type: integer
           format: int64
-          description: Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds.
+          description: Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds. Absent when the swap has no deadline.
     swapInstructionLeg:
       type: object
       required: [source, destination, amount]

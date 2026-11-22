@@ -671,12 +671,12 @@ export interface components {
       settlement: components['schemas']['swapSettlementLeg'];
       /**
              * Format: int64
-             * @description Contract TTL as ABSOLUTE epoch seconds — not a duration and not a block number.
-             *     Required: identical on both legs, carried from the execution instruction so the two
-             *     orgs' calls cannot expire at different times. The adapter maps it to a block marker
-             *     if its chain needs one. Expiry refunds; there is no cancel path.
+             * @description Contract TTL as ABSOLUTE epoch seconds, not a duration and not a block number.
+             *     Identical on both legs, carried from the execution instruction so the two orgs' calls
+             *     cannot expire at different times. The adapter maps it to a block marker if its chain
+             *     needs one. Expiry refunds; there is no cancel path. Absent when the swap has no deadline.
              */
-      deadline: number;
+      deadline?: number;
       executionContext?: components['schemas']['executionContext'];
     };
     /** @description The leg this adapter executes. Its signature is mandatory and covers the FULL swap terms (both legs). */
@@ -749,12 +749,15 @@ export interface components {
       quantity: string;
       /**
              * Format: uint64
-             * @description Absolute epoch seconds after which the authorization is no longer valid; absent or 0 means no expiry
+             * @description Absolute epoch seconds after which the authorization is no longer valid. Equals the deadline of the related instruction, and is absent when that instruction has no deadline.
              */
       expiry?: number;
       signature: components['schemas']['signature'];
       executionContext?: components['schemas']['executionContext'];
-      /** @description The instruction this Authorize backs. */
+      /**
+             * @description The instruction this Authorize backs. Swap is the only variant today; others, such as a
+             *     transfer, may be added. `expiry` must equal the related instruction's deadline.
+             */
       relatedInstruction: components['schemas']['relatedInstruction'];
     };
     AuthorizeOperationResponse: components['schemas']['authorizeOperation'];
@@ -1882,9 +1885,9 @@ export interface components {
       settlement: components['schemas']['swapInstructionLeg'];
       /**
              * Format: int64
-             * @description Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds.
+             * @description Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds. Absent when the swap has no deadline.
              */
-      deadline: number;
+      deadline?: number;
     };
   };
   responses: never;

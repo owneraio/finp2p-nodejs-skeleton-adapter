@@ -603,6 +603,7 @@ export const relatedSwapFromAPI = (ri: components['schemas']['relatedInstruction
   swapOperationId: ri.swapOperationId,
   asset: relatedSwapLegFromAPI(ri.asset),
   settlement: relatedSwapLegFromAPI(ri.settlement),
+  deadline: ri.deadline,
 });
 
 export const swapOperationToAPI = (op: SwapOperation): components['schemas']['swapReceiptOperation'] => {

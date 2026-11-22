@@ -103,6 +103,8 @@ export type RelatedSwap = {
   swapOperationId: string
   asset: RelatedSwapLeg
   settlement: RelatedSwapLeg
+  /** Absolute epoch seconds; absent when the swap has no deadline. The authorize expiry equals it. */
+  deadline?: number
 };
 
 // executor (asset-leg org) settles the whole crossing; observer (settlement-leg org) verifies it.
@@ -274,8 +276,8 @@ export type SwapInstruction = {
   type: 'swap';
   asset: SwapInstructionLeg;
   settlement: SwapInstructionLeg;
-  /** Absolute epoch seconds, identical on both legs. Expiry refunds. */
-  deadline: number;
+  /** Absolute epoch seconds, identical on both legs. Expiry refunds. Absent when the swap has no deadline. */
+  deadline?: number;
 };
 
 /** Moves an investor's holding from a source asset to a destination asset. */

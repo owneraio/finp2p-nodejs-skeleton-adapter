@@ -1285,7 +1285,7 @@ components:
         Legs are perspective-relative: `asset` is always the leg THIS adapter executes; `settlement`
         is the counter-leg, executed here too only when `numberOfReceipts` is 2.
         See `POST /assets/swap` for the mandatory two-group signature verification requirement.
-      required: ['nonce', 'operationId', 'asset', 'settlement', 'deadline']
+      required: ['nonce', 'operationId', 'asset', 'settlement']
       properties:
         nonce:
           $ref: 'common-external-components.yaml#/components/schemas/nonce'
@@ -1319,10 +1319,10 @@ components:
           type: 'integer'
           format: 'int64'
           description: |
-            Contract TTL as ABSOLUTE epoch seconds — not a duration and not a block number.
-            Required: identical on both legs, carried from the execution instruction so the two
-            orgs' calls cannot expire at different times. The adapter maps it to a block marker
-            if its chain needs one. Expiry refunds; there is no cancel path.
+            Contract TTL as ABSOLUTE epoch seconds, not a duration and not a block number.
+            Identical on both legs, carried from the execution instruction so the two orgs' calls
+            cannot expire at different times. The adapter maps it to a block marker if its chain
+            needs one. Expiry refunds; there is no cancel path. Absent when the swap has no deadline.
         executionContext:
           $ref: '#/components/schemas/executionContext'
     swapAssetLeg:
@@ -1450,14 +1450,15 @@ components:
         expiry:
           type: 'integer'
           format: 'uint64'
-          description: 'Absolute epoch seconds after which the authorization is no longer valid; absent or 0 means no expiry'
+          description: 'Absolute epoch seconds after which the authorization is no longer valid. Equals the deadline of the related instruction, and is absent when that instruction has no deadline.'
         signature:
           $ref: '#/components/schemas/signature'
         executionContext:
           $ref: '#/components/schemas/executionContext'
         relatedInstruction:
           description: |
-            The instruction this Authorize backs.
+            The instruction this Authorize backs. Swap is the only variant today; others, such as a
+            transfer, may be added. `expiry` must equal the related instruction's deadline.
           $ref: '#/components/schemas/relatedInstruction'
     AuthorizeOperationResponse:
       allOf:
