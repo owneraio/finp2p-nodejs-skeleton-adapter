@@ -1,7 +1,8 @@
 // Holds the configs of one adapter, one per (kind, id): merge -> validate ->
 // store -> activate through the adapter's ConfigHandler. For kind 'network'
 // the id is the ledger (CAIP-2), so an asset's ledger names its config and no
-// asset binding exists. Mutations run one at a time through a promise queue.
+// asset binding exists. For kind 'account' the id is CAIP-10 (`<ledger>:<address>`),
+// one config per investor wallet. Mutations run one at a time through a promise queue.
 // Plaintext secrets live only in memory (ActiveConfig).
 import { logger as defaultLogger } from '../helpers/logger';
 import { openSealed, sealWithPublicKey } from './envelope';
@@ -12,7 +13,7 @@ import {
   errMsg, fieldIndex, pagesOfKind, sanitizeMessage, staticValidate, visibleFields, withDefaults,
 } from './schema';
 import {
-  ActiveConfig, ApplyRequest, ApplyResult, CONFIG_ID_RE, CONFIG_KINDS, ConfigCheck, ConfigDescriptor, ConfigError,
+  ACCOUNT_ID_RE, ActiveConfig, ApplyRequest, ApplyResult, CONFIG_ID_RE, CONFIG_KINDS, ConfigCheck, ConfigDescriptor, ConfigError,
   ConfigField, ConfigKind, ConfigPage, ConfigState, ConfigSummary, ConfigValues, DEFAULT_KIND, DescriptorValue,
   EncryptionInfo, ERROR_CODES, isSealedValue, PROTOCOL, RequestValues, SealedValue, SealedValues, SEAL_ALG,
   ValidateRequest, ValidationResult,
@@ -103,6 +104,28 @@ const isNotFound = (e: unknown): boolean => codeOf(e) === ERROR_CODES.notFound;
 export const refKey = (ref: ConfigRef): string => `${ref.kind}/${ref.id}`;
 export const isConfigKind = (k: unknown): k is ConfigKind => typeof k === 'string' && (CONFIG_KINDS as readonly string[]).includes(k);
 
+const EIP155 = 'eip155:';
+
+/** Whether `id` names a config of `kind`: CAIP-10 for an account (lowercase on eip155), CONFIG_ID_RE otherwise. */
+export const isConfigId = (kind: ConfigKind, id: unknown): id is string => {
+  if (typeof id !== 'string') return false;
+  if (kind !== 'account') return CONFIG_ID_RE.test(id);
+  return ACCOUNT_ID_RE.test(id) && (!id.startsWith(EIP155) || id === id.toLowerCase());
+};
+
+/** The id of the account config of `address` on `ledger` (CAIP-2). An eip155 address is lowercased. */
+export const accountConfigId = (ledger: string, address: string): string =>
+  `${ledger}:${ledger.startsWith(EIP155) ? address.toLowerCase() : address}`;
+
+const ID_RULES: Record<ConfigKind, string> = {
+  network: 'id must be the ledger (CAIP-2, e.g. eip155:11155111)',
+  custody: 'id must be a name (letters, digits, - _ . :)',
+  account: 'id must be an account on a ledger (CAIP-10, e.g. eip155:1:0xab16...), lowercase on eip155',
+};
+
+/** Custody first (a network may need its custodian), accounts last (an account rides on its network). */
+const RESTORE_ORDER: Record<ConfigKind, number> = { custody: 0, network: 1, account: 2 };
+
 export class ConfigRuntime {
   private readonly entries = new Map<string, ConfigEntry>();
 
@@ -146,12 +169,17 @@ export class ConfigRuntime {
     if (!isConfigKind(k)) {
       throw new ConfigRequestError(400, ERROR_CODES.badId, `kind must be one of ${CONFIG_KINDS.join(', ')}`, 'kind');
     }
-    if (typeof id !== 'string' || !CONFIG_ID_RE.test(id)) {
-      throw new ConfigRequestError(400, ERROR_CODES.badId, k === 'network'
-        ? 'id must be the ledger (CAIP-2, e.g. eip155:11155111)'
-        : 'id must be a name (letters, digits, - _ . :)', 'id');
+    if (!isConfigId(k, id)) {
+      throw new ConfigRequestError(400, ERROR_CODES.badId, ID_RULES[k], 'id');
     }
     return { kind: k, id };
+  }
+
+  /** Refuses a kind this adapter declared no pages for: its handler would take the config for another kind. */
+  private assertDeclared(kind: ConfigKind): void {
+    if (this.pagesOf(kind).length === 0) {
+      throw new ConfigRequestError(400, ERROR_CODES.badId, `this adapter has no ${kind} config`, 'kind');
+    }
   }
 
   // ---- merge (value semantics of the contract) ----
@@ -350,6 +378,7 @@ export class ConfigRuntime {
     if (!isConfigKind(kind)) {
       throw new ConfigRequestError(400, ERROR_CODES.badId, `kind must be one of ${CONFIG_KINDS.join(', ')}`, 'kind');
     }
+    this.assertDeclared(kind);
     const ref: ConfigRef = req.id !== undefined ? ConfigRuntime.refOf(kind, req.id) : { kind, id: '' };
     const base = await this.baseOf(ref.id ? ref : undefined);
     const m = await this.merge(ref.kind, req.values, base);
@@ -381,10 +410,13 @@ export class ConfigRuntime {
     return this.enqueue(async () => {
       const ref = ConfigRuntime.refOf(req.kind, req.id);
       const { kind, id } = ref;
+      this.assertDeclared(kind);
       const key = refKey(ref);
       const base = await this.baseOf(ref);
       const name = req.name ?? base?.name ?? id;
-      const isDefault = req.default ?? base?.isDefault ?? !(await this.hasDefault(kind));
+      // The first config of a kind becomes its default. Not an account: one investor
+      // wallet must not serve the calls that name no address.
+      const isDefault = req.default ?? base?.isDefault ?? (kind !== 'account' && !(await this.hasDefault(kind)));
 
       const m = await this.merge(kind, req.values, base);
       if (m.errors.length > 0) {
@@ -514,8 +546,8 @@ export class ConfigRuntime {
   }
 
   /**
-   * Boot: activate every stored config, custody first (a network may need
-   * its custodian). No live checks. Never throws; one failing config does
+   * Boot: activate every stored config in RESTORE_ORDER (custody, network,
+   * account). No live checks. Never throws; one failing config does
    * not stop the others.
    */
   restore(): Promise<void> {
@@ -528,11 +560,15 @@ export class ConfigRuntime {
         this.log.error('config restore: cannot list stored configs', { error: errMsg(e) });
         return;
       }
-      const order = (k: ConfigKind) => (k === 'custody' ? 0 : 1);
+      const order = (k: string) => RESTORE_ORDER[k as ConfigKind] ?? RESTORE_ORDER.network;
       list = [...list].sort((a, b) => order(a.kind) - order(b.kind));
       for (const row of list) {
-        if (!isConfigKind(row.kind) || !CONFIG_ID_RE.test(row.id)) {
+        if (!isConfigKind(row.kind) || !isConfigId(row.kind, row.id)) {
           this.log.error('config restore: skipping row with an unknown kind or bad id', { kind: row.kind, id: row.id });
+          continue;
+        }
+        if (this.pagesOf(row.kind).length === 0) {
+          this.log.error('config restore: skipping row of a kind this adapter has no pages for', { kind: row.kind, id: row.id });
           continue;
         }
         const stored = this.pruneUnknown(row);
@@ -573,6 +609,11 @@ export class ConfigRuntime {
   /** The network config of a ledger. Undefined when none is configured (down, applying from scratch, or unknown). */
   resolve(network: string): ActiveConfig | undefined {
     return this.get({ kind: 'network', id: network });
+  }
+
+  /** The account config of `address` on `ledger` (CAIP-2). Undefined when none is usable: the caller uses the network connection. */
+  account(ledger: string, address: string): ActiveConfig | undefined {
+    return this.get({ kind: 'account', id: accountConfigId(ledger, address) });
   }
 
   /** The default config of `kind` when it is usable. */

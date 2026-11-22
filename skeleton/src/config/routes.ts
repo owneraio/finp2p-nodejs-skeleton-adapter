@@ -4,6 +4,7 @@
 //   POST   /config/apply            merge + validate + store + activate   { kind?, id, name?, default?, values }
 //   DELETE /config/:kind/:id        remove a config (409 when the handler says it is in use)
 // For kind 'network' the id is the ledger (CAIP-2), e.g. DELETE /config/network/eip155:11155111.
+// For kind 'account' the id is CAIP-10, e.g. DELETE /config/account/eip155:1:0xab16a96d359ec26a11e2c2b3d8f8b8942d5bfcdb.
 // Bodies are never logged; unexpected errors answer 500 without the message.
 import express from 'express';
 import expressWinston from 'express-winston';
