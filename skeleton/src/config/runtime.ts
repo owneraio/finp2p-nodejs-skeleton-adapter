@@ -1,25 +1,19 @@
-// Holds the configs of one adapter, one per (kind, id): merge -> validate ->
-// store -> activate through the adapter's ConfigHandler. For kind 'network'
-// the id is the ledger (CAIP-2), so an asset's ledger names its config and no
-// asset binding exists. Mutations run one at a time through a promise queue.
-// Plaintext secrets live only in memory (ActiveConfig).
+// Holds the adapter config (adapter-config/3): 1 document with `ledgers` (by
+// CAIP-2) and `custody`. POST merges a patch into the active config, checks
+// it, applies it through the adapter's ConfigHandler when a value changed and
+// stores it. A failed apply re-applies the previous config. Mutations run one
+// at a time through a promise queue. Plaintext secrets live only in memory.
 import { logger as defaultLogger } from '../helpers/logger';
 import { openSealed, sealWithPublicKey } from './envelope';
 import {
-  ConfigHandler, ConfigRef, ConfigStore, Sealer, StoredConfig,
+  ConfigHandler, ConfigStore, Sealer, StoredConfig, StoredValue,
 } from './interfaces';
 import {
-  errMsg, fieldIndex, pagesOfKind, sanitizeMessage, staticValidate, visibleFields, withDefaults,
-} from './schema';
-import {
-  ActiveConfig, ApplyRequest, ApplyResult, CONFIG_ID_RE, CONFIG_KINDS, ConfigCheck, ConfigDescriptor, ConfigError,
-  ConfigField, ConfigKind, ConfigPage, ConfigState, ConfigSummary, ConfigValues, DEFAULT_KIND, DescriptorValue,
-  ERROR_CODES, PROTOCOL, RequestValues, SealedValue, SealedValues, SEAL_ALG,
-  ValidateRequest, ValidationResult,
+  AdapterConfig, ApplyResult, CONFIG_KEY_RE, ConfigDocument, ConfigError, ConfigPatch, ConfigScalar, ConfigSection,
+  ConfigState, ERROR_CODES, isSealedValue, LEDGER_ID_RE, MaskedSection, PROTOCOL, SEAL_ALG, SealedValue,
 } from './types';
 
-export const CHECK_TIMEOUT_MS = 10_000;
-export const ACTIVATE_TIMEOUT_MS = 120_000;
+export const APPLY_TIMEOUT_MS = 120_000;
 
 /**
  * Pseudo kid used when the runtime has no sealer: the "envelope" is only
@@ -28,63 +22,29 @@ export const ACTIVATE_TIMEOUT_MS = 120_000;
 export const PLAIN_KID = 'plain';
 
 export interface ConfigLogger {
-  info(message: string, meta?: Record<string, unknown>): unknown;
-  warn(message: string, meta?: Record<string, unknown>): unknown;
-  error(message: string, meta?: Record<string, unknown>): unknown;
+  info(message: string, meta?: Record<string, unknown>): void;
+  warn(message: string, meta?: Record<string, unknown>): void;
+  error(message: string, meta?: Record<string, unknown>): void;
 }
 
 export interface ConfigRuntimeOptions {
-  adapter: { id: string; kind: string; version: string };
-  pages: ConfigPage[];
+  version: string;                  // the adapter's config version, printed by GET /config
+  adapter: { id: string; version: string };
+  secretKeys: readonly string[];    // keys shown as { set: true } and sealed at rest, in every section
   handler: ConfigHandler;
   store?: ConfigStore;              // undefined = memory only
   sealer?: Sealer;                  // seals secrets at rest; undefined = the plain pseudo envelope (dev only)
   logger?: ConfigLogger;
-  checkTimeoutMs?: number;
-  activateTimeoutMs?: number;
+  applyTimeoutMs?: number;
 }
 
-/** Problem the HTTP layer maps to a status code. */
+/** A request refused before its values are looked at: 400 (shape) or 409 (another config version). */
 export class ConfigRequestError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code: string,
-    message: string,
-    public readonly path: string = '',
-  ) {
+  constructor(readonly status: number, readonly code: string, message: string) {
     super(message);
     this.name = 'ConfigRequestError';
   }
 }
-
-export interface MergeResult {
-  values: ConfigValues;
-  secrets: SealedValues;
-  cleared: string[];
-  /** Secrets that arrived in plaintext in this request (already known, no need to open). */
-  plainSecrets: Record<string, string>;
-  errors: ConfigError[];
-}
-
-export interface ConfigEntry {
-  stored: StoredConfig;
-  active?: ActiveConfig;
-  state: ConfigState;
-  lastError?: string;
-}
-
-/** Rejects after `ms`. `onLate` runs if `p` settles after the timeout fired (resources it built must be torn down). */
-const withTimeout = <T>(p: Promise<T>, ms: number, what: string, onLate?: () => void): Promise<T> =>
-  new Promise<T>((resolve, reject) => {
-    let timedOut = false;
-    const t = setTimeout(() => {
-      timedOut = true;
-      reject(new Error(`${what}: timeout after ${ms}ms`));
-    }, ms);
-    t.unref?.();
-    const late = () => { if (timedOut) onLate?.(); };
-    p.then((v) => { clearTimeout(t); resolve(v); late(); }, (e) => { clearTimeout(t); reject(e); late(); });
-  });
 
 const skeletonLogger: ConfigLogger = {
   info: (m, meta) => defaultLogger.info(m, meta),
@@ -92,31 +52,59 @@ const skeletonLogger: ConfigLogger = {
   error: (m, meta) => defaultLogger.error(m, meta),
 };
 
-const plainEnvelope = (plain: string): SealedValue => ({
-  enc: SEAL_ALG, kid: PLAIN_KID, wrappedKey: '', iv: '', ciphertext: Buffer.from(plain, 'utf8').toString('base64'),
-});
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const isScalar = (v: unknown): v is ConfigScalar => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-const codeOf = (e: unknown): unknown => (e as { code?: unknown })?.code;
-const isNotFound = (e: unknown): boolean => codeOf(e) === ERROR_CODES.notFound;
+/** JSON with object keys sorted, so key order does not count as a change. */
+const canonical = (v: unknown): string => JSON.stringify(v, (_k, x: unknown) => (
+  isObject(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x
+));
 
-export const refKey = (ref: ConfigRef): string => `${ref.kind}/${ref.id}`;
-export const isConfigKind = (k: unknown): k is ConfigKind => typeof k === 'string' && (CONFIG_KINDS as readonly string[]).includes(k);
+/** The message with URL credentials and every secret value replaced by ***, longest first. */
+export const redact = (message: string, secrets: string[]): string => {
+  let out = message.replace(/\/\/[^/\s:@]+:[^/\s@]+@/g, '//***@');
+  for (const s of [...secrets].filter((x) => x.length >= 4).sort((a, b) => b.length - a.length)) out = out.split(s).join('***');
+  return out;
+};
+
+const withTimeout = async <T>(p: Promise<T>, ms: number, what: string): Promise<T> => {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      p,
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`${what} timed out after ${ms} ms`)), ms); }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
+const sections = <V>(doc: { ledgers: Record<string, Record<string, V>>; custody?: Record<string, V> }): Array<[string, Record<string, V>]> => [
+  ...Object.entries(doc.ledgers).map(([id, sec]): [string, Record<string, V>] => [`ledgers.${id}`, sec]),
+  ...(doc.custody ? [['custody', doc.custody] as [string, Record<string, V>]] : []),
+];
 
 export class ConfigRuntime {
-  private readonly entries = new Map<string, ConfigEntry>();
+  private active: AdapterConfig | undefined;   // plaintext, memory only
 
-  /** kind -> page subset, field index */
-  private readonly kinds: Record<ConfigKind, { pages: ConfigPage[]; fields: Map<string, ConfigField> }>;
+  private stored: StoredConfig | undefined;    // as persisted, secrets sealed
+
+  private state: ConfigState = 'unconfigured';
+
+  private lastError: string | undefined;
+
+  private revision = 0;
+
+  private readonly secretKeys: Set<string>;
 
   private readonly log: ConfigLogger;
 
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly opts: ConfigRuntimeOptions) {
-    this.kinds = Object.fromEntries(CONFIG_KINDS.map((k) => {
-      const pages = pagesOfKind(opts.pages, k);
-      return [k, { pages, fields: fieldIndex(pages) }];
-    })) as ConfigRuntime['kinds'];
+    this.secretKeys = new Set(opts.secretKeys);
     this.log = opts.logger ?? skeletonLogger;
   }
 
@@ -126,492 +114,303 @@ export class ConfigRuntime {
     return run;
   }
 
-  private pagesOf(kind: ConfigKind): ConfigPage[] {
-    return this.kinds[kind].pages;
+  // ---- read side ----
+
+  /** The applied config (plaintext), undefined before the first apply. Read it, do not change it. */
+  current(): AdapterConfig | undefined {
+    return this.active;
   }
 
-  private fieldsOf(kind: ConfigKind): Map<string, ConfigField> {
-    return this.kinds[kind].fields;
+  /** The applied section of one ledger (CAIP-2). */
+  ledger(id: string): ConfigSection | undefined {
+    return this.active?.ledgers[id];
   }
 
-  /** Kinds this adapter declared pages for. */
-  declaredKinds(): ConfigKind[] {
-    return CONFIG_KINDS.filter((k) => this.pagesOf(k).length > 0);
+  ready(): boolean {
+    return this.state === 'configured';
   }
 
-  /** Normalises and checks `(kind, id)` of a request. Throws ConfigRequestError(400). */
-  static refOf(kind: unknown, id: unknown): ConfigRef {
-    const k = kind ?? DEFAULT_KIND;
-    if (!isConfigKind(k)) {
-      throw new ConfigRequestError(400, ERROR_CODES.badId, `kind must be one of ${CONFIG_KINDS.join(', ')}`, 'kind');
-    }
-    if (typeof id !== 'string' || !CONFIG_ID_RE.test(id)) {
-      throw new ConfigRequestError(400, ERROR_CODES.badId, k === 'network'
-        ? 'id must be the ledger (CAIP-2, e.g. eip155:11155111)'
-        : 'id must be a name (letters, digits, - _ . :)', 'id');
-    }
-    return { kind: k, id };
+  /** GET /config: the config version, the state and the configured values, secrets as { set: true }. */
+  describe(): Promise<ConfigDocument> {
+    const src = this.active ?? this.stored;
+    const ledgers: Record<string, MaskedSection> = {};
+    for (const [id, sec] of Object.entries(src?.ledgers ?? {})) ledgers[id] = this.mask(sec);
+    return Promise.resolve({
+      protocol: PROTOCOL,
+      version: this.opts.version,
+      adapter: this.opts.adapter,
+      state: this.state,
+      revision: this.revision,
+      ...(this.lastError ? { lastError: this.lastError } : {}),
+      ledgers,
+      ...(src?.custody ? { custody: this.mask(src.custody) } : {}),
+    });
   }
 
-  // ---- merge (value semantics of the contract) ----
-
-  /**
-   * Request values on top of `base`. Omitted keeps, "" / null clears, scalars
-   * are stringified. Secrets arrive in plaintext and are sealed now for the
-   * store (at rest). Problems are collected in `errors`.
-   */
-  async merge(kind: ConfigKind, request: RequestValues, base?: StoredConfig): Promise<MergeResult> {
-    const fields = this.fieldsOf(kind);
-    const known = base ? this.pruneUnknown(base) : undefined;
-    const values: ConfigValues = { ...(known?.values ?? {}) };
-    const secrets: SealedValues = { ...(known?.secrets ?? {}) };
-    const cleared: string[] = [];
-    const plainSecrets: Record<string, string> = {};
-    const errors: ConfigError[] = [];
-    const { sealer } = this.opts;
-
-    let kid: string | undefined;
-    let publicKey: string | undefined;
-    const sealNow = async (plain: string): Promise<SealedValue> => {
-      if (!sealer) return plainEnvelope(plain);
-      kid = kid ?? await sealer.kid();
-      publicKey = publicKey ?? await sealer.publicKey();
-      return sealWithPublicKey(publicKey, kid, plain);
-    };
-
-    for (const [name, raw] of Object.entries(request)) {
-      // clearing works for any key, so a value left behind by a removed field can always be dropped
-      if (raw === null || raw === '') {
-        delete values[name];
-        delete secrets[name];
-        delete plainSecrets[name];
-        cleared.push(name);
-        continue;
-      }
-      const field = fields.get(name);
-      if (!field) {
-        errors.push({ path: name, code: ERROR_CODES.unknownField, message: `${name} is not a known field` });
-        continue;
-      }
-      if (typeof raw !== 'string' && typeof raw !== 'number' && typeof raw !== 'boolean') {
-        errors.push({ path: name, code: ERROR_CODES.type, message: `${name} must be a string, number or boolean` });
-        continue;
-      }
-      const str = String(raw);
-      if (field.secret) {
-        secrets[name] = await sealNow(str);
-        plainSecrets[name] = str;
-      } else {
-        values[name] = str;
-      }
-    }
-    return { values, secrets, cleared, plainSecrets, errors };
-  }
-
-  /**
-   * Stored keys that are no longer schema fields (field removed or renamed in
-   * an adapter upgrade) are dropped with a warning instead of failing
-   * validation forever. The row itself is rewritten on the next apply.
-   */
-  private pruneUnknown(stored: StoredConfig): StoredConfig {
-    const fields = this.fieldsOf(stored.kind);
-    const values: ConfigValues = {};
-    const secrets: SealedValues = {};
-    const dropped: string[] = [];
-    for (const [name, v] of Object.entries(stored.values)) {
-      if (fields.has(name)) values[name] = v;
-      else dropped.push(name);
-    }
-    for (const [name, v] of Object.entries(stored.secrets)) {
-      if (fields.has(name)) secrets[name] = v;
-      else dropped.push(name);
-    }
-    if (dropped.length > 0) {
-      this.log.warn('config: ignoring stored keys that are not schema fields', { kind: stored.kind, id: stored.id, keys: dropped });
-    }
-    return { ...stored, values, secrets };
-  }
-
-  // ---- secrets ----
-
-  private async openOne(name: string, sealed: SealedValue): Promise<string> {
-    if (sealed.kid === PLAIN_KID) {
-      // dev-only pseudo envelope: once a real sealer exists, never fall back to it
-      if (this.opts.sealer) throw new Error(`${name} was stored without a sealer, re-apply it`);
-      if (sealed.enc !== SEAL_ALG) throw new Error('unsupported envelope');
-      return Buffer.from(sealed.ciphertext, 'base64').toString('utf8');
-    }
-    if (!this.opts.sealer) throw new Error(`${name} is sealed but this adapter has no sealer`);
-    return openSealed(this.opts.sealer, sealed);
-  }
-
-  /** Plaintext of every sealed secret. Throws ConfigRequestError(422, seal-open-failed) with the field path. */
-  async open(secrets: SealedValues): Promise<ConfigValues> {
-    const out: ConfigValues = {};
-    for (const [name, sealed] of Object.entries(secrets)) {
-      try {
-        out[name] = await this.openOne(name, sealed);
-      } catch (e) {
-        // the message carries only the field name, never the value
-        throw new ConfigRequestError(422, ERROR_CODES.sealOpenFailed, `${name}: cannot open sealed value (${errMsg(e)})`, name);
-      }
+  private mask(section: Record<string, StoredValue>): MaskedSection {
+    const out: MaskedSection = {};
+    for (const [key, value] of Object.entries(section)) {
+      out[key] = this.secretKeys.has(key) || isSealedValue(value) ? { set: true } : value;
     }
     return out;
-  }
-
-  private async openMerged(m: MergeResult): Promise<ConfigValues> {
-    const toOpen: SealedValues = {};
-    for (const [name, sealed] of Object.entries(m.secrets)) {
-      if (m.plainSecrets[name] === undefined) toOpen[name] = sealed;
-    }
-    return { ...(await this.open(toOpen)), ...m.plainSecrets };
-  }
-
-  // ---- validation ----
-
-  private async baseOf(ref: ConfigRef | undefined): Promise<StoredConfig | undefined> {
-    if (!ref) return undefined;
-    const entry = this.entries.get(refKey(ref));
-    if (entry) return entry.stored;
-    return this.opts.store?.get(ref);
-  }
-
-  /** Split a values+secrets map with defaults applied into the two ActiveConfig maps (visible fields only). */
-  private effective(kind: ConfigKind, values: ConfigValues, opened: ConfigValues): { values: ConfigValues; secrets: ConfigValues } {
-    const pages = this.pagesOf(kind);
-    const all = withDefaults(pages, { ...values, ...opened });
-    const out = { values: {} as ConfigValues, secrets: {} as ConfigValues };
-    for (const f of visibleFields(pages, all)) {
-      const v = all[f.name];
-      if (v === undefined || v === '') continue;
-      (f.secret ? out.secrets : out.values)[f.name] = v;
-    }
-    return out;
-  }
-
-  private sanitize(msg: string, secrets: ConfigValues): string {
-    return sanitizeMessage(msg, Object.values(secrets));
-  }
-
-  /** Static validation, then the handler's live checks. */
-  private async runValidation(ref: ConfigRef, values: ConfigValues, opened: ConfigValues): Promise<ValidationResult> {
-    const errors = staticValidate(this.pagesOf(ref.kind), { ...values, ...opened });
-    if (errors.length > 0) return { ok: false, errors, checks: [] };
-    const { check } = this.opts.handler;
-    if (!check) return { ok: true, errors: [], checks: [] };
-    const eff = this.effective(ref.kind, values, opened);
-    let checks: ConfigCheck[];
-    try {
-      const ms = this.opts.checkTimeoutMs ?? CHECK_TIMEOUT_MS;
-      checks = await withTimeout(check.call(this.opts.handler, ref, eff.values, eff.secrets), ms, 'checks');
-    } catch (e) {
-      checks = [{ id: 'checks', label: 'Live checks', ok: false, message: errMsg(e) }];
-    }
-    checks = checks.map((c) => (c.message ? { ...c, message: this.sanitize(c.message, opened) } : c));
-    return { ok: checks.every((c) => c.ok), errors: [], checks };
-  }
-
-  private static asResult(e: unknown): ValidationResult | undefined {
-    if (!(e instanceof ConfigRequestError)) return undefined;
-    return { ok: false, errors: [{ path: e.path, code: e.code, message: e.message }], checks: [] };
-  }
-
-  /**
-   * Dry run: merge on top of the stored config (when `id` is given) and
-   * validate. Nothing is stored or activated. With no id the ref handed to
-   * the handler's check has an empty id.
-   */
-  async validate(req: ValidateRequest): Promise<ValidationResult> {
-    const kind = req.kind ?? DEFAULT_KIND;
-    if (!isConfigKind(kind)) {
-      throw new ConfigRequestError(400, ERROR_CODES.badId, `kind must be one of ${CONFIG_KINDS.join(', ')}`, 'kind');
-    }
-    const ref: ConfigRef = req.id !== undefined ? ConfigRuntime.refOf(kind, req.id) : { kind, id: '' };
-    const base = await this.baseOf(ref.id ? ref : undefined);
-    const m = await this.merge(ref.kind, req.values, base);
-    if (m.errors.length > 0) return { ok: false, errors: m.errors, checks: [] };
-    try {
-      const opened = await this.openMerged(m);
-      return await this.runValidation(ref, m.values, opened);
-    } catch (e) {
-      const r = ConfigRuntime.asResult(e);
-      if (r) return r;
-      throw e;
-    }
   }
 
   // ---- apply ----
 
-  /** State of a config as this process sees it; 'unconfigured' for an unknown ref. */
-  stateOf(ref: ConfigRef): ConfigState {
-    return this.entries.get(refKey(ref))?.state ?? 'unconfigured';
-  }
-
-  /** Whether some config of `kind` already holds the default flag. Asks the store, not this process' memory. */
-  private async hasDefault(kind: ConfigKind): Promise<boolean> {
-    if (this.opts.store) return (await this.opts.store.list()).some((c) => c.kind === kind && c.isDefault);
-    return [...this.entries.values()].some((e) => e.stored.kind === kind && e.stored.isDefault);
-  }
-
-  apply(req: ApplyRequest, actor?: string): Promise<ApplyResult> {
-    return this.enqueue(async () => {
-      const ref = ConfigRuntime.refOf(req.kind, req.id);
-      const { kind, id } = ref;
-      const key = refKey(ref);
-      const base = await this.baseOf(ref);
-      const name = req.name ?? base?.name ?? id;
-      const isDefault = req.default ?? base?.isDefault ?? !(await this.hasDefault(kind));
-
-      const m = await this.merge(kind, req.values, base);
-      if (m.errors.length > 0) {
-        return { ok: false, errors: m.errors, checks: [], kind, id, state: this.stateOf(ref) };
-      }
-      let opened: ConfigValues;
-      let validation: ValidationResult;
-      try {
-        opened = await this.openMerged(m);
-        validation = await this.runValidation(ref, m.values, opened);
-      } catch (e) {
-        const r = ConfigRuntime.asResult(e);
-        if (r) return { ...r, kind, id, state: this.stateOf(ref) };
-        throw e;
-      }
-      if (!validation.ok) return { ...validation, kind, id, state: this.stateOf(ref) };
-
-      // persist first: a failed activation is retried on restart
-      const input = { kind, id, name, isDefault, values: m.values, secrets: m.secrets, actor };
-      let version: number;
-      if (this.opts.store) {
-        version = await this.opts.store.save(input);
-      } else {
-        version = (base?.version ?? 0) + 1;
-      }
-      const stored: StoredConfig = { ...input, version, updatedAt: new Date() };
-      if (isDefault) {
-        for (const [otherKey, other] of this.entries) {
-          if (otherKey === key || other.stored.kind !== kind) continue;
-          other.stored.isDefault = false;
-          if (other.active) other.active.isDefault = false;
-        }
-      }
-      const entry: ConfigEntry = { ...(this.entries.get(key) ?? { state: 'unconfigured' }), stored };
-      this.entries.set(key, entry);
-      this.log.info('config apply', { kind, id, version, actor });
-
-      await this.activate(entry, opened);
-      if (entry.state === 'configured') {
-        return { ok: true, errors: [], checks: validation.checks, kind, id, version, state: entry.state };
-      }
-      return {
-        ok: false,
-        errors: [{ path: '', code: ERROR_CODES.buildFailed, message: entry.lastError ?? 'activation failed' }],
-        checks: validation.checks,
-        kind,
-        id,
-        version,
-        state: entry.state,
-      };
-    });
-  }
-
-  /** Tear down the handler side of `ref`. Never throws; deactivate must tolerate refs it does not know. */
-  private async deactivate(ref: ConfigRef, secrets: ConfigValues = {}): Promise<void> {
-    const { handler } = this.opts;
-    if (!handler.deactivate) return;
-    try {
-      await handler.deactivate({ kind: ref.kind, id: ref.id });
-    } catch (e) {
-      this.log.warn('config deactivate failed', { kind: ref.kind, id: ref.id, error: this.sanitize(errMsg(e), secrets) });
-    }
-  }
-
   /**
-   * Build the slot for `entry` through the handler. Sets state / lastError. Never throws.
-   * The previous ActiveConfig stays readable (get/resolve) until the new one is up, so a
-   * re-apply does not turn into a window of failed operations on that ledger.
+   * POST /config. Throws ConfigRequestError for a malformed body (400) or a
+   * patch made for another config version (409). Otherwise answers with a
+   * result: invalid values and refused applies have `ok: false`.
    */
-  private async activate(entry: ConfigEntry, opened: ConfigValues): Promise<void> {
-    const { stored } = entry;
-    const { handler } = this.opts;
-    entry.state = 'applying';
-    entry.lastError = undefined;
-    try {
-      if (entry.active) await this.deactivate(stored, entry.active.secrets);
-      const eff = this.effective(stored.kind, stored.values, opened);
-      const cfg: ActiveConfig = {
-        kind: stored.kind,
-        id: stored.id,
-        name: stored.name,
-        version: stored.version,
-        isDefault: stored.isDefault,
-        values: eff.values,
-        secrets: eff.secrets,
-      };
-      const ms = this.opts.activateTimeoutMs ?? ACTIVATE_TIMEOUT_MS;
-      // a handler that outruns the timeout may still finish and hold resources: drop them then
-      const onLate = () => { this.deactivate(stored, eff.secrets).catch(() => undefined); };
-      await withTimeout(handler.activate(cfg), ms, 'activate', onLate);
-      entry.active = cfg;
-      entry.state = 'configured';
-      this.log.info('config activated', { kind: stored.kind, id: stored.id, version: stored.version });
-    } catch (e) {
-      entry.active = undefined;
-      entry.state = 'error';
-      entry.lastError = this.sanitize(errMsg(e), opened);
-      this.log.error('config activation failed', { kind: stored.kind, id: stored.id, version: stored.version, error: entry.lastError });
-      // whatever the handler registered before failing must not stay live
-      await this.deactivate(stored, opened);
-    }
-  }
-
-  // ---- remove / restore ----
-
-  remove(ref: ConfigRef): Promise<void> {
+  apply(body: unknown, actor?: string): Promise<ApplyResult> {
     return this.enqueue(async () => {
-      const key = refKey(ref);
-      const entry = this.entries.get(key);
-      if (!entry) throw new ConfigRequestError(404, ERROR_CODES.notFound, `config ${key} not found`);
-      const inUse = await this.opts.handler.inUse?.(ref);
-      if (inUse) throw new ConfigRequestError(409, ERROR_CODES.inUse, `config ${key} is in use: ${inUse}`);
-      if (this.opts.store) {
+      const patch = this.patchOf(body);
+      const { config, errors } = this.merge(this.base(), patch);
+      if (errors.length > 0) return this.result(false, false, errors);
+      if (this.state === 'configured' && this.active && canonical(this.active) === canonical(config)) {
+        return this.result(true, false, []);
+      }
+
+      const secrets = this.secretValues(config);
+      const ms = this.opts.applyTimeoutMs ?? APPLY_TIMEOUT_MS;
+      if (this.opts.handler.validate) {
+        let found: ConfigError[];
         try {
-          await this.opts.store.remove(ref);
+          found = await withTimeout(this.opts.handler.validate(clone(config)), ms, 'validate');
         } catch (e) {
-          // row already gone (another instance or a DBA): still drop it here
-          if (!isNotFound(e)) throw e;
-          this.log.warn('config remove: row was already deleted', { kind: ref.kind, id: ref.id });
+          found = [{ path: '', code: ERROR_CODES.invalid, message: errMsg(e) }];
         }
+        if (found.length > 0) return this.result(false, false, found.map((e) => ({ ...e, message: redact(e.message, secrets) })));
       }
-      // unconditionally: a config in error may still hold handler resources
-      await this.deactivate(ref, entry.active?.secrets);
-      this.entries.delete(key);
-      this.log.info('config removed', { kind: ref.kind, id: ref.id });
+
+      const previous = this.active;
+      try {
+        await withTimeout(this.opts.handler.apply(clone(config), previous && clone(previous)), ms, 'apply');
+      } catch (e) {
+        return this.refuse(previous, config, redact(errMsg(e), secrets), 'config apply failed');
+      }
+      let stored: StoredConfig;
+      try {
+        stored = await this.persist(config, actor);
+      } catch (e) {
+        return this.refuse(previous, config, `cannot store the config: ${redact(errMsg(e), secrets)}`, 'config store failed');
+      }
+      this.active = config;
+      this.stored = stored;
+      this.revision = stored.revision;
+      this.state = 'configured';
+      this.lastError = undefined;
+      this.log.info('config applied', { revision: this.revision, ledgers: Object.keys(config.ledgers), custody: !!config.custody, actor });
+      return this.result(true, true, []);
     });
   }
 
-  /**
-   * Boot: activate every stored config, custody first (a network may need
-   * its custodian). No live checks. Never throws; one failing config does
-   * not stop the others.
-   */
+  /** The values a patch merges into: the active config, else the non-secret values of the stored one, else nothing. */
+  private base(): AdapterConfig {
+    if (this.active) return this.active;
+    if (!this.stored) return { ledgers: {} };
+    const plain = (sec: Record<string, StoredValue>): ConfigSection => Object.fromEntries(
+      Object.entries(sec).filter(([, v]) => !isSealedValue(v)),
+    ) as ConfigSection;
+    const ledgers: Record<string, ConfigSection> = {};
+    for (const [id, sec] of Object.entries(this.stored.ledgers)) ledgers[id] = plain(sec);
+    return { ledgers, ...(this.stored.custody ? { custody: plain(this.stored.custody) } : {}) };
+  }
+
+  private patchOf(body: unknown): ConfigPatch {
+    if (!isObject(body)) throw new ConfigRequestError(400, ERROR_CODES.badRequest, 'body must be a JSON object');
+    for (const key of Object.keys(body)) {
+      if (key !== 'version' && key !== 'ledgers' && key !== 'custody') {
+        throw new ConfigRequestError(400, ERROR_CODES.badRequest, `unknown section ${key}: expected version, ledgers, custody`);
+      }
+    }
+    if (body.version !== undefined && body.version !== this.opts.version) {
+      throw new ConfigRequestError(409, ERROR_CODES.versionMismatch, `config version ${String(body.version)} does not match ${this.opts.version}`);
+    }
+    if (body.ledgers !== undefined && !isObject(body.ledgers)) {
+      throw new ConfigRequestError(400, ERROR_CODES.badRequest, 'ledgers must be an object keyed by the ledger (CAIP-2)');
+    }
+    if (body.custody !== undefined && body.custody !== null && !isObject(body.custody)) {
+      throw new ConfigRequestError(400, ERROR_CODES.badRequest, 'custody must be an object or null');
+    }
+    return body as ConfigPatch;
+  }
+
+  /** Omitted keeps; null or "" clears a key, a ledger or the custody section. A section left empty is dropped. */
+  private merge(base: AdapterConfig, patch: ConfigPatch): { config: AdapterConfig; errors: ConfigError[] } {
+    const config = clone(base);
+    const errors: ConfigError[] = [];
+    for (const [id, section] of Object.entries(patch.ledgers ?? {})) {
+      const path = `ledgers.${id}`;
+      if (!LEDGER_ID_RE.test(id)) {
+        errors.push({ path, code: ERROR_CODES.badLedger, message: `${id} is not a ledger id (CAIP-2, e.g. eip155:1)` });
+        continue;
+      }
+      if (section === null) {
+        delete config.ledgers[id];
+        continue;
+      }
+      if (!isObject(section)) {
+        errors.push({ path, code: ERROR_CODES.type, message: `${path} must be an object or null` });
+        continue;
+      }
+      const merged = this.mergeSection(config.ledgers[id] ?? {}, section, path, errors);
+      if (Object.keys(merged).length > 0) config.ledgers[id] = merged;
+      else delete config.ledgers[id];
+    }
+    if (patch.custody === null) {
+      delete config.custody;
+    } else if (patch.custody !== undefined) {
+      const merged = this.mergeSection(config.custody ?? {}, patch.custody, 'custody', errors);
+      if (Object.keys(merged).length > 0) config.custody = merged;
+      else delete config.custody;
+    }
+    return { config, errors };
+  }
+
+  private mergeSection(base: ConfigSection, patch: Record<string, unknown>, path: string, errors: ConfigError[]): ConfigSection {
+    const out = { ...base };
+    for (const [key, value] of Object.entries(patch)) {
+      const at = `${path}.${key}`;
+      if (!CONFIG_KEY_RE.test(key)) {
+        errors.push({ path: at, code: ERROR_CODES.badKey, message: `${at} is not a valid key (letters, digits, _)` });
+        continue;
+      }
+      if (value === null || value === '') {
+        delete out[key];
+        continue;
+      }
+      if (!isScalar(value)) {
+        errors.push({ path: at, code: ERROR_CODES.type, message: `${at} must be a string, number or boolean` });
+        continue;
+      }
+      out[key] = value;
+    }
+    return out;
+  }
+
+  /** The refused config stays out: the previous one is applied again (if any) and the result names the error. */
+  private async refuse(previous: AdapterConfig | undefined, refused: AdapterConfig, message: string, what: string): Promise<ApplyResult> {
+    this.log.error(what, { error: message });
+    this.lastError = message;
+    if (previous) {
+      try {
+        await withTimeout(this.opts.handler.apply(clone(previous), clone(refused)), this.opts.applyTimeoutMs ?? APPLY_TIMEOUT_MS, 'apply');
+      } catch (e) {
+        this.state = 'error';
+        this.log.error('config rollback failed: the previous config is not active', { error: redact(errMsg(e), this.secretValues(previous)) });
+      }
+    }
+    return this.result(false, false, [{ path: '', code: ERROR_CODES.applyFailed, message }]);
+  }
+
+  private result(ok: boolean, applied: boolean, errors: ConfigError[]): ApplyResult {
+    return { ok, applied, revision: this.revision, state: this.state, errors };
+  }
+
+  private secretValues(config: AdapterConfig): string[] {
+    const out: string[] = [];
+    for (const [, sec] of sections(config)) {
+      for (const [key, value] of Object.entries(sec)) if (this.secretKeys.has(key)) out.push(String(value));
+    }
+    return out;
+  }
+
+  // ---- secrets at rest ----
+
+  private async persist(config: AdapterConfig, actor?: string): Promise<StoredConfig> {
+    const sealSection = async (sec: ConfigSection): Promise<Record<string, StoredValue>> => {
+      const out: Record<string, StoredValue> = {};
+      for (const [key, value] of Object.entries(sec)) out[key] = this.secretKeys.has(key) ? await this.seal(String(value)) : value;
+      return out;
+    };
+    const ledgers: StoredConfig['ledgers'] = {};
+    for (const [id, sec] of Object.entries(config.ledgers)) ledgers[id] = await sealSection(sec);
+    const doc = {
+      version: this.opts.version,
+      ledgers,
+      ...(config.custody ? { custody: await sealSection(config.custody) } : {}),
+      ...(actor ? { actor } : {}),
+    };
+    const revision = this.opts.store ? await this.opts.store.save(doc) : this.revision + 1;
+    return { ...doc, revision };
+  }
+
+  private async seal(plain: string): Promise<SealedValue> {
+    const { sealer } = this.opts;
+    if (!sealer) {
+      return { enc: SEAL_ALG, kid: PLAIN_KID, wrappedKey: '', iv: '', ciphertext: Buffer.from(plain, 'utf8').toString('base64') };
+    }
+    return sealWithPublicKey(await sealer.publicKey(), await sealer.kid(), plain);
+  }
+
+  private async open(path: string, sealed: SealedValue): Promise<string> {
+    if (sealed.kid === PLAIN_KID) {
+      // dev-only pseudo envelope: once a real sealer exists, never fall back to it
+      if (this.opts.sealer) throw new Error(`${path} was stored without a sealer, apply it again`);
+      return Buffer.from(sealed.ciphertext, 'base64').toString('utf8');
+    }
+    if (!this.opts.sealer) throw new Error(`${path} is sealed but this adapter has no sealer`);
+    try {
+      return await openSealed(this.opts.sealer, sealed);
+    } catch (e) {
+      throw new Error(`${path}: cannot open the sealed value (${errMsg(e)})`);
+    }
+  }
+
+  private async openAll(doc: StoredConfig): Promise<AdapterConfig> {
+    const openSection = async (path: string, sec: Record<string, StoredValue>): Promise<ConfigSection> => {
+      const out: ConfigSection = {};
+      for (const [key, value] of Object.entries(sec)) out[key] = isSealedValue(value) ? await this.open(`${path}.${key}`, value) : value;
+      return out;
+    };
+    const ledgers: Record<string, ConfigSection> = {};
+    for (const [id, sec] of Object.entries(doc.ledgers)) ledgers[id] = await openSection(`ledgers.${id}`, sec);
+    return { ledgers, ...(doc.custody ? { custody: await openSection('custody', doc.custody) } : {}) };
+  }
+
+  // ---- boot ----
+
+  /** Boot: apply the stored config. No validate. Never throws; a failure leaves state 'error'. */
   restore(): Promise<void> {
     return this.enqueue(async () => {
       if (!this.opts.store) return;
-      let list: StoredConfig[];
+      let doc: StoredConfig | undefined;
       try {
-        list = await this.opts.store.list();
+        doc = await this.opts.store.load();
       } catch (e) {
-        this.log.error('config restore: cannot list stored configs', { error: errMsg(e) });
+        this.state = 'error';
+        this.lastError = `cannot load the stored config: ${errMsg(e)}`;
+        this.log.error('config restore: cannot load', { error: errMsg(e) });
         return;
       }
-      const order = (k: ConfigKind) => (k === 'custody' ? 0 : 1);
-      list = [...list].sort((a, b) => order(a.kind) - order(b.kind));
-      for (const row of list) {
-        if (!isConfigKind(row.kind) || !CONFIG_ID_RE.test(row.id)) {
-          this.log.error('config restore: skipping row with an unknown kind or bad id', { kind: row.kind, id: row.id });
-          continue;
-        }
-        const stored = this.pruneUnknown(row);
-        const key = refKey(stored);
-        const entry: ConfigEntry = { ...(this.entries.get(key) ?? { state: 'unconfigured' }), stored };
-        this.entries.set(key, entry);
-        let opened: ConfigValues;
-        try {
-          opened = await this.open(stored.secrets);
-        } catch (e) {
-          entry.state = 'error';
-          entry.lastError = errMsg(e);
-          this.log.error('config restore: cannot open secrets', { kind: stored.kind, id: stored.id, error: entry.lastError });
-          continue;
-        }
-        const errors = staticValidate(this.pagesOf(stored.kind), { ...stored.values, ...opened });
-        if (errors.length > 0) {
-          // keep the values so describe() shows them; the operator fixes them via apply
-          entry.state = 'error';
-          entry.lastError = errors.map((e) => e.message).join('; ');
-          this.log.error('config restore: stored config is not valid', { kind: stored.kind, id: stored.id, error: entry.lastError });
-          continue;
-        }
-        await this.activate(entry, opened);
+      if (!doc) return;
+      this.stored = doc;
+      this.revision = doc.revision;
+      if (doc.version !== this.opts.version) {
+        this.log.warn('config restore: the config was stored under another version', { stored: doc.version, current: this.opts.version });
       }
-    });
-  }
-
-  // ---- read side ----
-
-  /** The usable ActiveConfig of `ref`: configured, or the previous version while a re-apply is in flight. */
-  get(ref: ConfigRef): ActiveConfig | undefined {
-    const entry = this.entries.get(refKey(ref));
-    if (!entry) return undefined;
-    return entry.state === 'configured' || entry.state === 'applying' ? entry.active : undefined;
-  }
-
-  /** The network config of a ledger. Undefined when none is configured (down, applying from scratch, or unknown). */
-  resolve(network: string): ActiveConfig | undefined {
-    return this.get({ kind: 'network', id: network });
-  }
-
-  /** The default config of `kind` when it is usable. */
-  defaultOf(kind: ConfigKind): ActiveConfig | undefined {
-    for (const entry of this.entries.values()) {
-      if (entry.stored.kind === kind && entry.stored.isDefault) return this.get(entry.stored);
-    }
-    return undefined;
-  }
-
-  /** Ledgers with a usable network config. */
-  networks(): string[] {
-    return [...this.entries.values()]
-      .filter((e) => e.stored.kind === 'network' && this.get(e.stored))
-      .map((e) => e.stored.id);
-  }
-
-  private summaryOf(entry: ConfigEntry): ConfigSummary {
-    const { stored } = entry;
-    const values: Record<string, DescriptorValue> = {};
-    for (const f of this.fieldsOf(stored.kind).values()) {
-      if (f.secret) values[f.name] = { set: stored.secrets[f.name] !== undefined };
-      else if (stored.values[f.name] !== undefined) values[f.name] = stored.values[f.name];
-    }
-    return {
-      kind: stored.kind,
-      id: stored.id,
-      name: stored.name,
-      state: entry.state,
-      version: stored.version,
-      lastError: entry.lastError,
-      isDefault: stored.isDefault,
-      values,
-    };
-  }
-
-  list(): ConfigSummary[] {
-    return [...this.entries.values()].map((e) => this.summaryOf(e));
-  }
-
-  /** Ready when at least one network is configured; every applying/errored config is listed as blocking. */
-  readiness(): { ready: boolean; blocking: string[] } {
-    const blocking: string[] = [];
-    let ready = false;
-    let networks = 0;
-    for (const entry of this.entries.values()) {
-      const label = refKey(entry.stored);
-      if (entry.stored.kind === 'network') networks += 1;
-      if (entry.state === 'configured' && entry.stored.kind === 'network') ready = true;
-      if (entry.state === 'applying') blocking.push(`${label}: config is being applied`);
-      if (entry.state === 'error') blocking.push(`${label}: ${entry.lastError ?? 'activation failed'}`);
-    }
-    if (networks === 0) blocking.push('no network configured yet');
-    return { ready, blocking };
-  }
-
-  describe(): Promise<ConfigDescriptor> {
-    return Promise.resolve({
-      protocol: PROTOCOL,
-      adapter: this.opts.adapter,
-      pages: this.opts.pages,
-      configs: this.list(),
-      readiness: this.readiness(),
+      let config: AdapterConfig;
+      try {
+        config = await this.openAll(doc);
+      } catch (e) {
+        this.state = 'error';
+        this.lastError = errMsg(e);
+        this.log.error('config restore: cannot open the secrets', { error: this.lastError });
+        return;
+      }
+      try {
+        await withTimeout(this.opts.handler.apply(clone(config), undefined), this.opts.applyTimeoutMs ?? APPLY_TIMEOUT_MS, 'apply');
+      } catch (e) {
+        this.state = 'error';
+        this.lastError = redact(errMsg(e), this.secretValues(config));
+        this.log.error('config restore: apply failed', { error: this.lastError });
+        return;
+      }
+      this.active = config;
+      this.state = 'configured';
+      this.lastError = undefined;
+      this.log.info('config restored', { revision: doc.revision, ledgers: Object.keys(config.ledgers) });
     });
   }
 }

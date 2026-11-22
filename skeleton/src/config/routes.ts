@@ -1,16 +1,13 @@
-// HTTP surface of the config contract (adapter-config/2):
-//   GET    /config                  descriptor
-//   POST   /config/validate         dry run              { kind?, id?, values }
-//   POST   /config/apply            merge + validate + store + activate   { kind?, id, name?, default?, values }
-//   DELETE /config/:kind/:id        remove a config (409 when the handler says it is in use)
-// For kind 'network' the id is the ledger (CAIP-2), e.g. DELETE /config/network/eip155:11155111.
+// HTTP surface of the adapter config (adapter-config/3):
+//   GET  /config   the config version, the state and the configured values (secrets as { set: true })
+//   POST /config   merge a document into the stored one; apply it when a value changed
 // Bodies are never logged; unexpected errors answer 500 without the message.
 import express from 'express';
 import expressWinston from 'express-winston';
 import winston from 'winston';
 import { logger as defaultLogger } from '../helpers/logger';
 import { ConfigRequestError, ConfigRuntime } from './runtime';
-import { ConfigKind, ERROR_CODES, RequestValues } from './types';
+import { ERROR_CODES } from './types';
 
 export interface ConfigRoutesOptions {
   jsonLimit?: string;
@@ -22,21 +19,6 @@ const actorOf = (req: express.Request): string | undefined => {
   const h = req.headers['x-actor'];
   return Array.isArray(h) ? h[0] : h;
 };
-
-const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-
-/** Body must be { values: { ... } }. Answers 400 and returns undefined otherwise. */
-const valuesOf = (req: express.Request, res: express.Response): RequestValues | undefined => {
-  const body: unknown = req.body;
-  const values = isObject(body) ? body.values : undefined;
-  if (!isObject(values)) {
-    res.status(400).json({ error: 'body must be { values: { ... } }' });
-    return undefined;
-  }
-  return values as RequestValues;
-};
-
-const optionalString = (v: unknown): string | undefined => (typeof v === 'string' && v !== '' ? v : undefined);
 
 export function registerConfigRoutes(
   app: express.Application,
@@ -58,45 +40,12 @@ export function registerConfigRoutes(
     }
   });
 
-  app.post('/config/validate', async (req, res, next) => {
+  app.post('/config', async (req, res, next) => {
     try {
-      const values = valuesOf(req, res);
-      if (!values) return;
-      const { body } = req;
-      res.json(await runtime.validate({
-        kind: optionalString(body.kind) as ConfigKind | undefined,
-        id: optionalString(body.id),
-        values,
-      }));
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  app.post('/config/apply', async (req, res, next) => {
-    try {
-      const values = valuesOf(req, res);
-      if (!values) return;
-      const { body } = req;
-      const result = await runtime.apply({
-        kind: optionalString(body.kind) as ConfigKind | undefined,
-        id: body.id,
-        name: optionalString(body.name),
-        default: typeof body.default === 'boolean' ? body.default : undefined,
-        values,
-      }, actorOf(req));
-      // 200 ok, 422 validation / check failure, 500 activation failed
-      const buildFailed = result.errors.some((e) => e.code === ERROR_CODES.buildFailed);
-      res.status(result.ok ? 200 : buildFailed ? 500 : 422).json(result);
-    } catch (e) {
-      next(e);
-    }
-  });
-
-  app.delete('/config/:kind/:id', async (req, res, next) => {
-    try {
-      await runtime.remove(ConfigRuntime.refOf(req.params.kind, req.params.id));
-      res.status(204).end();
+      const result = await runtime.apply(req.body, actorOf(req));
+      // 200 applied or unchanged, 422 invalid values, 500 the adapter could not apply or store it
+      const failed = result.errors.some((e) => e.code === ERROR_CODES.applyFailed);
+      res.status(result.ok ? 200 : failed ? 500 : 422).json(result);
     } catch (e) {
       next(e);
     }
@@ -111,7 +60,7 @@ export function registerConfigRoutes(
     }
     const type = (err as { type?: string })?.type;
     if (type === 'entity.parse.failed') {
-      res.status(400).json({ error: 'invalid JSON' });
+      res.status(400).json({ error: 'invalid JSON', code: ERROR_CODES.badRequest });
       return;
     }
     if (type === 'entity.too.large') {
