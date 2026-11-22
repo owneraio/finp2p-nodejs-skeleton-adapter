@@ -73,6 +73,8 @@ export type ExecutionContext = {
    * settlement receipt's context.
    */
   direction?: 'outbound' | 'inbound'
+  /** the contract the instruction must run through, as the asset lists it; absent when the router chose none */
+  contract?: string
 };
 
 /**
@@ -378,9 +380,31 @@ export const pendingPlan = (correlationId: string, metadata: OperationMetadata |
 
 // -------------------------------------------------------------------
 
+export type ContractRestrictions = {
+  minAmount?: string;
+  maxAmount?: string;
+};
+
+/** caip10: namespace:reference:address; url: absolute URL; opaque: any other identifier, compared exactly */
+export type ContractAddressFormat = 'caip10' | 'url' | 'opaque';
+
+export type ContractCapability = {
+  /** valid for addressFormat, no leading or trailing spaces; the router sends it back unchanged as executionContext.contract */
+  address: string;
+  addressFormat: ContractAddressFormat;
+  restrictions?: ContractRestrictions;
+};
+
+export type InstructionCapability = {
+  instruction: string;
+  contracts?: ContractCapability[];
+};
+
 export type AssetCreationResult = {
   ledgerIdentifier: LedgerAssetIdentifier;
   reference: LedgerReference | undefined;
+  /** absent: the adapter reports no list (router assumes the full set); empty: supports nothing */
+  capabilities?: InstructionCapability[];
 };
 
 export type SuccessfulAssetCreation = {
