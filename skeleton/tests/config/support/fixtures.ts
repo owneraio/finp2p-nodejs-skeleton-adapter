@@ -58,22 +58,6 @@ export const NET2 = 'eip155:5';
 export const net = (id: string): ConfigRef => ({ kind: 'network', id });
 export const custody = (id: string): ConfigRef => ({ kind: 'custody', id });
 
-/** Account kind page: a per-wallet RPC credential (the per-investor connection). */
-export const accountPage: ConfigPage = {
-  id: 'account',
-  kind: 'account',
-  title: 'Account connection',
-  fields: [
-    { name: 'AUTH', label: 'Auth', type: 'enum', required: true, options: [{ value: 'bearer', label: 'Bearer token' }, { value: 'dtcc-wallet', label: 'DTCC wallet token' }] },
-    { name: 'TOKEN', label: 'Token', type: 'string', secret: true, required: true, visibleWhen: { field: 'AUTH', equals: 'bearer' } },
-  ],
-};
-
-export const pagesWithAccount: ConfigPage[] = [...pages, accountPage];
-
-export const ADDR = '0xab16a96d359ec26a11e2c2b3d8f8b8942d5bfcdb';
-export const account = (id: string): ConfigRef => ({ kind: 'account', id });
-
 export interface FakeHandler extends ConfigHandler {
   activated: ActiveConfig[];
   deactivated: ConfigRef[];

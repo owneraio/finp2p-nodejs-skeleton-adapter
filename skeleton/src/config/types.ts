@@ -5,9 +5,6 @@
 // KIND and KEY:
 //   kind 'network'  id = the ledger (CAIP-2, e.g. eip155:11155111); one per chain
 //   kind 'custody'  id = a name; the custodian (or signer) the adapter uses
-//   kind 'account'  id = an account on a ledger (CAIP-10, e.g. eip155:1:0xab16...);
-//                   one per investor wallet: what the adapter needs to act as
-//                   that wallet on the ledger (a per-wallet RPC credential)
 // An asset is never bound to a config: its ledger is already in the asset
 // row (CAIP-19), and that ledger names the network config. Secrets arrive
 // in plaintext and are stored sealed (envelope encrypted with the adapter's
@@ -17,8 +14,8 @@ export type Protocol = 'adapter-config/2';
 export const PROTOCOL: Protocol = 'adapter-config/2';
 
 /** Which slot a config fills. Pages declare theirs; `network` when omitted. */
-export type ConfigKind = 'network' | 'custody' | 'account';
-export const CONFIG_KINDS: readonly ConfigKind[] = ['network', 'custody', 'account'];
+export type ConfigKind = 'network' | 'custody';
+export const CONFIG_KINDS: readonly ConfigKind[] = ['network', 'custody'];
 export const DEFAULT_KIND: ConfigKind = 'network';
 
 export type FieldType =
@@ -88,7 +85,7 @@ export interface SealedValue {
 
 export type DescriptorValue = ScalarValue | { set: boolean };
 
-/** One config. For kind 'network' the id is the ledger (CAIP-2), for kind 'account' CAIP-10. */
+/** One config. For kind 'network' the id is the ledger (CAIP-2). */
 export interface ConfigSummary {
   kind: ConfigKind;
   id: string;
@@ -96,7 +93,7 @@ export interface ConfigSummary {
   state: ConfigState;
   version: number;                 // bumped on every apply, 0 never applied
   lastError?: string;
-  /** Network kind: the ledger createAsset uses when the router names none. One per kind. An account config holds it only when an apply asked for it. */
+  /** Network kind: the ledger createAsset uses when the router names none. One per kind. */
   isDefault: boolean;
   values: Record<string, DescriptorValue>;   // secrets ONLY as { set }
 }
@@ -153,7 +150,7 @@ export type SealedValues = Record<string, SealedValue>;
 /** A config after activation, as handed to the adapter's ConfigHandler. */
 export interface ActiveConfig {
   kind: ConfigKind;
-  /** Network kind: the ledger (CAIP-2). Account kind: CAIP-10 `<ledger>:<address>`. */
+  /** Network kind: the ledger (CAIP-2). */
   id: string;
   name: string;
   version: number;
@@ -165,17 +162,10 @@ export interface ActiveConfig {
 }
 
 /**
- * Accepted ids of kinds 'network' and 'custody': CAIP-2 (`eip155:1`, `stellar:testnet`)
- * and plain names (`inmemory`, `fireblocks-sandbox`). No slash, no whitespace, 64 chars max.
+ * Accepted ids: CAIP-2 (`eip155:1`, `stellar:testnet`) and plain names
+ * (`inmemory`, `fireblocks-sandbox`). No slash, no whitespace, 64 chars max.
  */
 export const CONFIG_ID_RE = /^[A-Za-z0-9][-_.:A-Za-z0-9]{0,63}$/;
-
-/**
- * Accepted ids of kind 'account': CAIP-10 `<namespace>:<reference>:<address>`,
- * e.g. `eip155:1:0xab16a96d359ec26a11e2c2b3d8f8b8942d5bfcdb`. An eip155 id must
- * also be lowercase (one wallet, one id); other namespaces keep their case.
- */
-export const ACCOUNT_ID_RE = /^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}:[-.%a-zA-Z0-9]{1,128}$/;
 
 export const ERROR_CODES = {
   required: 'required',
