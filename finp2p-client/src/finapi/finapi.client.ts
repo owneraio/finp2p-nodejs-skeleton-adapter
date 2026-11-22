@@ -7,8 +7,14 @@ import { generateNonce, normalizeBaseUrl, sleep } from './utils';
 type RequestBody<P extends keyof FinAPIPaths, M extends keyof FinAPIPaths[P]> =
   FinAPIPaths[P][M] extends { requestBody: { content: { 'application/json': infer B } } } ? B : never;
 
+// `requestBody` is OPTIONAL on some generated operations (`requestBody?:`), and a
+// `{ requestBody: ... }` constraint does not match those, so this silently
+// resolved to `never` and made the method uncallable with any body at all.
+// Infer through the optional and strip the `undefined` instead.
 type OpRequestBody<P extends keyof OpPaths, M extends keyof OpPaths[P]> =
-  OpPaths[P][M] extends { requestBody: { content: { 'application/json': infer B } } } ? B : never;
+  OpPaths[P][M] extends { requestBody?: infer R }
+    ? NonNullable<R> extends { content: { 'application/json': infer B } } ? B : never
+    : never;
 
 /**
  * Body of `POST /profiles/asset` — sourced directly from the OpenAPI types so
