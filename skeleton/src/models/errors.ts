@@ -8,7 +8,14 @@ export class ValidationError extends Error {
   }
 }
 
-export class BusinessError extends Error {
+export interface CodedError extends Error {
+  code: number;
+}
+
+export const isCodedError = (err: unknown): err is CodedError =>
+  err instanceof Error && typeof (err as Partial<CodedError>).code === 'number';
+
+export class BusinessError extends Error implements CodedError {
 
   code: number;
 
@@ -43,7 +50,7 @@ export class NotSupportedError extends Error {
  * the error vocabulary for adapter implementations that want strict
  * already-bound semantics instead.
  */
-export class AccountAlreadyBoundError extends Error {
+export class AccountAlreadyBoundError extends Error implements CodedError {
 
   code: number;
 
@@ -55,7 +62,7 @@ export class AccountAlreadyBoundError extends Error {
 }
 
 /** The supplied network account does not match the ledger's address shape. Mapped to HTTP 400. */
-export class AccountInvalidShapeError extends Error {
+export class AccountInvalidShapeError extends Error implements CodedError {
 
   code: number;
 
@@ -73,7 +80,7 @@ export class AccountInvalidShapeError extends Error {
  * account as success so router retries don't fail. Part of the error vocabulary
  * for adapter implementations that want strict remove semantics instead.
  */
-export class AccountNotFoundError extends Error {
+export class AccountNotFoundError extends Error implements CodedError {
 
   code: number;
 

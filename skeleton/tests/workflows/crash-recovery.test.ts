@@ -1,4 +1,6 @@
 import {
+  AccountNotFoundError,
+  BusinessError,
   OperationStatus,
   successfulReceiptOperation,
 } from "../../src/models";
@@ -181,6 +183,71 @@ describe("Crash recovery tests", () => {
     expect(dbOp.method).toBe("issue");
     expect(dbOp.inputs).toEqual(["idem-fail", "asset-fail", "user-fail", "500"]);
     expect(dbOp.updated_at.getTime()).toBeGreaterThanOrEqual(inserted.created_at.getTime());
+  });
+
+  test("CodedError code is reported, other errors default to 1", async () => {
+    await storage.saveOperation({
+      cid: "biz-cid-1",
+      method: "issue",
+      status: "in_progress",
+      inputs: ["idem-biz", "asset-biz", "user-biz", "500"],
+      outputs: {},
+    });
+    await storage.saveOperation({
+      cid: "generic-cid-1",
+      method: "transfer",
+      status: "in_progress",
+      inputs: ["idem-gen", "asset-gen", "user-gen", "500"],
+      outputs: {},
+    });
+    await storage.saveOperation({
+      cid: "account-cid-1",
+      method: "removeAccount",
+      status: "in_progress",
+      inputs: ["acc-1"],
+      outputs: {},
+    });
+
+    const failingService = {
+      async issue(..._args: any[]): Promise<OperationStatus> {
+        throw new BusinessError(4242, "insufficient balance");
+      },
+      async transfer(..._args: any[]): Promise<OperationStatus> {
+        throw new Error("Ledger RPC connection refused");
+      },
+      async removeAccount(..._args: any[]): Promise<OperationStatus> {
+        throw new AccountNotFoundError("no such account", 7);
+      },
+      async operationStatus(_cid: string): Promise<any> {},
+    };
+
+    createServiceProxy(
+      () => Promise.resolve(),
+      storage,
+      finP2PClient,
+      failingService,
+      "issue",
+      "transfer",
+      "removeAccount",
+    );
+
+    const biz = await waitForStatus(storage, "biz-cid-1", "failed");
+    expect(biz.outputs).toMatchObject({
+      type: "failure",
+      error: { code: 4242, message: "insufficient balance" },
+    });
+
+    const generic = await waitForStatus(storage, "generic-cid-1", "failed");
+    expect(generic.outputs).toMatchObject({
+      type: "failure",
+      error: { code: 1, message: "Ledger RPC connection refused" },
+    });
+
+    const account = await waitForStatus(storage, "account-cid-1", "failed");
+    expect(account.outputs).toMatchObject({
+      type: "failure",
+      error: { code: 7, message: "no such account" },
+    });
   });
 
   test("callback is sent to router on successful recovery", async () => {
