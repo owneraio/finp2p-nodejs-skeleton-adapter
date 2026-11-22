@@ -13,12 +13,19 @@
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "default": "./dist/plugin.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "default": "./dist/config/index.js"
     }
   },
   "typesVersions": {
     "*": {
       "plugin": [
         "dist/plugin.d.ts"
+      ],
+      "config": [
+        "dist/config/index.d.ts"
       ]
     }
   },
@@ -41,6 +48,7 @@
   "author": "",
   "license": "TBD",
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.1161.0",
     "@owneraio/finp2p-client": "^0.29.1",
     "axios": "1.11.0",
     "bs58": "^6.0.0",

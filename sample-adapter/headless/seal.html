@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adapter config</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 0; padding: 16px; max-width: 900px; color: #222; background: #fff; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  h2 { font-size: 15px; margin: 20px 0 8px; }
+  fieldset { border: 1px solid #ccc; margin: 0 0 12px; padding: 8px 12px; }
+  legend { font-weight: 600; }
+  label { display: block; margin: 8px 0; }
+  label > span { display: block; font-weight: 600; margin-bottom: 2px; }
+  small { color: #666; }
+  input, select, textarea { width: 100%; box-sizing: border-box; padding: 6px; font: inherit; }
+  textarea { min-height: 90px; font-family: ui-monospace, monospace; }
+  input[type=checkbox] { width: auto; }
+  button { padding: 6px 14px; font: inherit; cursor: pointer; }
+  pre { background: #f4f4f4; padding: 8px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #ddd; padding: 4px 8px; text-align: left; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row input { flex: 1; }
+  .hidden { display: none; }
+  .err { color: #b00020; }
+</style>
+</head>
+<body>
+<h1>Adapter config</h1>
+<div class="row">
+  <input id="base" placeholder="adapter base url (empty = same origin)">
+  <button id="load">Load</button>
+</div>
+<div id="info"></div>
+<div id="configs"></div>
+<form id="form" class="hidden">
+  <h2>Config</h2>
+  <label><span>Kind</span><select name="__kind"></select></label>
+  <label><span>Id * (network: the ledger, CAIP-2 like eip155:11155111; pick an existing one to update it)</span><input name="__id" list="config-ids" required><datalist id="config-ids"></datalist></label>
+  <label><span>Name</span><input name="__name"></label>
+  <label><input type="checkbox" name="__default"> Make default of its kind</label>
+  <div id="pages"></div>
+  <button type="submit">Apply</button>
+</form>
+<h2>Response</h2>
+<pre id="out"></pre>
+
+<script type="module">
+import { importAdapterKey, sealSecret } from './seal-lib.mjs';
+
+const $ = (id) => document.getElementById(id);
+let descriptor;
+let rsaKey;
+
+const base = () => $('base').value.trim().replace(/\/+$/, '');
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const show = (o) => { $('out').textContent = typeof o === 'string' ? o : JSON.stringify(o, null, 2); };
+
+// current form values by field name (for visibleWhen)
+function currentValues() {
+  const v = {};
+  for (const el of $('form').elements) {
+    if (!el.name || el.name.startsWith('__')) continue;
+    v[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+  }
+  return v;
+}
+
+function conditionMet(cond, values) {
+  if (!cond) return true;
+  const v = values[cond.field];
+  if (cond.equals !== undefined) return String(v) === String(cond.equals);
+  if (cond.in) return cond.in.map(String).includes(String(v));
+  return true;
+}
+
+function applyVisibility() {
+  const values = currentValues();
+  for (const el of document.querySelectorAll('[data-when]')) {
+    const wrongKind = el.dataset.kind !== undefined && el.dataset.kind !== currentKind();
+    el.classList.toggle('hidden', wrongKind || !conditionMet(JSON.parse(el.dataset.when), values));
+  }
+}
+
+function fieldInput(f) {
+  const attrs = `name="${esc(f.name)}" placeholder="${esc(f.placeholder)}"`;
+  if (f.secret) return `<input type="password" ${attrs} autocomplete="new-password">`;
+  switch (f.type) {
+    case 'boolean': return `<input type="checkbox" ${attrs} ${f.default ? 'checked' : ''}>`;
+    case 'number': return `<input type="number" ${attrs} value="${esc(f.default)}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''}>`;
+    case 'enum': return `<select ${attrs}>${(f.options || []).map((o) => `<option value="${esc(o.value)}" ${o.value === f.default ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+    case 'text': return `<textarea ${attrs}>${esc(f.default)}</textarea>`;
+    case 'url': return `<input type="url" ${attrs} value="${esc(f.default)}">`;
+    default: return `<input type="text" ${attrs} value="${esc(f.default)}" ${f.pattern ? `pattern="${esc(f.pattern)}"` : ''}>`;
+  }
+}
+
+function render() {
+  const d = descriptor;
+  const enc = d.encryption;
+  $('info').innerHTML = `
+    <p><b>${esc(d.adapter.id)}</b> (${esc(d.adapter.kind)} ${esc(d.adapter.version)}), protocol ${esc(d.protocol)}<br>
+    encryption: ${enc ? `${esc(enc.provider)}, kid <code>${esc(enc.kid)}</code>${enc.required ? ', sealing required' : ''}` : '<span class="err">none (secrets sent in plaintext)</span>'}<br>
+    ready: ${d.readiness.ready} ${d.readiness.blocking.length ? `(blocking: ${esc(d.readiness.blocking.join(', '))})` : ''}</p>`;
+
+  $('configs').innerHTML = `<h2>Configs</h2>${d.configs.length ? `<table><tr><th>kind</th><th>id</th><th>name</th><th>state</th><th>version</th><th>default</th></tr>${
+    d.configs.map((c) => `<tr><td>${esc(c.kind)}</td><td>${esc(c.id)}</td><td>${esc(c.name)}</td><td>${esc(c.state)}${c.lastError ? ` <span class="err">${esc(c.lastError)}</span>` : ''}</td><td>${c.version}</td><td>${c.isDefault ? 'yes' : ''}</td></tr>`).join('')
+  }</table>` : '<p>none</p>'}`;
+
+  // kinds come from the pages: a page without `kind` is a network page
+  const kinds = [...new Set(d.pages.map((p) => p.kind || 'network'))];
+  const kindSel = $('form').elements.__kind;
+  const keep = kindSel.value;
+  kindSel.innerHTML = kinds.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+  if (kinds.includes(keep)) kindSel.value = keep;
+  renderIds();
+
+  $('pages').innerHTML = d.pages.map((p) => `
+    <fieldset data-kind="${esc(p.kind || 'network')}" ${p.visibleWhen ? `data-when='${esc(JSON.stringify(p.visibleWhen))}'` : ''}>
+      <legend>${esc(p.title)}</legend>
+      ${p.description ? `<small>${esc(p.description)}</small>` : ''}
+      ${p.fields.map((f) => `
+        <label ${f.visibleWhen ? `data-when='${esc(JSON.stringify(f.visibleWhen))}'` : ''}>
+          <span>${esc(f.label)}${f.required ? ' *' : ''}${f.secret ? ' (secret)' : ''}</span>
+          ${fieldInput(f)}
+          ${f.help ? `<small>${esc(f.help)}</small>` : ''}
+        </label>`).join('')}
+    </fieldset>`).join('');
+  $('form').classList.remove('hidden');
+  applyVisibility();
+}
+
+const currentKind = () => $('form').elements.__kind.value || 'network';
+
+// only the pages of the chosen kind are shown and sent
+function renderIds() {
+  const kind = currentKind();
+  $('config-ids').innerHTML = descriptor.configs.filter((c) => c.kind === kind).map((c) => `<option value="${esc(c.id)}">`).join('');
+  for (const el of document.querySelectorAll('[data-kind]')) el.classList.toggle('hidden', el.dataset.kind !== kind);
+}
+
+$('load').onclick = async () => {
+  show('');
+  try {
+    const res = await fetch(`${base()}/config`);
+    if (!res.ok) throw new Error(`GET /config -> ${res.status}`);
+    descriptor = await res.json();
+    rsaKey = descriptor.encryption ? await importAdapterKey(descriptor.encryption) : undefined;
+    render();
+  } catch (e) {
+    show(`load failed: ${e.message}`);
+  }
+};
+
+$('form').oninput = applyVisibility;
+$('form').elements.__kind.onchange = () => { renderIds(); applyVisibility(); };
+
+// fill the form from an existing config when its id is picked
+$('form').elements.__id.onchange = (ev) => {
+  const c = descriptor.configs.find((x) => x.kind === currentKind() && x.id === ev.target.value);
+  if (!c) return;
+  $('form').elements.__name.value = c.name;
+  $('form').elements.__default.checked = c.isDefault;
+  for (const [k, v] of Object.entries(c.values)) {
+    const el = $('form').elements[k];
+    if (!el || (v && typeof v === 'object')) continue;   // secrets come back as { set }
+    if (el.type === 'checkbox') el.checked = v === true || v === 'true'; else el.value = v;
+  }
+  applyVisibility();
+};
+
+$('form').onsubmit = async (ev) => {
+  ev.preventDefault();
+  show('sealing...');
+  try {
+    const fields = descriptor.pages.filter((p) => (p.kind || 'network') === currentKind()).flatMap((p) => p.fields);
+    const values = {};
+    for (const f of fields) {
+      const el = $('form').elements[f.name];
+      if (!el || el.closest('.hidden')) continue;
+      if (f.type === 'boolean') { values[f.name] = el.checked; continue; }
+      const raw = el.value;
+      if (raw === '') continue;                          // empty = keep current value
+      if (f.secret) {
+        values[f.name] = rsaKey ? await sealSecret(descriptor.encryption, raw, rsaKey) : raw;
+      } else {
+        values[f.name] = f.type === 'number' ? Number(raw) : raw;
+      }
+    }
+    const fe = $('form').elements;
+    const body = { kind: currentKind(), id: fe.__id.value.trim(), values };
+    if (fe.__name.value.trim()) body.name = fe.__name.value.trim();
+    if (fe.__default.checked) body.default = true;
+    const res = await fetch(`${base()}/config/apply`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({ status: res.status }));
+    show({ status: res.status, ...json });
+    for (const f of fields) if (f.secret && $('form').elements[f.name]) $('form').elements[f.name].value = '';
+  } catch (e) {
+    show(`apply failed: ${e.message}`);
+  }
+};
+</script>
+</body>
+</html>
