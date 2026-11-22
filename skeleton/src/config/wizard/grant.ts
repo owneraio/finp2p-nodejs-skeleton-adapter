@@ -71,6 +71,54 @@ export interface GrantRequest {
   now?: number;
 }
 
+function claimsWellFormed(claims: JsonObject): boolean {
+  if (Object.keys(claims).some((key) => !KNOWN_CLAIMS.has(key))) return false;
+  if ([...STRING_CLAIMS, ...DIGEST_CLAIMS].some((key) => typeof claims[key] !== 'string')) return false;
+  if (OPTIONAL_STRING_CLAIMS.some((key) => has(claims, key) && typeof claims[key] !== 'string')) return false;
+  if (!Number.isSafeInteger(claims.iat) || !Number.isSafeInteger(claims.exp) || (claims.iat as number) <= 0) return false;
+  if (!SUB.test(claims.sub as string)) return false;
+  // at least 128 random bits, canonical base64url
+  const jti = b64urlDecodeStrict(claims.jti);
+  return jti !== null && jti.length >= 16 && jti.length <= 64;
+}
+
+function scopeOfFlow(manifest: WizardManifest, flowId: string, op: string): WizardScope | null {
+  if (flowId === STATUS_FLOW) return op === manifest.status.operation ? 'integration' : null;
+  if (!has(manifest.flows, flowId)) return null;
+  const flow = manifest.flows[flowId];
+  return flow.operations.includes(op) ? flow.scope : null;
+}
+
+function targetAllowed(manifest: WizardManifest, claims: GrantClaims): boolean {
+  if (claims.scope !== 'network') return !has(claims, 'targetKind') && !has(claims, 'targetId');
+  return claims.targetKind === 'network' && manifest.targets.network.some((t) => t.id === claims.targetId);
+}
+
+function isEnvelope(body: JsonObject | null): body is JsonObject & WireEnvelope {
+  if (!body) return false;
+  const keys = Object.keys(body);
+  return keys.length === 2 && isPlainObject(body.context) && isPlainObject(body.input);
+}
+
+function contextMismatch(context: JsonObject, claims: GrantClaims): GrantReason | null {
+  if (context.scope !== claims.scope) return 'scope';
+  if (claims.scope === 'network') {
+    if (context.targetKind !== claims.targetKind || context.targetId !== claims.targetId) return 'target';
+    return Object.keys(context).length === 3 ? null : 'body';
+  }
+  return Object.keys(context).length === 1 ? null : 'body';
+}
+
+function idempotencyMatches(policy: 'none' | 'required', claims: GrantClaims, headerValue: Header): boolean {
+  const header = singleHeader(headerValue);
+  if (header === null) return false;
+  const hasClaim = has(claims, 'idem');
+  const hasHeader = header !== undefined;
+  if (policy === 'required' && !(hasClaim && hasHeader)) return false;
+  if (hasClaim !== hasHeader) return false;
+  return !hasClaim || (IDEMPOTENCY_KEY.test(header as string) && header === claims.idem);
+}
+
 export function verifyGrant(r: GrantRequest): GrantCheck {
   const at = r.now ?? nowSeconds();
   const fail = (reason: GrantReason): GrantCheck => ({ ok: false, reason });
@@ -121,52 +169,4 @@ export function verifyGrant(r: GrantRequest): GrantCheck {
   // consumed before anything runs, so a racing duplicate cannot slip through
   if (!r.replay.consume(claims.jti, claims.exp, at)) return fail('replay');
   return { ok: true, claims, envelope };
-}
-
-function claimsWellFormed(claims: JsonObject): boolean {
-  if (Object.keys(claims).some((key) => !KNOWN_CLAIMS.has(key))) return false;
-  if ([...STRING_CLAIMS, ...DIGEST_CLAIMS].some((key) => typeof claims[key] !== 'string')) return false;
-  if (OPTIONAL_STRING_CLAIMS.some((key) => has(claims, key) && typeof claims[key] !== 'string')) return false;
-  if (!Number.isSafeInteger(claims.iat) || !Number.isSafeInteger(claims.exp) || (claims.iat as number) <= 0) return false;
-  if (!SUB.test(claims.sub as string)) return false;
-  // at least 128 random bits, canonical base64url
-  const jti = b64urlDecodeStrict(claims.jti);
-  return jti !== null && jti.length >= 16 && jti.length <= 64;
-}
-
-function scopeOfFlow(manifest: WizardManifest, flowId: string, op: string): WizardScope | null {
-  if (flowId === STATUS_FLOW) return op === manifest.status.operation ? 'integration' : null;
-  if (!has(manifest.flows, flowId)) return null;
-  const flow = manifest.flows[flowId];
-  return flow.operations.includes(op) ? flow.scope : null;
-}
-
-function targetAllowed(manifest: WizardManifest, claims: GrantClaims): boolean {
-  if (claims.scope !== 'network') return !has(claims, 'targetKind') && !has(claims, 'targetId');
-  return claims.targetKind === 'network' && manifest.targets.network.some((t) => t.id === claims.targetId);
-}
-
-function isEnvelope(body: JsonObject | null): body is JsonObject & WireEnvelope {
-  if (!body) return false;
-  const keys = Object.keys(body);
-  return keys.length === 2 && isPlainObject(body.context) && isPlainObject(body.input);
-}
-
-function contextMismatch(context: JsonObject, claims: GrantClaims): GrantReason | null {
-  if (context.scope !== claims.scope) return 'scope';
-  if (claims.scope === 'network') {
-    if (context.targetKind !== claims.targetKind || context.targetId !== claims.targetId) return 'target';
-    return Object.keys(context).length === 3 ? null : 'body';
-  }
-  return Object.keys(context).length === 1 ? null : 'body';
-}
-
-function idempotencyMatches(policy: 'none' | 'required', claims: GrantClaims, headerValue: Header): boolean {
-  const header = singleHeader(headerValue);
-  if (header === null) return false;
-  const hasClaim = has(claims, 'idem');
-  const hasHeader = header !== undefined;
-  if (policy === 'required' && !(hasClaim && hasHeader)) return false;
-  if (hasClaim !== hasHeader) return false;
-  return !hasClaim || (IDEMPOTENCY_KEY.test(header as string) && header === claims.idem);
 }
