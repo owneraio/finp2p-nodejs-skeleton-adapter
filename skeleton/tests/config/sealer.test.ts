@@ -81,7 +81,9 @@ function commonSealerTests(getSealer: () => Sealer) {
     const sealer = getSealer();
     const sealed = sealWithPublicKey(await sealer.publicKey(), await sealer.kid(), plain);
     expectSealedShape(sealed, await sealer.kid());
-    expect(sealed.ciphertext).not.toContain(Buffer.from(plain).toString('base64').slice(0, 8) || 'x');
+    // an empty plaintext has no prefix to look for (the old fallback 'x' made the test fail on ~29% of runs)
+    const prefix = Buffer.from(plain).toString('base64').slice(0, 8);
+    if (prefix) expect(sealed.ciphertext).not.toContain(prefix);
     await expect(openSealed(sealer, sealed)).resolves.toBe(plain);
   });
 
