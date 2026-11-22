@@ -1,7 +1,7 @@
 // The two Sealer implementations: an RSA key pair kept by the adapter itself
 // (LocalRsaSealer, persisted through a KeyStore) and an AWS KMS asymmetric key
 // (KmsSealer, the private half never leaves KMS). Both publish the same SPKI
-// public key shape, so the browser envelope is identical whichever is used.
+// public key shape, so the stored envelope is the same whichever is used.
 import {
   constants, createHash, createPublicKey, createPrivateKey, generateKeyPairSync, KeyObject, privateDecrypt,
 } from 'node:crypto';

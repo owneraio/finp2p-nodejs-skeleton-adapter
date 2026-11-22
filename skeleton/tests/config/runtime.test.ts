@@ -140,12 +140,12 @@ describe('ConfigRuntime.merge', () => {
     expect(cleared.cleared).toEqual(['REMOVED_FIELD', 'NOPE']);
   });
 
-  test('unknown field and sealed value on a non-secret field are errors', async () => {
-    const { rt } = newRuntime();
-    const sealed: SealedValue = { enc: SEAL_ALG, kid: PLAIN_KID, wrappedKey: '', iv: '', ciphertext: '' };
-    const m = await rt.merge('network', { NOPE: 'x', RPC_URL: sealed, TAG: { a: 1 } as any });
+  test('unknown field and non-scalar values are errors: a request carries no sealed value', async () => {
+    const { rt } = newRuntime({ sealer: new TestSealer() });
+    const sealed: SealedValue = { enc: SEAL_ALG, kid: 'test', wrappedKey: '', iv: '', ciphertext: '' };
+    const m = await rt.merge('network', { NOPE: 'x', RPC_URL: sealed as any, OPERATOR_KEY: sealed as any, TAG: { a: 1 } as any });
     expect(m.errors.map((e) => [e.path, e.code])).toEqual([
-      ['NOPE', ERROR_CODES.unknownField], ['RPC_URL', ERROR_CODES.type], ['TAG', ERROR_CODES.type],
+      ['NOPE', ERROR_CODES.unknownField], ['RPC_URL', ERROR_CODES.type], ['OPERATOR_KEY', ERROR_CODES.type], ['TAG', ERROR_CODES.type],
     ]);
   });
 
@@ -158,38 +158,22 @@ describe('ConfigRuntime.merge', () => {
     expect(await rt.open(m.secrets)).toEqual({ OPERATOR_KEY: SECRET });
   });
 
-  test('sealer: plaintext secret is sealed now, sealed value kept, kid mismatch rejected', async () => {
+  test('sealer: a plaintext secret is sealed now for the store', async () => {
     const sealer = new TestSealer();
     const { rt } = newRuntime({ sealer });
     const m = await rt.merge('network', { OPERATOR_KEY: SECRET });
     expect(m.secrets.OPERATOR_KEY.kid).toBe('test');
+    expect(JSON.stringify(m.secrets)).not.toContain(SECRET);
     expect(await rt.open(m.secrets)).toEqual({ OPERATOR_KEY: SECRET });
-
-    const browserSealed = sealWithPublicKey(await sealer.publicKey(), 'test', 'from-browser');
-    const kept = await rt.merge('network', { OPERATOR_KEY: browserSealed }, stored(NET, { values: m.values, secrets: m.secrets }));
-    expect(kept.secrets.OPERATOR_KEY).toBe(browserSealed);
-    expect(await rt.open(kept.secrets)).toEqual({ OPERATOR_KEY: 'from-browser' });
-
-    const other = sealWithPublicKey(await new TestSealer('other').publicKey(), 'other', 'x');
-    const bad = await rt.merge('network', { OPERATOR_KEY: other });
-    expect(bad.errors).toEqual([expect.objectContaining({ path: 'OPERATOR_KEY', code: ERROR_CODES.unknownKid })]);
   });
 
-  test('requireSealedSecrets: plaintext secret rejected, sealed accepted', async () => {
-    const sealer = new TestSealer();
-    const { rt } = newRuntime({ sealer, requireSealedSecrets: true });
-    const bad = await rt.merge('network', { OPERATOR_KEY: SECRET });
-    expect(bad.errors).toEqual([expect.objectContaining({ path: 'OPERATOR_KEY', code: ERROR_CODES.secretMustBeSealed })]);
-    expect(JSON.stringify(bad.errors)).not.toContain(SECRET);
-    const ok = await rt.merge('network', { OPERATOR_KEY: sealWithPublicKey(await sealer.publicKey(), 'test', SECRET) });
-    expect(ok.errors).toEqual([]);
-  });
-
-  test('open: sealed with a key this adapter cannot unwrap -> seal-open-failed without the value', async () => {
-    const { rt } = newRuntime({ sealer: new TestSealer() });
+  test('open: stored with a key this adapter cannot unwrap -> seal-open-failed without the value', async () => {
     const foreign = sealWithPublicKey(await new TestSealer('test').publicKey(), 'test', SECRET);   // same kid, other key
+    const store = new MemoryStore();
+    await store.save({ kind: 'network', id: NET, name: NET, isDefault: true, values: { RPC_URL: RPC }, secrets: { OPERATOR_KEY: foreign } });
+    const { rt } = newRuntime({ sealer: new TestSealer(), store });
     await expect(rt.open({ OPERATOR_KEY: foreign })).rejects.toMatchObject({ status: 422, code: ERROR_CODES.sealOpenFailed, path: 'OPERATOR_KEY' });
-    const result = await rt.validate({ values: { ...valid, OPERATOR_KEY: foreign } });
+    const result = await rt.validate({ id: NET, values: {} });
     expect(result).toMatchObject({ ok: false, errors: [expect.objectContaining({ path: 'OPERATOR_KEY', code: ERROR_CODES.sealOpenFailed })] });
     expect(JSON.stringify(result)).not.toContain(SECRET);
   });
@@ -410,13 +394,12 @@ describe('ConfigRuntime.apply', () => {
 });
 
 describe('ConfigRuntime.describe', () => {
-  test('shape, secrets as { set }, encryption block only with a sealer', async () => {
+  test('shape, secrets as { set }, no public key for browser sealing', async () => {
     const { rt } = newRuntime();
     const empty = await rt.describe();
     expect(empty).toEqual({
       protocol: 'adapter-config/2', adapter, pages, configs: [], readiness: { ready: false, blocking: ['no network configured yet'] },
     });
-    expect(empty.encryption).toBeUndefined();
     expect(rt.declaredKinds()).toEqual(['network', 'custody']);
     expect(newRuntime({ pages: networkPages }).rt.declaredKinds()).toEqual(['network']);
 
@@ -430,10 +413,8 @@ describe('ConfigRuntime.describe', () => {
     expect(JSON.stringify(d)).not.toContain(SECRET);
     expect(JSON.stringify(d)).not.toContain('0xabcdef');
 
-    const sealer = new TestSealer();
-    const withSealer = newRuntime({ sealer, requireSealedSecrets: true });
-    const e = (await withSealer.rt.describe()).encryption;
-    expect(e).toEqual({ alg: SEAL_ALG, kid: 'test', publicKey: await sealer.publicKey(), provider: 'local', required: true });
+    const withSealer = await newRuntime({ sealer: new TestSealer() }).rt.describe();
+    expect(Object.keys(withSealer)).toEqual(['protocol', 'adapter', 'pages', 'configs', 'readiness']);
   });
 });
 

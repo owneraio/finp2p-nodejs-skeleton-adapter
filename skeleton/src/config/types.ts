@@ -6,9 +6,9 @@
 //   kind 'network'  id = the ledger (CAIP-2, e.g. eip155:11155111); one per chain
 //   kind 'custody'  id = a name; the custodian (or signer) the adapter uses
 // An asset is never bound to a config: its ledger is already in the asset
-// row (CAIP-19), and that ledger names the network config. Secrets may
-// arrive sealed (envelope encrypted in the browser with the adapter's public
-// key) so no proxy on the path ever sees plaintext.
+// row (CAIP-19), and that ledger names the network config. Secrets arrive
+// in plaintext and are stored sealed (envelope encrypted with the adapter's
+// key: KMS or a local RSA key pair).
 
 export type Protocol = 'adapter-config/2';
 export const PROTOCOL: Protocol = 'adapter-config/2';
@@ -67,34 +67,18 @@ export const SEAL_ALG = 'RSA-OAEP-256+A256GCM';
 export type SealAlg = typeof SEAL_ALG;
 
 /**
- * Envelope-encrypted secret as produced in the browser (WebCrypto) or by the
- * node helper: a fresh AES-256-GCM key encrypts the value, the adapter's RSA
+ * Envelope-encrypted secret as the adapter stores it: a fresh AES-256-GCM key
+ * encrypts the value, the adapter's RSA
  * public key (RSA-OAEP, SHA-256) wraps that AES key. RSA alone caps the
  * plaintext at 190 bytes; PEM keys are bigger, hence the hybrid.
  * All fields base64 (standard alphabet, padded).
  */
 export interface SealedValue {
   enc: SealAlg;
-  kid: string;         // which adapter key wrapped it (descriptor.encryption.kid)
+  kid: string;         // which adapter key wrapped it
   wrappedKey: string;  // RSA-OAEP-256(aesKey)
   iv: string;          // 12 bytes
   ciphertext: string;  // AES-GCM(value) with the 16-byte tag appended
-}
-
-export const isSealedValue = (v: unknown): v is SealedValue =>
-  !!v && typeof v === 'object' && (v as SealedValue).enc === SEAL_ALG
-  && typeof (v as SealedValue).kid === 'string'
-  && typeof (v as SealedValue).wrappedKey === 'string'
-  && typeof (v as SealedValue).iv === 'string'
-  && typeof (v as SealedValue).ciphertext === 'string';
-
-/** Published in GET /config so a browser can seal secrets before sending them. */
-export interface EncryptionInfo {
-  alg: SealAlg;
-  kid: string;
-  publicKey: string;            // SPKI DER, base64 (importable with WebCrypto importKey('spki', ...))
-  provider: 'kms' | 'local';    // where the private half lives
-  required: boolean;            // true = plaintext secrets are rejected with 422 `secret-must-be-sealed`
 }
 
 // ---- descriptor (GET /config) ----
@@ -117,7 +101,6 @@ export interface ConfigSummary {
 export interface ConfigDescriptor {
   protocol: Protocol;
   adapter: { id: string; kind: string; version: string };
-  encryption?: EncryptionInfo;     // absent = adapter cannot open sealed secrets (plaintext only)
   pages: ConfigPage[];             // every kind; `page.kind` tells them apart
   configs: ConfigSummary[];
   readiness: { ready: boolean; blocking: string[] };   // ready = at least one configured network config
@@ -125,7 +108,7 @@ export interface ConfigDescriptor {
 
 // ---- requests ----
 
-export type RequestValue = ScalarValue | null | SealedValue;
+export type RequestValue = ScalarValue | null;
 export type RequestValues = Record<string, RequestValue>;
 
 export interface ValidateRequest {
@@ -192,9 +175,7 @@ export const ERROR_CODES = {
   min: 'min',
   max: 'max',
   unknownField: 'unknown-field',
-  secretMustBeSealed: 'secret-must-be-sealed',
   sealOpenFailed: 'seal-open-failed',
-  unknownKid: 'unknown-kid',
   buildFailed: 'build-failed',
   notFound: 'not-found',
   inUse: 'in-use',
