@@ -1,17 +1,14 @@
 import express from 'express';
-import { generateKeyPairSync, randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { AddressInfo } from 'node:net';
 import { Server } from 'node:http';
 import winston from 'winston';
 import { registerConfigRoutes } from '../../src/config/routes';
 import { ConfigRuntime } from '../../src/config/runtime';
 import { MemoryConfigStore } from '../../src/config/store';
-import { loadWizard } from '../../src/config/wizard/manifest';
 import { WizardCall, WizardOperation, WizardRefusal } from '../../src/config/wizard/types';
 import { adapter, fakeHandler, SECRET_KEYS, silentLogger, VERSION } from './support/fixtures';
-import { Context, controlCenter, ControlCenter, envelope, GrantOpts, mintGrant } from './support/wizard';
+import { envelope, MANIFEST, NETWORK } from './support/wizard';
 
 interface Res { status: number; body: any; text: string; type: string | null }
 
@@ -19,15 +16,17 @@ const { fetch } = globalThis as unknown as {
   fetch: (url: string, init?: Record<string, unknown>) => Promise<{ status: number; text(): Promise<string>; headers: { get(n: string): string | null } }>;
 };
 
+const newRuntime = () => new ConfigRuntime({
+  version: VERSION, adapter, secretKeys: SECRET_KEYS, handler: fakeHandler(), store: new MemoryConfigStore(), logger: silentLogger,
+});
+
 describe('wizard routes', () => {
   let server: Server;
   let base: string;
-  let cc: ControlCenter;
   let calls: WizardCall[];
   let operations: Record<string, WizardOperation>;
-  let runtime: ConfigRuntime;
 
-  const post = async (op: string, body: Buffer, headers: Record<string, string>): Promise<Res> => {
+  const post = async (op: string, body: Buffer | string, headers: Record<string, string> = {}): Promise<Res> => {
     const res = await fetch(`${base}/config/operations/${op}`, { method: 'POST', headers: { 'content-type': 'application/json; charset=utf-8', ...headers }, body });
     const text = await res.text();
     let parsed: unknown;
@@ -35,15 +34,11 @@ describe('wizard routes', () => {
     return { status: res.status, body: parsed, text, type: res.headers.get('content-type') };
   };
 
-  /** One step as the relay sends it: the body bytes, a grant over them, the key header when there is one. */
-  const step = (g: Omit<GrantOpts, 'body'> & { input?: Record<string, unknown> }, override: { body?: Buffer } = {}) => {
-    const body = envelope(g.input ?? {}, g.context as Context | undefined);
-    const grant = mintGrant(cc, { ...g, body });
-    return post(g.op, override.body ?? body, { authorization: `Bearer ${grant}`, ...(g.idem ? { 'idempotency-key': g.idem } : {}) });
-  };
+  /** One step as the relay sends it: { context, input } and the key header when there is one. */
+  const step = (op: string, input: Record<string, unknown> = {}, opts: { context?: object; idem?: string } = {}) =>
+    post(op, envelope(input, opts.context), opts.idem ? { 'idempotency-key': opts.idem } : {});
 
   beforeEach(async () => {
-    cc = controlCenter();
     calls = [];
     const record = (output: Record<string, unknown>): WizardOperation => async (call) => { calls.push(call); return output; };
     operations = {
@@ -56,11 +51,10 @@ describe('wizard routes', () => {
       activate: record({ state: 'active' }),
       'activate-network': record({ state: 'active' }),
     };
-    runtime = new ConfigRuntime({ version: VERSION, adapter, secretKeys: SECRET_KEYS, handler: fakeHandler(), store: new MemoryConfigStore(), logger: silentLogger });
     const app = express();
-    registerConfigRoutes(app, runtime, {
+    registerConfigRoutes(app, newRuntime(), {
       logger: winston.createLogger({ silent: true }),
-      wizard: { wizard: loadWizard(cc.dir), operations: new Proxy(operations, { get: (t, k: string) => t[k] }) },
+      wizard: { manifest: MANIFEST, operations: new Proxy(operations, { get: (t, k: string) => t[k] }) },
     });
     await new Promise<void>((resolve) => { server = app.listen(0, resolve); });
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -70,95 +64,111 @@ describe('wizard routes', () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
-  it('serves the signed manifest as is', async () => {
+  it('serves the manifest as JSON', async () => {
     const res = await fetch(`${base}/config/manifest`);
     expect(res.status).toBe(200);
-    expect(await res.text()).toBe(cc.manifestJws);
+    expect(res.headers.get('content-type')).toMatch(/^application\/json/);
+    expect(JSON.parse(await res.text())).toEqual(MANIFEST);
   });
 
-  it('runs the status read and an integration step with a valid grant', async () => {
-    const status = await step({ flow: '_status', op: 'get-status' });
+  it('runs the status read and an integration step', async () => {
+    const status = await step('get-status');
     expect(status.status).toBe(200);
     expect(status.body).toEqual({ output: { state: 'active' } });
     expect(status.type).toMatch(/^application\/json/);
 
-    const check = await step({ flow: 'connect', op: 'check', input: { apiKey: 'ak_1' } });
+    const check = await step('check', { apiKey: 'ak_1' });
     expect(check.body).toEqual({ output: { valid: true } });
-    expect(calls[1]).toMatchObject({ operationId: 'check', flow: 'connect', scope: 'integration', subject: 'user:7', input: { apiKey: 'ak_1' } });
+    expect(calls[1]).toEqual({ operationId: 'check', scope: 'integration', targetId: undefined, input: { apiKey: 'ak_1' } });
   });
 
   it('passes the network of a network step', async () => {
-    const context: Context = { scope: 'network', targetKind: 'network', targetId: 'eip155:31337' };
-    const res = await step({ flow: 'network', op: 'activate-network', context, idem: randomUUID() });
+    const res = await step('activate-network', {}, { context: NETWORK, idem: randomUUID() });
     expect(res.status).toBe(200);
     expect(calls[0]).toMatchObject({ scope: 'network', targetId: 'eip155:31337' });
   });
 
   it.each([
-    ['signature', { key: generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey }],
-    ['audience', { claims: { aud: 'adapter:other:gca1' } }],
-    ['org', { claims: { org: 'bank-uk' } }],
-    ['expired', { iat: Math.floor(Date.now() / 1000) - 600 }],
-    ['flow', { flow: 'network' }],
-    ['operation', { claims: { op: 'activate' } }],
-  ])('refuses a grant with reason %s', async (reason, change) => {
-    const res = await step({ flow: 'connect', op: 'check', input: { apiKey: 'ak_1' }, ...(change as Partial<GrantOpts>) });
-    expect(res.status).toBe(401);
-    expect(res.body).toEqual({ error: { code: 'GRANT_INVALID', reason } });
+    ['a network context for an integration operation', 'check', NETWORK],
+    ['an integration context for a network operation', 'activate-network', { scope: 'integration' }],
+    ['an undeclared network', 'activate-network', { ...NETWORK, targetId: 'eip155:1' }],
+    ['another target kind', 'activate-network', { ...NETWORK, targetKind: 'wallet' }],
+    ['an extra key', 'check', { scope: 'integration', org: 'bank-us' }],
+  ])('refuses %s', async (_, op, context) => {
+    const res = await step(op, { apiKey: 'ak_1' }, { context, idem: randomUUID() });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: { code: 'INVALID_CONTEXT' } });
     expect(calls).toHaveLength(0);
   });
 
-  it('refuses a body the grant was not minted for, and a replayed grant', async () => {
-    const tampered = await step({ flow: 'connect', op: 'check', input: { apiKey: 'ak_1' } }, { body: envelope({ apiKey: 'ak_2' }) });
-    expect(tampered.body.error.reason).toBe('body');
-
-    const body = envelope({ apiKey: 'ak_1' });
-    const grant = mintGrant(cc, { flow: 'connect', op: 'check', body });
-    expect((await post('check', body, { authorization: `Bearer ${grant}` })).status).toBe(200);
-    const again = await post('check', body, { authorization: `Bearer ${grant}` });
-    expect(again.body).toEqual({ error: { code: 'GRANT_INVALID', reason: 'replay' } });
+  it('refuses a body that is not exactly { context, input }', async () => {
+    for (const body of ['{', '[]', JSON.stringify({ input: {} }), JSON.stringify({ context: { scope: 'integration' }, input: {}, extra: 1 })]) {
+      expect((await post('get-status', body)).body).toEqual({ error: { code: 'INVALID_REQUEST' } });
+    }
+    expect(calls).toHaveLength(0);
   });
 
   it('refuses input outside the request schema with the field, and passes a refusal of the operation', async () => {
-    const invalid = await step({ flow: 'connect', op: 'check', input: { apiKey: 'nope' } });
+    const invalid = await step('check', { apiKey: 'nope' });
     expect(invalid.status).toBe(400);
     expect(invalid.body).toEqual({ error: { code: 'INVALID_INPUT', field: '/apiKey' } });
 
-    const refused = await step({ flow: 'connect', op: 'check', input: { apiKey: 'ak_bad' } });
+    const refused = await step('check', { apiKey: 'ak_bad' });
     expect(refused.status).toBe(422);
     expect(refused.body).toEqual({ error: { code: 'INVALID_CREDENTIALS', field: '/apiKey' } });
   });
 
-  it('runs a keyed step once and refuses the key for another request', async () => {
-    const idem = randomUUID();
-    const first = await step({ flow: 'connect', op: 'activate', input: { apiKey: 'ak_1' }, idem });
-    const retry = await step({ flow: 'connect', op: 'activate', input: { apiKey: 'ak_1' }, idem });
-    expect([first.status, retry.status]).toEqual([200, 200]);
-    expect(calls).toHaveLength(1);
-    const other = await step({ flow: 'connect', op: 'activate', input: { apiKey: 'ak_2' }, idem });
-    expect(other.status).toBe(409);
-    expect(other.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+  it('checks the Idempotency-Key header', async () => {
+    expect((await step('activate', { apiKey: 'ak_1' })).body).toEqual({ error: { code: 'IDEMPOTENCY_KEY_REQUIRED' } });
+    expect((await step('activate', { apiKey: 'ak_1' }, { idem: randomUUID().toUpperCase() })).body).toEqual({ error: { code: 'INVALID_IDEMPOTENCY_KEY' } });
+    expect((await step('check', { apiKey: 'ak_1' }, { idem: 'not-a-uuid' })).body).toEqual({ error: { code: 'INVALID_IDEMPOTENCY_KEY' } });
+    expect(calls).toHaveLength(0);
+  });
 
-    const unkeyed = await step({ flow: 'connect', op: 'activate', input: { apiKey: 'ak_1' } });
-    expect(unkeyed.body).toEqual({ error: { code: 'GRANT_INVALID', reason: 'idempotency' } });
+  it('runs a keyed step once and refuses the key for another body', async () => {
+    const idem = randomUUID();
+    const first = await step('activate', { apiKey: 'ak_1' }, { idem });
+    const retry = await step('activate', { apiKey: 'ak_1' }, { idem });
+    expect([first.status, retry.status]).toEqual([200, 200]);
+    expect(retry.body).toEqual(first.body);
+    expect(calls).toHaveLength(1);
+    const other = await step('activate', { apiKey: 'ak_2' }, { idem });
+    expect(other.status).toBe(409);
+    expect(other.body).toEqual({ error: { code: 'IDEMPOTENCY_KEY_REUSED' } });
+  });
+
+  it('does not keep a refusal, so a retry with the same key runs again', async () => {
+    let attempts = 0;
+    operations.activate = async (call) => {
+      calls.push(call);
+      attempts += 1;
+      if (attempts === 1) throw new WizardRefusal('INVALID_CREDENTIALS', { field: '/apiKey' });
+      return { state: 'active' };
+    };
+    const idem = randomUUID();
+    expect((await step('activate', { apiKey: 'ak_1' }, { idem })).status).toBe(422);
+    expect((await step('activate', { apiKey: 'ak_1' }, { idem })).status).toBe(200);
+    expect(calls).toHaveLength(2);
   });
 
   it('answers 500 for an output outside the response schema or a thrown error, without the message', async () => {
     operations['get-status'] = async () => ({ state: 'x'.repeat(40) });
-    const invalid = await step({ flow: '_status', op: 'get-status' });
+    const invalid = await step('get-status');
     expect(invalid.status).toBe(500);
     expect(invalid.body).toEqual({ error: { code: 'RESPONSE_INVALID' } });
 
     operations['get-status'] = async () => { throw new Error('secret value 0xabc'); };
-    const thrown = await step({ flow: '_status', op: 'get-status' });
+    const thrown = await step('get-status');
     expect(thrown.body).toEqual({ error: { code: 'INTERNAL_ERROR' } });
     expect(thrown.text).not.toContain('0xabc');
   });
 
-  it('refuses an unknown operation, another content type and a missing grant', async () => {
-    expect((await post('nope', envelope({}), {})).status).toBe(404);
+  it('refuses an unknown operation, another content type and a body over the limit', async () => {
+    expect((await post('nope', envelope({}))).status).toBe(404);
     expect((await post('check', envelope({}), { 'content-type': 'text/plain' })).status).toBe(415);
-    expect((await post('check', envelope({}), {})).body).toEqual({ error: { code: 'GRANT_INVALID', reason: 'malformed' } });
+    const large = await step('check', { apiKey: `ak_${'x'.repeat(9000)}` });
+    expect(large.status).toBe(413);
+    expect(large.body).toEqual({ error: { code: 'REQUEST_TOO_LARGE' } });
   });
 
   it('keeps POST /config on its JSON parser next to the wizard routes', async () => {
@@ -169,16 +179,16 @@ describe('wizard routes', () => {
   });
 });
 
-describe('loadWizard', () => {
-  it('refuses a manifest that does not match its pinned digest, and a missing handler', () => {
-    const cc = controlCenter();
-    writeFileSync(join(cc.dir, 'manifest.jws'), `${cc.manifestJws}x`);
-    expect(() => loadWizard(cc.dir)).toThrow('does not match manifestDigest');
+describe('wizard start', () => {
+  const register = (manifest: unknown, operations: Record<string, WizardOperation>) =>
+    registerConfigRoutes(express(), newRuntime(), { wizard: { manifest, operations } });
+  const ok: WizardOperation = async () => ({});
+  const all = Object.fromEntries(Object.keys(MANIFEST.operations).map((op) => [op, ok]));
 
-    const ok = controlCenter();
-    const app = express();
-    const runtime = new ConfigRuntime({ version: VERSION, adapter, secretKeys: SECRET_KEYS, handler: fakeHandler(), store: new MemoryConfigStore(), logger: silentLogger });
-    expect(() => registerConfigRoutes(app, runtime, { wizard: { wizard: loadWizard(ok.dir), operations: {} } }))
-      .toThrow('no handler for wizard operation(s): get-status, check, activate, activate-network');
+  it('refuses a manifest Control Center would refuse, and a missing handler', () => {
+    expect(() => register({ ...MANIFEST, adapter: { ...MANIFEST.adapter, imageDigest: 'sha256:00' } }, all)).toThrow('the wizard manifest is not valid: adapter');
+    expect(() => register({ ...MANIFEST, signature: 'x' }, all)).toThrow('the wizard manifest is not valid: top-level keys');
+    expect(() => register({ ...MANIFEST, compatibility: { hostContract: 3 } }, all)).toThrow('compatibility.hostContract');
+    expect(() => register(MANIFEST, {})).toThrow('no handler for wizard operation(s): get-status, check, activate, activate-network');
   });
 });

@@ -10,14 +10,14 @@ import winston from 'winston';
 import { logger as defaultLogger } from '../helpers/logger';
 import { ConfigRequestError, ConfigRuntime } from './runtime';
 import { ERROR_CODES } from './types';
-import { registerWizardRoutes, Wizard, WizardOperation } from './wizard';
+import { registerWizardRoutes, WizardOperation } from './wizard';
 
 export interface ConfigRoutesOptions {
   jsonLimit?: string;
   /** Request log target. Defaults to the skeleton logger. */
   logger?: winston.Logger;
-  /** The Control Center wizard and the adapter's handler per manifest operation. */
-  wizard?: { wizard: Wizard; operations: Record<string, WizardOperation> };
+  /** The Control Center wizard: the adapter's manifest (checked at start) and its handler per manifest operation. */
+  wizard?: { manifest: unknown; operations: Record<string, WizardOperation> };
 }
 
 const actorOf = (req: express.Request): string | undefined => {
@@ -30,8 +30,8 @@ export function registerConfigRoutes(
   runtime: ConfigRuntime,
   opts: ConfigRoutesOptions = {},
 ): void {
-  // wizard first: its operations hash the raw body, so no JSON parser may read it before
-  if (opts.wizard) registerWizardRoutes(app, opts.wizard.wizard, opts.wizard.operations, { logger: opts.logger });
+  // wizard first: its operations read the raw body, so no JSON parser may read it before
+  if (opts.wizard) registerWizardRoutes(app, opts.wizard.manifest, opts.wizard.operations, { logger: opts.logger });
   const json = express.json({ limit: opts.jsonLimit ?? '1mb' });
   app.use('/config', expressWinston.logger({
     winstonInstance: (opts.logger ?? defaultLogger) as winston.Logger,

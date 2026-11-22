@@ -1,6 +1,6 @@
 // Validation in the contract's JSON Schema subset. Answers the JSON pointer of the first
 // field at fault, never the value.
-import { has, isPlainObject } from './jws';
+import { has, isPlainObject } from './json';
 import { WizardSchema } from './types';
 
 const patterns = new WeakMap<WizardSchema, RegExp>();
