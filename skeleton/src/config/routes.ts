@@ -1,6 +1,8 @@
 // HTTP surface of the adapter config (adapter-config/3):
 //   GET  /config   the config version, the state and the configured values (secrets as { set: true })
 //   POST /config   merge a document into the stored one; apply it when a value changed
+// With a wizard, also the Control Center wizard contract (wizard/routes.ts):
+//   GET  /config/manifest, POST /config/operations/:operationId
 // Bodies are never logged; unexpected errors answer 500 without the message.
 import express from 'express';
 import expressWinston from 'express-winston';
@@ -8,11 +10,14 @@ import winston from 'winston';
 import { logger as defaultLogger } from '../helpers/logger';
 import { ConfigRequestError, ConfigRuntime } from './runtime';
 import { ERROR_CODES } from './types';
+import { registerWizardRoutes, Wizard, WizardOperation } from './wizard';
 
 export interface ConfigRoutesOptions {
   jsonLimit?: string;
   /** Request log target. Defaults to the skeleton logger. */
   logger?: winston.Logger;
+  /** The Control Center wizard and the adapter's handler per manifest operation. */
+  wizard?: { wizard: Wizard; operations: Record<string, WizardOperation> };
 }
 
 const actorOf = (req: express.Request): string | undefined => {
@@ -25,7 +30,9 @@ export function registerConfigRoutes(
   runtime: ConfigRuntime,
   opts: ConfigRoutesOptions = {},
 ): void {
-  app.use('/config', express.json({ limit: opts.jsonLimit ?? '1mb' }));
+  // wizard first: its operations hash the raw body, so no JSON parser may read it before
+  if (opts.wizard) registerWizardRoutes(app, opts.wizard.wizard, opts.wizard.operations, { logger: opts.logger });
+  const json = express.json({ limit: opts.jsonLimit ?? '1mb' });
   app.use('/config', expressWinston.logger({
     winstonInstance: (opts.logger ?? defaultLogger) as winston.Logger,
     meta: false,   // never log bodies or headers
@@ -40,7 +47,7 @@ export function registerConfigRoutes(
     }
   });
 
-  app.post('/config', async (req, res, next) => {
+  app.post('/config', json, async (req, res, next) => {
     try {
       const result = await runtime.apply(req.body, actorOf(req));
       // 200 applied or unchanged, 422 invalid values, 500 the adapter could not apply or store it

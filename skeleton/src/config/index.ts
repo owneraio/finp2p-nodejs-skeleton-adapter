@@ -5,3 +5,4 @@ export * from './sealer';
 export * from './store';
 export * from './runtime';
 export * from './routes';
+export * from './wizard';
