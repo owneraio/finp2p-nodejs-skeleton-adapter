@@ -10,7 +10,8 @@ export interface Operation {
   created_at: Date;
   updated_at: Date;
   method: string;
-  status: 'in_progress' | 'succeeded' | 'failed';
+  /** awaiting_proof: a createAccount answered with an account challenge and waits for its proof. Not replayed on boot. */
+  status: 'in_progress' | 'awaiting_proof' | 'succeeded' | 'failed';
   inputs: any;
   outputs: any;
 }
@@ -132,5 +133,22 @@ export class WorkflowStorage {
       throw new Error('It seems like operation did not complete');
 
     return result.rows[0];
+  }
+
+  /**
+   * Compare-and-set: moves the operation from `from` to `to`, replacing its outputs when
+   * given. Undefined when it is not in `from`, or does not exist: another writer moved it
+   * first. Of concurrent callers exactly one gets the row back.
+   */
+  async transitionOperation(cid: string, from: Operation['status'], to: Operation['status'],
+    outputs?: Operation['outputs']): Promise<Operation | undefined> {
+    const result = await this.pool.query(
+      `UPDATE ${this.schema}.operations
+      SET status = $3, outputs = COALESCE($4::jsonb, outputs), updated_at = NOW()
+      WHERE cid = $1 AND status = $2
+      RETURNING *;`,
+      [cid, from, to, outputs === undefined ? null : JSON.stringify(outputs)],
+    );
+    return result.rows.at(0);
   }
 }

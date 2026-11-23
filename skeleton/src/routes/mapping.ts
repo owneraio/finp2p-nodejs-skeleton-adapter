@@ -12,7 +12,7 @@ import {
   HashListTemplate, SignatureTemplate, PaymentMethod, PaymentMethodInstruction, WireDetails,
   AssetBind, AssetDenomination, LedgerReference, AdditionalContractDetails, LedgerAccount,
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
-  NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
+  NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation, AccountChallenge, AccountProof,
   AccountInvalidShapeError,
   SwapLeg, SwapOperation,
 } from '../models';
@@ -752,12 +752,38 @@ export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] |
   };
 };
 
+export const accountProofFromAPI = (body: components['schemas']['SubmitAccountProofRequest']): AccountProof => ({
+  // Empty for a bare confirmation (a "done" with no signature), as bindInfoOptFromAPI reads the hint.
+  ownershipSignature: body.ownershipSignature?.signature || undefined,
+});
+
 export const networkAccountRecordToAPI = (record: NetworkAccountRecord): components['schemas']['networkAccountRecord'] => {
   return {
     id: record.id,
     networkAccount: networkAccountToAPI(record.account),
   };
 };
+
+export const accountChallengeToAPI = (challenge: AccountChallenge): components['schemas']['AccountChallenge'] => {
+  switch (challenge.type) {
+    case 'walletConnect':
+      return { type: challenge.type, uri: challenge.uri };
+    case 'signatureTemplate':
+      return { type: challenge.type, payload: challenge.payload };
+    case 'deposit': {
+      const { fromAddress, toAddress, amount } = challenge;
+      return { type: challenge.type, fromAddress, toAddress, amount };
+    }
+    case 'fireblocksApproval':
+      return { type: challenge.type, fireblocksRequestId: challenge.fireblocksRequestId };
+  }
+};
+
+/** Seconds left until `expiresAt`, computed as the answer is written so a stored challenge
+ *  reports what is left. Whole seconds, since the router decodes an int64, and never 0,
+ *  which the router reads as "keep the previous deadline". */
+const expiresInSecondsToAPI = (expiresAt: number): number =>
+  Math.max(1, Math.ceil(expiresAt - Math.floor(Date.now() / 1000)));
 
 export const accountOperationToAPI = (op: AccountOperation): components['schemas']['networkAccountOperation'] => {
   switch (op.type) {
@@ -767,6 +793,15 @@ export const accountOperationToAPI = (op: AccountOperation): components['schemas
         isCompleted: false,
         cid: correlationId,
         operationMetadata: metadataOptToAPI(metadata),
+      };
+    case 'challenge':
+      return {
+        isCompleted: false,
+        cid: op.correlationId,
+        operationMetadata: metadataOptToAPI(op.metadata),
+        challenge: accountChallengeToAPI(op.challenge),
+        // A stored deadline that was not finite reads back as null: no expiry.
+        ...(op.expiresAt !== undefined && Number.isFinite(op.expiresAt) ? { expiresInSeconds: expiresInSecondsToAPI(op.expiresAt) } : {}),
       };
     case 'success':
       return {

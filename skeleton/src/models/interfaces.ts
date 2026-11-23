@@ -7,7 +7,7 @@ import {
   Source,
   ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
-  AccountOperation, BindInfo, NetworkAccount,
+  AccountOperation, AccountProof, BindInfo, IssuedAccountChallenge, NetworkAccount,
   SwapLeg, SwapOperation,
 } from './model';
 
@@ -127,9 +127,7 @@ export interface AccountMappingService {
 }
 
 /**
- * Investor network-account onboarding (bind / unbind), sync trust model: the
- * caller-supplied wallet is recorded without an ownership challenge — the same
- * trust the old finId->wallet mapping API extended.
+ * Investor network-account onboarding (bind / unbind).
  *
  * Replaces the finId->wallet mapping API. The request carries the investor's
  * finId, letting the adapter couple the binding to the investor and enforce
@@ -139,20 +137,66 @@ export interface AccountMappingService {
  * investors), but one investor holds at most one binding per (org, asset):
  * a repeat create for the same finId replays the recorded binding.
  *
- * Both methods are single-call and terminal, so implementations may be wrapped
- * in the workflow `createServiceProxy` like any other service.
+ * createAccount either settles at once (the sync trust model of
+ * NetworkAccountServiceImpl: the caller-supplied wallet is recorded without a
+ * challenge) or answers with a challenge (`challengedAccountOperation`) the
+ * investor must fulfill first; the create then finishes in
+ * `completeAccountChallenge` when the router posts the proof. Challenges need the
+ * workflow `createServiceProxy` over `createAccount`: it keeps the challenged
+ * create under its cid and answers `POST /accounts/{cid}/proof`. Without
+ * challenges both required methods are single-call and terminal, so
+ * implementations may be wrapped in the proxy like any other service.
  */
 export interface NetworkAccountService {
 
   /**
    * Bind a caller-supplied investor account (bindInfo absent = create-new mode).
-   * `finId` identifies the investor being onboarded.
+   * `finId` identifies the investor being onboarded. Return a challenge when the
+   * investor must act before the binding holds.
    */
   createAccount(idempotencyKey: string, organizationId: string, assetId: string,
     finId: string, bindInfo: BindInfo | undefined): Promise<AccountOperation>
 
   /** Unbind a previously bound account by its LA-assigned id. */
   removeAccount(idempotencyKey: string, accountId: string): Promise<AccountOperation>
+
+  /**
+   * Finish a create that answered with a challenge, once a proof for it arrives.
+   * `issued` is that create as the workflow proxy kept it: its request, the
+   * challenge and its cid. `idempotencyKey` is the proof's own, fresh on every
+   * call: never dedupe on it.
+   *
+   * Called by the workflow proxy only, one proof at a time per create. It may run
+   * again for the same create (a proof after a refusal, a restart mid-proof), so it
+   * must be idempotent.
+   *
+   * The proxy keeps `issued.expiresAt` but never acts on it: a proof that arrives
+   * after it is passed on like any other. To end an expired challenge, return
+   * `failedAccountOperation('', AccountErrorCodes.challengeTimeout, ...)`; later
+   * proofs for that create then answer 410.
+   *
+   * - Return success or failure to settle the onboarding; a pending or challenge
+   *   result is treated as an error.
+   * - Throw AccountProofRefusedError when the proof does not fulfill the challenge:
+   *   the router gets 401 (7345 unless the error carries another code) and the
+   *   challenge stays open. Any other throw, whatever its class, also leaves it open
+   *   and answers 500. Only a returned failure ends the onboarding, so catch a
+   *   NetworkAccountValidator refusal from recordAccount (AccountInvalidShapeError)
+   *   and return a failure when it should end it.
+   *
+   * Implementing it opts the service into challenges: under the proxy, createAccount
+   * then runs inside the create request, so it must answer well within the router's
+   * request timeout, with a result or a challenge (a pending result fails the create).
+   */
+  completeAccountChallenge?(idempotencyKey: string, issued: IssuedAccountChallenge, proof: AccountProof): Promise<AccountOperation>
+
+  /**
+   * `POST /accounts/{cid}/proof`, by the create's cid. The workflow proxy over
+   * createAccount provides it for a service that implements completeAccountChallenge;
+   * implement it only without the proxy, for a challenge whose cid the service
+   * minted. Absent: the route answers 501.
+   */
+  submitAccountProof?(idempotencyKey: string, cid: string, proof: AccountProof): Promise<AccountOperation>
 }
 
 /**
