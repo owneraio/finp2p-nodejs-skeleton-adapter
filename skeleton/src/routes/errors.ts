@@ -2,8 +2,11 @@ import { NextFunction, Request, Response } from 'express';
 import { logger } from '../helpers';
 import {
   AccountAlreadyBoundError,
+  AccountChallengeExpiredError,
   AccountInvalidShapeError,
+  AccountInvalidStateError,
   AccountNotFoundError,
+  AccountProofRefusedError,
   BusinessError,
   NotSupportedError,
   ValidationError,
@@ -50,6 +53,12 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
     return res.status(400).json(apiErrors(err.code, err.message));
   } else if (err instanceof AccountNotFoundError) {
     return res.status(404).json(apiErrors(err.code, err.message));
+  } else if (err instanceof AccountProofRefusedError) {
+    return res.status(401).json(apiErrors(err.code, err.message));
+  } else if (err instanceof AccountInvalidStateError) {
+    return res.status(409).json(apiErrors(err.code, err.message));
+  } else if (err instanceof AccountChallengeExpiredError) {
+    return res.status(410).json(apiErrors(err.code, err.message));
   } else if (err instanceof NotSupportedError) {
     return res.status(501).json(apiErrors(0, err.message));
   }
