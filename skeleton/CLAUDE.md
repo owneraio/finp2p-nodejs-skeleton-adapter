@@ -136,6 +136,7 @@ When workflow persistence is enabled, the skeleton uses PostgreSQL with a consum
 - `20251020114833_initial_tables.sql` &mdash; `operations` table (cid, method, status, inputs, outputs)
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb
+- `20261123120000_widen_account_mapping_value.sql` &mdash; `account_mappings.value` becomes `TEXT` (an encrypted per-wallet token does not fit 255), and its index becomes a hash index on `value`, because btree refuses an entry over about 2.7 KB and lookups by value are equality only
 
 Migrations run automatically on startup via goose.
 
