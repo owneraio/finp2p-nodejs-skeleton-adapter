@@ -1449,7 +1449,7 @@ components:
           x-autoMinLength: true
         expiry:
           type: 'integer'
-          format: 'uint64'
+          format: 'int64'
           description: 'Absolute epoch seconds after which the authorization is no longer valid. Equals the deadline of the related instruction, and is absent when that instruction has no deadline.'
         signature:
           $ref: '#/components/schemas/signature'

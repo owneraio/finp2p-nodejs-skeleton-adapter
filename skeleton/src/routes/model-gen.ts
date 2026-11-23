@@ -748,7 +748,7 @@ export interface components {
       /** @description How many units of the asset the spender is authorized to pull */
       quantity: string;
       /**
-             * Format: uint64
+             * Format: int64
              * @description Absolute epoch seconds after which the authorization is no longer valid. Equals the deadline of the related instruction, and is absent when that instruction has no deadline.
              */
       expiry?: number;
