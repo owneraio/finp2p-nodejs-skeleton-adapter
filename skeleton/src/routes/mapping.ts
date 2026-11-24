@@ -6,6 +6,7 @@ import {
   ExecutionContext,
   AssetCreationStatus,
   ReceiptOperation,
+  AuthorizeOperation,
   Balance, Receipt, OperationStatus, EIP712Template, EIP712Domain, EIP712Message, EIP712Types, TradeDetails,
   attachEip712Definitions, eip712Definitions,
   TransactionDetails, ProofPolicy, PlanApprovalStatus, DepositOperation, DepositInstruction, DepositAsset,
@@ -14,7 +15,7 @@ import {
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
   NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
   AccountInvalidShapeError,
-  SwapLeg, SwapOperation, InstructionCapability,
+  SwapLeg, SwapOperation, RelatedSwap, RelatedSwapLeg, InstructionCapability,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -554,11 +555,36 @@ export const receiptOperationToAPI = (op: ReceiptOperation): components['schemas
         error: { code, message },
       };
     case 'success':
-      const { receipt } = op;
+      const { receipt, rollbackType } = op;
       return {
         isCompleted: true,
         cid: '',
-        response: receiptToAPI(receipt),
+        ...(receipt ? { response: receiptToAPI(receipt) } : {}),
+        ...(rollbackType ? { rollbackType } : {}),
+      };
+  }
+};
+
+export const authorizeOperationToAPI = (op: AuthorizeOperation): components['schemas']['authorizeOperation'] => {
+  switch (op.type) {
+    case 'pending':
+      const { correlationId: cid, metadata } = op;
+      return {
+        isCompleted: false, cid,
+        operationMetadata: metadataOptToAPI(metadata),
+      };
+    case 'failure':
+      const { code, message } = op.error;
+      return {
+        isCompleted: true,
+        cid: '',
+        error: { code, message },
+      };
+    case 'success':
+      return {
+        isCompleted: true,
+        cid: '',
+        response: { type: 'erc20' },
       };
   }
 };
@@ -580,6 +606,24 @@ export const swapLegFromAPI = (
     signature: leg.signature ? signatureFromAPI(leg.signature) : undefined,
   };
 };
+
+// A swapInstruction leg carries ledgerAccountAsset endpoints. Consumers resolve the on-chain address
+// from the finId, so that is all the domain Source needs here.
+const accountFromLedgerAccountAsset = (la: components['schemas']['ledgerAccountAsset']): Source =>
+  ({ finId: la.finp2pAccount.account.finId });
+
+const relatedSwapLegFromAPI = (leg: components['schemas']['swapInstructionLeg']): RelatedSwapLeg => ({
+  asset: assetFromAPI(leg.source.finp2pAccount.asset),
+  source: accountFromLedgerAccountAsset(leg.source),
+  destination: accountFromLedgerAccountAsset(leg.destination),
+  amount: leg.amount,
+});
+
+export const relatedSwapFromAPI = (ri: components['schemas']['relatedInstruction']): RelatedSwap => ({
+  swapOperationId: ri.swapOperationId,
+  asset: relatedSwapLegFromAPI(ri.asset),
+  settlement: relatedSwapLegFromAPI(ri.settlement),
+});
 
 export const swapOperationToAPI = (op: SwapOperation): components['schemas']['swapReceiptOperation'] => {
   switch (op.type) {
@@ -838,6 +882,11 @@ export const operationStatusToAPI = (op: OperationStatus): components['schemas']
       return {
         type: 'swap',
         operation: swapOperationToAPI(op),
+      };
+    case 'authorize':
+      return {
+        type: 'authorize',
+        operation: authorizeOperationToAPI(op),
       };
   }
 };

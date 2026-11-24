@@ -431,6 +431,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/assets/authorize': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Authorize Asset
+         * @description Grant an on-chain spending authorization (allowance) from the source's wallet to the spender.
+         */
+    post: operations['authorizeOperation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/assets/release': {
     parameters: {
       query?: never;
@@ -665,6 +685,14 @@ export interface components {
              * @default 1
              */
       numberOfReceipts: number;
+      /**
+             * @description This org's part in the swap, derived by the router from the legs. `executor`
+             *     (the asset-leg org) settles the whole crossing in one call; `observer` (the
+             *     settlement-leg org) submits nothing, verifies the crossing happened and attests.
+             *     Absent for the legacy role-less flow, where both orgs submit and rendezvous.
+             * @enum {string}
+             */
+      role?: 'executor' | 'observer';
       asset: components['schemas']['swapAssetLeg'];
       settlement: components['schemas']['swapSettlementLeg'];
       /**
@@ -732,6 +760,57 @@ export interface components {
       executionContext?: components['schemas']['executionContext'];
     };
     HoldOperationResponse: components['schemas']['receiptOperation'];
+    /**
+         * @description Same payload as HoldOperationRequest, with one difference: `expiry` is optional. Where the
+         *     rail primitive supports time-bounded approvals the adapter honours it; where it does not it
+         *     is absent.
+         */
+    AuthorizeOperationRequest: {
+      nonce: components['schemas']['nonce'];
+      /** @description A unique operation ID for this authorization, carried back into rollbackOperation to take it down */
+      operationId: string;
+      source: components['schemas']['account'];
+      destination?: components['schemas']['account'];
+      /** @description How many units of the asset the spender is authorized to pull */
+      quantity: string;
+      /**
+             * Format: uint64
+             * @description Absolute epoch seconds after which the authorization is no longer valid; absent or 0 means no expiry
+             */
+      expiry?: number;
+      signature: components['schemas']['signature'];
+      executionContext?: components['schemas']['executionContext'];
+      /** @description The instruction this Authorize backs. */
+      relatedInstruction: components['schemas']['relatedInstruction'];
+    };
+    AuthorizeOperationResponse: components['schemas']['authorizeOperation'];
+    /** @description A oneof wrapper for the instruction an Authorize backs. */
+    relatedInstruction: components['schemas']['relatedSwapInstruction'];
+    /** @description The swap variant of relatedInstruction. */
+    relatedSwapInstruction: components['schemas']['swapInstruction'] & {
+      /** @description The operationId of the swap this Authorize backs */
+      swapOperationId: string;
+    } & {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'swap';
+    };
+    authorizeOperation: components['schemas']['OperationBase'] & {
+      error?: components['schemas']['receiptOperationErrorInformation'];
+      response?: components['schemas']['authorizationProof'];
+    };
+    /** @description Proof that an authorize operation established the authorization on the ledger. */
+    authorizationProof: components['schemas']['erc20AllowanceProof'];
+    /** @description Proof that an ERC20 spending allowance was set on-chain. */
+    erc20AllowanceProof: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'erc20';
+    };
     ReleaseOperationRequest: {
       /** @description The operation ID from the hold request, required to authorize the asset release */
       operationId: string;
@@ -749,6 +828,11 @@ export interface components {
       /** @description How many units of the asset tokens */
       quantity: string;
       executionContext?: components['schemas']['executionContext'];
+      /**
+             * @description What this rollback reverts: a prior hold or a prior authorization. Optional for backward compatibility — an omitted value reverts a hold (the original behaviour of this endpoint).
+             * @enum {string}
+             */
+      rollbackType?: 'hold' | 'authorize';
     };
     RollbackOperationResponse: components['schemas']['receiptOperation'];
     GetOperationStatusRequest: {
@@ -825,6 +909,11 @@ export interface components {
     receiptOperation: components['schemas']['OperationBase'] & {
       error?: components['schemas']['receiptOperationErrorInformation'];
       response?: components['schemas']['receipt'];
+      /**
+             * @description Present only on a rollback's completion, echoing the request's rollbackType. For 'authorize' the completion carries no receipt (response absent) and the router accepts the bare completion; every other receipt operation omits this field and still requires its receipt.
+             * @enum {string}
+             */
+      rollbackType?: 'hold' | 'authorize';
     };
     /**
          * @description Body for `POST /accounts/create`. Single LA-side endpoint covering both create-new
@@ -1023,7 +1112,7 @@ export interface components {
       /** @description The contract the instruction must run through, by its address or service identifier as the asset lists it. Sent only when the router chose one. */
       contract?: string;
     };
-    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
+    operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'] | components['schemas']['operationStatusAuthorize'];
     operationStatusCreateAsset: {
       /**
              * @description discriminator enum property added by openapi-typescript
@@ -1076,6 +1165,18 @@ export interface components {
              */
       type: 'swap';
       operation: components['schemas']['swapReceiptOperation'];
+    };
+    /**
+         * @description Status of an asynchronous `POST /assets/authorize`: carries the same authorizationProof
+         *     as the synchronous call, so a polled completion returns a proof rather than a receipt.
+         */
+    operationStatusAuthorize: {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'authorize';
+      operation: components['schemas']['authorizeOperation'];
     };
     /**
          * @description Status of an investor network-account create/bind/lookup/unbind operation, polled via
@@ -1732,6 +1833,115 @@ export interface components {
     contractAddressFormat: 'caip10' | 'url' | 'opaque';
     noneAccount: Record<string, never>;
     networkAccount: components['schemas']['walletAccount'] | components['schemas']['caip10Account'] | components['schemas']['custodialAccount'] | components['schemas']['noneAccount'];
+    /** @description Organization Id */
+    orgId: string;
+    custodian: {
+      orgId: components['schemas']['orgId'];
+    };
+    finIdAccount: {
+      /** @enum {string} */
+      type: 'finId';
+      finId: components['schemas']['finId'];
+      orgId: components['schemas']['orgId'];
+      custodian: components['schemas']['custodian'];
+    };
+    /** @description describes account and asset information */
+    finp2pAssetAccount: {
+      account: components['schemas']['finIdAccount'];
+      asset: components['schemas']['finp2pAsset'];
+      /**
+             * @description Optional. Investor network account to use for this leg. Must have been
+             *     previously bound via `POST /profiles/investor/{investorId}/account`.
+             *     Whitelist-validated against `investor.data.accounts[org][asset]`
+             *     before forwarding to the LA. Failure → error code 7351 (AccountNotWhitelistedErr, 400).
+             */
+      networkAccount?: components['schemas']['networkAccount'];
+    };
+    /** @description describes account information */
+    ledgerAccountAsset: {
+      finp2pAccount: components['schemas']['finp2pAssetAccount'];
+      networkAccount?: components['schemas']['networkAccount'];
+    };
+    /** @description ordered list of hash groups */
+    'schemas-hashListTemplate': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'hashList';
+      /**
+             * @description This version identifies the HashList template specification revision.
+             *     When omitted, the verifier resolves the version from the
+             *     router/ledger/asset-profile resolver chain.
+             */
+      templateVersion?: number;
+      hashGroups: components['schemas']['hashGroup'][];
+      /** @description hex representation of the combined hash groups hash value */
+      hash: string;
+    };
+    'schemas-EIP712FieldDefinition': {
+      name?: string;
+      type?: string;
+    };
+    'schemas-EIP712TypeDefinition': {
+      name?: string;
+      fields?: components['schemas']['schemas-EIP712FieldDefinition'][];
+    };
+    'schemas-EIP712Types': {
+      definitions?: components['schemas']['schemas-EIP712TypeDefinition'][];
+    };
+    'schemas-EIP712Template': {
+      /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+      type: 'EIP712';
+      /**
+             * @description Template shape version. When omitted, the verifier resolves the
+             *     version from the router/ledger/asset-profile resolver chain.
+             *     Not to be confused with EIP712Domain.version (the EIP-712
+             *     contract domain version). See pkg/signature/specs/eip712/ for
+             *     versioned specs.
+             */
+      templateVersion?: number;
+      domain: components['schemas']['EIP712Domain'];
+      message: {
+        [key: string]: components['schemas']['EIP712TypedValue'];
+      };
+      types: components['schemas']['schemas-EIP712Types'];
+      primaryType: string;
+      /** @description hex representation of template hash */
+      hash: string;
+    };
+    'schemas-signatureTemplate': components['schemas']['schemas-hashListTemplate'] | components['schemas']['schemas-EIP712Template'];
+    /** @description represent a signature template information */
+    'schemas-signature': {
+      /** @description hex representation of the signature */
+      signature: string;
+      template: components['schemas']['schemas-signatureTemplate'];
+      hashFunc: components['schemas']['hashFunction'];
+    };
+    swapInstructionLeg: {
+      source: components['schemas']['ledgerAccountAsset'];
+      destination: components['schemas']['ledgerAccountAsset'];
+      amount: string;
+      signature?: components['schemas']['schemas-signature'];
+    };
+    /**
+         * @description Atomic exchange of two legs in one ledger transaction: both legs settle together or
+         *     neither does. Both legs must be on the same ledger.
+         */
+    swapInstruction: {
+      /** @enum {string} */
+      type: 'swap';
+      asset: components['schemas']['swapInstructionLeg'];
+      settlement: components['schemas']['swapInstructionLeg'];
+      /**
+             * Format: int64
+             * @description Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds.
+             */
+      deadline: number;
+    };
   };
   responses: never;
   parameters: never;
@@ -2731,6 +2941,71 @@ export interface operations {
                      *         {
                      *           "code": 1100,
                      *           "message": "Resource not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 2202,
+                     *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  authorizeOperation: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description hex encoding of a 32-byte payload consisting of 24 random bytes + 8-byte epoch timestamp (seconds) */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['AuthorizeOperationRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AuthorizeOperationResponse'];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 1002,
+                     *           "message": "Invalid request format"
                      *         }
                      *       ]
                      *     }
