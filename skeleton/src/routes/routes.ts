@@ -31,8 +31,6 @@ import {
   executionContextOptFromAPI,
   operationStatusToAPI, planApprovalOperationToAPI, planProposalFromAPI,
   receiptOperationToAPI,
-  authorizeOperationToAPI,
-  relatedSwapFromAPI,
   signatureFromAPI,
   signatureOptFromAPI,
   sourceFromAPI,
@@ -231,14 +229,14 @@ export const register = (app: Application,
     `/${basePath}/assets/swap`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, operationId, asset, settlement, numberOfReceipts, deadline, executionContext, role } = req.body;
+      const { nonce, operationId, asset, settlement, numberOfReceipts, deadline, executionContext } = req.body;
       // Legs mirror: we send `asset` (source is ours, destination the counterparty's)
       // and receive `settlement` (source is the counterparty's, destination ours).
       const exCtx = executionContextOptFromAPI(executionContext, asset.destination.asset?.resourceId, settlement.source.asset?.resourceId);
 
       const rsp = await tokenService.swap(ik, nonce, operationId,
         swapLegFromAPI(asset, 'source'), swapLegFromAPI(settlement, 'destination'),
-        numberOfReceipts ?? 1, deadline, exCtx, role);
+        numberOfReceipts ?? 1, deadline, exCtx);
 
       res.json(swapOperationToAPI(rsp));
     });
@@ -286,24 +284,6 @@ export const register = (app: Application,
     });
 
   app.post<{},
-  LedgerAPI['schemas']['AuthorizeOperationResponse'],
-  LedgerAPI['schemas']['AuthorizeOperationRequest']>(
-    `/${basePath}/assets/authorize`,
-    async (req, res) => {
-      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { nonce, source, destination, quantity, operationId, expiry, signature, executionContext, relatedInstruction } = req.body;
-      const src = sourceFromAPI(source);
-      const dst = destinationOptFromAPI(destination);
-      const ast = assetFromAPI(source.asset);
-      const sgn = signatureFromAPI(signature);
-      const exCtx = executionContextOptFromAPI(executionContext, destination?.asset?.resourceId);
-      const relatedSwap = relatedSwapFromAPI(relatedInstruction);
-
-      const rsp = await tokenService.authorize(ik, nonce, src, dst, ast, quantity, sgn, operationId, expiry, exCtx, relatedSwap);
-      res.json(authorizeOperationToAPI(rsp));
-    });
-
-  app.post<{},
   LedgerAPI['schemas']['ReleaseOperationResponse'],
   LedgerAPI['schemas']['ReleaseOperationRequest']>(
     `/${basePath}/assets/release`,
@@ -326,12 +306,12 @@ export const register = (app: Application,
     `/${basePath}/assets/rollback`,
     async (req, res) => {
       const ik = req.headers['idempotency-key'] as string | undefined ?? '';
-      const { source, quantity, operationId, executionContext, rollbackType } = req.body;
+      const { source, quantity, operationId, executionContext } = req.body;
       const src = sourceFromAPI(source);
       const ast = assetFromAPI(source.asset);
       const exCtx = executionContextOptFromAPI(executionContext);
 
-      const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx, rollbackType);
+      const rsp = await escrowService.rollback(ik, src, ast, quantity, operationId, exCtx);
 
       res.json(receiptOperationToAPI(rsp));
     });

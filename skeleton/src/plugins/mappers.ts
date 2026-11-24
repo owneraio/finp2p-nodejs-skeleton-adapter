@@ -1,7 +1,6 @@
 import {
   Asset,
   AssetCreationStatus,
-  AuthorizeOperation,
   Destination,
   DepositOperation,
   OperationStatus,
@@ -150,7 +149,7 @@ export const receiptOperationToFinAPI = (operationStatus: ReceiptOperation): OpC
         operation: {
           cid: '',
           isCompleted: true,
-          ...(receipt ? { response: receiptToFinAPI(receipt) } : {}),
+          response: receiptToFinAPI(receipt),
         },
       };
     case 'failure':
@@ -198,33 +197,6 @@ export const swapOperationToFinAPI = (operationStatus: SwapOperation): OpCompone
   }
 };
 
-export const authorizeOperationToFinAPI = (operationStatus: AuthorizeOperation): OpComponents['schemas']['operationStatusAuthorize'] => {
-  switch (operationStatus.type) {
-    case 'success':
-      return {
-        type: 'authorize',
-        operation: {
-          cid: '',
-          isCompleted: true,
-          response: { type: 'erc20' },
-        },
-      };
-    case 'failure':
-      const { error: { code, message } } = operationStatus;
-      return {
-        type: 'authorize',
-        operation: {
-          cid: '',
-          isCompleted: true,
-          error: { code, message },
-        },
-      };
-    case 'pending':
-      const { correlationId: cid } = operationStatus;
-      return { type: 'authorize', operation: { cid, isCompleted: false } };
-  }
-};
-
 export const operationToFinAPI = (operationStatus: OperationStatus): OpComponents['schemas']['operationStatus'] => {
   switch (operationStatus.operation) {
     case 'createAsset':
@@ -242,7 +214,5 @@ export const operationToFinAPI = (operationStatus: OperationStatus): OpComponent
       };
     case 'swap':
       return swapOperationToFinAPI(operationStatus);
-    case 'authorize':
-      return authorizeOperationToFinAPI(operationStatus);
   }
 };

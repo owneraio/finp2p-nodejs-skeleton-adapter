@@ -23,15 +23,6 @@ jobs:
           scope: "@owneraio"
       - run: npm install
       - run: npm run build
-      - name: Publish
-        # prereleases (x.y.z-<tag>.n) go under their prerelease dist-tag, never latest
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          if [[ "$VERSION" == *-* ]]; then
-            TAG=$(echo "$VERSION" | sed -E 's/^[^-]+-([a-zA-Z]+).*/\1/')
-            npm publish --tag "$TAG"
-          else
-            npm publish
-          fi
+      - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

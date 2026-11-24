@@ -92,24 +92,6 @@ export type SwapLeg = {
   signature?: Signature
 };
 
-// The swap an Authorize backs, passed on the authorize request so the adapter can bind the grant to the
-// swap (e.g. record the expected terms on a venue).
-export type RelatedSwapLeg = {
-  asset: Asset
-  source: Source
-  destination: Destination
-  amount: string
-};
-
-export type RelatedSwap = {
-  swapOperationId: string
-  asset: RelatedSwapLeg
-  settlement: RelatedSwapLeg
-};
-
-// executor (asset-leg org) settles the whole crossing; observer (settlement-leg org) verifies it.
-export type SwapRole = 'executor' | 'observer';
-
 export type ErrorDetails = {
   code: number;
   message: string;
@@ -467,19 +449,10 @@ export const pendingAssetCreation = (correlationId: string, metadata: OperationM
 
 // -------------------------------------------------------------------
 
-/** What a rollback reverts. Absent (undefined) means a hold rollback — the endpoint's original,
- *  backward-compatible behaviour. 'authorize' reverts a prior authorization. */
-export type RollbackType = 'hold' | 'authorize';
-
 export type SuccessReceiptStatus = {
   operation: 'receipt',
   type: 'success';
-  // Absent only for a bare authorize-revert: revoking an allowance moves nothing, so there is no
-  // receipt. Every other successful receipt operation carries one.
-  receipt?: Receipt;
-  // Echoed on a rollback completion. 'authorize' completes with no receipt — the router accepts the
-  // bare completion on this signal rather than requiring a receipt.
-  rollbackType?: RollbackType;
+  receipt: Receipt;
 };
 
 export type FailedReceiptStatus = {
@@ -504,14 +477,6 @@ export const successfulReceiptOperation = (receipt: Receipt): ReceiptOperation =
   receipt,
 });
 
-// A completed authorize-revert. It carries no receipt — revoking an allowance moves nothing — and
-// echoes rollbackType: 'authorize' so the router accepts the bare completion instead of requiring one.
-export const successfulAuthorizeRevertOperation = (): ReceiptOperation => ({
-  operation: 'receipt',
-  type: 'success',
-  rollbackType: 'authorize',
-});
-
 export const failedReceiptOperation = (code: number, message: string): ReceiptOperation => ({
   operation: 'receipt',
   type: 'failure',
@@ -520,45 +485,6 @@ export const failedReceiptOperation = (code: number, message: string): ReceiptOp
 
 export const pendingReceiptOperation = (correlationId: string, metadata: OperationMetadata | undefined): ReceiptOperation => ({
   operation: 'receipt',
-  type: 'pending',
-  correlationId,
-  metadata,
-});
-
-export type SuccessAuthorizeStatus = {
-  operation: 'authorize',
-  type: 'success';
-};
-
-export type FailedAuthorizeStatus = {
-  operation: 'authorize',
-  type: 'failure';
-  error: ErrorDetails
-};
-
-export type PendingAuthorizeStatus = {
-  operation: 'authorize',
-  type: 'pending';
-  correlationId: string;
-  metadata: OperationMetadata | undefined
-};
-
-export type AuthorizeOperation = PendingAuthorizeStatus | FailedAuthorizeStatus | SuccessAuthorizeStatus;
-
-
-export const successfulAuthorizeOperation = (): AuthorizeOperation => ({
-  operation: 'authorize',
-  type: 'success',
-});
-
-export const failedAuthorizeOperation = (code: number, message: string): AuthorizeOperation => ({
-  operation: 'authorize',
-  type: 'failure',
-  error: { code, message },
-});
-
-export const pendingAuthorizeOperation = (correlationId: string, metadata: OperationMetadata | undefined): AuthorizeOperation => ({
-  operation: 'authorize',
   type: 'pending',
   correlationId,
   metadata,
@@ -789,7 +715,7 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
 
 // -------------------------------------------------------------------
 
-export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation | AuthorizeOperation;
+export type OperationStatus = ReceiptOperation | AssetCreationStatus | DepositOperation | PlanApprovalStatus | AccountOperation | SwapOperation;
 
 
 // -------------------------------------------------------------------

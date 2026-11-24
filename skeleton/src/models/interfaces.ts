@@ -5,10 +5,10 @@ import {
   ExecutionContext,
   Signature,
   Source,
-  ReceiptOperation, AuthorizeOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
+  ReceiptOperation, Balance, OperationStatus, PlanApprovalStatus, PlanProposal, DepositOperation, DepositAsset,
   AssetBind, AssetDenomination, AccountMapping, InvestorWhitelistEntry, WhitelistParty,
   AccountOperation, BindInfo, NetworkAccount,
-  SwapLeg, SwapOperation, SwapRole, RollbackType, RelatedSwap, InstructionCapability,
+  SwapLeg, SwapOperation, InstructionCapability,
 } from './model';
 
 
@@ -50,22 +50,11 @@ export interface TokenService {
   /**
    * Atomic same-ledger swap. `asset` is the leg this adapter executes, `settlement` the counter-leg.
    * `numberOfReceipts`: 1 = cross-org (counterparty executes `settlement`), 2 = both legs here.
-   * `deadline` is absolute epoch seconds. `role` (when the router sends it) tells this org whether
-   * it is the `executor` (settles the crossing) or the `observer` (verifies and attests).
+   * `deadline` is absolute epoch seconds.
    */
   swap(idempotencyKey: string, nonce: string, operationId: string, asset: SwapLeg, settlement: SwapLeg,
-    numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined, role?: SwapRole
+    numberOfReceipts: number, deadline: number, exCtx: ExecutionContext | undefined
   ): Promise<SwapOperation>
-
-  /**
-   * Grant an on-chain spending authorization (allowance) from `source` to the adapter's configured
-   * spender (e.g. the swap venue), so a later delegated action can pull up to `quantity`. Same payload
-   * shape as `hold`; `expiry` is optional. Taken down again via `rollback`.
-   */
-  authorize(idempotencyKey: string, nonce: string, source: Source, destination: Destination | undefined, asset: Asset,
-    quantity: string, signature: Signature, operationId: string, expiry: number | undefined, exCtx: ExecutionContext | undefined,
-    relatedSwap: RelatedSwap
-  ): Promise<AuthorizeOperation>
 
 }
 
@@ -78,8 +67,7 @@ export interface EscrowService {
   release(idempotencyKey: string, source: Source, destination: Destination, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
-  rollback(idempotencyKey: string, source: Source, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined,
-    rollbackType: RollbackType | undefined
+  rollback(idempotencyKey: string, source: Source, asset: Asset, quantity: string, operationId: string, exCtx: ExecutionContext | undefined
   ): Promise<ReceiptOperation>
 
 }
