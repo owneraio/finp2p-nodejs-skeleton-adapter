@@ -1,5 +1,6 @@
 import { OssClient, OssExecutionPlan, parseProofDomain, ProofPolicy } from './oss';
 import { FinAPIClient } from './finapi';
+import { RepoAgreementsClient } from './repo';
 import { components as FinAPIComponents } from './finapi/model-gen';
 import { components as OpComponents } from './finapi/op-model-gen';
 import { sleep } from './finapi/utils';
@@ -11,9 +12,18 @@ export class FinP2PClient {
 
   ossClient: OssClient;
 
+  /**
+   * The repo facade. The lifecycle calls are delegated below; the trade,
+   * report, proposal and basket commands are reached through this directly —
+   * there are thirty of them and mirroring each as a one-line delegate here
+   * would be noise.
+   */
+  repoClient: RepoAgreementsClient;
+
   constructor(finAPIUrl: string, ossUrl: string, authTokenResolver?: (() => string)) {
     this.finAPIClient = new FinAPIClient(finAPIUrl, authTokenResolver);
     this.ossClient = new OssClient(ossUrl, authTokenResolver);
+    this.repoClient = new RepoAgreementsClient(finAPIUrl, authTokenResolver);
   }
 
   /**
@@ -73,6 +83,40 @@ export class FinP2PClient {
   /** Read back an investor's onboarded network accounts from the OSS read model. */
   async getOwnerNetworkAccounts(...args: Parameters<OssClient['getOwnerNetworkAccounts']>) {
     return this.ossClient.getOwnerNetworkAccounts(...args);
+  }
+
+  // ── Repo agreements ──
+
+  /** Propose a repo pair agreement; this organization's router owns it. */
+  async proposeAgreement(...args: Parameters<RepoAgreementsClient['proposeAgreement']>) {
+    return this.repoClient.proposeAgreement(...args);
+  }
+
+  /** Consent for one of this organization's bound roles, over the addressed version. */
+  async approveAgreement(...args: Parameters<RepoAgreementsClient['approveAgreement']>) {
+    return this.repoClient.approveAgreement(...args);
+  }
+
+  async rejectAgreement(...args: Parameters<RepoAgreementsClient['rejectAgreement']>) {
+    return this.repoClient.rejectAgreement(...args);
+  }
+
+  async terminateAgreement(...args: Parameters<RepoAgreementsClient['terminate']>) {
+    return this.repoClient.terminate(...args);
+  }
+
+  /** Read agreements back from the OSS read model. */
+  async getAgreements(...args: Parameters<OssClient['getAgreements']>) {
+    return this.ossClient.getAgreements(...args);
+  }
+
+  async getAgreement(...args: Parameters<OssClient['getAgreement']>) {
+    return this.ossClient.getAgreement(...args);
+  }
+
+  /** The "did we already set one up?" lookup for a standing agreement. */
+  async findActiveAgreementsBetween(...args: Parameters<OssClient['findActiveAgreementsBetween']>) {
+    return this.ossClient.findActiveAgreementsBetween(...args);
   }
 
   // ── Intent creation / execution ──
