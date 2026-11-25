@@ -2,7 +2,7 @@
 // fails closed on anything unknown (ownera-apps backend services/AdapterConfig/manifest.ts).
 import { has, hasOnlyKeys, isPlainObject } from './json';
 import {
-  HOST_CONTRACT, ID_PATTERN, NETWORK_ID_PATTERN, WizardContext, WizardManifest, WizardScope,
+  ControlCenterContext, ControlCenterManifest, ControlCenterScope, HOST_CONTRACT, ID_PATTERN, NETWORK_ID_PATTERN,
 } from './types';
 
 export const MANIFEST_MAX_BYTES = 64 * 1024;
@@ -12,7 +12,7 @@ const ADAPTER_KEYS = ['kind', 'name', 'version'];
 /** The structure the adapter routes by, or the first part that is wrong. Never a value. */
 export function manifestProblem(m: unknown): string | null {
   if (!isPlainObject(m) || !hasOnlyKeys(m, MANIFEST_KEYS)) return 'top-level keys';
-  const manifest = m as unknown as WizardManifest;
+  const manifest = m as unknown as ControlCenterManifest;
   if (manifest.manifestVersion !== 1) return 'manifestVersion';
   if (typeof manifest.wizardId !== 'string' || !ID_PATTERN.test(manifest.wizardId)) return 'wizardId';
   const { adapter } = manifest;
@@ -22,7 +22,8 @@ export function manifestProblem(m: unknown): string | null {
   for (const [id, op] of Object.entries(manifest.operations)) {
     if (!ID_PATTERN.test(id) || !isPlainObject(op)) return `operations.${id}`;
     if (op.request?.type !== 'object' || op.response?.type !== 'object') return `operations.${id} schemas`;
-    if (op.idempotency !== 'none' && op.idempotency !== 'required') return `operations.${id}.idempotency`;
+    // the skeleton keeps no idempotency state, so an operation that declared it required would be a promise it cannot keep
+    if (op.idempotency !== 'none') return `operations.${id}.idempotency`;
     if (!Number.isSafeInteger(op.limits?.maxBodyBytes) || !Number.isSafeInteger(op.limits?.maxResponseBytes)) return `operations.${id}.limits`;
   }
   if (!isPlainObject(manifest.flows)) return 'flows';
@@ -39,22 +40,22 @@ export function manifestProblem(m: unknown): string | null {
 }
 
 /** The manifest, checked. The error names the failing part, never a value. */
-export function checkManifest(m: unknown): WizardManifest {
+export function checkManifest(m: unknown): ControlCenterManifest {
   const problem = manifestProblem(m);
-  if (problem) throw new Error(`the wizard manifest is not valid: ${problem}`);
-  return m as WizardManifest;
+  if (problem) throw new Error(`the Control Center manifest is not valid: ${problem}`);
+  return m as ControlCenterManifest;
 }
 
 /** The scopes of the flows that list an operation. The status read is an integration step. */
-export function scopesOf(manifest: WizardManifest, operationId: string): Set<WizardScope> {
+export function scopesOf(manifest: ControlCenterManifest, operationId: string): Set<ControlCenterScope> {
   const scopes = new Set(Object.values(manifest.flows).filter((f) => f.operations.includes(operationId)).map((f) => f.scope));
   if (manifest.status.operation === operationId) scopes.add('integration');
   return scopes;
 }
 
 /** The body's context, when it fits a flow that lists the operation and names a declared network. */
-export function contextOf(manifest: WizardManifest, operationId: string, context: unknown): WizardContext | null {
-  if (!isPlainObject(context) || !scopesOf(manifest, operationId).has(context.scope as WizardScope)) return null;
+export function contextOf(manifest: ControlCenterManifest, operationId: string, context: unknown): ControlCenterContext | null {
+  if (!isPlainObject(context) || !scopesOf(manifest, operationId).has(context.scope as ControlCenterScope)) return null;
   if (context.scope === 'integration') return Object.keys(context).length === 1 ? { scope: 'integration' } : null;
   const fits = Object.keys(context).length === 3
     && context.targetKind === 'network'

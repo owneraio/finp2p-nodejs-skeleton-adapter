@@ -1,16 +1,16 @@
 // Validation in the contract's JSON Schema subset. Answers the JSON pointer of the first
 // field at fault, never the value.
 import { has, isPlainObject } from './json';
-import { WizardSchema } from './types';
+import { ControlCenterSchema } from './types';
 
-const patterns = new WeakMap<WizardSchema, RegExp>();
+const patterns = new WeakMap<ControlCenterSchema, RegExp>();
 
 const pointerToken = (token: string): string => token.replaceAll('~', '~0').replaceAll('/', '~1');
 
-const withinBounds = (schema: WizardSchema, value: number): boolean =>
+const withinBounds = (schema: ControlCenterSchema, value: number): boolean =>
   (schema.minimum === undefined || value >= schema.minimum) && (schema.maximum === undefined || value <= schema.maximum);
 
-function patternOf(schema: WizardSchema): RegExp {
+function patternOf(schema: ControlCenterSchema): RegExp {
   let pattern = patterns.get(schema);
   if (!pattern) {
     pattern = new RegExp(schema.pattern as string, 'u');
@@ -19,7 +19,7 @@ function patternOf(schema: WizardSchema): RegExp {
   return pattern;
 }
 
-function stringFits(schema: WizardSchema, value: unknown): boolean {
+function stringFits(schema: ControlCenterSchema, value: unknown): boolean {
   if (typeof value !== 'string') return false;
   // code points, as JSON Schema counts them
   const length = [...value].length;
@@ -30,7 +30,7 @@ function stringFits(schema: WizardSchema, value: unknown): boolean {
 }
 
 /** null when the value fits, else the JSON pointer of the first field at fault ('' is the root). */
-export function schemaFault(schema: WizardSchema, value: unknown, pointer = ''): string | null {
+export function schemaFault(schema: ControlCenterSchema, value: unknown, pointer = ''): string | null {
   switch (schema.type) {
     case 'object': {
       if (!isPlainObject(value)) return pointer;
@@ -52,7 +52,7 @@ export function schemaFault(schema: WizardSchema, value: unknown, pointer = ''):
     case 'array': {
       if (!Array.isArray(value) || (schema.maxItems !== undefined && value.length > schema.maxItems)) return pointer;
       for (let i = 0; i < value.length; i += 1) {
-        const fault = schemaFault(schema.items as WizardSchema, value[i], `${pointer}/${i}`);
+        const fault = schemaFault(schema.items as ControlCenterSchema, value[i], `${pointer}/${i}`);
         if (fault !== null) return fault;
       }
       return null;

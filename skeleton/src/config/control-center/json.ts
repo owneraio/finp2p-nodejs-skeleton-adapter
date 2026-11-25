@@ -1,5 +1,4 @@
-// JSON helpers for the wizard contract. The parser is strict: UTF-8 without BOM, JSON objects only.
-import { createHash } from 'node:crypto';
+// JSON helpers for the Control Center contract. The parser is strict: UTF-8 without BOM, JSON objects only.
 
 export type JsonObject = Record<string, unknown>;
 
@@ -11,7 +10,6 @@ export const isPlainObject = (value: unknown): value is JsonObject =>
 export const hasOnlyKeys = (object: object, keys: readonly string[]): boolean =>
   Object.keys(object).every((key) => keys.includes(key));
 
-export const sha256Hex = (bytes: Uint8Array | string): string => createHash('sha256').update(bytes).digest('hex');
 
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
