@@ -7,7 +7,7 @@ import { TestFixtures } from './utils/test-fixtures';
 import { ACTOR_NAMES, SCENARIOS } from './utils/test-constants';
 import { generateId } from './utils/utils';
 import {
-  CONTRACT_ADDRESS_FORMATS, isValidContractAddress, normalizeContractAddress, respellContractAddress, sameContract,
+  CONTRACT_ADDRESS_FORMATS, isValidContractAddress, normalizeContractAddress, respellContractAddress, sameContract, unlistedContractAddress,
 } from './utils/contract-address';
 
 type Capabilities = LedgerAPI['schemas']['instructionCapabilities'][];
@@ -55,8 +55,8 @@ const normalized = (capabilities: Capabilities) => capabilities.map(({ instructi
 }));
 
 /**
- * Opt-in suite for adapters that report asset capabilities. When the adapter lists at
- * least one contract for `INSTRUCTION_TRANSFER`, it also runs a transfer through a listed
+ * Opt-in suite for adapters that report asset capabilities. When the adapter lists a
+ * contract for `INSTRUCTION_TRANSFER` that admits the amount sent, it also runs a transfer through a listed
  * contract, through another spelling of it, and one through an unlisted address that must
  * be refused, comparing addresses the way the router does: normalized by format.
  */
@@ -86,15 +86,24 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
       return { asset, created };
     };
 
+    const transferContracts = (capabilities: Capabilities): Contract[] =>
+      capabilities.find(({ instruction }) => instruction === TRANSFER)?.contracts ?? [];
+
+    /** The first TRANSFER contract whose limits admit the amount the tests send, compared as numbers. */
     const transferContract = (capabilities: Capabilities): Contract | undefined =>
-      capabilities.find(({ instruction }) => instruction === TRANSFER)?.contracts?.[0];
+      transferContracts(capabilities).find(({ restrictions }) =>
+        (restrictions?.minAmount === undefined || scenario.AMOUNT >= Number(restrictions.minAmount))
+        && (restrictions?.maxAmount === undefined || scenario.AMOUNT <= Number(restrictions.maxAmount)));
 
     /**
-     * An adapter may list TRANSFER with no contracts: the instruction then runs without one,
-     * so there is no contract to send. The contract-transfer tests end here for such an adapter.
+     * An adapter may list TRANSFER with no contracts, or only contracts whose limits exclude the
+     * amount sent: there is then no contract to send, and the contract-transfer tests end here.
      */
-    const skippedWithoutContract = (test: string): void => {
-      console.warn(`skipped "${test}": the adapter lists no contract for ${TRANSFER}, so there is no contract to send`);
+    const skippedWithoutContract = (test: string, capabilities: Capabilities): void => {
+      const reason = transferContracts(capabilities).length === 0
+        ? `the adapter lists no contract for ${TRANSFER}, so there is no contract to send`
+        : `no contract listed for ${TRANSFER} admits the amount ${scenario.AMOUNT}`;
+      console.warn(`skipped "${test}": ${reason}`);
     };
 
     const setupTransfer = async () => {
@@ -143,7 +152,7 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
       const { seller, buyer, asset, capabilities } = setup;
       const contract = transferContract(capabilities);
       if (!contract) {
-        return skippedWithoutContract('a transfer through a listed contract address');
+        return skippedWithoutContract('a transfer through a listed contract address', capabilities);
       }
 
       const receipt = await TestHelpers.transferAndGetReceipt(client, await buildTransfer(setup, contract.address));
@@ -158,7 +167,7 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
       const { seller, buyer, asset, capabilities } = setup;
       const contract = transferContract(capabilities);
       if (!contract) {
-        return skippedWithoutContract('a transfer through another spelling of a listed address');
+        return skippedWithoutContract('a transfer through another spelling of a listed address', capabilities);
       }
       const { address, addressFormat } = contract;
       const respelled = respellContractAddress(address, addressFormat);
@@ -178,10 +187,17 @@ export function capabilitiesTests(ledger?: Partial<LedgerProfile>) {
     test('a transfer through an address the asset does not list is refused without moving funds', async () => {
       const setup = await setupTransfer();
       const { seller, buyer, asset, capabilities } = setup;
-      if (!transferContract(capabilities)) {
-        return skippedWithoutContract('a transfer through an address the asset does not list');
+      const contract = transferContract(capabilities);
+      if (!contract) {
+        return skippedWithoutContract('a transfer through an address the asset does not list', capabilities);
       }
-      const request = await buildTransfer(setup, `not-listed-${generateId()}`);
+      // well formed for its format, so only a check against the list can refuse it
+      const unlisted = unlistedContractAddress(contract, generateId());
+      expect(isValidContractAddress(unlisted, contract.addressFormat)).toBe(true);
+      for (const listed of transferContracts(capabilities)) {
+        expect(sameContract({ address: unlisted, addressFormat: contract.addressFormat }, listed)).toBe(false);
+      }
+      const request = await buildTransfer(setup, unlisted);
 
       const result = await TestHelpers.executeAndWaitForCompletion(client, () => client.tokens.transfer(request));
 

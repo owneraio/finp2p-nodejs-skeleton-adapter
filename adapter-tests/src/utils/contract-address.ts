@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { ContractAddressFormat } from '@owneraio/finp2p-nodejs-skeleton-adapter';
 
 const CAIP10 = /^([-a-zA-Z0-9]{3,8}):([-_a-zA-Z0-9]{1,32}):([-.%a-zA-Z0-9]{1,128})$/;
@@ -16,6 +17,16 @@ const trimmed = (address: string): boolean =>
   address !== '' && !SPACE.test(address[0]) && !SPACE.test(address[address.length - 1]);
 
 const hasEscapeAt = (s: string, i: number): boolean => i + 2 < s.length && HEX.test(s.slice(i + 1, i + 3));
+
+/** True when every percent sign starts a two-digit hex escape. */
+const validEscapes = (s: string): boolean => {
+  for (let i = s.indexOf('%'); i >= 0; i = s.indexOf('%', i + 1)) {
+    if (!hasEscapeAt(s, i)) {
+      return false;
+    }
+  }
+  return true;
+};
 
 const normalizeCaip10 = (address: string): string | undefined => {
   const parts = CAIP10.exec(address);
@@ -123,7 +134,8 @@ const parseHost = (authority: string): string | undefined => {
     }
   } else {
     const colon = authority.lastIndexOf(':');
-    if (colon >= 0 && !validOptionalPort(authority.slice(colon))) {
+    // more than one colon is an IPv6 host that needs brackets
+    if (colon !== authority.indexOf(':') || (colon >= 0 && !validOptionalPort(authority.slice(colon)))) {
       return undefined;
     }
   }
@@ -172,9 +184,12 @@ const normalizeUrl = (address: string): string | undefined => {
   const query = queryAt >= 0 ? rest.slice(queryAt) : '';
   rest = queryAt >= 0 ? rest.slice(0, queryAt) : rest;
 
+  if (!validEscapes(query)) {
+    return undefined;
+  }
   if (!rest.startsWith('/')) {
-    // an opaque URL such as mailto:a@b.c is kept as written
-    return rest === '' ? undefined : `${scheme}:${rest}${query}`;
+    // an opaque URL such as mailto:a@b.c has its percent-encoding normalized like a path
+    return rest === '' || !validEscapes(rest) ? undefined : `${scheme}:${normalizePercentEncoding(rest)}${query}`;
   }
   const hasAuthority = rest.startsWith('//');
   let host = '';
@@ -208,7 +223,7 @@ const normalizeUrl = (address: string): string | undefined => {
  * The form the router compares two addresses in, or undefined when the address is not valid
  * for its format. caip10: namespace lowercased, an eip155 account lowercased too. url: scheme
  * and host lowercased, default http and https port dropped, percent-encoding and dot segments
- * normalized, empty path "/". opaque: kept exactly.
+ * normalized, empty path "/", an opaque part such as mailto: normalized like a path. opaque: kept exactly.
  */
 export const normalizeContractAddress = (address: string, format: ContractAddressFormat): string | undefined => {
   switch (format) {
@@ -239,6 +254,9 @@ export const CONTRACT_ADDRESS_FORMATS: ContractAddressFormat[] = ['caip10', 'url
 
 const flipCase = (s: string): string => (s === s.toUpperCase() ? s.toLowerCase() : s.toUpperCase());
 
+/** Uppercases ASCII letters only, so a non-ASCII host keeps the letters that change under full Unicode uppercasing. */
+const upperAscii = (s: string): string => s.replace(/[a-z]+/g, (letters) => letters.toUpperCase());
+
 /** Writes the same contract another way, as the router may when it echoes another asset's spelling. Opaque has one spelling. */
 export const respellContractAddress = (address: string, format: ContractAddressFormat): string => {
   if (format === 'caip10') {
@@ -253,5 +271,20 @@ export const respellContractAddress = (address: string, format: ContractAddressF
   const defaultPort = DEFAULT_PORTS[parts[1].toLowerCase()];
   const authority = parts[2].replace(/:$/, '');
   const withPort = defaultPort && !/:\d+$/.test(authority) ? `${authority}:${defaultPort}` : authority;
-  return `${parts[1].toUpperCase()}://${withPort.toUpperCase()}${parts[3]}`;
+  return `${upperAscii(parts[1])}://${upperAscii(withPort)}${parts[3]}`;
+};
+
+/**
+ * A well-formed address in the format of `contract` that is meant to match no listed contract;
+ * callers confirm it with sameContract. caip10 keeps the namespace and reference, with an
+ * eip155 account of 0x and 40 hex digits; url is an .invalid host; opaque is a plain token.
+ */
+export const unlistedContractAddress = ({ address, addressFormat }: { address: string; addressFormat: ContractAddressFormat }, id: string): string => {
+  const token = `not-listed-${id}`;
+  if (addressFormat === 'caip10') {
+    const [namespace, reference] = address.split(':');
+    const account = namespace.toLowerCase() === 'eip155' ? `0x${createHash('sha256').update(token).digest('hex').slice(0, 40)}` : token;
+    return `${namespace}:${reference}:${account}`;
+  }
+  return addressFormat === 'url' ? `https://${token}.invalid/` : token;
 };

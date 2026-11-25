@@ -49,6 +49,8 @@ const normalizeCases: NormalizeCase[] = [
   { name: 'file URL with empty host', format: 'url', address: 'file:///etc/hosts', want: 'file:///etc/hosts' },
   { name: 'URN kept', format: 'url', address: 'URN:isbn:0451450523', want: 'urn:isbn:0451450523' },
   { name: 'mailto kept', format: 'url', address: 'mailto:a@b.com?subject=X', want: 'mailto:a@b.com?subject=X' },
+  { name: 'opaque part hex uppercased', format: 'url', address: 'urn:example:%2f', want: 'urn:example:%2F' },
+  { name: 'opaque part unreserved decoded', format: 'url', address: 'mailto:%41@b.com', want: 'mailto:A@b.com' },
   { name: 'path with no authority', format: 'url', address: 'foo:/a/./b', want: 'foo:/a/b' },
   { name: 'space in a path is escaped', format: 'url', address: 'https://x.com/a b', want: 'https://x.com/a%20b' },
   { name: 'no scheme', format: 'url', address: 'www.google.com' },
@@ -64,6 +66,12 @@ const normalizeCases: NormalizeCase[] = [
   { name: 'empty authority keeps a double-slash path', format: 'url', address: 'https:////a', want: 'https:////a' },
   { name: 'IPv6 zone in the host', format: 'url', address: 'http://[fe80::1%25en0]/a' },
   { name: 'escaped percent in the host', format: 'url', address: 'https://ex%25ample.com/' },
+  { name: 'unbracketed IPv6 host', format: 'url', address: 'http://::1/a' },
+  { name: 'unbracketed colons with no port', format: 'url', address: 'http://::/a' },
+  { name: 'bracketed IPv6 host', format: 'url', address: 'http://[::1]/a', want: 'http://[::1]/a' },
+  { name: 'invalid percent escape in the query', format: 'url', address: 'https://example.com/?x=%zz' },
+  { name: 'truncated percent escape in the query', format: 'url', address: 'https://example.com/?x=%4' },
+  { name: 'invalid percent escape in the opaque part', format: 'url', address: 'urn:example:%zz' },
 
   // opaque
   { name: 'opaque kept exactly', format: 'opaque', address: 'Escrow-1', want: 'Escrow-1' },
@@ -77,6 +85,9 @@ type EqualCase = { name: string; a: [ContractAddressFormat, string]; b: [Contrac
 
 const equalCases: EqualCase[] = [
   { name: 'two spellings of one URL', a: ['url', 'https://Swap.Example.com:443'], b: ['url', 'https://swap.example.com/'], want: true },
+  { name: 'opaque part hex case', a: ['url', 'urn:example:%2f'], b: ['url', 'urn:example:%2F'], want: true },
+  { name: 'opaque part unreserved escape', a: ['url', 'mailto:%41@b.com'], b: ['url', 'mailto:A@b.com'], want: true },
+  { name: 'invalid query escape equals only itself', a: ['url', 'https://x.com/?x=%zz'], b: ['url', 'https://x.com/?x=%ZZ'], want: false },
   { name: 'trailing slash on a path differs', a: ['url', 'https://x.com/v1'], b: ['url', 'https://x.com/v1/'], want: false },
   { name: 'eip155 checksum and lowercase', a: ['caip10', `eip155:1:${EVM_CHECKSUM}`], b: ['caip10', `eip155:1:${EVM_LOWER}`], want: true },
   { name: 'same eip155 address on another chain', a: ['caip10', `eip155:1:${EVM_LOWER}`], b: ['caip10', `eip155:137:${EVM_LOWER}`], want: false },
@@ -113,5 +124,32 @@ describe.each([
 describe('both normalizers agree', () => {
   test.each(normalizeCases)('$name', ({ format, address }) => {
     expect(sample.normalizeContractAddress(address, format)).toBe(suite.normalizeContractAddress(address, format));
+  });
+});
+
+describe('respell and unlisted helpers', () => {
+  test.each([
+    { name: 'url host with a non-ASCII letter keeps it', address: 'https://straße.example/a', want: 'HTTPS://STRAßE.EXAMPLE:443/a' },
+    { name: 'url host is uppercased', address: 'http://x.com/a', want: 'HTTP://X.COM:80/a' },
+  ])('respell: $name', ({ address, want }) => {
+    const got = suite.respellContractAddress(address, 'url');
+
+    expect(got).toBe(want);
+    expect(suite.sameContract({ address: got, addressFormat: 'url' }, { address, addressFormat: 'url' })).toBe(true);
+  });
+
+  test.each([
+    { name: 'caip10 eip155', format: 'caip10' as const, address: `eip155:137:${EVM_LOWER}`, prefix: 'eip155:137:0x' },
+    { name: 'caip10 other namespace', format: 'caip10' as const, address: 'cosmos:Cosmoshub-4:abc', prefix: 'cosmos:Cosmoshub-4:not-listed-' },
+    { name: 'url', format: 'url' as const, address: 'https://gate.example/a', prefix: 'https://not-listed-' },
+    { name: 'opaque', format: 'opaque' as const, address: 'escrow-1', prefix: 'not-listed-' },
+  ])('unlisted: $name', ({ format, address, prefix }) => {
+    const listed = { address, addressFormat: format };
+
+    const got = suite.unlistedContractAddress(listed, '123');
+
+    expect(got.startsWith(prefix)).toBe(true);
+    expect(suite.isValidContractAddress(got, format)).toBe(true);
+    expect(suite.sameContract({ address: got, addressFormat: format }, listed)).toBe(false);
   });
 });
