@@ -24,7 +24,7 @@ describe('Control Center manifest, derived from the service', () => {
     });
     expect(Object.keys(manifest.operations)).toEqual(['save-custody', 'save-tuning', 'activate', 'get-status']);
     expect(Object.values(manifest.operations).map((op) => op.idempotency)).toEqual(['none', 'none', 'none', 'none']);
-    expect(Object.values(manifest.operations).map((op) => op.limits.timeoutMs)).toEqual([60000, 60000, 60000, 60000]);
+    expect(Object.values(manifest.operations).map((op) => op.limits.timeoutMs)).toEqual([30000, 30000, 30000, 30000]);
   });
 
   it('turns inputs into a request schema: url as a pattern, a maxLength on every string, enum, integer, format', () => {
@@ -50,8 +50,8 @@ describe('Control Center manifest, derived from the service', () => {
   });
 
   it('keeps the timeout the adapter declares', () => {
-    const derived = deriveControlCenter(new MemoryConfigurationService(), { ...IDENTITY, timeoutMs: 90000 });
-    expect(derived.manifest.operations.activate.limits.timeoutMs).toBe(90000);
+    const derived = deriveControlCenter(new MemoryConfigurationService(), { ...IDENTITY, timeoutMs: 20000 });
+    expect(derived.manifest.operations.activate.limits.timeoutMs).toBe(20000);
   });
 });
 
@@ -71,8 +71,37 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     ['an input declared twice', [{ id: 'a', title: 'A', inputs: [input, input] }], 'declared twice'],
     ['a format that is no regular expression', [{ id: 'a', title: 'A', inputs: [{ ...input, format: { pattern: '(', message: 'm' } }] }], 'format.pattern'],
     ['an enum without options', [{ id: 'a', title: 'A', inputs: [{ ...input, type: 'enum' as const }] }], 'an enum needs options'],
+    ['a format longer than Control Center takes', [{ id: 'a', title: 'A', inputs: [{ ...input, format: { pattern: 'a'.repeat(257), message: 'm' } }] }], 'longer than 256'],
+    ['more inputs than Control Center takes', [{ id: 'a', title: 'A', inputs: Array.from({ length: 33 }, (_, i) => ({ ...input, id: `x${i}` })) }], 'more than 32 inputs'],
+    ['more steps than the flow takes', Array.from({ length: 32 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] })), 'more than 31 steps'],
   ])('refuses %s', (_, steps, message) => {
     expect(withSteps(steps as ConfigurationStep[])).toThrow(message);
+  });
+
+  it.each([
+    ['a timeout over Control Center\'s 30 s ceiling', { timeoutMs: 30001 }, 'limits.timeoutMs'],
+    ['a timeout under its floor', { timeoutMs: 99 }, 'limits.timeoutMs'],
+    ['a version Control Center would refuse', { adapter: { ...IDENTITY.adapter, version: 'v 1' } }, 'adapter.version'],
+    ['a name longer than 128', { adapter: { ...IDENTITY.adapter, name: 'n'.repeat(129) } }, 'adapter.name'],
+  ])('refuses %s', (_, identity, message) => {
+    expect(() => registerConfigRoutes(express(), new MemoryConfigurationService(), { logger: silent, controlCenter: { ...IDENTITY, ...identity } }))
+      .toThrow(message);
+  });
+
+  it.each([
+    ['more than 50', Array.from({ length: 51 }, (_, i) => ({ id: `eip155:${i + 1}`, label: 'N' })), 'targets.network'],
+    ['a label longer than 128', [{ id: 'eip155:1', label: 'l'.repeat(129) }], 'targets.network.label'],
+    ['a duplicate', [{ id: 'eip155:1', label: 'A' }, { id: 'eip155:1', label: 'B' }], 'targets.network duplicate'],
+  ])('refuses networks: %s', (_, networks, message) => {
+    const service = new MemoryConfigurationService();
+    service.networks = () => networks;
+    expect(() => registerConfigRoutes(express(), service, { logger: silent, controlCenter: IDENTITY })).toThrow(message);
+  });
+
+  it('accepts no networks at all', () => {
+    const service = new MemoryConfigurationService();
+    service.networks = () => [];
+    expect(deriveControlCenter(service, IDENTITY).manifest.targets.network).toEqual([]);
   });
 
   it('refuses an identity Control Center would refuse, and an undeclarable network', () => {

@@ -20,7 +20,7 @@ export interface ControlCenterIdentity {
   /** Control Center's id for this adapter's wizard: lowercase letters, digits and dashes. */
   wizardId: string;
   adapter: { kind: string; name: string; version: string };
-  /** Declared per operation; must cover every check a step runs. Default 60 s. */
+  /** Declared per operation; must cover every check a step runs. Default and Control Center's ceiling: 30 s. */
   timeoutMs?: number;
 }
 
@@ -29,7 +29,7 @@ export const ACTIVATE_OPERATION = 'activate';
 export const CONFIGURE_FLOW = 'configure';
 export const saveOperation = (stepId: string): string => `save-${stepId}`;
 
-export const DEFAULT_TIMEOUT_MS = 60_000;
+export const DEFAULT_TIMEOUT_MS = 30_000;
 export const STRING_MAX = 4096;
 export const URL_MAX = 2048;
 export const URL_PATTERN = '^https?://\\S+$';
@@ -39,6 +39,12 @@ const DETAILS_MAX = 32;
 const DETAIL_ID_MAX = 64;
 const LABEL_MAX = 128;
 const VALUE_MAX = 512;
+
+/** Control Center's own bounds (ownera-apps AdapterConfig schema.ts), checked here so a manifest it would refuse never starts. */
+const MAX_INPUTS = 32;
+const MAX_STEPS = 31; // the configure flow lists 32 operations at most, activate included
+const MAX_PATTERN_LENGTH = 256;
+const MAX_ANNOTATION_LENGTH = 256;
 
 const STEP_ID = /^[a-z0-9][a-z0-9-]{0,58}$/;
 const INPUT_ID = /^[A-Za-z0-9._-]{1,64}$/;
@@ -60,6 +66,9 @@ const object = (properties: Record<string, ControlCenterSchema>, required: strin
   ({ type: 'object', additionalProperties: false, properties, required });
 
 function checkPattern(pattern: string, where: string): string {
+  // Control Center also refuses a pattern that could backtrack badly (nested or stacked quantifiers,
+  // backreferences, lookarounds); keep formats simple, or check the value in saveStep instead
+  if (pattern.length > MAX_PATTERN_LENGTH) throw new Error(`configuration input ${where}: format.pattern is longer than ${MAX_PATTERN_LENGTH}`);
   try {
     new RegExp(pattern, 'u'); // eslint-disable-line no-new
   } catch {
@@ -70,7 +79,7 @@ function checkPattern(pattern: string, where: string): string {
 
 /** The request schema of one input. Exported for tests. */
 export function inputSchema(input: ConfigurationInput, where: string): ControlCenterSchema {
-  const described = { title: input.label, ...(input.help ? { description: input.help } : {}) };
+  const described = { title: clip(input.label, MAX_ANNOTATION_LENGTH), ...(input.help ? { description: clip(input.help, MAX_ANNOTATION_LENGTH) } : {}) };
   const pattern = input.format ? checkPattern(input.format.pattern, where) : undefined;
   switch (input.type) {
     case 'integer':
@@ -95,6 +104,7 @@ const schemaRequired = (input: ConfigurationInput): boolean => input.required ==
 
 function stepSpec(step: ConfigurationStep, timeoutMs: number): ControlCenterOperationSpec {
   if (!STEP_ID.test(step.id)) throw new Error(`configuration step ${step.id}: the id must be lowercase letters, digits and dashes, 59 at most`);
+  if (step.inputs.length > MAX_INPUTS) throw new Error(`configuration step ${step.id}: more than ${MAX_INPUTS} inputs`);
   const properties: Record<string, ControlCenterSchema> = {};
   for (const input of step.inputs) {
     const where = `${step.id}/${input.id}`;
@@ -135,6 +145,7 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
 } {
   const timeoutMs = identity.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const steps = service.steps();
+  if (steps.length > MAX_STEPS) throw new Error(`configuration: more than ${MAX_STEPS} steps`);
   const seen = new Set<string>();
   for (const step of steps) {
     if (seen.has(step.id)) throw new Error(`configuration step ${step.id}: declared twice`);
