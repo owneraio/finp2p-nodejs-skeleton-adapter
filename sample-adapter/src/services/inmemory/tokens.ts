@@ -24,7 +24,10 @@ const LEDGER_BINDING_NOT_SUPPORTED = 7311;
 
 const TRANSFER_INSTRUCTION = 'INSTRUCTION_TRANSFER';
 
-/** Every sample asset lists the same capabilities: transfers run through one in-memory gate. */
+/**
+ * Every sample asset lists every instruction the sample runs. Transfers go through
+ * one in-memory gate; the other instructions need no contract.
+ */
 const sampleCapabilities = (): InstructionCapability[] => [
   {
     instruction: TRANSFER_INSTRUCTION,
@@ -34,6 +37,11 @@ const sampleCapabilities = (): InstructionCapability[] => [
     ],
   },
   { instruction: 'INSTRUCTION_ISSUE' },
+  { instruction: 'INSTRUCTION_REDEEM' },
+  { instruction: 'INSTRUCTION_HOLD' },
+  { instruction: 'INSTRUCTION_RELEASE' },
+  { instruction: 'INSTRUCTION_REVERT_HOLD' },
+  { instruction: 'INSTRUCTION_SWAP' },
 ];
 
 // the router sends an address back as listed, or in another spelling of the same contract
