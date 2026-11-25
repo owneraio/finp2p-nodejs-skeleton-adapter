@@ -92,7 +92,8 @@ export function mountControlCenterRoutes(
     if (!has(manifest.operations, requested)) { send(res, '-', refusal(404, 'NOT_FOUND')); return; }
     const op = requested;
     const spec = manifest.operations[op];
-    const rawBody: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    // a copy, so nothing below reads a property off the request's own value (capped at HARD_BODY_CAP by the parser)
+    const rawBody: Buffer = Buffer.isBuffer(req.body) ? Buffer.from(req.body) : Buffer.alloc(0);
     if (rawBody.length > Math.min(spec.limits.maxBodyBytes, HARD_BODY_CAP)) { send(res, op, refusal(413, 'REQUEST_TOO_LARGE')); return; }
     const contentTypes = distinct(req, 'content-type') ?? [];
     if (contentTypes.length !== 1 || !JSON_CONTENT_TYPE.test(contentTypes[0])) { send(res, op, refusal(415, 'UNSUPPORTED_MEDIA_TYPE')); return; }
