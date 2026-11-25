@@ -40,14 +40,14 @@ Validates error handling when operations exceed available balances.
 Opt-in via `runAdapterTests({ swap: true })`. Exercises `POST /assets/swap` with `numberOfReceipts` 2 (both legs, two receipts sharing one `transactionId`) and 1 (asset leg only), cross-org bindings (each account carries its holder's org resource id; receipts echo the counterparty id on the side it holds &mdash; destination on the sent leg, source on the received one; requires skeleton &ge; 0.29.1), plus deadline rejection.
 
 ### Asset capabilities (`src/capabilities.test.ts`)
-Opt-in via `runAdapterTests({ capabilities: true })`; off by default, so adapters that do not report capabilities run exactly the suites above. For adapters implementing `TokenService.getCapabilities` (requires skeleton &ge; 0.29.5). Covers:
+Opt-in via `runAdapterTests({ capabilities: true })`; off by default, so adapters that do not report capabilities run exactly the suites above. For adapters implementing `TokenService.getCapabilities` (requires skeleton &ge; 0.29.7). Covers:
 - create asset returns a valid capability list (instruction ids, contracts as `address` + `addressFormat` with the address valid for its format and no two contracts of one instruction equal after normalizing, amount limits)
 - `POST /assets/getCapabilities` returns the list reported at creation (addresses compared after normalizing), and answers 404 for an unknown asset
-- a transfer whose `executionContext.contract` is a listed address runs, so does one with another spelling of it (caip10 and url addresses; opaque has one spelling; the router sends the first asset's spelling in swaps), and one with an unlisted address is refused without moving funds
+- when TRANSFER lists a contract: a transfer whose `executionContext.contract` is a listed address runs, so does one with another spelling of it (caip10 and url addresses; opaque has one spelling; the router sends the first asset's spelling in swaps), and one with an unlisted address is refused without moving funds
 
 Contracts have no names. The router stores the address as the adapter sent it, sends it back in `executionContext.contract`, and compares two addresses after normalizing by `addressFormat`: caip10 lowercases the namespace and an eip155 account (0x plus 40 hex digits), keeping the rest; url lowercases scheme and host, drops the default http and https port, normalizes percent-encoding and dot segments, makes an empty path `/` and rejects fragments and user info; opaque is exact. Formats must match; an address that does not parse equals only the identical string (`src/utils/contract-address.ts`, also exported as `contractAddress`; it mirrors the router's `contractaddress` package).
 
-The adapter must list at least one contract for `INSTRUCTION_TRANSFER` and refuse a contract address its asset does not list. The 501 an adapter without `getCapabilities` answers is covered by the skeleton's own route tests.
+An adapter may list `INSTRUCTION_TRANSFER` with no contracts, meaning the instruction runs without one. The three contract-transfer tests above (listed address, respelled address, unlisted address refused) run only when TRANSFER lists at least one contract; otherwise each logs a warning naming the reason and ends without sending a transfer. An adapter that lists a contract for TRANSFER must refuse a contract address its asset does not list. The 501 an adapter without `getCapabilities` answers is covered by the skeleton's own route tests.
 
 ## Test infrastructure
 
