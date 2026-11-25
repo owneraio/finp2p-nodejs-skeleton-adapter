@@ -656,9 +656,8 @@ export type WalletConnectChallenge = {
 };
 
 /**
- * Sign `payload` (hex) with the wallet's key; the signature comes back as the proof.
- * Neither the router nor the proxy reads the payload or the signature, so a challenge the
- * investor fulfills by confirming can borrow this type (sample-adapter `allowlist.ts`).
+ * Ownership proof: sign `payload` (hex) with the wallet key. Only completeAccountChallenge
+ * verifies it; refuse empty or foreign signatures (sample-adapter `allowlist.ts`).
  */
 export type SignatureTemplateChallenge = {
   type: 'signatureTemplate';
@@ -704,9 +703,8 @@ export type IssuedAccountChallenge = {
 
 /**
  * What fulfilled a challenge (`POST /accounts/{cid}/proof`). `ownershipSignature` is the
- * raw hex signature over a signatureTemplate payload, absent when the client sent an empty
- * one, e.g. a bare confirmation. An adapter-side trigger (a deposit seen on chain, a
- * Fireblocks webhook) passes `{}` and lets completeAccountChallenge check the evidence.
+ * raw hex signature over a signatureTemplate payload, absent if empty. An adapter-side
+ * trigger (a deposit seen on chain, a Fireblocks webhook) passes `{}`.
  */
 export type AccountProof = {
   ownershipSignature?: string;

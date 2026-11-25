@@ -753,7 +753,7 @@ export const bindInfoOptFromAPI = (bindInfo: components['schemas']['BindInfo'] |
 };
 
 export const accountProofFromAPI = (body: components['schemas']['SubmitAccountProofRequest']): AccountProof => ({
-  // Empty for a bare confirmation (a "done" with no signature), as bindInfoOptFromAPI reads the hint.
+  // Empty reads as absent, as in bindInfoOptFromAPI.
   ownershipSignature: body.ownershipSignature?.signature || undefined,
 });
 
