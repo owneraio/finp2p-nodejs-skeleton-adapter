@@ -10,7 +10,7 @@ import { CODE_PATTERN, ControlCenterCall, ControlCenterOperationHandler, Control
 
 const HARD_BODY_CAP = 64 * 1024;
 const JSON_CONTENT_TYPE = /^application\/json\s*(;\s*charset=utf-8\s*)?$/i;
-const FIELD_POINTER = /^(\/[A-Za-z0-9_-]{1,64}){1,5}$/;
+const FIELD_POINTER = /^(\/[A-Za-z0-9._-]{1,64}){1,5}$/;
 
 interface Reply { status: number; body: JsonObject }
 

@@ -1,7 +1,7 @@
 import express from 'express';
 import winston from 'winston';
 import { MISCONFIGURED_BODY_PARSER, registerConfigRoutes } from '../../src/config';
-import { envelope, MANIFEST } from './support/control-center';
+import { envelope, IDENTITY } from './support/control-center';
 import { serve } from './support/http';
 import { MemoryConfigurationService, SECRET } from './support/service';
 
@@ -124,7 +124,7 @@ describe('configuration API behind an app-wide body parser', () => {
     const service = new MemoryConfigurationService();
     registerConfigRoutes(app, service, {
       logger: silent,
-      controlCenter: { manifest: MANIFEST, operations: Object.fromEntries(Object.keys(MANIFEST.operations).map((op) => [op, async () => ({ state: 'active' })])) },
+      controlCenter: IDENTITY,
     });
     const s = await serve(app);
     try {

@@ -5,7 +5,8 @@
 //   PUT  /values      { values: { <fieldId>: <value> | null } }, all or nothing
 //   POST /validate    { field: <fieldId> } or { group: <checkRef> }: runs that check
 //   POST /apply       applies the stored values; the previous version stays on failure
-// and, with a Control Center manifest, host contract 2 (control-center/):
+// and, with opts.controlCenter, host contract 2 (control-center/), its manifest derived
+// from the service (control-center/derive.ts):
 //   GET  /manifest, POST /operations/:operationId
 //
 // The skeleton owns these routes and knows no field: the adapter's ConfigurationService
@@ -18,8 +19,8 @@
 import express from 'express';
 import winston from 'winston';
 import { logger as defaultLogger } from '../helpers/logger';
+import { ControlCenterIdentity, deriveControlCenter } from './control-center/derive';
 import { mountControlCenterRoutes } from './control-center/routes';
-import { ControlCenterOperationHandler } from './control-center/types';
 import { scrub } from './scrub';
 import { ConfigurationService } from './service';
 
@@ -28,8 +29,12 @@ export interface ConfigRoutesOptions {
   logger?: winston.Logger;
   /** Body limit of PUT /values and POST /validate. Default 1mb. */
   jsonLimit?: string;
-  /** Control Center's host contract 2: the manifest (checked here, fail closed) and a handler per manifest operation. */
-  controlCenter?: { manifest: unknown; operations: Record<string, ControlCenterOperationHandler> };
+  /**
+   * Serve Control Center's host contract 2. The manifest and its operations are derived
+   * from the service's steps, networks, summary, status and apply; this names the adapter.
+   * A description the manifest cannot carry throws here, so the adapter does not start.
+   */
+  controlCenter?: ControlCenterIdentity;
 }
 
 export const MISCONFIGURED_BODY_PARSER =
@@ -54,7 +59,10 @@ export function registerConfigRoutes(app: express.Application, service: Configur
     next();
   });
 
-  if (opts.controlCenter) mountControlCenterRoutes(router, opts.controlCenter.manifest, opts.controlCenter.operations, log);
+  if (opts.controlCenter) {
+    const { manifest, operations } = deriveControlCenter(service, opts.controlCenter);
+    mountControlCenterRoutes(router, manifest, operations, log);
+  }
 
   router.get('/status', async (_req, res) => {
     const status = await service.status();
