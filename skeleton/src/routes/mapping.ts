@@ -480,6 +480,7 @@ export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt']
   const {
     id,
     asset,
+    destinationAsset: explicitDestinationAsset,
     source,
     destination,
     quantity,
@@ -501,10 +502,17 @@ export const receiptToAPI = (receipt: Receipt): components['schemas']['receipt']
   // counterparty is the destination; inbound (swap settlement leg) arrives here,
   // so the counterparty is the source.
   const { counterpartyAssetId, counterpartySettlementId, direction } = tradeDetails.executionContext ?? {};
+  // `bound` reuses our own ledgerIdentifier under the counterparty's resource id, which
+  // holds only because both sides bind the SAME on-chain token. A move does not: the two
+  // ends are different tokens with different ledgerIdentifiers, so a receipt that knows
+  // its destination binding states it outright and skips the inference. It also works
+  // without an executionContext, which a direct move has none of.
   const bound = (resourceId: string | undefined) => (resourceId ? { ...ownAsset, resourceId } : ownAsset);
-  const [sourceAsset, destinationAsset] = direction === 'inbound'
-    ? [bound(counterpartySettlementId), ownAsset]
-    : [ownAsset, bound(counterpartyAssetId)];
+  const [sourceAsset, destinationAsset] = explicitDestinationAsset
+    ? [ownAsset, assetToAPI(explicitDestinationAsset)]
+    : direction === 'inbound'
+      ? [bound(counterpartySettlementId), ownAsset]
+      : [ownAsset, bound(counterpartyAssetId)];
   return {
     id,
     quantity,

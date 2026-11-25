@@ -30,6 +30,8 @@ import {
   AccountProofRefusedError,
   ChallengedAccountOperation,
   IssuedAccountChallenge,
+  withMoveDestinationAsset,
+  Asset,
 } from '../models';
 import { Operation as StorageOperation, WorkflowStorage, generateCid } from './storage';
 import { operationStatusToAPI } from '../routes/mapping';
@@ -94,6 +96,7 @@ const wrappedResponse = (methodName: string, opMetadata: OperationMetadata | und
     case compiletimeMethodName<TokenService>('issue'):
     case compiletimeMethodName<TokenService>('transfer'):
     case compiletimeMethodName<TokenService>('redeem'):
+    case compiletimeMethodName<TokenService>('move'):
     case compiletimeMethodName<EscrowService>('hold'):
     case compiletimeMethodName<EscrowService>('release'):
     case compiletimeMethodName<EscrowService>('rollback'):
@@ -222,6 +225,25 @@ async function finalize(
  * Catches both sync throws and async rejections from the method.
  * Used by both crash recovery and the live proxy path.
  */
+/**
+ * The deferred half of what the `/assets/move` route does synchronously: a move that
+ * went pending and completes here still needs its destination binding named, or
+ * `receiptToAPI` infers it from the source and the router rejects the callback with
+ * 4001. `destinationAsset` is argument index 5 of `TokenService.move`, and the replayed
+ * inputs carry it too, so a move finished after a restart is covered as well.
+ *
+ * This is the one place the generic proxy knows a method by name beyond
+ * `wrappedResponse`. It is kept to a guard that does nothing for every other method,
+ * and `withMoveDestinationAsset` declines to touch a receipt that already names one.
+ */
+function nameMoveDestination(methodName: string, args: any[], outputs: OperationStatus): OperationStatus {
+  if (methodName !== compiletimeMethodName<TokenService>('move')) return outputs;
+  if (outputs.operation !== 'receipt') return outputs;
+  const destinationAsset = args[5];
+  if (!destinationAsset) return outputs;
+  return withMoveDestinationAsset(outputs, destinationAsset as Asset);
+}
+
 async function executeAndFinalize(
   method: Function,
   args: any[],
@@ -240,7 +262,7 @@ async function executeAndFinalize(
       logger.error('Operation issued an account challenge, but the service has no completeAccountChallenge', { method: methodName, cid });
       outputs = failedAccountOperation(cid, 1, `a ${outputs.challenge.type} challenge was issued, but this adapter cannot complete one`);
     }
-    await finalize(storage, finP2PClient, cid, dbStatus(outputs), outputs);
+    await finalize(storage, finP2PClient, cid, dbStatus(outputs), nameMoveDestination(methodName, args, outputs));
   } catch (error: any) {
     logger.error('Operation failed', { method: methodName, cid, ...describeError(error) });
     const wrp = wrappedResponse(methodName, opMetadata, [cid, 1, String(error)]);

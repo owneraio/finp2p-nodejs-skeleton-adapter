@@ -467,3 +467,154 @@ export const parseProofDomain = (jsonString: string): ProofDomain | null => {
     verifyingContract,
   };
 };
+
+// ── Agreements ──
+
+/**
+ * Lifecycle status of an agreement, as the OSS read model reports it.
+ *
+ * Typed as a union with a `string` arm rather than a closed set: the router
+ * owns this vocabulary and adds to it, and a client that fails to parse an
+ * unknown status would break on a router upgrade it is supposed to tolerate.
+ * The named arms are what autocomplete offers; the `string` arm is what keeps
+ * it honest.
+ */
+export type OssAgreementStatus =
+  | 'AGREEMENT_STATUS_DRAFT'
+  | 'AGREEMENT_STATUS_PROPOSED'
+  | 'AGREEMENT_STATUS_ACTIVE'
+  | 'AGREEMENT_STATUS_SUSPENDED'
+  | 'AGREEMENT_STATUS_REJECTED'
+  | 'AGREEMENT_STATUS_TERMINATED'
+  | (string & {});
+
+/** One entry of an agreement's org-level access list. */
+export type OssAgreementParticipant = {
+  organizationId: string;
+  /** Access roles of the organization (Observer, Contributor). */
+  roles: string[];
+};
+
+/** Binding of an open-string agreement role to the parties that may act for it. */
+export type OssAgreementRoleBinding = {
+  role: string;
+  parties: string[];
+};
+
+/** CAIP-19 ledger asset listed as eligible under an agreement. */
+export type OssAgreementEligibleAsset = {
+  network: string;
+  standard: string;
+  tokenId: string;
+};
+
+/** Consent signature over the contract zone. The signature payload is not exposed. */
+export type OssAgreementConsentSignature = {
+  /** Consent role the signature satisfies. */
+  role: string;
+  /** Bound party that signed. */
+  signerParty: string;
+};
+
+/**
+ * One party's refusal, recorded by the owner.
+ *
+ * A non-empty `rejections` implies `AGREEMENT_STATUS_REJECTED`, but an empty
+ * one says nothing on its own: an agreement may also be
+ * `AGREEMENT_STATUS_TERMINATED` by running its course. The two terminal
+ * statuses mean opposite things, so never infer "not rejected" from
+ * "terminated".
+ */
+export type OssAgreementRejection = {
+  /** The organization that refused. */
+  orgId: string;
+  /** The bound role it refused under; context, not identity. */
+  role: string | null;
+  /** Machine-readable cause, e.g. `UnsupportedTermsType`. */
+  code: string | null;
+  reason: string | null;
+  /** Epoch seconds. */
+  rejectedAt: number | null;
+  /** The amendment number that was refused. */
+  agreementVersion: number | null;
+};
+
+/**
+ * An agreement as the OSS read model projects it.
+ *
+ * `terms` is **base64-encoded and opaque to the network** — the write side
+ * takes a JSON object and the read side hands back a string. Decode it with
+ * {@link decodeAgreementTerms}, and only once `termsType` says you understand
+ * the payload.
+ */
+export type OssAgreement = {
+  /** Agreement resource id (`orgId:107:rawId`). */
+  id: string;
+  /** Organization owning (originating) the agreement resource. */
+  organizationId: string;
+  status: OssAgreementStatus;
+  /**
+   * Position in the definition's state machine. Empty until the machine
+   * assigns an initial state on approval, and empty on agreements with no
+   * definition. Router-governed: never authored, never amended.
+   */
+  businessState: string;
+  /** Amendment number; contract-zone changes bump it. */
+  version: number;
+  /** Roles whose signatures bind the agreement. */
+  consentRoles: string[];
+  participants: OssAgreementParticipant[];
+  roles: OssAgreementRoleBinding[];
+  eligibleAssets: OssAgreementEligibleAsset[];
+  /** Application schema tag telling apps how to parse `terms`, e.g. `repo-terms/v1`. */
+  termsType: string;
+  /** Base64-encoded application terms payload. */
+  terms: string;
+  /** Validity window start, epoch seconds. */
+  validFrom: number;
+  /** Validity window end, epoch seconds. */
+  validUntil: number;
+  signatures: OssAgreementConsentSignature[];
+  rejections: OssAgreementRejection[] | null;
+  /** Epoch seconds the owning router first persisted it; 0 when unset. */
+  createdAt: number;
+  /**
+   * Epoch seconds of the owning router's last write; 0 when unset, and never
+   * moving back. Several writes can share a second, so to find changes since a
+   * time, filter with `GTE` and de-duplicate by `id`.
+   */
+  updatedAt: number;
+};
+
+export type OssAgreementNodes = {
+  agreements: { nodes: OssAgreement[] | null; pageInfo?: OssPageInfo }
+};
+
+/**
+ * Decode an agreement's base64 `terms` into the application payload.
+ *
+ * Returns `undefined` rather than throwing when the payload is absent, is not
+ * valid base64, or is not JSON. Terms are written by whichever application
+ * owns `termsType` and this client does not own that contract, so a payload it
+ * cannot parse is a fact about the agreement, not an error in the caller — and
+ * a lookup that scans many agreements must not die on one bad row.
+ *
+ * Check `termsType` before trusting the shape: the generic parameter is an
+ * assertion by the caller, not a validation.
+ */
+export const decodeAgreementTerms = <T = Record<string, unknown>>(
+  agreement: Pick<OssAgreement, 'terms'>,
+): T | undefined => {
+  if (!agreement.terms) return undefined;
+  try {
+    return JSON.parse(Buffer.from(agreement.terms, 'base64').toString('utf8')) as T;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Ordering for {@link OssAgreement} lookups. Defaults to id when omitted. */
+export type OssAgreementOrder = {
+  field?: 'CREATED_AT' | 'UPDATED_AT' | 'ID';
+  direction?: 'ASC' | 'DESC';
+};

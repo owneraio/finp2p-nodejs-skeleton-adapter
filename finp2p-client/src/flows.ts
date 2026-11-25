@@ -5,8 +5,8 @@
  * with structured parameter objects and automatic async operation polling.
  */
 import type { FinP2PClient } from './client';
-import type { FinAPIComponents } from './finapi';
-import { extractOrgId, hexNonce, finIdAccount } from './finapi/utils';
+import type { FinAPIComponents, OpComponents } from './finapi';
+import { extractOrgId, hexNonce, generateNonce, finIdAccount } from './finapi/utils';
 
 const OP_TIMEOUT = 100_000;
 
@@ -623,6 +623,80 @@ export async function createRequestForTransferIntent(
   return res.id;
 }
 
+/**
+ * One destination of a move: a {@link Finp2pAsset} plus the optional pre-funded
+ * pool fields the node's `moveDestination` schema allows. A plain
+ * `Finp2pAsset` is a valid destination, so `Finp2pAsset[]` assigns here.
+ */
+export type MoveDestination = Finp2pAsset & {
+  /** Pre-funded pool account the destination tokens come from, for the hold-transfer-* variants. */
+  fromSegregatedAccount?: ReturnType<typeof finIdAccount>;
+  /** Owner of that pool account. Required by the node whenever `fromSegregatedAccount` is set. */
+  fromSegregatedAccountOwner?: string;
+};
+
+export interface MoveIntentParams {
+  sourceAsset: Finp2pAsset;
+  /** One or more destinations. The executor picks one at execution time. */
+  destinationAssets: MoveDestination[];
+  start?: number;
+  end?: number;
+  /** Defaults to `manualPolicy`, as every other intent helper here does. */
+  signaturePolicy?: FinAPIComponents['schemas']['moveIntent']['signaturePolicy'];
+  /** Held source tokens land here on release instead of being burned. */
+  sourceToSegregatedAccount?: ReturnType<typeof finIdAccount>;
+}
+
+/**
+ * Declare the asset-level migration path for a move: one source asset and the
+ * destinations it may convert into. No quantity, no counterparty. Returns the
+ * intent id.
+ *
+ * Node rules that bite, none of which this helper can check for you:
+ *
+ * - **One move intent per source asset.** It is a singleton, so a second create
+ *   on the same source asset is not an additional path, it is a conflict.
+ * - **Both assets need the same non-empty `financialIdentifier`.** On
+ *   release-v0.29 only ISIN, ISO4217 and NONE are accepted, so an asset
+ *   identified by something else (a CUSIP, say) has to carry an ISIN derived
+ *   from it for the pair to match.
+ * - **The seeded default move policy is hold-issue-redeem.** A plan that is a
+ *   single Move instruction needs its own policy; see {@link createMovePolicy}.
+ */
+export async function createMoveIntent(
+  client: FinP2PClient,
+  params: MoveIntentParams,
+): Promise<string> {
+  if (params.destinationAssets.length === 0) {
+    throw new Error('createMoveIntent requires at least one destination asset');
+  }
+  const window = intentWindow();
+  const start = params.start ?? window.start;
+  const end = params.end ?? window.end;
+
+  const res = await unwrapOperation<{ id: string }>(client, client.createIntent(params.sourceAsset.id, {
+    start, end,
+    intent: {
+      type: 'moveIntent',
+      asset: {
+        sourceAsset: finp2pAsset(params.sourceAsset),
+        destinationAssets: params.destinationAssets.map((d) => ({
+          id: d.id,
+          ledgerIdentifier: d.ledgerIdentifier,
+          ...(d.fromSegregatedAccount ? { fromSegregatedAccount: d.fromSegregatedAccount } : {}),
+          ...(d.fromSegregatedAccountOwner ? { fromSegregatedAccountOwner: d.fromSegregatedAccountOwner } : {}),
+        })),
+        ...(params.sourceToSegregatedAccount
+          ? { sourceToSegregatedAccount: params.sourceToSegregatedAccount }
+          : {}),
+      },
+      signaturePolicy: params.signaturePolicy ?? { type: 'manualPolicy' },
+    },
+  }));
+  if (!res.id) throw new Error('Failed to create move intent');
+  return res.id;
+}
+
 // ── Intent execution ──
 
 export interface ExecutePrimarySaleParams {
@@ -1133,4 +1207,171 @@ export async function executeRequestForTransferIntent(
   }));
   if (!res.executionPlanId) throw new Error('Failed to execute request-for-transfer intent');
   return res.executionPlanId;
+}
+
+export interface ExecuteMoveIntentParams {
+  intentId: string;
+  executionId: string;
+  /** The holder. Source and destination are the same party, by definition of a move. */
+  owner: { id: string; finId: string; custodianOrgId: string };
+  sourceAsset: Finp2pAsset;
+  /** One of the destinations declared on the intent. */
+  destinationAsset: Finp2pAsset;
+  /** Omit to move the whole position. */
+  amount?: string | number;
+  /**
+   * Override the account orgId on BOTH legs. By default each leg takes the org
+   * from its own asset id, which is what a cross-org conversion needs.
+   */
+  orgId?: string;
+}
+
+/**
+ * Execute a move against an existing move intent. Returns the execution plan id.
+ *
+ * The source and destination accounts are the same finId by construction: a move
+ * converts one holder's position, it does not change who holds it. The node
+ * rejects an execution whose two finIds differ.
+ */
+export async function executeMoveIntent(
+  client: FinP2PClient,
+  params: ExecuteMoveIntentParams,
+): Promise<string> {
+  const { owner } = params;
+  const sourceOrgId = params.orgId ?? extractOrgId(params.sourceAsset.id);
+  const destinationOrgId = params.orgId ?? extractOrgId(params.destinationAsset.id);
+
+  const res = await unwrapOperation<{ executionPlanId: string }>(client, client.executeIntent({
+    user: owner.id,
+    intentId: params.intentId,
+    executionId: params.executionId,
+    intent: {
+      type: 'moveIntentExecution',
+      // `generateNonce`, not the `hexNonce` its neighbours in this file use.
+      // The spec's `nonce` is 32 bytes, 24 random plus an 8-byte big-endian
+      // epoch-seconds tail, hex encoded; `hexNonce()` is 16 random bytes and no
+      // timestamp. The older helpers predate the constraint and the node has
+      // not enforced it on them, but there is no reason to add a ninth.
+      nonce: generateNonce().toString('hex'),
+      owner: owner.id,
+      asset: {
+        // Omitted entirely rather than sent as an empty term: the node reads an
+        // absent term as "the whole position", and `{ amount: "undefined" }`
+        // would not be that.
+        ...(params.amount !== undefined ? { term: { amount: String(params.amount) } } : {}),
+        instruction: {
+          sourceAccount: {
+            asset: finp2pAsset(params.sourceAsset),
+            account: finIdAccount(owner.finId, sourceOrgId, owner.custodianOrgId),
+          },
+          destinationAccount: {
+            asset: finp2pAsset(params.destinationAsset),
+            account: finIdAccount(owner.finId, destinationOrgId, owner.custodianOrgId),
+          },
+        },
+      },
+    },
+  }));
+  if (!res.executionPlanId) throw new Error('Failed to execute move intent');
+  return res.executionPlanId;
+}
+
+// ── Move policy ──
+
+/**
+ * Selector path for the Move instruction's target: the source account's asset on
+ * the move contract details. Exported because getting it wrong produces a policy
+ * that attaches but never matches, which looks like a missing policy.
+ */
+export const MOVE_SOURCE_ASSET_PATH =
+  'contract_details.move.asset.asset_instruction.source_account.finp2p_account.asset';
+
+export interface MovePolicyParams {
+  policyId: string;
+  description?: string;
+  /**
+   * REQUIRED, and must be unique among the policies for this intent ON THIS
+   * NODE: a duplicate is refused with 4101. There is deliberately no default,
+   * because any fixed one works exactly once per node and then collides.
+   * Use something above 1000 to outrank the seeded hold-issue-redeem policy.
+   */
+  priority: number;
+  isDefault?: boolean;
+  assetMatchingCriteria?: OpComponents['schemas']['assetMatchingCriteria'];
+  /** Replace the single-Move instruction graph wholesale. Rarely needed now that
+   *  the default is confirmed; kept for nodes that want a different graph. */
+  instructions?: OpComponents['schemas']['instruction'][];
+}
+
+/**
+ * Create the policy that turns a move into a single `Move` instruction.
+ *
+ * You need this because the seeded default move policy is hold-issue-redeem,
+ * which decomposes a move into three instructions instead of one.
+ *
+ * The body is the one a release-v0.29 node accepts, confirmed end to end: two
+ * move intents created, two plans Completed as single `MoveInstruction`s, and
+ * balances synced on both sides.
+ *
+ * `priority` has no default on purpose. It must be unique among the policies
+ * for this intent on the node, so a fixed default works exactly once and then
+ * fails with 4101. Pass something above 1000, unique on that node.
+ *
+ * `failed` rather than `halted` on failure is deliberate. A conversion is
+ * atomic, so there is nothing to unwind and nothing for an operator to resume;
+ * `halted` belongs to a Hold, which leaves tokens parked.
+ *
+ * Two things to get right that this helper cannot check:
+ *
+ * - **Scope it.** Pass an `assetMatchingCriteria` with a tight name regexp. A
+ *   broad one turns EVERY move on the node into a single `Move`, including the
+ *   ones that wanted hold-issue-redeem.
+ * - **Adapter capabilities, once finp2p-core #2853 lands.** A policy then
+ *   attaches only if the adapter's capability list covers its instructions, and
+ *   a move is checked on BOTH sides, source and destination. An adapter that
+ *   reports no list is read as supporting the full instruction set, so an
+ *   adapter which has not adopted the capability API keeps attaching
+ *   everything; an explicit empty list means nothing attaches. The list is
+ *   served by the adapter over the DLT adapter API (optional `capabilities` on
+ *   the create-asset response, plus `POST /assets/getCapabilities`), not set on
+ *   a ledger binding or a registration template.
+ */
+export async function createMovePolicy(
+  client: FinP2PClient,
+  params: MovePolicyParams,
+): Promise<void> {
+  // Enforced at runtime, not just in the type: this package is consumed from
+  // JavaScript test suites where the required-ness is invisible, and a silent
+  // fallback here would collide with an existing policy on the node (4101)
+  // rather than fail where the mistake is.
+  if (typeof params.priority !== 'number' || !Number.isFinite(params.priority)) {
+    throw new Error('createMovePolicy requires a numeric `priority`, unique among this intent\'s policies on the node');
+  }
+
+  // Byte-for-byte the instruction from the proven policy. Two things here are
+  // load-bearing and were got wrong once already:
+  //   - NO `executors`. The node refuses an instruction carrying both `target`
+  //     and `executors` with 1300, and a target is what scopes this one.
+  //   - `target.version: 'v1'`. Optional in the schema, present on the policy
+  //     the node accepted.
+  const instructions: OpComponents['schemas']['instruction'][] = params.instructions ?? [{
+    instruction: 'Move',
+    sequence: 1,
+    target: { version: 'v1', selectors: [{ type: 'asset', path: MOVE_SOURCE_ASSET_PATH }] },
+    onSuccess: { type: 'status', status: 'completed' },
+    onFailure: { type: 'status', status: 'failed' },
+  }];
+
+  const result = await client.createPolicy({
+    policyId: params.policyId,
+    priority: params.priority,
+    intent: 'moveIntent',
+    description: params.description ?? 'Single Move instruction, no settlement',
+    ...(params.isDefault !== undefined ? { isDefault: params.isDefault } : {}),
+    instructions,
+    ...(params.assetMatchingCriteria ? { assetMatchingCriteria: params.assetMatchingCriteria } : {}),
+    settlementStrategy: ['NOSETTLEMENT'],
+  });
+  const error = (result as { error?: unknown }).error;
+  if (error) throw new Error(JSON.stringify(error));
 }

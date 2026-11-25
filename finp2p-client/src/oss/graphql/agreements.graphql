@@ -1,0 +1,69 @@
+# Agreements read model.
+#
+# `agreements` is a TOP-LEVEL query field, not `repo.agreements` — repo is the
+# application vocabulary written into `termsType`, not a GraphQL namespace. The
+# same query serves every agreement type; a repo caller narrows with a
+# `termsType` filter.
+#
+# `terms` comes back base64-encoded and opaque to the network: the write side
+# (`POST /repo/agreements`) takes a JSON object, the read side returns a
+# string. `OssClient.getAgreements` does not decode it — `decodeAgreementTerms`
+# does, so a caller that only needs `status` never pays for a parse that can
+# fail on an application payload this client does not own.
+#
+# `events`, `accounts`, `definition` and `setup` are deliberately not selected.
+# They are the heavy arms of the type and nothing in the standing-agreement
+# lookup reads them; add a second document rather than widening this one.
+query GetAgreements(
+    $filter: [Filter!],
+    $paginate: PaginateInput = {},
+    $orderBy: AgreementOrder
+) {
+    agreements(filter: $filter, paginate: $paginate, orderBy: $orderBy) {
+        pageInfo {
+            endCursor
+            hasNextPage
+            totalCount
+            totalLeft
+        }
+        nodes {
+            id
+            organizationId
+            status
+            businessState
+            version
+            consentRoles
+            termsType
+            terms
+            validFrom
+            validUntil
+            createdAt
+            updatedAt
+            participants {
+                organizationId
+                roles
+            }
+            roles {
+                role
+                parties
+            }
+            eligibleAssets {
+                network
+                standard
+                tokenId
+            }
+            signatures {
+                role
+                signerParty
+            }
+            rejections {
+                orgId
+                role
+                code
+                reason
+                rejectedAt
+                agreementVersion
+            }
+        }
+    }
+}

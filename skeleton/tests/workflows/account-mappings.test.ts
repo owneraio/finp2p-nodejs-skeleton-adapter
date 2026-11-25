@@ -38,6 +38,18 @@ describe("account mappings", () => {
     expect(mappings[0].fields.ledgerAccountId).toBe("0xABC123");
   });
 
+  test("a value longer than 255 characters, incompressible, is stored and found by value", async () => {
+    // An encrypted token: random bytes do not compress, so the value index sees its full size.
+    const token = require("crypto").randomBytes(6000).toString("base64");
+    await store.saveAccount("fin-1", { ledgerAccountId: "0xAAA", "metadata:eip155:1": token });
+
+    const [byFinId] = await store.getAccounts(["fin-1"]);
+    expect(byFinId.fields["metadata:eip155:1"]).toBe(token);
+
+    const byValue = await store.getByFieldValue("metadata:eip155:1", token);
+    expect(byValue.map(a => a.finId)).toEqual(["fin-1"]);
+  });
+
   test("multiple fields per finId", async () => {
     await store.saveAccount("fin-1", {
       ledgerAccountId: "0xAAA",
