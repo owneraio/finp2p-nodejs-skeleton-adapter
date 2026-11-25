@@ -5,6 +5,7 @@
 //   PUT  /values      { values: { <fieldId>: <value> | null } }, all or nothing
 //   POST /validate    { field: <fieldId> } or { group: <checkRef> }: runs that check
 //   POST /apply       applies the stored values; the previous version stays on failure
+//   POST /actions/:ref { input: { <inputId>: <value> } }: runs a configuration action
 // and, with opts.controlCenter, host contract 2 (control-center/), its manifest derived
 // from the service (control-center/derive.ts):
 //   GET  /manifest, POST /operations/:operationId
@@ -140,6 +141,28 @@ export function registerConfigRoutes(app: express.Application, service: Configur
     }
     log.info('configuration applied', { version: outcome.applied.version });
     res.json(outcome.applied);
+  });
+
+  router.post('/actions/:ref', json, async (req, res) => {
+    if (!service.runAction) {
+      res.status(404).json({ error: 'This adapter offers no configuration actions.' });
+      return;
+    }
+    const input: unknown = req.body?.input ?? {};
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+      res.status(400).json({ error: 'Expected { "input": { "<inputId>": "<value>" } }.' });
+      return;
+    }
+    const ref = String(req.params.ref);
+    const outcome = await service.runAction(ref, input as Record<string, unknown>);
+    const secrets = await service.sealedValues();
+    // the ref comes from the request: log a bounded copy, never the input
+    log.info('configuration action', { ref: ref.slice(0, 64), status: outcome.status });
+    res.status(outcome.status === 'done' ? 200 : 422).json({
+      ...outcome,
+      message: scrub(outcome.message, secrets),
+      ...(outcome.details ? { details: outcome.details.map((d) => ({ label: d.label, value: scrub(d.value, secrets) })) } : {}),
+    });
   });
 
   // the JSON parser's errors and anything the service throws; registered last so it covers every route above

@@ -106,6 +106,22 @@ export class MemoryConfigurationService implements ConfigurationService {
 
   async summary() { return this.summaryItems; }
 
+  /** Every runAction call, as the service received it. */
+  actions: { ref: string; input: Record<string, unknown> }[] = [];
+
+  /** `register-account`: done, echoing the stored key in its message and a detail; refused without a name. */
+  async runAction(ref: string, input: Record<string, unknown>) {
+    this.actions.push({ ref, input });
+    if (ref !== 'register-account') throw new Error(`no such action ${ref}`);
+    if (!input.name) return { status: 'refused' as const, message: 'A name is required.' };
+    return {
+      status: 'done' as const,
+      message: `registered with key ${this.values['custody.apiKey'] ?? '-'}`,
+      details: [{ label: 'Key', value: this.values['custody.apiKey'] ?? '-' }],
+      applied: { account: String(input.name) },
+    };
+  }
+
   /**
    * custody: stores url, apiKey (empty keeps the stored one) and region, then checks the
    * custody: refuses a url on refused.example with the input, a region 'zz-refused' without

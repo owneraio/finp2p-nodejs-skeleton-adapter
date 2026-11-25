@@ -109,6 +109,52 @@ describe('configuration API', () => {
     expect(failed.text).not.toContain(SECRET);
   });
 
+  it('runs an action: 200 done, 422 refused, the outcome as the body, scrubbed', async () => {
+    await put({ 'custody.apiKey': SECRET });
+    const done = await s.request('POST', '/config/actions/register-account', { input: { name: 'acme' } });
+    expect(done.status).toBe(200);
+    expect(done.body).toEqual({ status: 'done', message: 'registered with key ••••', details: [{ label: 'Key', value: '••••' }], applied: { account: 'acme' } });
+    expect(done.text).not.toContain(SECRET);
+    expect(await s.request('POST', '/config/actions/register-account', { input: {} })).toMatchObject({
+      status: 422, body: { status: 'refused', message: 'A name is required.' },
+    });
+    expect(service.actions).toEqual([{ ref: 'register-account', input: { name: 'acme' } }, { ref: 'register-account', input: {} }]);
+  });
+
+  it('runs an action with no input at all as an empty input', async () => {
+    expect((await s.request('POST', '/config/actions/register-account', {})).status).toBe(422);
+    expect(service.actions).toEqual([{ ref: 'register-account', input: {} }]);
+  });
+
+  it.each([
+    ['an array', ['a']],
+    ['a string', 'a'],
+  ])('refuses an action whose input is %s', async (_, input) => {
+    expect(await s.request('POST', '/config/actions/register-account', { input })).toMatchObject({
+      status: 400, body: { error: 'Expected { "input": { "<inputId>": "<value>" } }.' },
+    });
+    expect(service.actions).toHaveLength(0);
+  });
+
+  it('answers 500 for an action the service does not know, without the message', async () => {
+    const res = await s.request('POST', '/config/actions/nope', { input: {} });
+    expect(res).toMatchObject({ status: 500, body: { error: 'internal error' } });
+    expect(res.text).not.toContain('no such action');
+  });
+
+  it('answers 404 when the service offers no actions', async () => {
+    const app = express();
+    const bare = new MemoryConfigurationService();
+    (bare as { runAction?: unknown }).runAction = undefined;
+    registerConfigRoutes(app, bare, { logger: silent });
+    const other = await serve(app);
+    try {
+      expect(await other.request('POST', '/config/actions/register-account', { input: {} })).toMatchObject({
+        status: 404, body: { error: 'This adapter offers no configuration actions.' },
+      });
+    } finally { await other.close(); }
+  });
+
   it('answers 500 without the message when the service throws', async () => {
     service.check = async () => { throw new Error(`database down, key ${SECRET}`); };
     const res = await s.request('POST', '/config/validate', { field: 'custody.url' });

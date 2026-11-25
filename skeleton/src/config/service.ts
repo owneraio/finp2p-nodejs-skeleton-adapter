@@ -65,6 +65,23 @@ export interface ConfigurationService {
   networks(): { id: string; label: string }[];
   /** Short facts about the applied configuration for Control Center's status view. Never a secret (scrubbed anyway). */
   summary(): Promise<ConfigSummaryItem[]>;
+
+  /**
+   * Runs a configuration action by its ref (one an integration lists in schema(), such as
+   * creating an agreement on the ledger). Optional: without it POST /config/actions/:ref
+   * answers 404. Not part of Control Center's manifest.
+   */
+  runAction?(ref: string, input: Record<string, unknown>): Promise<ConfigActionOutcome>;
+}
+
+export interface ConfigActionOutcome {
+  /** 'done' is answered 200, 'refused' 422; the outcome is the body either way. */
+  status: 'done' | 'refused';
+  /** Scrubbed of sealedValues() before it is answered, like `details` values. */
+  message: string;
+  details?: { label: string; value: string }[];
+  /** What the action changed, answered as is: never put a secret in it. */
+  applied?: unknown;
 }
 
 export type ConfigState = 'unconfigured' | 'active' | 'failed';
