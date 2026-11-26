@@ -80,6 +80,16 @@ move?(idempotencyKey, nonce, source, destination, asset, destinationAsset, quant
 - **Secrets.** A secret input is never schema-required (empty keeps the stored value), and `get-values` answers it only as `set` or `not_set`, never any part of it.
 - **Status.** `get-status` answers Control Center's envelope (`tests/config/support/status-fault.ts` copies its check): `{ integration: { state, details }, networks: [{ id, state }] }`, details fitted to 8 rows rather than failing.
 
+### Configuration store (`src/config/store/`, exported from `config`)
+
+What backs a `ConfigurationService`: GCA's store, moved here so adapters stop carrying copies.
+
+- **`ConfigStore.open(schema, backend)`** over a `ConfigSchema` (groups, fields, conditions, checks). It keeps each field's value by id; a secret is only ever shown as `{ sealed: true, fingerprint }` (`SHA256:` and 16 hex chars of its hash, computed on open, never stored). `apply(activate?)` refuses while a required field is missing or a check is unvalidated, invalid or stale, and keeps only the current applied version.
+- **`PgConfigBackend(pool, schema, protector)`** writes the tables of migration `20261126140000_add_adapter_config.sql`, every value sealed, plain fields too. `MemoryConfigBackend` is for tests.
+- **Protectors.** `protectorFromEnv(env)` picks one. With `CONFIG_KMS_KEY_ID`, `KmsProtector` seals with envelope encryption under that symmetric KMS key (`kms1.<wrapped data key>.<iv||ct||tag>`); the role needs `kms:GenerateDataKey` and `kms:Decrypt`, and the adapter installs `@aws-sdk/client-kms` (an optional peer). Otherwise `KeyringProtector` seals with encryption at rest (`DB_ENCRYPTION_KEY_CURRENT`, `v1.r.<kid>.…`). With KMS and a keyring both set, KMS seals and the keyring still opens older rows. With neither, it throws: configuration is never stored unprotected.
+- **Each sealed value is bound to its column** (`adapter_config_values.value`, `adapter_config_applied.field_values`), the same AAD `EncryptedColumns` uses, so rows written by an adapter's own copy over `EncryptedColumns` open unchanged.
+- **Adapters that created these tables themselves** (GCA, Canton) keep their rows: the migration is `CREATE TABLE IF NOT EXISTS` with the same columns. Such an adapter deletes its own migration file when it switches, or a fresh database fails on that file's plain `CREATE TABLE`, which runs after the skeleton's.
+
 ### Workflow layer (`src/workflows/`)
 
 Provides **idempotent async operation persistence** backed by PostgreSQL:
@@ -148,6 +158,7 @@ When workflow persistence is enabled, the skeleton uses PostgreSQL with a consum
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb
 - `20261123120000_widen_account_mapping_value.sql` &mdash; `account_mappings.value` becomes `TEXT` (an encrypted per-wallet token does not fit 255), and its index becomes a hash index on `value`, because btree refuses an entry over about 2.7 KB and lookups by value are equality only
+- `20261126140000_add_adapter_config.sql`: `adapter_config_values` (sealed value by field id) and `adapter_config_applied` (one row: the applied version and its sealed values), `IF NOT EXISTS` over tables adapters created themselves
 
 Migrations run automatically on startup via goose.
 
