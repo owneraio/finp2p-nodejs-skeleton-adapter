@@ -2,11 +2,12 @@ import { assetCreateResultToAPI, executionContextFromAPI, executionContextOptToA
 import { components } from '../../src/routes/model-gen';
 import { AssetCreationResult, ExecutionContext, InstructionCapability, ValidationError } from '../../src/models';
 
-const apiContext = (contract?: string): components['schemas']['executionContext'] => ({
+const apiContext = (contract?: string, contractFormat?: string): components['schemas']['executionContext'] => ({
   executionPlanId: 'plan-1',
   instructionSequenceNumber: 3,
   ...(contract !== undefined ? { contract } : {}),
-});
+  ...(contractFormat !== undefined ? { contractFormat } : {}),
+} as components['schemas']['executionContext']);
 
 const CONTRACT = '0xAbC0000000000000000000000000000000000001';
 const CAIP10 = 'eip155:11155111:0xAbC0000000000000000000000000000000000001';
@@ -26,6 +27,50 @@ describe('executionContextFromAPI contract', () => {
     expect('contract' in ctx).toBe(expected !== undefined);
     expect(ctx.planId).toBe('plan-1');
     expect(ctx.sequence).toBe(3);
+  });
+});
+
+describe('executionContextFromAPI contractFormat', () => {
+  test.each([
+    { format: 'caip10', contract: CAIP10 },
+    { format: 'url', contract: 'https://gate.example/transfer' },
+    { format: 'opaque', contract: 'custody-api' },
+  ])('maps $format with its contract', ({ format, contract }) => {
+    const ctx = executionContextFromAPI(apiContext(contract, format));
+
+    expect(ctx.contract).toBe(contract);
+    expect(ctx.contractFormat).toBe(format);
+  });
+
+  test('absent format stays absent', () => {
+    const ctx = executionContextFromAPI(apiContext(CONTRACT));
+
+    expect('contractFormat' in ctx).toBe(false);
+  });
+
+  test('a dropped blank contract takes its format with it', () => {
+    const ctx = executionContextFromAPI(apiContext('  ', 'url'));
+
+    expect('contract' in ctx).toBe(false);
+    expect('contractFormat' in ctx).toBe(false);
+  });
+
+  test.each([
+    { name: 'an unknown format', input: 'evm' },
+    { name: 'a different case', input: 'URL' },
+    { name: 'null', input: null },
+    { name: 'a number', input: 7 },
+    { name: 'an empty string', input: '' },
+  ])('rejects $name with a validation error', ({ input }) => {
+    const ep = { ...apiContext(CONTRACT), contractFormat: input } as unknown as components['schemas']['executionContext'];
+
+    expect(() => executionContextFromAPI(ep)).toThrow(ValidationError);
+  });
+
+  test('is never emitted back on a receipt context', () => {
+    const out = executionContextOptToAPI({ planId: 'plan-1', sequence: 3, contract: CONTRACT, contractFormat: 'caip10' });
+
+    expect(out).toEqual({ executionPlanId: 'plan-1', instructionSequenceNumber: 3 });
   });
 });
 

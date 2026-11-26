@@ -75,6 +75,8 @@ export type ExecutionContext = {
   direction?: 'outbound' | 'inbound'
   /** address of the contract the router chose, as the asset lists it (compare after normalizing by format); absent when none */
   contract?: string
+  /** how `contract` is written, so it can be normalized and compared without guessing; sent with `contract` */
+  contractFormat?: ContractAddressFormat
 };
 
 /**

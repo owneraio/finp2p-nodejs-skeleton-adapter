@@ -134,21 +134,28 @@ export const depositPayoutAccountToAPI = (dest: Destination): components['schema
   return { finId, account: { type: 'finId', finId } };
 };
 
+const CONTRACT_ADDRESS_FORMATS: readonly string[] = ['caip10', 'url', 'opaque'];
+
 export const executionContextFromAPI = (
   ep: components['schemas']['executionContext'],
   counterpartyAssetId?: string,
   counterpartySettlementId?: string,
 ): ExecutionContext => {
-  const { executionPlanId, instructionSequenceNumber, contract } = ep;
+  const { executionPlanId, instructionSequenceNumber, contract, contractFormat } = ep;
   if (contract !== undefined && typeof contract !== 'string') {
     throw new ValidationError('executionContext.contract must be a string');
   }
+  if (contractFormat !== undefined && !CONTRACT_ADDRESS_FORMATS.includes(contractFormat)) {
+    throw new ValidationError(`executionContext.contractFormat must be one of ${CONTRACT_ADDRESS_FORMATS.join(', ')}`);
+  }
+  const hasContract = contract !== undefined && contract.trim() !== '';
   return {
     planId: executionPlanId,
     sequence: instructionSequenceNumber,
     counterpartyAssetId,
     counterpartySettlementId,
-    ...(contract !== undefined && contract.trim() !== '' ? { contract } : {}),
+    ...(hasContract ? { contract } : {}),
+    ...(hasContract && contractFormat !== undefined ? { contractFormat } : {}),
   };
 };
 
