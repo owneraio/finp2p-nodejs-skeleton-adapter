@@ -1,8 +1,10 @@
 // Control Center's manifest and operation handlers, derived from a ConfigurationService:
 //
-//   flow configure: get-values (with inputValues), save-<stepId> per step, activate
+//   flow configure: get-values (with inputValues), save-<stepId> per step each followed by its
+//                   actions (with actions and runAction), activate
 //   get-values     {}         -> { steps: { <stepId>: { values: { <wire id>: value }, secrets: { <wire id>: set | not_set } } } }
 //   save-<stepId>  { <wire id> } -> { valid, message, details? }
+//   <action ref, '.' as '-'> { <wire id> } -> { done, message, details? }
 //   activate       {}         -> { version, appliedAt }
 //   get-status     {}         -> { integration: { state, details }, networks: [{ id, state }] }
 //
@@ -10,7 +12,7 @@
 // schema.ts, status.ts), so its bounds are mirrored here and checked at registration.
 import { scrub } from '../scrub';
 import {
-  ConfigSummaryItem, ConfigurationInput, ConfigurationService, ConfigurationStep, ConfigState, StepCheck,
+  ConfigSummaryItem, ConfigurationAction, ConfigurationInput, ConfigurationService, ConfigState, StepCheck,
 } from '../service';
 import { isSafePattern } from './pattern-safety';
 import {
@@ -29,6 +31,8 @@ const STATUS_OPERATION = 'get-status';
 const VALUES_OPERATION = 'get-values';
 const ACTIVATE_OPERATION = 'activate';
 const saveOperation = (stepId: string): string => `save-${stepId}`;
+const actionOperation = (ref: string): string => ref.replace(/\./g, '-');
+const isReserved = (op: string): boolean => op === ACTIVATE_OPERATION || op.startsWith('save-') || op.startsWith('get-');
 
 export const URL_PATTERN = '^https?://\\S+$';
 const STRING_MAX = 4096;
@@ -135,36 +139,45 @@ function inputSchema(input: ConfigurationInput, where: string, left: string[]): 
 // an empty secret keeps the stored one, so a secret is never required
 const schemaRequired = (input: ConfigurationInput): boolean => input.required === true && input.classification !== 'secret';
 
-function stepSpec(step: ConfigurationStep, timeoutMs: number, left: string[], byWire: Map<string, string>): ControlCenterOperationSpec {
-  if (!STEP_ID.test(step.id)) throw new Error(`configuration step ${step.id}: lowercase letters, digits and dashes, 59 at most`);
-  if (step.inputs.length > MAX_INPUTS) throw new Error(`configuration step ${step.id}: more than ${MAX_INPUTS} inputs`);
+/** The request of a save or an action: a property per input under its wire id; `byWire` maps them back. */
+function requestSpec(
+  where: string, inputs: ConfigurationInput[], response: ControlCenterSchema, timeoutMs: number, left: string[], byWire: Map<string, string>,
+  annotations: { title?: string; description?: string } = {},
+): ControlCenterOperationSpec {
+  if (inputs.length > MAX_INPUTS) throw new Error(`configuration ${where}: more than ${MAX_INPUTS} inputs`);
   const properties: Record<string, ControlCenterSchema> = {};
-  for (const input of step.inputs) {
-    const where = `${step.id}/${input.id}`;
-    if (!INPUT_ID.test(input.id)) throw new Error(`configuration input ${where}: letters, digits, ., _ and -, 64 at most`);
+  for (const input of inputs) {
+    const at = `${where}/${input.id}`;
+    if (!INPUT_ID.test(input.id)) throw new Error(`configuration input ${at}: letters, digits, ., _ and -, 64 at most`);
     const wire = wireId(input.id);
     const taken = byWire.get(wire);
     if (taken !== undefined) {
-      throw new Error(taken === input.id ? `configuration input ${where}: declared twice` : `configuration input ${where}: Control Center id ${wire} is also ${step.id}/${taken}'s`);
+      throw new Error(taken === input.id ? `configuration input ${at}: declared twice` : `configuration input ${at}: Control Center id ${wire} is also ${where}/${taken}'s`);
     }
     byWire.set(wire, input.id);
-    properties[wire] = inputSchema(input, where, left);
+    properties[wire] = inputSchema(input, at, left);
     if (schemaRequired(input) && properties[wire].type === 'string') properties[wire].minLength = 1;
   }
   // a JSON escape takes up to 6 bytes per character
   const inputBytes = Object.values(properties).reduce((sum, p) => sum + (p.type === 'integer' ? INTEGER_MAX : (p.maxLength ?? STRING_MAX) * 6), 0);
   return {
-    request: object(properties, step.inputs.filter(schemaRequired).map((i) => wireId(i.id))),
-    response: object({
-      valid: { type: 'boolean' },
-      message: { type: 'string', maxLength: MESSAGE_MAX },
-      details: { type: 'array', maxItems: CHECK_DETAILS_MAX, items: rowSchema },
-    }, ['valid', 'message']),
-    secretFields: step.inputs.filter((i) => i.classification === 'secret').map((i) => `/${wireId(i.id)}`),
+    request: { ...object(properties, inputs.filter(schemaRequired).map((i) => wireId(i.id))), ...annotations },
+    response,
+    secretFields: inputs.filter((i) => i.classification === 'secret').map((i) => `/${wireId(i.id)}`),
     idempotency: 'none',
-    limits: { maxBodyBytes: Math.min(BODY_CAP, 1024 + 128 * step.inputs.length + inputBytes), maxResponseBytes: 64 * 1024, timeoutMs },
+    limits: { maxBodyBytes: Math.min(BODY_CAP, 1024 + 128 * inputs.length + inputBytes), maxResponseBytes: 64 * 1024, timeoutMs },
   };
 }
+
+const answerSchema = (flag: 'valid' | 'done'): ControlCenterSchema => object({
+  [flag]: { type: 'boolean' },
+  message: { type: 'string', maxLength: MESSAGE_MAX },
+  details: { type: 'array', maxItems: CHECK_DETAILS_MAX, items: rowSchema },
+}, [flag, 'message']);
+
+/** Back to the adapter's input ids, every value a string (an integer as its decimal string). */
+const fromWire = (input: Record<string, unknown>, byWire: Map<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.entries(input).map(([k, v]) => [byWire.get(k) ?? k, String(v)]));
 
 const rows = (items: Row[], secrets: string[]): Row[] => items.slice(0, CHECK_DETAILS_MAX).map((r) => ({
   label: clip(scrub(r.label, secrets), LABEL_MAX) || '-',
@@ -226,9 +239,22 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
   checkNetworks(networks);
   const steps = service.steps();
   const withValues = typeof service.inputValues === 'function';
-  const maxSteps = MAX_FLOW_OPERATIONS - 1 - (withValues ? 1 : 0);
-  if (steps.length > maxSteps) throw new Error(`configuration: more than ${maxSteps} steps`);
+  const actions: ConfigurationAction[] = service.actions?.() ?? [];
+  if (actions.length && !service.runAction) throw new Error('configuration: actions without runAction');
   if (new Set(steps.map((s) => s.id)).size !== steps.length) throw new Error('configuration: a step declared twice');
+  for (const step of steps) {
+    if (!STEP_ID.test(step.id)) throw new Error(`configuration step ${step.id}: lowercase letters, digits and dashes, 59 at most`);
+  }
+  const flowLength = steps.length + actions.length + 1 + (withValues ? 1 : 0);
+  if (flowLength > MAX_FLOW_OPERATIONS) throw new Error(`configuration: ${flowLength} Control Center operations in one flow, ${MAX_FLOW_OPERATIONS} at most`);
+  const actionOps = new Set<string>();
+  for (const action of actions) {
+    const op = actionOperation(action.ref);
+    if (!ID_PATTERN.test(op)) throw new Error(`configuration action ${action.ref}: lowercase letters, digits, dots and dashes`);
+    if (isReserved(op) || actionOps.has(op)) throw new Error(`configuration action ${action.ref}: Control Center operation ${op} is taken`);
+    if (!steps.some((st) => st.id === action.step)) throw new Error(`configuration action ${action.ref}: no step ${action.step}`);
+    actionOps.add(op);
+  }
 
   const patternsLeftToAdapter: string[] = [];
   const specs: Record<string, ControlCenterOperationSpec> = {};
@@ -239,13 +265,24 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
   for (const step of steps) {
     const op = saveOperation(step.id);
     const byWire = new Map<string, string>();
-    specs[op] = stepSpec(step, timeoutMs, patternsLeftToAdapter, byWire);
+    specs[op] = requestSpec(step.id, step.inputs, answerSchema('valid'), timeoutMs, patternsLeftToAdapter, byWire);
     operations[op] = async (input) => {
-      // back to the adapter's ids, every value a string (an integer as its decimal string)
-      const values = Object.fromEntries(Object.entries(input).map(([k, v]) => [byWire.get(k) ?? k, String(v)]));
-      const result = await service.saveStep(step.id, values);
+      const result = await service.saveStep(step.id, fromWire(input, byWire));
       if ('refused' in result) throw refuse('INVALID_CONFIG', { status: 422, ...(result.input ? { field: `/${wireId(result.input)}` } : {}) });
       return saveAnswer(result.checks, await service.sealedValues());
+    };
+  }
+
+  // a refused action is an answer to show, like a save that is not valid: 200 with done false
+  for (const action of actions) {
+    const byWire = new Map<string, string>();
+    const annotations = { title: clip(action.title, MAX_ANNOTATION_LENGTH), ...(action.description ? { description: clip(action.description, MAX_ANNOTATION_LENGTH) } : {}) };
+    specs[actionOperation(action.ref)] = requestSpec(action.ref, action.inputs, answerSchema('done'), timeoutMs, patternsLeftToAdapter, byWire, annotations);
+    operations[actionOperation(action.ref)] = async (input) => {
+      const outcome = await service.runAction!(action.ref, fromWire(input, byWire));
+      const secrets = await service.sealedValues();
+      const details = rows(outcome.details ?? [], secrets);
+      return { done: outcome.status === 'done', message: clip(scrub(outcome.message, secrets), MESSAGE_MAX), ...(details.length ? { details } : {}) };
     };
   }
 
@@ -329,7 +366,11 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
       configure: {
         title: 'Configure',
         scope: 'integration',
-        operations: [...(withValues ? [VALUES_OPERATION] : []), ...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION],
+        operations: [
+          ...(withValues ? [VALUES_OPERATION] : []),
+          ...steps.flatMap((st) => [saveOperation(st.id), ...actions.filter((a) => a.step === st.id).map((a) => actionOperation(a.ref))]),
+          ACTIVATE_OPERATION,
+        ],
       },
     },
     status: { operation: STATUS_OPERATION },

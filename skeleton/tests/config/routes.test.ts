@@ -118,12 +118,12 @@ describe('configuration API', () => {
     expect(await s.request('POST', '/config/actions/register-account', { input: {} })).toMatchObject({
       status: 422, body: { status: 'refused', message: 'A name is required.' },
     });
-    expect(service.actions).toEqual([{ ref: 'register-account', input: { name: 'acme' } }, { ref: 'register-account', input: {} }]);
+    expect(service.actionCalls).toEqual([{ ref: 'register-account', input: { name: 'acme' } }, { ref: 'register-account', input: {} }]);
   });
 
   it('runs an action with no input at all as an empty input', async () => {
     expect((await s.request('POST', '/config/actions/register-account', {})).status).toBe(422);
-    expect(service.actions).toEqual([{ ref: 'register-account', input: {} }]);
+    expect(service.actionCalls).toEqual([{ ref: 'register-account', input: {} }]);
   });
 
   it.each([
@@ -133,7 +133,7 @@ describe('configuration API', () => {
     expect(await s.request('POST', '/config/actions/register-account', { input })).toMatchObject({
       status: 400, body: { error: 'Expected { "input": { "<inputId>": "<value>" } }.' },
     });
-    expect(service.actions).toHaveLength(0);
+    expect(service.actionCalls).toHaveLength(0);
   });
 
   it('answers 500 for an action the service does not know, without the message', async () => {
