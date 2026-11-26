@@ -20,6 +20,7 @@ import { Application } from 'express';
 import { errorHandler } from './errors';
 import {
   accountOperationToAPI,
+  accountProofFromAPI,
   assetBindingFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
   balanceToAPI,
@@ -395,14 +396,27 @@ export const register = (app: Application,
       const { organizationId, assetId, finId, bindInfo } = req.body;
 
       const op = await networkAccountService.createAccount(ik, organizationId, assetId, finId, bindInfoOptFromAPI(bindInfo));
+      if (op.type === 'challenge' && !op.correlationId) {
+        // The router posts the proof back to this cid, so a challenge without one could never be fulfilled.
+        throw new NotSupportedError('createAccount issued a challenge without a cid: wrap the service in workflows.createServiceProxy with \'createAccount\', or assign a cid and implement submitAccountProof');
+      }
 
-      res.status(202).json(accountOperationToAPI(op));
+      // 207 when the challenge is in the body, as the spec has it; the router reads both alike.
+      res.status(op.type === 'challenge' ? 207 : 202).json(accountOperationToAPI(op));
     });
 
-  app.post(
+  app.post<LedgerOperations['submitAccountProof']['parameters']['path'],
+  LedgerAPI['schemas']['AccountOperationAccepted'],
+  LedgerAPI['schemas']['SubmitAccountProofRequest']>(
     `/${basePath}/accounts/:cid/proof`,
-    async () => {
-      throw new NotSupportedError('ownership challenges are not supported by this adapter');
+    async (req, res) => {
+      if (!networkAccountService.submitAccountProof) {
+        throw new NotSupportedError('ownership challenges are not supported by this adapter');
+      }
+      // The router sends a fresh key on every proof; a repeat is told apart by the operation's state.
+      const ik = req.headers['idempotency-key'] as string | undefined ?? '';
+      const op = await networkAccountService.submitAccountProof(ik, req.params.cid, accountProofFromAPI(req.body));
+      res.json(accountOperationToAPI(op));
     });
 
   app.delete<LedgerOperations['removeAccount']['parameters']['path'],

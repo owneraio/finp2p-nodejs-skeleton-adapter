@@ -84,6 +84,64 @@ export class AccountNotFoundError extends Error {
   }
 }
 
+/**
+ * Router error codes (owneraio/pkg errorcodes) for account onboarding. A 4xx answer whose
+ * `errors` body carries one reaches the client as that error.
+ */
+export const AccountErrorCodes = {
+  alreadyBound: 7344,
+  badSignature: 7345,
+  challengeTimeout: 7346,
+  notFound: 7348,
+  invalidState: 7349,
+} as const;
+
+/**
+ * The proof does not fulfill the challenge, e.g. a signature that does not verify. Throw
+ * it from completeAccountChallenge: the challenge stays open for another proof. Mapped to
+ * HTTP 401, which the router reads as a business refusal because the body carries a code.
+ */
+export class AccountProofRefusedError extends Error {
+
+  code: number;
+
+  constructor(message: string, code: number = AccountErrorCodes.badSignature) {
+    super(message);
+    this.name = 'AccountProofRefusedError';
+    this.code = code;
+  }
+}
+
+/**
+ * The account operation cannot take this request in its current state, e.g. a proof for a
+ * create that has issued no challenge or has failed. Mapped to HTTP 409.
+ */
+export class AccountInvalidStateError extends Error {
+
+  code: number;
+
+  constructor(message: string, code: number = AccountErrorCodes.invalidState) {
+    super(message);
+    this.name = 'AccountInvalidStateError';
+    this.code = code;
+  }
+}
+
+/**
+ * A proof for a create that has failed because its challenge expired: completeAccountChallenge
+ * settled it with AccountErrorCodes.challengeTimeout. Mapped to HTTP 410.
+ */
+export class AccountChallengeExpiredError extends Error {
+
+  code: number;
+
+  constructor(message: string, code: number = AccountErrorCodes.challengeTimeout) {
+    super(message);
+    this.name = 'AccountChallengeExpiredError';
+    this.code = code;
+  }
+}
+
 /** A policy refusal, not a fault: the party stays blocked by mechanisms this
  *  deployment does not operate. Mapped to 409, so it is distinguishable from an
  *  outage. Mapped to HTTP 409. */

@@ -664,10 +664,91 @@ export type BindInfo = {
   ownershipSignature?: string;
 };
 
+// -------------------------------------------------------------------
+// Account challenges: what the investor must do before a create/bind completes.
+// Mirrors the OAS `AccountChallenge` union.
+
+/** Pair the wallet through `uri` (a WalletConnect URI or QR payload). */
+export type WalletConnectChallenge = {
+  type: 'walletConnect';
+  uri: string;
+};
+
+/**
+ * Ownership proof: sign `payload` (hex) with the wallet key. Only completeAccountChallenge
+ * verifies it; refuse empty or foreign signatures (sample-adapter `allowlist.ts`).
+ */
+export type SignatureTemplateChallenge = {
+  type: 'signatureTemplate';
+  payload: string;
+};
+
+/** Send `amount` from `fromAddress`, the claimed wallet, to `toAddress`, which the adapter watches. */
+export type DepositChallenge = {
+  type: 'deposit';
+  fromAddress: string;
+  toAddress: string;
+  amount: string;
+};
+
+/** Approve Fireblocks request `fireblocksRequestId` in the Fireblocks app. */
+export type FireblocksApprovalChallenge = {
+  type: 'fireblocksApproval';
+  fireblocksRequestId: string;
+};
+
+export type AccountChallenge = WalletConnectChallenge | SignatureTemplateChallenge | DepositChallenge
+| FireblocksApprovalChallenge;
+
+/** createAccount's arguments, as the router sent them. */
+export type OnboardingRequest = {
+  idempotencyKey: string;
+  organizationId: string;
+  assetId: string;
+  finId: string;
+  bindInfo: BindInfo | undefined;
+};
+
+/** A challenge createAccount issued, as the workflow proxy keeps it. */
+export type IssuedAccountChallenge = {
+  /** The create's cid: the router's handle on this onboarding, and where the proof is posted. */
+  correlationId: string;
+  request: OnboardingRequest;
+  challenge: AccountChallenge;
+  /** Absolute epoch seconds, undefined for no expiry. Not enforced by the proxy: a proof
+   *  after it still reaches completeAccountChallenge, which decides. */
+  expiresAt: number | undefined;
+};
+
+/**
+ * What fulfilled a challenge (`POST /accounts/{cid}/proof`). `ownershipSignature` is the
+ * raw hex signature over a signatureTemplate payload, absent if empty. An adapter-side
+ * trigger (a deposit seen on chain, a Fireblocks webhook) passes `{}`.
+ */
+export type AccountProof = {
+  ownershipSignature?: string;
+};
+
 export type PendingAccountOperation = {
   operation: 'account',
   type: 'pending';
   correlationId: string;
+  metadata: OperationMetadata | undefined;
+};
+
+/**
+ * A create/bind waiting on its investor: `challenge` says what to do, and the proof
+ * arrives through `POST /accounts/{correlationId}/proof`. Not terminal.
+ */
+export type ChallengedAccountOperation = {
+  operation: 'account',
+  type: 'challenge';
+  correlationId: string;
+  challenge: AccountChallenge;
+  /** Absolute epoch seconds, undefined for no expiry. The wire carries the seconds left,
+   *  from which the router arms its own timeout. Stored and reported only: nothing in the
+   *  skeleton enforces it. */
+  expiresAt: number | undefined;
   metadata: OperationMetadata | undefined;
 };
 
@@ -685,7 +766,7 @@ export type FailedAccountOperation = {
   error: ErrorDetails;
 };
 
-export type AccountOperation = PendingAccountOperation | SuccessfulAccountOperation | FailedAccountOperation;
+export type AccountOperation = PendingAccountOperation | ChallengedAccountOperation | SuccessfulAccountOperation | FailedAccountOperation;
 
 export const pendingAccountOperation = (correlationId: string, metadata: OperationMetadata | undefined): AccountOperation => ({
   operation: 'account',
@@ -706,6 +787,23 @@ export const failedAccountOperation = (correlationId: string, code: number, mess
   type: 'failure',
   correlationId,
   error: { code, message },
+});
+
+/**
+ * `expiresInSeconds` counts from now, rounded up to whole seconds (absent, 0, negative or
+ * not finite: no expiry), and is kept as an absolute deadline. Under the workflow proxy
+ * pass '' as correlationId and leave metadata out: the proxy stamps its own cid and
+ * response strategy, which the service cannot know.
+ */
+export const challengedAccountOperation = (correlationId: string, challenge: AccountChallenge,
+  expiresInSeconds?: number, metadata?: OperationMetadata): AccountOperation => ({
+  operation: 'account',
+  type: 'challenge',
+  correlationId,
+  challenge,
+  expiresAt: expiresInSeconds !== undefined && Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+    ? Math.floor(Date.now() / 1000) + Math.ceil(expiresInSeconds) : undefined,
+  metadata,
 });
 
 // -------------------------------------------------------------------
