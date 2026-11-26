@@ -98,7 +98,7 @@ class MovingTokenService {
 class ForgetfulTokenService extends MovingTokenService {
   async move(...args: Parameters<MovingTokenService['move']>): Promise<ReceiptOperation> {
     const op = await super.move(...args);
-    if (op.type !== 'success') return op;
+    if (op.type !== 'success' || op.receipt === undefined) return op;
     return { ...op, receipt: { ...op.receipt, destinationAsset: undefined } };
   }
 }
@@ -107,7 +107,7 @@ class ForgetfulTokenService extends MovingTokenService {
 class WilfulTokenService extends MovingTokenService {
   async move(...args: Parameters<MovingTokenService['move']>): Promise<ReceiptOperation> {
     const op = await super.move(...args);
-    if (op.type !== 'success') return op;
+    if (op.type !== 'success' || op.receipt === undefined) return op;
     return { ...op, receipt: { ...op.receipt, destinationAsset: { ...op.receipt.asset, assetId: ELSEWHERE } } };
   }
 }

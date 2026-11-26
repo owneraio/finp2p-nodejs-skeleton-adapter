@@ -946,6 +946,38 @@ components:
           $ref: '#/components/schemas/finp2pAssetAccount'
         networkAccount:
           $ref: '#/components/schemas/networkAccount'
+    swapInstruction:
+      type: object
+      description: |
+        Atomic exchange of two legs in one ledger transaction: both legs settle together or
+        neither does. Both legs must be on the same ledger.
+      required: [type, asset, settlement]
+      properties:
+        type:
+          type: string
+          enum: ["swap"]
+        asset:
+          $ref: '#/components/schemas/swapInstructionLeg'
+        settlement:
+          $ref: '#/components/schemas/swapInstructionLeg'
+        deadline:
+          type: integer
+          format: int64
+          description: Swap expiry as absolute epoch seconds; identical on both legs. Expiry refunds. Absent when the swap has no deadline.
+    swapInstructionLeg:
+      type: object
+      required: [source, destination, amount]
+      properties:
+        source:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        destination:
+          $ref: '#/components/schemas/ledgerAccountAsset'
+        amount:
+          type: string
+          pattern: .*\S.*
+          x-autoMinLength: true
+        signature:
+          $ref: '#/components/schemas/signature'
     finp2pAssetAccountOptional:
       type: object
       description: 'describes account information'
