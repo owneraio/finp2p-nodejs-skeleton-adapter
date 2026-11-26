@@ -69,6 +69,17 @@ export interface ConfigurationStep {
   inputs: ConfigurationInput[];
 }
 
+/** A configuration action, offered in Control Center after its step's save. */
+export interface ConfigurationAction {
+  /** Lowercase dotted (`dtcc.collateral.create`); Control Center's operation is the ref with each `.` as `-`. */
+  ref: string;
+  title: string;
+  description?: string;
+  /** The id of the step it belongs to. */
+  step: string;
+  inputs: ConfigurationInput[];
+}
+
 export type StepCheck =
   | { ref: string; status: 'valid' | 'invalid'; message: string; details?: { label: string; value: string }[] }
   | { ref: string; status: 'missing'; missing: string[] };
@@ -106,6 +117,8 @@ export interface ConfigurationService {
   summary(): Promise<ConfigSummaryItem[]>;
   /** Without it POST /config/actions/:ref answers 404. */
   runAction?(ref: string, input: Record<string, unknown>): Promise<ConfigActionOutcome>;
+  /** The actions Control Center offers, each run through runAction. Read once, at registration. */
+  actions?(): ConfigurationAction[];
   /** Stored values by step and input id, a secret only as `{ sealed: true }`. Without it there is no get-values. */
   inputValues?(): Promise<Record<string, Record<string, string | { sealed: true }>>>;
 }

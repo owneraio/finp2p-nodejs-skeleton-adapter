@@ -76,11 +76,31 @@ move?(idempotencyKey, nonce, source, destination, asset, destinationAsset, quant
 `config.registerConfigRoutes(app, service, { logger?, jsonLimit?, controlCenter? })` mounts the adapter's configuration API under `/config`; the adapter implements `ConfigurationService` (`service.ts`) and the skeleton knows none of its fields. Register it before any app-wide body parser (a parsed body is answered 500), and serve it on a port only the operator's backend reaches: the routes are unauthenticated, write secrets and restart the adapter.
 
 - **Field API** (`routes.ts`): `GET /status`, `GET /schema`, `GET`/`PUT /values`, `POST /validate`, `POST /apply`, `POST /actions/:ref`. E2E scripts and Control Center depend on their statuses and messages. Every message is scrubbed of `sealedValues()`; a service throw answers 500 without its message.
-- **Control Center** (`control-center/`, with `opts.controlCenter = { wizardId, adapter, timeoutMs? }`): `GET /manifest` and `POST /operations/:id`. The manifest is derived from the service (`derive.ts`), never written by an adapter: one integration flow `configure` with `get-values` (when the service has `inputValues`), `save-<stepId>` per step and `activate`, plus `get-status`. No idempotency: every operation declares `none` and a key sent is ignored.
+- **Control Center** (`control-center/`, with `opts.controlCenter = { wizardId, adapter, timeoutMs? }`): `GET /manifest` and `POST /operations/:id`. The manifest is derived from the service (`derive.ts`), never written by an adapter: one integration flow `configure` with `get-values` (when the service has `inputValues`), `save-<stepId>` per step each followed by its actions, and `activate`, plus `get-status`. An action (`actions()`, run through `runAction`) becomes the operation named by its ref with each `.` as `-`; its request is built like a save's, and a refused action answers 200 `{ done: false, message, details? }`, an answer to show like a save's `valid: false`. No idempotency: every operation declares `none` and a key sent is ignored.
 - **Control Center's bounds.** It refuses a whole manifest over any excess, so registration throws on what it would refuse (ids, identity, networks, timeout up to 30 s, step and input counts, schema depth). A `format.pattern` it would refuse (`pattern-safety.ts`, a verbatim copy of ownera-apps `AdapterConfig/patternSafety.ts`) is left out and logged instead, for `saveStep` to check. Text is clipped in UTF-16 units, as Control Center counts.
 - **Wire ids.** Control Center sees an input id with each `.` as `_` (its refusal pointers allow no dot); the skeleton maps both ways, so `saveStep` only sees the adapter's ids.
 - **Secrets.** A secret input is never schema-required (empty keeps the stored value), and `get-values` answers it only as `set` or `not_set`, never any part of it.
 - **Status.** `get-status` answers Control Center's envelope (`tests/config/support/status-fault.ts` copies its check): `{ integration: { state, details }, networks: [{ id, state }] }`, details fitted to 8 rows rather than failing.
+
+### Configuration store (`src/config/store/`, exported from `config`)
+
+What backs a `ConfigurationService`: GCA's store, moved here so adapters stop carrying copies.
+
+- **`ConfigStore.open(schema, backend)`** over a `ConfigSchema` (groups, fields, conditions, checks). It keeps each field's value by id; a secret is only ever shown as `{ sealed: true, fingerprint }` (`SHA256:` and 16 hex chars of its hash, computed on open, never stored). `apply(activate?)` refuses while a required field is missing or a check is unvalidated, invalid or stale, and keeps only the current applied version.
+- **`PgConfigBackend(pool, schema, protector)`** writes the tables of migration `20261126140000_add_adapter_config.sql`, every value sealed, plain fields too. `MemoryConfigBackend` is for tests.
+- **Protectors.** `protectorFromEnv(env)` picks one. With `CONFIG_KMS_KEY_ID`, `KmsProtector` seals with envelope encryption under that symmetric KMS key (`kms1.<wrapped data key>.<iv||ct||tag>`); the role needs `kms:GenerateDataKey` and `kms:Decrypt`, and the adapter installs `@aws-sdk/client-kms` (an optional peer). Otherwise `KeyringProtector` seals with encryption at rest (`DB_ENCRYPTION_KEY_CURRENT`, `v1.r.<kid>.…`). With KMS and a keyring both set, KMS seals and the keyring still opens older rows. With neither, it throws: configuration is never stored unprotected.
+- **Each sealed value is bound to its column** (`adapter_config_values.value`, `adapter_config_applied.field_values`), the same AAD `EncryptedColumns` uses, so rows written by an adapter's own copy over `EncryptedColumns` open unchanged.
+- **Adapters that created these tables themselves** (GCA, Canton) keep their rows: the migration is `CREATE TABLE IF NOT EXISTS` with the same columns. Such an adapter makes its own migration `CREATE TABLE IF NOT EXISTS` / `DROP TABLE IF EXISTS` too (goose keeps no checksum, so editing an applied file is safe): its migrations run after the skeleton's, and a plain `CREATE TABLE` would fail on a fresh database. Keeping the file, rather than deleting it, means goose never sees an applied migration go missing.
+
+### Data feed (`src/feed/`, exported as `feed`)
+
+Publishes asset data (an `assetHeader` first) to the router's `POST /data/assets/ingest`. A plugin implements `DataProvider` (`source`, `dataTypes`, `items()` a page at a time); the adapter builds a `FeedPublisher` (or `feedPublisherFromEnv`, on `DATA_FEED_ENABLED` and `DATA_FEED_INTERVAL_SECONDS`), calls `use(providers)` once its configuration is active and `stop()` on close.
+
+- **Only changes are sent.** Each item's marker (`FeedMarkers`, keyed by the router's upsert key: source, identifier type and value, data type) holds the hash of its data (canonical JSON, so key order does not count) and the timestamp it was sent with. An unchanged item is skipped; a changed one is stamped `max(now, marker + 1)`, because the router applies only a strictly newer timestamp. The marker is set only when the router accepts the item.
+- **Markers are in memory in v1** (`InMemoryFeedMarkers`): a restart sends everything again once. A Postgres store implements the same interface later.
+- **Rounds** run on the interval, in batches of 100, with a 60 s ingest timeout and a 120 s page timeout. A round that fails ends there for that source and the next comes sooner (1 min, doubling up to the interval). A batch the router refuses with a final 4xx is counted as rejected and the round goes on. It never throws into the adapter; `status()` reports each source's last round.
+- **What a provider lists.** An item of a data type the provider did not declare is rejected without being sent. An item listed twice in a round is sent once, the first time. `use()` throws on two providers with one source.
+- **Limits.** The router has no retract, so an item a provider drops stays on the router. It also reports a write with an equal or older timestamp as accepted without storing it; the `+1` rule avoids that within a process, but not across a restart on a clock that went back. A rejected item is sent again every round until its data changes.
 
 ### Workflow layer (`src/workflows/`)
 
@@ -150,8 +170,32 @@ When workflow persistence is enabled, the skeleton uses PostgreSQL with a consum
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb
 - `20261123120000_widen_account_mapping_value.sql` &mdash; `account_mappings.value` becomes `TEXT` (an encrypted per-wallet token does not fit 255), and its index becomes a hash index on `value`, because btree refuses an entry over about 2.7 KB and lookups by value are equality only
+- `20261126140000_add_adapter_config.sql`: `adapter_config_values` (sealed value by field id) and `adapter_config_applied` (one row: the applied version and its sealed values), `IF NOT EXISTS` over tables adapters created themselves
 
 Migrations run automatically on startup via goose.
+
+### Field-level encryption at rest (`src/storage/encryption/`)
+
+Rails `encrypts :col` model: the process gets a key at boot, the DB only ever holds ciphertext. Three pure pieces, no SQL of their own; a store passes rows through them and keeps writing its own queries.
+
+| piece | what |
+|-------|------|
+| `Keyring` | `DB_ENCRYPTION_KEY_CURRENT` encrypts; `DB_ENCRYPTION_KEYS_PREVIOUS="old1,old2"` (comma or semicolon, optional) only decrypt. Base64 or hex, 32 bytes each; `openssl rand -base64 32`. HKDF fans each master into per-purpose subkeys (`random`, `deterministic`, `deterministicIv`). Optional `DB_ENCRYPTION_SALT` separates deployments sharing a key. |
+| `cipher.ts` | AES-256-GCM, stored as `v1.<r|d>.<kid>.<base64url(iv‖ct‖tag)>`. `r` = random IV (opaque), `d` = IV derived from `HMAC(plaintext)` (equal plaintext → equal ciphertext). AAD = `<table>.<column>`, so a value copied into another column fails to open. `isEncrypted()` distinguishes legacy plaintext for lazy migrations. |
+| `EncryptedColumns` | Per-table spec `{ col: { mode: 'random' \| 'deterministic' } }`. `toDb(row)` / `fromDb(row)` / `where(col, value)` → `{ column, values }` for `WHERE column = ANY($1)` (one candidate per keyring key, so lookups survive a rotation) / `staleColumns(row)` for re-encryption. |
+
+Choosing a mode:
+
+| need | mode | DDL |
+|------|------|-----|
+| never queried by value | `random` | `TEXT` |
+| `WHERE col = $1`, index, `UNIQUE (col)` | `deterministic` | `TEXT`, constraint/index on the ciphertext |
+
+Deterministic leaks which rows share a value, nothing else. Only byte-exact equality is possible: no `LIKE`, ranges, sorting or case folding (normalise before `toDb` if you need case-insensitive equality). Ciphertext is ~37 bytes plus 4/3 of the plaintext, so use `TEXT`, not `VARCHAR(255)`. Values must be strings; serialise objects first. `NULL` passes through (and Postgres `UNIQUE` admits many NULLs).
+
+Rotation: move the current key to `DB_ENCRYPTION_KEYS_PREVIOUS`, put the new one in `DB_ENCRYPTION_KEY_CURRENT`, deploy, rewrite rows where `staleColumns()` is non-empty (`fromDb` → `toDb` → `UPDATE`), then drop the old key. Deterministic columns must be rewritten before the old key is dropped or lookups for old rows stop matching; `where()` covers the window in between. `UNIQUE` is per key during that window: the same plaintext under the old and the new key are two different strings, and a write touches only its own row. To enforce uniqueness across keys, guard the insert: `INSERT … SELECT … WHERE NOT EXISTS (SELECT 1 FROM t WHERE col = ANY($candidates))` with `where().values` as the candidates (remaining race: concurrent inserts from pods on different key sets).
+
+`tests/storage/encryption-pg.test.ts` is the worked example: a `PocStore` with both modes, raw-row assertions, `23505` on a deterministic `UNIQUE`, and a full rotation. No migration ships for it; the table is the POC.
 
 ## Build & publish
 

@@ -25,12 +25,12 @@ describe('Control Center manifest, derived from the service', () => {
       adapter: { kind: 'custody', name: 'Test adapter', version: '1.0.0' },
       compatibility: { hostContract: 2 },
       targets: { network: [{ id: 'eip155:31337', label: 'Anvil' }] },
-      flows: { configure: { title: 'Configure', scope: 'integration', operations: ['get-values', 'save-custody', 'save-tuning', 'activate'] } },
+      flows: { configure: { title: 'Configure', scope: 'integration', operations: ['get-values', 'save-custody', 'custody-register-account', 'save-tuning', 'activate'] } },
       status: { operation: 'get-status' },
     });
-    expect(Object.keys(manifest.operations)).toEqual(['save-custody', 'save-tuning', 'get-values', 'activate', 'get-status']);
-    expect(Object.values(manifest.operations).map((op) => op.idempotency)).toEqual(['none', 'none', 'none', 'none', 'none']);
-    expect(Object.values(manifest.operations).map((op) => op.limits.timeoutMs)).toEqual([30000, 30000, 30000, 30000, 30000]);
+    expect(Object.keys(manifest.operations)).toEqual(['save-custody', 'save-tuning', 'custody-register-account', 'get-values', 'activate', 'get-status']);
+    expect(Object.values(manifest.operations).map((op) => op.idempotency)).toEqual(Array(6).fill('none'));
+    expect(Object.values(manifest.operations).map((op) => op.limits.timeoutMs)).toEqual(Array(6).fill(30000));
   });
 
   it('turns inputs into a request schema: url as a pattern, a maxLength on every string, enum, integer, format', () => {
@@ -106,10 +106,30 @@ describe('Control Center manifest, derived from the service', () => {
     const service = new MemoryConfigurationService();
     (service as { inputValues?: unknown }).inputValues = undefined;
     service.steps = () => Array.from({ length: 31 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] }));
+    service.actions = () => [];
     const { manifest: bare } = deriveControlCenter(service, IDENTITY);
     expect(bare.operations).not.toHaveProperty('get-values');
     expect(bare.flows.configure.operations[0]).toBe('save-s0');
     expect(bare.flows.configure.operations).toHaveLength(32);
+  });
+
+  it('declares an action after its step\'s save: a request like a save\'s, titled, answering done', () => {
+    const action = manifest.operations['custody-register-account'];
+    expect(action.request).toEqual({
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      title: 'Register an account',
+      description: 'Opens an account with the custodian.',
+      properties: {
+        name: { type: 'string', maxLength: 4096, minLength: 1, title: 'Name' },
+        owner_address: { type: 'string', maxLength: 4096, title: 'Owner' },
+        token: { type: 'string', maxLength: 4096, title: 'Token' },
+      },
+    });
+    expect(action.secretFields).toEqual(['/token']);
+    expect(action.response.required).toEqual(['done', 'message']);
+    expect(Object.keys(action.response.properties!)).toEqual(['done', 'message', 'details']);
   });
 
   it('keeps the timeout the adapter declares', () => {
@@ -122,6 +142,7 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
   const withSteps = (steps: ConfigurationStep[]) => {
     const service = new MemoryConfigurationService();
     service.steps = () => steps;
+    service.actions = () => [];
     return () => registerConfigRoutes(express(), service, { logger: silent, controlCenter: IDENTITY });
   };
   const input = { id: 'x', label: 'X', type: 'string' as const, classification: 'public' as const };
@@ -136,7 +157,7 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     ['a format that is no regular expression', [{ id: 'a', title: 'A', inputs: [{ ...input, format: { pattern: '(', message: 'm' } }] }], 'format.pattern'],
     ['an enum without options', [{ id: 'a', title: 'A', inputs: [{ ...input, type: 'enum' as const }] }], 'an enum needs options'],
     ['more inputs than Control Center takes', [{ id: 'a', title: 'A', inputs: Array.from({ length: 33 }, (_, i) => ({ ...input, id: `x${i}` })) }], 'more than 32 inputs'],
-    ['more steps than the flow takes', Array.from({ length: 31 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] })), 'more than 30 steps'],
+    ['more steps than the flow takes', Array.from({ length: 31 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] })), '33 Control Center operations in one flow'],
   ])('refuses %s', (_, steps, message) => {
     expect(withSteps(steps as ConfigurationStep[])).toThrow(message);
   });
@@ -164,6 +185,7 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
   it('leaves a pattern Control Center would refuse to the adapter, keeps a safe one, and logs which', () => {
     const service = new MemoryConfigurationService();
     const pattern = (p: string) => ({ ...input, format: { pattern: p, message: 'm' } });
+    service.actions = () => [];
     service.steps = () => [{
       id: 'a',
       title: 'A',
@@ -189,6 +211,14 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     logger.warn = ((message: string) => { warnings.push(message); return logger; }) as typeof logger.warn;
     registerConfigRoutes(express(), service, { logger, controlCenter: IDENTITY });
     expect(warnings).toEqual(['a/list', 'a/nested', 'a/lookahead', 'a/long'].map((id) => `configuration input ${id}: pattern left to the adapter`));
+
+    // A logger on syslog levels, as the skeleton's default is, has `warning` and no `warn`.
+    const syslog = winston.createLogger({ levels: winston.config.syslog.levels, transports: [new winston.transports.Console({ silent: true })] });
+    const warned: string[] = [];
+    syslog.warning = ((message: string) => { warned.push(message); return syslog; }) as typeof syslog.warning;
+    expect(() => registerConfigRoutes(express(), service, { logger: syslog, controlCenter: IDENTITY })).not.toThrow();
+    expect(warned).toHaveLength(4);
+    expect(() => registerConfigRoutes(express(), service, { controlCenter: IDENTITY })).not.toThrow();
   });
 
   it('keeps its own url pattern, which Control Center takes', () => {
@@ -200,6 +230,34 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     const service = new MemoryConfigurationService();
     service.networks = () => [];
     expect(deriveControlCenter(service, IDENTITY).manifest.targets.network).toEqual([]);
+  });
+
+  it.each([
+    ['a ref with upper case', 'custody.Register', 'lowercase letters'],
+    ['a ref that becomes a save', 'save.custody', 'save-custody is taken'],
+    ['a ref that becomes activate', 'activate', 'activate is taken'],
+    ['a ref that becomes a get', 'get.values', 'get-values is taken'],
+  ])('refuses an action with %s', (_, ref, message) => {
+    const service = new MemoryConfigurationService();
+    service.actions = () => [{ ref, title: 'A', step: 'custody', inputs: [] }];
+    expect(() => deriveControlCenter(service, IDENTITY)).toThrow(message);
+  });
+
+  it('refuses two actions with one operation, an action of no step, and actions without runAction', () => {
+    const service = new MemoryConfigurationService();
+    service.actions = () => [{ ref: 'a.b', title: 'A', step: 'custody', inputs: [] }, { ref: 'a-b', title: 'B', step: 'custody', inputs: [] }];
+    expect(() => deriveControlCenter(service, IDENTITY)).toThrow('a-b is taken');
+    service.actions = () => [{ ref: 'a.b', title: 'A', step: 'nope', inputs: [] }];
+    expect(() => deriveControlCenter(service, IDENTITY)).toThrow('no step nope');
+    service.actions = () => [{ ref: 'a.b', title: 'A', step: 'custody', inputs: [] }];
+    (service as { runAction?: unknown }).runAction = undefined;
+    expect(() => deriveControlCenter(service, IDENTITY)).toThrow('actions without runAction');
+  });
+
+  it('counts actions against the flow\'s 32 operations', () => {
+    const service = new MemoryConfigurationService();
+    service.actions = () => Array.from({ length: 29 }, (_, i) => ({ ref: `a.x${i}`, title: 'A', step: 'custody', inputs: [] }));
+    expect(() => deriveControlCenter(service, IDENTITY)).toThrow('33 Control Center operations in one flow');
   });
 
   it('refuses an identity Control Center would refuse, and an undeclarable network', () => {
@@ -301,6 +359,33 @@ describe('Control Center routes', () => {
 
     service.saveStep = async () => ({ saved: true, checks: [{ ref: 'a', status: 'missing', missing: ['x'] }] });
     expect((await step('save-tuning', { mode: 'fast' })).body.output).toEqual({ valid: false, message: 'Missing: x' });
+  });
+
+  it('runs an action: input back to the adapter\'s ids, done with its details, scrubbed', async () => {
+    await step('save-custody', { url: 'https://custody.example', apiKey: SECRET });
+    const res = await step('custody-register-account', { name: 'acme', owner_address: '0xabc', token: 't0k3n-value' });
+    expect(res).toMatchObject({ status: 200 });
+    expect(res.body.output).toEqual({ done: true, message: 'registered with key ••••', details: [{ label: 'Key', value: '••••' }] });
+    expect(res.text).not.toContain(SECRET);
+    expect(service.actionCalls).toEqual([{ ref: 'custody.register-account', input: { name: 'acme', 'owner.address': '0xabc', token: 't0k3n-value' } }]);
+  });
+
+  it('answers a refused action as 200 done false, an answer to show rather than a failed call', async () => {
+    service.runAction = async () => ({ status: 'refused', message: `controller not held, key ${SECRET}`, details: [{ label: 'Controller', value: '0xdef' }] });
+    await step('save-custody', { url: 'https://custody.example', apiKey: SECRET });
+    const res = await step('custody-register-account', { name: 'acme' });
+    expect(res.status).toBe(200);
+    expect(res.body.output).toEqual({ done: false, message: 'controller not held, key ••••', details: [{ label: 'Controller', value: '0xdef' }] });
+  });
+
+  it('checks an action\'s input like a save\'s, and answers 500 when runAction throws', async () => {
+    expect(await step('custody-register-account', {})).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/name' } } });
+    expect(await step('custody-register-account', { name: 'acme', 'owner.address': '0xabc' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT' } } });
+    expect(service.actionCalls).toHaveLength(0);
+    service.runAction = async () => { throw new Error(`ledger down ${SECRET}`); };
+    const res = await step('custody-register-account', { name: 'acme' });
+    expect(res).toMatchObject({ status: 500, body: { error: { code: 'INTERNAL_ERROR' } } });
+    expect(res.text).not.toContain(SECRET);
   });
 
   it('answers Saved. for a step with no checks, and hands an integer over as its decimal string', async () => {
