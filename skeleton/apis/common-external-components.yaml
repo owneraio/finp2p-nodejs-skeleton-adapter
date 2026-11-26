@@ -1691,6 +1691,20 @@ components:
       description: 'the total number of units'
       pattern: '^\d+\.?\d*$'
       maxLength: 150
+    contractAddressFormat:
+      type: string
+      description: |
+        How a contract address is written, and so how two addresses are compared. Two addresses name the same contract when their formats match and they are equal once both are normalized by that format. An address that does not normalize equals nothing, itself included.
+
+        Every format: the address is valid UTF-8, has no Unicode control or format characters (a leading byte order mark included) and is at most 1024 bytes.
+
+        - caip10: a CAIP-10 account id (namespace:reference:address). The namespace is lowercased, an eip155 account (0x and 40 hex digits) is lowercased, other parts are kept as sent. An eip155 chain reference is a positive decimal number with no leading zero.
+        - url: an absolute URL with a scheme. The scheme and host are lowercased (ASCII letters only), leading zeros of a numeric port are dropped, and port 80 on http and 443 on https are dropped. A port above 65535 is invalid. An http or https host is not empty, a bracketed host is an IPv6 literal, and an escaped host decodes to valid UTF-8. Dot segments are not resolved. Percent-encoding is normalized in the path and the opaque part. The query is kept as sent. User info and a fragment are not allowed.
+        - opaque: any other identifier, compared exactly.
+      enum:
+        - caip10
+        - url
+        - opaque
     # Conditions
     redemptionIntentConditions:
       properties:

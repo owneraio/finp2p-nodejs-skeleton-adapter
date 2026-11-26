@@ -4,15 +4,28 @@ import { tokenLifecycleTests } from './token-lifecycle.test';
 import { insufficientBalanceTest } from './insufficient-balance.test';
 import { mappingOperationsTests } from './mapping-operations.test';
 import { swapOperationsTests } from './swap-operations.test';
+import { capabilitiesTests } from './capabilities.test';
 import { LedgerProfile } from './utils/ledger-profile';
 
 export * as callbackServer from './callback-server/server';
+export * as contractAddress from './utils/contract-address';
+export * as decimal from './utils/decimal';
 export { LedgerProfile, DEFAULT_LEDGER_PROFILE } from './utils/ledger-profile';
 
 export interface AdapterTestConfig {
   mapping?: boolean;
   /** Runs the `POST /assets/swap` suite; only for adapters implementing `TokenService.swap`. */
   swap?: boolean;
+  /**
+   * Runs the asset capabilities suite (create-asset capabilities, `POST /assets/getCapabilities`,
+   * `executionContext.contract`); only for adapters implementing `TokenService.getCapabilities`.
+   */
+  capabilities?: boolean;
+  /**
+   * With `capabilities`, set to false when the adapter lists no TRANSFER contract that admits the
+   * amount the tests send: the contract-transfer tests are skipped. Defaults to true.
+   */
+  contractTransfers?: boolean;
   /**
    * Ledger-specific identifier formats (network, standard, tokenId generator)
    * and signing parameters. Merged over `global.ledgerProfile` (set by the
@@ -41,6 +54,9 @@ export function runAdapterTests(config?: AdapterTestConfig) {
     }
     if (config?.swap) {
       swapOperationsTests(config?.ledger);
+    }
+    if (config?.capabilities) {
+      capabilitiesTests(config?.ledger, { contractTransfers: config.contractTransfers });
     }
   });
 }

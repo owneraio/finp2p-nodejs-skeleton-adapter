@@ -23,6 +23,8 @@ import {
   assetBindingFromAPI, assetDenominationOptFromAPI,
   assetFromAPI,
   balanceToAPI,
+  capabilitiesToAPI,
+  requiredAssetFromAPI,
   bindInfoOptFromAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
@@ -177,6 +179,18 @@ export const register = (app: Application,
     res.send(balanceToAPI(asset, account, balance));
   },
   );
+
+  app.post<{},
+  LedgerAPI['schemas']['GetAssetCapabilitiesResponse'],
+  LedgerAPI['schemas']['GetAssetCapabilitiesRequest']>(
+    `/${basePath}/assets/getCapabilities`,
+    async (req, res) => {
+      if (typeof tokenService.getCapabilities !== 'function') {
+        throw new NotSupportedError('asset capabilities are not supported by this adapter');
+      }
+      const list = await tokenService.getCapabilities(requiredAssetFromAPI(req.body?.asset));
+      res.send({ capabilities: capabilitiesToAPI(list) });
+    });
 
   app.post<{},
   LedgerAPI['schemas']['IssueAssetsResponse'],

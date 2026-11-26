@@ -14,7 +14,7 @@ import {
   AssetCreationResult, OperationMetadata, ValidationError, PlanProposal,
   NetworkAccount, NetworkAccountRecord, BindInfo, AccountOperation,
   AccountInvalidShapeError,
-  SwapLeg, SwapOperation,
+  SwapLeg, SwapOperation, InstructionCapability,
 } from '../models';
 import { components } from './model-gen';
 import { LedgerAPI } from './index';
@@ -22,6 +22,20 @@ import { LedgerAPI } from './index';
 export const assetFromAPI = (asset: components['schemas']['asset'] | components['schemas']['finp2pAsset']): Asset => {
   const assetId = 'resourceId' in asset ? asset.resourceId : asset.id;
   return { assetId, assetType: 'finp2p', ledgerIdentifier: asset.ledgerIdentifier };
+};
+
+/** The asset of a request body; a missing or malformed asset is a validation error, not a fault. */
+export const requiredAssetFromAPI = (asset: unknown): Asset => {
+  const fields = (typeof asset === 'object' && asset !== null ? asset : {}) as Record<string, unknown>;
+  const assetId = fields.resourceId ?? fields.id;
+  if (typeof assetId !== 'string' || assetId === '') {
+    throw new ValidationError('asset is required and must carry a resourceId');
+  }
+  const { ledgerIdentifier } = fields;
+  if (ledgerIdentifier !== undefined && (typeof ledgerIdentifier !== 'object' || ledgerIdentifier === null)) {
+    throw new ValidationError('asset.ledgerIdentifier must be an object');
+  }
+  return assetFromAPI(asset as components['schemas']['asset']);
 };
 
 export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']): DepositAsset => {
@@ -120,17 +134,28 @@ export const depositPayoutAccountToAPI = (dest: Destination): components['schema
   return { finId, account: { type: 'finId', finId } };
 };
 
+const CONTRACT_ADDRESS_FORMATS: readonly string[] = ['caip10', 'url', 'opaque'];
+
 export const executionContextFromAPI = (
   ep: components['schemas']['executionContext'],
   counterpartyAssetId?: string,
   counterpartySettlementId?: string,
 ): ExecutionContext => {
-  const { executionPlanId, instructionSequenceNumber } = ep;
+  const { executionPlanId, instructionSequenceNumber, contract, contractFormat } = ep;
+  if (contract !== undefined && typeof contract !== 'string') {
+    throw new ValidationError('executionContext.contract must be a string');
+  }
+  if (contractFormat !== undefined && !CONTRACT_ADDRESS_FORMATS.includes(contractFormat)) {
+    throw new ValidationError(`executionContext.contractFormat must be one of ${CONTRACT_ADDRESS_FORMATS.join(', ')}`);
+  }
+  const hasContract = contract !== undefined && contract.trim() !== '';
   return {
     planId: executionPlanId,
     sequence: instructionSequenceNumber,
     counterpartyAssetId,
     counterpartySettlementId,
+    ...(hasContract ? { contract } : {}),
+    ...(hasContract && contractFormat !== undefined ? { contractFormat } : {}),
   };
 };
 
@@ -325,8 +350,26 @@ export const ledgerReferenceOptToAPI = (reference: LedgerReference | undefined):
   return ledgerReferenceToAPI(reference);
 };
 
+export const capabilitiesToAPI = (
+  list: InstructionCapability[],
+): components['schemas']['instructionCapabilities'][] => list.map(({ instruction, contracts }) => ({
+  instruction,
+  ...(contracts !== undefined ? {
+    contracts: contracts.map(({ address, addressFormat, restrictions }) => ({
+      address,
+      addressFormat,
+      ...(restrictions !== undefined ? {
+        restrictions: {
+          ...(restrictions.minAmount !== undefined ? { minAmount: restrictions.minAmount } : {}),
+          ...(restrictions.maxAmount !== undefined ? { maxAmount: restrictions.maxAmount } : {}),
+        },
+      } : {}),
+    })),
+  } : {}),
+}));
+
 export const assetCreateResultToAPI = (result: AssetCreationResult): components['schemas']['assetCreateResponse'] => {
-  const { ledgerIdentifier, reference } = result;
+  const { ledgerIdentifier, reference, capabilities } = result;
   return {
     ledgerAssetInfo: {
       ledgerIdentifier: {
@@ -337,6 +380,7 @@ export const assetCreateResultToAPI = (result: AssetCreationResult): components[
       },
       ledgerReference: ledgerReferenceOptToAPI(reference),
     },
+    ...(capabilities !== undefined ? { capabilities: capabilitiesToAPI(capabilities) } : {}),
   };
 };
 

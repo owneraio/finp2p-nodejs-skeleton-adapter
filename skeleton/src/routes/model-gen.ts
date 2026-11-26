@@ -511,6 +511,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/assets/getCapabilities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+         * Get asset capabilities
+         * @description Get the asset's current capability list from the ledger adapter
+         */
+    post: operations['getAssetCapabilities'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/health': {
     parameters: {
       query?: never;
@@ -561,6 +581,12 @@ export interface components {
       owner: components['schemas']['account'];
     };
     GetAssetBalanceResponse: components['schemas']['balance'];
+    GetAssetCapabilitiesRequest: {
+      asset: components['schemas']['asset'];
+    };
+    GetAssetCapabilitiesResponse: {
+      capabilities: components['schemas']['instructionCapabilities'][];
+    };
     CreateAssetRequest: {
       /** @description The asset metadata */
       metadata?: {
@@ -747,6 +773,25 @@ export interface components {
     asset: {
       ledgerIdentifier: components['schemas']['ledgerAssetIdentifier'];
     } & components['schemas']['finp2pAssetBase'];
+    /** @description One instruction the asset supports on its ledger and, when the ledger routes it through contracts, the contracts it can use. */
+    instructionCapabilities: {
+      /** @description Instruction capability id. This is a string on purpose, so that the router can reject an invalid list with its own error instead of failing to decode the response. The valid ids are INSTRUCTION_HOLD, INSTRUCTION_TRANSFER, INSTRUCTION_RELEASE, INSTRUCTION_ISSUE, INSTRUCTION_REVERT_HOLD, INSTRUCTION_REDEEM, INSTRUCTION_MOVE and INSTRUCTION_SWAP. Any other value, and INSTRUCTION_AWAIT (a router step), makes the capability list invalid, and the router answers error 7361. */
+      instruction: string;
+      /** @description Absent or empty when the instruction runs without a contract. */
+      contracts?: components['schemas']['contractCapability'][];
+    };
+    /** @description A contract the instruction can use, identified by its address and format. Names and descriptions for display come from a data provider, not from this list. */
+    contractCapability: {
+      /** @description The contract's address, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example), with no leading or trailing spaces. It must be valid for addressFormat. The router stores it as sent and sends it back as `executionContext.contract`. */
+      address: string;
+      addressFormat: components['schemas']['contractAddressFormat'];
+      restrictions?: components['schemas']['contractRestrictions'];
+    };
+    /** @description The contract's own amount limits as the ledger reports them. The router stores and shows them and does not enforce them. */
+    contractRestrictions: {
+      minAmount?: components['schemas']['amount'];
+      maxAmount?: components['schemas']['amount'];
+    };
     payoutAsset: components['schemas']['finp2pAsset'];
     payoutInstruction: {
       /** @description withdrawal description */
@@ -933,6 +978,8 @@ export interface components {
     };
     assetCreateResponse: {
       ledgerAssetInfo: components['schemas']['ledgerAssetInfo'];
+      /** @description The asset's capability list. Absent means the adapter reports no list and the router applies its full instruction set; an empty array means the asset supports nothing. */
+      capabilities?: components['schemas']['instructionCapabilities'][];
     };
     depositOperation: components['schemas']['OperationBase'] & {
       error?: components['schemas']['depositOperationErrorInformation'];
@@ -973,6 +1020,10 @@ export interface components {
              * @description execution instruction sequence number
              */
       instructionSequenceNumber: number;
+      /** @description The contract the instruction must run through, its address as the asset's list gives it under the instruction. A SWAP, and a settlement instruction the plan carries once for every leg, carry the first asset's spelling, so compare it with your listed addresses after normalizing both by the format in `contractFormat`. Sent only when the router chose one. */
+      contract?: string;
+      /** @description The format of `contract`, so that an adapter can normalize and compare the address without guessing. Sent with `contract`; absent when `contract` is absent. */
+      contractFormat?: components['schemas']['contractAddressFormat'];
     };
     operationStatus: components['schemas']['operationStatusCreateAsset'] | components['schemas']['operationStatusDeposit'] | components['schemas']['operationStatusReceipt'] | components['schemas']['operationStatusApproval'] | components['schemas']['operationStatusAccount'] | components['schemas']['operationStatusSwap'];
     operationStatusCreateAsset: {
@@ -1674,6 +1725,19 @@ export interface components {
       /** @description Unique code identifying the denomination asset type */
       code: string;
     };
+    /**
+         * @description How a contract address is written, and so how two addresses are compared. Two addresses name the same contract when their formats match and they are equal once both are normalized by that format. An address that does not normalize equals nothing, itself included.
+         *
+         *     Every format: the address is valid UTF-8, has no Unicode control or format characters (a leading byte order mark included) and is at most 1024 bytes.
+         *
+         *     - caip10: a CAIP-10 account id (namespace:reference:address). The namespace is lowercased, an eip155 account (0x and 40 hex digits) is lowercased, other parts are kept as sent. An eip155 chain reference is a positive decimal number with no leading zero.
+         *     - url: an absolute URL with a scheme. The scheme and host are lowercased (ASCII letters only), leading zeros of a numeric port are dropped, and port 80 on http and 443 on https are dropped. A port above 65535 is invalid. An http or https host is not empty, a bracketed host is an IPv6 literal, and an escaped host decodes to valid UTF-8. Dot segments are not resolved. Percent-encoding is normalized in the path and the opaque part. The query is kept as sent. User info and a fragment are not allowed.
+         *     - opaque: any other identifier, compared exactly.
+         * @enum {string}
+         */
+    contractAddressFormat: 'caip10' | 'url' | 'opaque';
+    /** @description the total number of units */
+    amount: string;
     noneAccount: Record<string, never>;
     networkAccount: components['schemas']['walletAccount'] | components['schemas']['caip10Account'] | components['schemas']['custodialAccount'] | components['schemas']['noneAccount'];
   };
@@ -2966,6 +3030,68 @@ export interface operations {
                      *         {
                      *           "code": 2202,
                      *           "message": "Internal service failure"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+    };
+  };
+  getAssetCapabilities: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GetAssetCapabilitiesRequest'];
+      };
+    };
+    responses: {
+      /** @description successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['GetAssetCapabilitiesResponse'];
+        };
+      };
+      /** @description The asset is unknown to this adapter */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 0,
+                     *           "message": "Asset bank-x:102:asset-1 not found"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+          'application/json': components['schemas']['APIErrors'];
+        };
+      };
+      /** @description The adapter does not report asset capabilities */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+                     * @example {
+                     *       "errors": [
+                     *         {
+                     *           "code": 0,
+                     *           "message": "asset capabilities are not supported by this adapter"
                      *         }
                      *       ]
                      *     }

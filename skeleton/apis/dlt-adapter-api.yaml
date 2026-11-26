@@ -1008,6 +1008,46 @@ paths:
                 errors:
                   - code: 2202
                     message: 'Internal service failure'
+  /assets/getCapabilities:
+    post:
+      tags:
+        - 'management'
+      summary: 'Get asset capabilities'
+      description: 'Get the asset''s current capability list from the ledger adapter'
+      operationId: 'getAssetCapabilities'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetAssetCapabilitiesRequest'
+      responses:
+        '200':
+          description: 'successful operation'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAssetCapabilitiesResponse'
+        '404':
+          description: 'The asset is unknown to this adapter'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 0
+                    message: 'Asset bank-x:102:asset-1 not found'
+        '501':
+          description: 'The adapter does not report asset capabilities'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 0
+                    message: 'asset capabilities are not supported by this adapter'
   /health:
     get:
       summary: 'Health check'
@@ -1099,6 +1139,20 @@ components:
     GetAssetBalanceResponse:
       allOf:
         - $ref: '#/components/schemas/balance'
+    GetAssetCapabilitiesRequest:
+      type: 'object'
+      required: ['asset']
+      properties:
+        asset:
+          $ref: '#/components/schemas/asset'
+    GetAssetCapabilitiesResponse:
+      type: 'object'
+      required: ['capabilities']
+      properties:
+        capabilities:
+          type: 'array'
+          items:
+            $ref: '#/components/schemas/instructionCapabilities'
     CreateAssetRequest:
       type: 'object'
       required: ['asset']
@@ -1453,6 +1507,44 @@ components:
             ledgerIdentifier:
               $ref: 'common-external-components.yaml#/components/schemas/ledgerAssetIdentifier'
         - $ref: 'common-external-components.yaml#/components/schemas/finp2pAssetBase'
+    instructionCapabilities:
+      type: 'object'
+      description: 'One instruction the asset supports on its ledger and, when the ledger routes it through contracts, the contracts it can use.'
+      required: ['instruction']
+      properties:
+        instruction:
+          type: 'string'
+          description: 'Instruction capability id. This is a string on purpose, so that the router can reject an invalid list with its own error instead of failing to decode the response. The valid ids are INSTRUCTION_HOLD, INSTRUCTION_TRANSFER, INSTRUCTION_RELEASE, INSTRUCTION_ISSUE, INSTRUCTION_REVERT_HOLD, INSTRUCTION_REDEEM, INSTRUCTION_MOVE and INSTRUCTION_SWAP. Any other value, and INSTRUCTION_AWAIT (a router step), makes the capability list invalid, and the router answers error 7361.'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        contracts:
+          type: 'array'
+          description: 'Absent or empty when the instruction runs without a contract.'
+          items:
+            $ref: '#/components/schemas/contractCapability'
+    contractCapability:
+      type: 'object'
+      description: 'A contract the instruction can use, identified by its address and format. Names and descriptions for display come from a data provider, not from this list.'
+      required: ['address', 'addressFormat']
+      properties:
+        address:
+          type: 'string'
+          description: 'The contract''s address, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example), with no leading or trailing spaces. It must be valid for addressFormat. The router stores it as sent and sends it back as `executionContext.contract`.'
+          pattern: '^\S(.*\S)?$'
+          x-autoMinLength: true
+          maxLength: 1024
+        addressFormat:
+          $ref: 'common-external-components.yaml#/components/schemas/contractAddressFormat'
+        restrictions:
+          $ref: '#/components/schemas/contractRestrictions'
+    contractRestrictions:
+      type: 'object'
+      description: 'The contract''s own amount limits as the ledger reports them. The router stores and shows them and does not enforce them.'
+      properties:
+        minAmount:
+          $ref: 'common-external-components.yaml#/components/schemas/amount'
+        maxAmount:
+          $ref: 'common-external-components.yaml#/components/schemas/amount'
     payoutAsset:
       $ref: 'common-external-components.yaml#/components/schemas/finp2pAsset'
     payoutInstruction:
@@ -1748,6 +1840,11 @@ components:
       properties:
         ledgerAssetInfo:
           $ref: '#/components/schemas/ledgerAssetInfo'
+        capabilities:
+          type: 'array'
+          description: 'The asset''s capability list. Absent means the adapter reports no list and the router applies its full instruction set; an empty array means the asset supports nothing.'
+          items:
+            $ref: '#/components/schemas/instructionCapabilities'
     depositOperation:
       allOf:
         - $ref: 'common-external-components.yaml#/components/schemas/OperationBase'
@@ -1815,6 +1912,14 @@ components:
           type: 'integer'
           format: 'uint32'
           description: 'execution instruction sequence number'
+        contract:
+          type: 'string'
+          description: 'The contract the instruction must run through, its address as the asset''s list gives it under the instruction. A SWAP, and a settlement instruction the plan carries once for every leg, carry the first asset''s spelling, so compare it with your listed addresses after normalizing both by the format in `contractFormat`. Sent only when the router chose one.'
+          pattern: '.*\S.*'
+          x-autoMinLength: true
+        contractFormat:
+          $ref: 'common-external-components.yaml#/components/schemas/contractAddressFormat'
+          description: 'The format of `contract`, so that an adapter can normalize and compare the address without guessing. Sent with `contract`; absent when `contract` is absent.'
     operationStatus:
       type: 'object'
       oneOf:
