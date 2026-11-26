@@ -22,12 +22,12 @@ describe('Control Center manifest, derived from the service', () => {
       adapter: { kind: 'custody', name: 'Test adapter', version: '1.0.0' },
       compatibility: { hostContract: 2 },
       targets: { network: [{ id: 'eip155:31337', label: 'Anvil' }] },
-      flows: { configure: { title: 'Configure', scope: 'integration', operations: ['save-custody', 'save-tuning', 'activate'] } },
+      flows: { configure: { title: 'Configure', scope: 'integration', operations: ['get-fields', 'save-custody', 'save-tuning', 'activate'] } },
       status: { operation: 'get-status' },
     });
-    expect(Object.keys(manifest.operations)).toEqual(['save-custody', 'save-tuning', 'activate', 'get-status']);
-    expect(Object.values(manifest.operations).map((op) => op.idempotency)).toEqual(['none', 'none', 'none', 'none']);
-    expect(Object.values(manifest.operations).map((op) => op.limits.timeoutMs)).toEqual([30000, 30000, 30000, 30000]);
+    expect(Object.keys(manifest.operations)).toEqual(['save-custody', 'save-tuning', 'get-fields', 'activate', 'get-status']);
+    expect(Object.values(manifest.operations).map((op) => op.idempotency)).toEqual(['none', 'none', 'none', 'none', 'none']);
+    expect(Object.values(manifest.operations).map((op) => op.limits.timeoutMs)).toEqual([30000, 30000, 30000, 30000, 30000]);
   });
 
   it('turns inputs into a request schema: url as a pattern, a maxLength on every string, enum, integer, format', () => {
@@ -73,6 +73,36 @@ describe('Control Center manifest, derived from the service', () => {
     expect(faults).toEqual([]);
   });
 
+  it('declares get-fields: every step a property, set bounded to the step\'s wire ids', () => {
+    expect(manifest.operations['get-fields'].request).toEqual({ type: 'object', additionalProperties: false, properties: {}, required: [] });
+    expect(manifest.operations['get-fields'].response).toEqual({
+      type: 'object',
+      additionalProperties: false,
+      required: ['steps'],
+      properties: {
+        steps: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['custody', 'tuning'],
+          properties: {
+            custody: { type: 'object', additionalProperties: false, required: ['set'], properties: { set: { type: 'array', maxItems: 3, items: { type: 'string', maxLength: 64, enum: ['url', 'apiKey', 'custody_region'] } } } },
+            tuning: { type: 'object', additionalProperties: false, required: ['set'], properties: { set: { type: 'array', maxItems: 3, items: { type: 'string', maxLength: 64, enum: ['mode', 'retries', 'owner'] } } } },
+          },
+        },
+      },
+    });
+  });
+
+  it('derives no get-fields when the service has no inputsSet, and allows one more step', () => {
+    const service = new MemoryConfigurationService();
+    (service as { inputsSet?: unknown }).inputsSet = undefined;
+    service.steps = () => Array.from({ length: 31 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] }));
+    const { manifest: bare } = deriveControlCenter(service, IDENTITY);
+    expect(bare.operations).not.toHaveProperty('get-fields');
+    expect(bare.flows.configure.operations[0]).toBe('save-s0');
+    expect(bare.flows.configure.operations).toHaveLength(32);
+  });
+
   it('keeps the timeout the adapter declares', () => {
     const derived = deriveControlCenter(new MemoryConfigurationService(), { ...IDENTITY, timeoutMs: 20000 });
     expect(derived.manifest.operations.activate.limits.timeoutMs).toBe(20000);
@@ -97,7 +127,7 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     ['a format that is no regular expression', [{ id: 'a', title: 'A', inputs: [{ ...input, format: { pattern: '(', message: 'm' } }] }], 'format.pattern'],
     ['an enum without options', [{ id: 'a', title: 'A', inputs: [{ ...input, type: 'enum' as const }] }], 'an enum needs options'],
     ['more inputs than Control Center takes', [{ id: 'a', title: 'A', inputs: Array.from({ length: 33 }, (_, i) => ({ ...input, id: `x${i}` })) }], 'more than 32 inputs'],
-    ['more steps than the flow takes', Array.from({ length: 32 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] })), 'more than 31 steps'],
+    ['more steps than the flow takes', Array.from({ length: 31 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] })), 'more than 30 steps'],
   ])('refuses %s', (_, steps, message) => {
     expect(withSteps(steps as ConfigurationStep[])).toThrow(message);
   });
@@ -211,6 +241,17 @@ describe('Control Center routes', () => {
     expect(service.saves.map((c) => c.input)).toEqual([
       { url: 'https://custody.example' }, { url: 'https://custody.example', apiKey: SECRET }, { url: 'https://bad.example' },
     ]);
+  });
+
+  it('answers get-fields with the wire ids of stored inputs per step, never a value', async () => {
+    expect((await step('get-fields')).body).toEqual({ output: { steps: { custody: { set: [] }, tuning: { set: [] } } } });
+    await step('save-custody', { url: 'https://custody.example', apiKey: SECRET, custody_region: 'eu-west' });
+    await step('save-tuning', { mode: 'safe', retries: 3 });
+    const res = await step('get-fields');
+    expect(res).toMatchObject({ status: 200 });
+    // in the step's order, each once, unknown ids and steps dropped, dotted ids on the wire
+    expect(res.body).toEqual({ output: { steps: { custody: { set: ['url', 'apiKey', 'custody_region'] }, tuning: { set: ['mode', 'retries'] } } } });
+    for (const value of [SECRET, 'custody.example', 'eu-west', 'safe']) expect(res.text).not.toContain(value);
   });
 
   it('answers Saved. for a step with no checks, and hands an integer over as its decimal string', async () => {

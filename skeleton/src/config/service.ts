@@ -72,6 +72,14 @@ export interface ConfigurationService {
    * answers 404. Not part of Control Center's manifest.
    */
   runAction?(ref: string, input: Record<string, unknown>): Promise<ConfigActionOutcome>;
+
+  /**
+   * Which inputs of each step already hold a stored value, by step id and input id: what a
+   * wizard reopened for editing shows as set. Ids only: a stored value never goes back out,
+   * secret or not. Optional: without it Control Center gets no `get-fields` operation, and an
+   * empty input keeps the stored value as always.
+   */
+  inputsSet?(): Promise<Record<string, string[]>>;
 }
 
 export interface ConfigActionOutcome {

@@ -106,6 +106,16 @@ export class MemoryConfigurationService implements ConfigurationService {
 
   async summary() { return this.summaryItems; }
 
+  /** Input ids with a stored value, by step: custody's from the custody.* fields, tuning's from tuning.*; plus ids no step declares. */
+  async inputsSet() {
+    const has = (field: string) => this.values[field] !== undefined;
+    return {
+      custody: [...(has('custody.url') ? ['url'] : []), ...(has('custody.apiKey') ? ['apiKey', 'apiKey'] : []), ...(has('custody.region') ? ['custody.region'] : []), 'undeclared'],
+      tuning: Object.keys(this.values).filter((f) => f.startsWith('tuning.')).map((f) => f.slice('tuning.'.length)),
+      nope: ['x'],
+    };
+  }
+
   /** Every runAction call, as the service received it. */
   actions: { ref: string; input: Record<string, unknown> }[] = [];
 

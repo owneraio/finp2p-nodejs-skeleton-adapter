@@ -2,7 +2,9 @@
 // (steps, networks, summary, status, apply). Adapters never write a manifest: this is the
 // only place that knows Control Center's flows, operation names, codes and status words.
 //
-//   flow `configure` (integration): save-<stepId> for each step in order, then activate
+//   flow `configure` (integration): get-fields (when the service has inputsSet), save-<stepId>
+//                                    for each step in order, then activate
+//   get-fields     {}                    -> { steps: { <stepId>: { set: [<wire id>] } } }  inputsSet, ids only
 //   save-<stepId>  { <inputId>: value }  -> { valid, message }   saveStep, then its checks
 //   activate       {}                    -> { version, appliedAt } apply
 //   get-status     {}                    -> { integration: { state, details }, networks: [{ id, state }] }
@@ -27,6 +29,7 @@ export interface ControlCenterIdentity {
 }
 
 export const STATUS_OPERATION = 'get-status';
+export const FIELDS_OPERATION = 'get-fields';
 export const ACTIVATE_OPERATION = 'activate';
 export const CONFIGURE_FLOW = 'configure';
 export const saveOperation = (stepId: string): string => `save-${stepId}`;
@@ -44,7 +47,7 @@ const PROBLEM = { id: 'problem', label: 'Problem' };
 
 /** Control Center's own bounds (ownera-apps AdapterConfig schema.ts), checked here so a manifest it would refuse never starts. */
 const MAX_INPUTS = 32;
-const MAX_STEPS = 31; // the configure flow lists 32 operations at most, activate included
+const MAX_FLOW_OPERATIONS = 32; // Control Center's bound on a flow, activate and get-fields included
 const MAX_PATTERN_LENGTH = 256;
 const MAX_ANNOTATION_LENGTH = 256;
 
@@ -206,7 +209,9 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
   const patternsLeftToAdapter: string[] = [];
   const timeoutMs = identity.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const steps = service.steps();
-  if (steps.length > MAX_STEPS) throw new Error(`configuration: more than ${MAX_STEPS} steps`);
+  const inputsSet = service.inputsSet?.bind(service);
+  const maxSteps = MAX_FLOW_OPERATIONS - 1 - (inputsSet ? 1 : 0);
+  if (steps.length > maxSteps) throw new Error(`configuration: more than ${maxSteps} steps`);
   const seen = new Set<string>();
   for (const step of steps) {
     if (seen.has(step.id)) throw new Error(`configuration step ${step.id}: declared twice`);
@@ -227,6 +232,36 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
       const result = await service.saveStep(step.id, values);
       if ('refused' in result) throw refuse('INVALID_CONFIG', { status: 422, ...(result.input ? { field: `/${wireId(result.input)}` } : {}) });
       return saveAnswer(result.checks, await service.sealedValues());
+    };
+  }
+
+  if (inputsSet) {
+    // which inputs hold a stored value, as Control Center's wire ids; never a value
+    const wireIds = new Map(steps.map((step) => [step.id, new Map(step.inputs.map((i) => [i.id, wireId(i.id)]))]));
+    specs[FIELDS_OPERATION] = {
+      request: noInput,
+      response: object({
+        steps: object(Object.fromEntries(steps.map((step) => {
+          const ids = step.inputs.map((i) => wireId(i.id));
+          return [step.id, object({
+            set: { type: 'array', maxItems: Math.max(1, ids.length), items: { type: 'string', maxLength: 64, ...(ids.length ? { enum: ids } : {}) } },
+          }, ['set'])];
+        })), steps.map((step) => step.id)),
+      }, ['steps']),
+      secretFields: [],
+      idempotency: 'none',
+      limits: { maxBodyBytes: 1024, maxResponseBytes: 32 * 1024, timeoutMs },
+    };
+    operations[FIELDS_OPERATION] = async () => {
+      const stored = await inputsSet();
+      return {
+        steps: Object.fromEntries(steps.map((step) => {
+          const known = wireIds.get(step.id)!;
+          // only declared inputs, each once, in the step's order
+          const set = new Set((stored[step.id] ?? []).filter((id) => known.has(id)));
+          return [step.id, { set: step.inputs.filter((i) => set.has(i.id)).map((i) => known.get(i.id)!) }];
+        })),
+      };
     };
   }
 
@@ -291,7 +326,11 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
     compatibility: { hostContract: HOST_CONTRACT },
     targets: { network: networks },
     flows: {
-      [CONFIGURE_FLOW]: { title: 'Configure', scope: 'integration', operations: [...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION] },
+      [CONFIGURE_FLOW]: {
+        title: 'Configure',
+        scope: 'integration',
+        operations: [...(inputsSet ? [FIELDS_OPERATION] : []), ...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION],
+      },
     },
     status: { operation: STATUS_OPERATION },
     operations: specs,
