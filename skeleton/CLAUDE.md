@@ -80,6 +80,16 @@ move?(idempotencyKey, nonce, source, destination, asset, destinationAsset, quant
 - **Secrets.** A secret input is never schema-required (empty keeps the stored value), and `get-values` answers it only as `set` or `not_set`, never any part of it.
 - **Status.** `get-status` answers Control Center's envelope (`tests/config/support/status-fault.ts` copies its check): `{ integration: { state, details }, networks: [{ id, state }] }`, details fitted to 8 rows rather than failing.
 
+### Configuration store (`src/config/store/`, exported from `config`)
+
+What backs a `ConfigurationService`: GCA's store, moved here so adapters stop carrying copies.
+
+- **`ConfigStore.open(schema, backend)`** over a `ConfigSchema` (groups, fields, conditions, checks). It keeps each field's value by id; a secret is only ever shown as `{ sealed: true, fingerprint }` (`SHA256:` and 16 hex chars of its hash, computed on open, never stored). `apply(activate?)` refuses while a required field is missing or a check is unvalidated, invalid or stale, and keeps only the current applied version.
+- **`PgConfigBackend(pool, schema, protector)`** writes the tables of migration `20261126140000_add_adapter_config.sql`, every value sealed, plain fields too. `MemoryConfigBackend` is for tests.
+- **Protectors.** `protectorFromEnv(env)` picks one. With `CONFIG_KMS_KEY_ID`, `KmsProtector` seals with envelope encryption under that symmetric KMS key (`kms1.<wrapped data key>.<iv||ct||tag>`); the role needs `kms:GenerateDataKey` and `kms:Decrypt`, and the adapter installs `@aws-sdk/client-kms` (an optional peer). Otherwise `KeyringProtector` seals with encryption at rest (`DB_ENCRYPTION_KEY_CURRENT`, `v1.r.<kid>.…`). With KMS and a keyring both set, KMS seals and the keyring still opens older rows. With neither, it throws: configuration is never stored unprotected.
+- **Each sealed value is bound to its column** (`adapter_config_values.value`, `adapter_config_applied.field_values`), the same AAD `EncryptedColumns` uses, so rows written by an adapter's own copy over `EncryptedColumns` open unchanged.
+- **Adapters that created these tables themselves** (GCA, Canton) keep their rows: the migration is `CREATE TABLE IF NOT EXISTS` with the same columns. Such an adapter makes its own migration `CREATE TABLE IF NOT EXISTS` / `DROP TABLE IF EXISTS` too (goose keeps no checksum, so editing an applied file is safe): its migrations run after the skeleton's, and a plain `CREATE TABLE` would fail on a fresh database. Keeping the file, rather than deleting it, means goose never sees an applied migration go missing.
+
 ### Workflow layer (`src/workflows/`)
 
 Provides **idempotent async operation persistence** backed by PostgreSQL:
@@ -148,8 +158,32 @@ When workflow persistence is enabled, the skeleton uses PostgreSQL with a consum
 - `20260105064721_add_assets_table.sql` &mdash; `assets` table (id, type, contract_address, decimals)
 - `20260727060730_create_network_accounts_table.sql` &mdash; `network_accounts` table: one binding per investor per (org, asset) &mdash; account_id PK, unique (organization_id, asset_id, fin_id), idempotency_key as trace field, account jsonb
 - `20261123120000_widen_account_mapping_value.sql` &mdash; `account_mappings.value` becomes `TEXT` (an encrypted per-wallet token does not fit 255), and its index becomes a hash index on `value`, because btree refuses an entry over about 2.7 KB and lookups by value are equality only
+- `20261126140000_add_adapter_config.sql`: `adapter_config_values` (sealed value by field id) and `adapter_config_applied` (one row: the applied version and its sealed values), `IF NOT EXISTS` over tables adapters created themselves
 
 Migrations run automatically on startup via goose.
+
+### Field-level encryption at rest (`src/storage/encryption/`)
+
+Rails `encrypts :col` model: the process gets a key at boot, the DB only ever holds ciphertext. Three pure pieces, no SQL of their own; a store passes rows through them and keeps writing its own queries.
+
+| piece | what |
+|-------|------|
+| `Keyring` | `DB_ENCRYPTION_KEY_CURRENT` encrypts; `DB_ENCRYPTION_KEYS_PREVIOUS="old1,old2"` (comma or semicolon, optional) only decrypt. Base64 or hex, 32 bytes each; `openssl rand -base64 32`. HKDF fans each master into per-purpose subkeys (`random`, `deterministic`, `deterministicIv`). Optional `DB_ENCRYPTION_SALT` separates deployments sharing a key. |
+| `cipher.ts` | AES-256-GCM, stored as `v1.<r|d>.<kid>.<base64url(iv‖ct‖tag)>`. `r` = random IV (opaque), `d` = IV derived from `HMAC(plaintext)` (equal plaintext → equal ciphertext). AAD = `<table>.<column>`, so a value copied into another column fails to open. `isEncrypted()` distinguishes legacy plaintext for lazy migrations. |
+| `EncryptedColumns` | Per-table spec `{ col: { mode: 'random' \| 'deterministic' } }`. `toDb(row)` / `fromDb(row)` / `where(col, value)` → `{ column, values }` for `WHERE column = ANY($1)` (one candidate per keyring key, so lookups survive a rotation) / `staleColumns(row)` for re-encryption. |
+
+Choosing a mode:
+
+| need | mode | DDL |
+|------|------|-----|
+| never queried by value | `random` | `TEXT` |
+| `WHERE col = $1`, index, `UNIQUE (col)` | `deterministic` | `TEXT`, constraint/index on the ciphertext |
+
+Deterministic leaks which rows share a value, nothing else. Only byte-exact equality is possible: no `LIKE`, ranges, sorting or case folding (normalise before `toDb` if you need case-insensitive equality). Ciphertext is ~37 bytes plus 4/3 of the plaintext, so use `TEXT`, not `VARCHAR(255)`. Values must be strings; serialise objects first. `NULL` passes through (and Postgres `UNIQUE` admits many NULLs).
+
+Rotation: move the current key to `DB_ENCRYPTION_KEYS_PREVIOUS`, put the new one in `DB_ENCRYPTION_KEY_CURRENT`, deploy, rewrite rows where `staleColumns()` is non-empty (`fromDb` → `toDb` → `UPDATE`), then drop the old key. Deterministic columns must be rewritten before the old key is dropped or lookups for old rows stop matching; `where()` covers the window in between. `UNIQUE` is per key during that window: the same plaintext under the old and the new key are two different strings, and a write touches only its own row. To enforce uniqueness across keys, guard the insert: `INSERT … SELECT … WHERE NOT EXISTS (SELECT 1 FROM t WHERE col = ANY($candidates))` with `where().values` as the candidates (remaining race: concurrent inserts from pods on different key sets).
+
+`tests/storage/encryption-pg.test.ts` is the worked example: a `PocStore` with both modes, raw-row assertions, `23505` on a deterministic `UNIQUE`, and a full rotation. No migration ships for it; the table is the POC.
 
 ## Build & publish
 

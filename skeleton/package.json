@@ -1,6 +1,6 @@
 {
   "name": "@owneraio/finp2p-nodejs-skeleton-adapter",
-  "version": "0.29.8-rc.0",
+  "version": "0.29.8",
   "description": "",
   "homepage": "https://ownera.io/",
   "main": "dist/index.js",
@@ -54,7 +54,13 @@
   },
   "peerDependencies": {
     "@owneraio/finp2p-client": "^0.29.1",
-    "pg": "^8.15.6"
+    "pg": "^8.15.6",
+    "@aws-sdk/client-kms": "^3.600.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-kms": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@babel/core": "^7.19.3",
