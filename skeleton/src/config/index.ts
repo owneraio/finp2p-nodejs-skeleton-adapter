@@ -1,4 +1,3 @@
 export * from './service';
-export * from './routes';
-export { scrub } from './scrub';
-export * from './control-center';
+export { registerConfigRoutes, ConfigRoutesOptions, MISCONFIGURED_BODY_PARSER } from './routes';
+export { ControlCenterIdentity } from './control-center/derive';

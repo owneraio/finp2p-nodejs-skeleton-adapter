@@ -1,22 +1,9 @@
-// The adapter's configuration API, all under /config:
-//   GET  /status      the adapter's status, with the applied version or null
-//   GET  /schema      what to render: groups, fields, checks
-//   GET  /values      the stored values, secrets masked, and what blocks an apply
-//   PUT  /values      { values: { <fieldId>: <value> | null } }, all or nothing
-//   POST /validate    { field: <fieldId> } or { group: <checkRef> }: runs that check
-//   POST /apply       applies the stored values; the previous version stays on failure
-//   POST /actions/:ref { input: { <inputId>: <value> } }: runs a configuration action
-// and, with opts.controlCenter, host contract 2 (control-center/), its manifest derived
-// from the service (control-center/derive.ts):
-//   GET  /manifest, POST /operations/:operationId
+// The configuration API under /config: status, schema, values, validate, apply and actions, and
+// with opts.controlCenter, Control Center's manifest and operations derived from the service.
+// Every message answered is scrubbed of the service's sealed values.
 //
-// The skeleton owns these routes and knows no field: the adapter's ConfigurationService
-// does the work. Every message answered is scrubbed of the service's sealed values.
-//
-// SECURITY: unauthenticated, like the account-mapping and whitelist routes. They write
-// secrets and restart the adapter on new values, so serve them on a port only the
-// operator's backend can reach (Control Center's backend, behind a NetworkPolicy), never
-// on the router-facing API port.
+// Unauthenticated, like the mapping and whitelist routes: they write secrets and restart the
+// adapter, so serve them on a port only the operator's backend can reach.
 import express from 'express';
 import winston from 'winston';
 import { logger as defaultLogger } from '../helpers/logger';
@@ -26,26 +13,20 @@ import { scrub } from './scrub';
 import { ConfigurationService } from './service';
 
 export interface ConfigRoutesOptions {
-  /** Defaults to the skeleton logger. Bodies, headers and values are never logged. */
+  /** Bodies, headers and values are never logged. */
   logger?: winston.Logger;
-  /** Body limit of PUT /values and POST /validate. Default 1mb. */
+  /** Default 1mb. */
   jsonLimit?: string;
-  /**
-   * Serve Control Center's host contract 2. The manifest and its operations are derived
-   * from the service's steps, networks, summary, status and apply; this names the adapter.
-   * A description the manifest cannot carry throws here, so the adapter does not start.
-   */
+  /** Serves Control Center's routes; throws here on anything Control Center would refuse. */
   controlCenter?: ControlCenterIdentity;
 }
+
+const scrubRows = (rows: { label: string; value: string }[], secrets: string[]) => rows.map((d) => ({ label: d.label, value: scrub(d.value, secrets) }));
 
 export const MISCONFIGURED_BODY_PARSER =
   'Misconfigured: a body parser ran before the configuration routes. Call registerConfigRoutes before any app-wide body parser.';
 
-/**
- * Mounts the configuration API at /config on `app`. Call it before any app-wide body
- * parser: the Control Center operations read the raw body, so a request whose body was
- * already parsed is answered 500 rather than guessed at.
- */
+/** Call it before any app-wide body parser: Control Center operations read the raw body. */
 export function registerConfigRoutes(app: express.Application, service: ConfigurationService, opts: ConfigRoutesOptions = {}): void {
   const log = (opts.logger ?? defaultLogger) as winston.Logger;
   const json = express.json({ limit: opts.jsonLimit ?? '1mb' });
@@ -123,7 +104,7 @@ export function registerConfigRoutes(app: express.Application, service: Configur
     res.json({
       ...record,
       message: scrub(record.message, secrets),
-      ...(record.details ? { details: record.details.map((d) => ({ label: d.label, value: scrub(d.value, secrets) })) } : {}),
+      ...(record.details ? { details: scrubRows(record.details, secrets) } : {}),
     });
   });
 
@@ -157,22 +138,20 @@ export function registerConfigRoutes(app: express.Application, service: Configur
     const ref = String(req.params.ref);
     const outcome = await service.runAction(ref, input as Record<string, unknown>);
     const secrets = await service.sealedValues();
-    // the ref comes from the request: log a bounded copy, never the input
     log.info('configuration action', { ref: ref.slice(0, 64), status: outcome.status });
     res.status(outcome.status === 'done' ? 200 : 422).json({
       ...outcome,
       message: scrub(outcome.message, secrets),
-      ...(outcome.details ? { details: outcome.details.map((d) => ({ label: d.label, value: scrub(d.value, secrets) })) } : {}),
+      ...(outcome.details ? { details: scrubRows(outcome.details, secrets) } : {}),
     });
   });
 
-  // the JSON parser's errors and anything the service throws; registered last so it covers every route above
   router.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (res.headersSent) { next(err); return; }
     const type = (err as { type?: string } | undefined)?.type;
     if (type === 'entity.parse.failed') { res.status(400).json({ error: 'The body is not valid JSON.' }); return; }
     if (type === 'entity.too.large') { res.status(413).json({ error: 'The body is too large.' }); return; }
-    // the message may carry a secret: log the kind only, answer without it
+    // the message may carry a secret
     log.error('configuration route failed', { method: req.method, path: req.path, error: err instanceof Error ? err.name : typeof err });
     res.status(500).json({ error: 'internal error' });
   });

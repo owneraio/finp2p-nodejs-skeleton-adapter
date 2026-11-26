@@ -1,5 +1,4 @@
-// JSON helpers for the Control Center contract. The parser is strict: UTF-8 without BOM, JSON objects only.
-
+// Strict JSON for Control Center bodies: UTF-8 without a BOM, objects only.
 export type JsonObject = Record<string, unknown>;
 
 export const has = (object: object, key: string): boolean => Object.prototype.hasOwnProperty.call(object, key);
@@ -9,7 +8,6 @@ export const isPlainObject = (value: unknown): value is JsonObject =>
 
 export const hasOnlyKeys = (object: object, keys: readonly string[]): boolean =>
   Object.keys(object).every((key) => keys.includes(key));
-
 
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 

@@ -1,82 +1,67 @@
-// Control Center's manifest and operations, derived from the adapter's neutral description
-// (steps, networks, summary, status, apply). Adapters never write a manifest: this is the
-// only place that knows Control Center's flows, operation names, codes and status words.
+// Control Center's manifest and operation handlers, derived from a ConfigurationService:
 //
-//   flow `configure` (integration): get-values (when the service has inputValues), save-<stepId>
-//                                    for each step in order, then activate
-//   get-values     {}                    -> { steps: { <stepId>: { values: { <wire id>: value }, secrets: { <wire id>: set | not_set } } } }
-//   save-<stepId>  { <wire id>: value }  -> { valid, message, details? }   saveStep, then its checks
-//   activate       {}                    -> { version, appliedAt } apply
-//   get-status     {}                    -> { integration: { state, details }, networks: [{ id, state }] }
+//   flow configure: get-values (with inputValues), save-<stepId> per step, activate
+//   get-values     {}         -> { steps: { <stepId>: { values: { <wire id>: value }, secrets: { <wire id>: set | not_set } } } }
+//   save-<stepId>  { <wire id> } -> { valid, message, details? }
+//   activate       {}         -> { version, appliedAt }
+//   get-status     {}         -> { integration: { state, details }, networks: [{ id, state }] }
+//
+// Control Center refuses a whole manifest over any excess (ownera-apps AdapterConfig manifest.ts,
+// schema.ts, status.ts), so its bounds are mirrored here and checked at registration.
 import { scrub } from '../scrub';
 import {
   ConfigSummaryItem, ConfigurationInput, ConfigurationService, ConfigurationStep, ConfigState, StepCheck,
 } from '../service';
-import { JsonObject } from './json';
-import { checkManifest } from './manifest';
 import { isSafePattern } from './pattern-safety';
-import { STATUS_DETAIL_LIMIT, statusFault } from './status-fault';
 import {
-  ControlCenterManifest, ControlCenterOperationHandler, ControlCenterOperationSpec, ControlCenterRefusal, ControlCenterSchema, HOST_CONTRACT, ID_PATTERN,
+  ControlCenterManifest, ControlCenterOperationHandler, ControlCenterOperationSpec, ControlCenterRefusal, ControlCenterSchema,
+  HOST_CONTRACT, ID_PATTERN, NETWORK_ID_PATTERN,
 } from './types';
 
 export interface ControlCenterIdentity {
-  /** Control Center's id for this adapter's wizard: lowercase letters, digits and dashes. */
   wizardId: string;
   adapter: { kind: string; name: string; version: string };
-  /** Declared per operation; must cover every check a step runs. Default and Control Center's ceiling: 30 s. */
+  /** Per operation, 100 ms to 30 s (Control Center's ceiling). It must cover all the checks a save runs. */
   timeoutMs?: number;
 }
 
-export const STATUS_OPERATION = 'get-status';
-export const VALUES_OPERATION = 'get-values';
-export const ACTIVATE_OPERATION = 'activate';
-export const CONFIGURE_FLOW = 'configure';
-export const saveOperation = (stepId: string): string => `save-${stepId}`;
+const STATUS_OPERATION = 'get-status';
+const VALUES_OPERATION = 'get-values';
+const ACTIVATE_OPERATION = 'activate';
+const saveOperation = (stepId: string): string => `save-${stepId}`;
 
-export const DEFAULT_TIMEOUT_MS = 30_000;
-export const STRING_MAX = 4096;
-export const URL_MAX = 2048;
 export const URL_PATTERN = '^https?://\\S+$';
-const HARD_BODY_CAP = 64 * 1024;
+const STRING_MAX = 4096;
+const URL_MAX = 2048;
+const INTEGER_MAX = 32;
 const MESSAGE_MAX = 1024;
-/** Control Center's status envelope (status-fault.ts): 8 details, labels of 1 to 64 and values of 0 to 128 UTF-16 units. */
 const LABEL_MAX = 64;
 const VALUE_MAX = 128;
-const PROBLEM = { id: 'problem', label: 'Problem' };
-/** A save's check details: as many rows as a pool may list, bounded like the status details. */
+const STATUS_DETAILS_MAX = 8;
 const CHECK_DETAILS_MAX = 32;
-const INTEGER_VALUE_MAX = 32;
+const BODY_CAP = 64 * 1024;
 
-/** Control Center's own bounds (ownera-apps AdapterConfig schema.ts), checked here so a manifest it would refuse never starts. */
+// Control Center's bounds
+const MAX_FLOW_OPERATIONS = 32;
 const MAX_INPUTS = 32;
-const MAX_FLOW_OPERATIONS = 32; // Control Center's bound on a flow, activate and get-values included
+const MAX_NETWORKS = 50;
 const MAX_PATTERN_LENGTH = 256;
 const MAX_ANNOTATION_LENGTH = 256;
+const TIMEOUT_RANGE = [100, 30_000];
+const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.+-]{0,31}$/;
 
 const STEP_ID = /^[a-z0-9][a-z0-9-]{0,58}$/;
-
-/**
- * The id Control Center sees for an input: every '.' replaced by '_' (ledger.rpcUrl ->
- * ledger_rpcUrl). Control Center's relay keeps a refusal's field only when it matches
- * FIELD_POINTER_PATTERN, ^(\/[A-Za-z0-9_-]{1,64}){1,5}$, which has no dot; the adapter keeps
- * its own ids, and the skeleton maps both ways.
- */
-export const wireId = (inputId: string): string => inputId.replace(/\./g, '_');
 const INPUT_ID = /^[A-Za-z0-9._-]{1,64}$/;
 
-/** Control Center's status words for the adapter's states. */
-export const CONTROL_CENTER_STATE: Record<ConfigState, string> = {
-  unconfigured: 'not_configured',
-  active: 'active',
-  failed: 'needs_attention',
-};
+/** Control Center's refusal pointers allow no dot, so it sees input ids with every '.' as '_'. */
+export const wireId = (inputId: string): string => inputId.replace(/\./g, '_');
 
-/** A refusal as routes.ts reads it: an Error carrying the code (its message is the code alone, never a value). */
+const STATE: Record<ConfigState, string> = { unconfigured: 'not_configured', active: 'active', failed: 'needs_attention' };
+
 const refuse = (code: string, extra: Omit<ControlCenterRefusal, 'code'> = {}): Error & ControlCenterRefusal =>
   Object.assign(new Error(code), { code, ...extra });
 
-/** Clipped to `max` UTF-16 units (Control Center counts `.length`), never splitting a surrogate pair. */
+/** Clipped to `max` UTF-16 units, as Control Center counts, without splitting a surrogate pair. */
 const clip = (text: string, max: number): string => {
   if (text.length <= max) return text;
   let end = max - 1;
@@ -85,42 +70,34 @@ const clip = (text: string, max: number): string => {
   return `${text.slice(0, end)}…`;
 };
 
-/** A detail id Control Center takes (ID_PATTERN), or undefined when nothing usable is left. */
-const detailId = (id: string): string | undefined => {
-  if (ID_PATTERN.test(id)) return id;
-  const slug = id.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 64);
-  return ID_PATTERN.test(slug) ? slug : undefined;
-};
-
-/**
- * The status details as Control Center takes them: the problem line first, then the summary;
- * ids made to fit ID_PATTERN and unique (an item whose id cannot be is dropped), labels clipped
- * to 1..64, values to 128, scrubbed, and at most 8.
- */
-export function statusDetails(summary: ConfigSummaryItem[], error: string | undefined, secrets: string[]): { id: string; label: string; value: string }[] {
-  const items = [...(error ? [{ ...PROBLEM, value: error }] : []), ...summary];
-  const seen = new Set<string>();
-  const details: { id: string; label: string; value: string }[] = [];
-  for (const item of items) {
-    if (details.length === STATUS_DETAIL_LIMIT) break;
-    const id = detailId(item.id);
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    const label = clip(scrub(item.label, secrets), LABEL_MAX) || id;
-    details.push({ id, label, value: clip(scrub(item.value, secrets), VALUE_MAX) });
-  }
-  return details;
-}
+const text = (value: unknown, max: number): boolean => typeof value === 'string' && value.length > 0 && value.length <= max;
 
 const object = (properties: Record<string, ControlCenterSchema>, required: string[] = []): ControlCenterSchema =>
   ({ type: 'object', additionalProperties: false, properties, required });
 
-/**
- * The pattern to put in the manifest, or undefined to leave it to the adapter: Control Center
- * refuses the whole manifest over a pattern longer than 256 or one its isSafePattern refuses
- * (pattern-safety.ts), so such a pattern is left out and `left` records the input. A pattern
- * that does not compile is the adapter's bug and throws.
- */
+const noInput = object({});
+
+type Row = { label: string; value: string };
+
+const rowSchema = object({ label: { type: 'string', minLength: 1, maxLength: LABEL_MAX }, value: { type: 'string', maxLength: VALUE_MAX } }, ['label', 'value']);
+
+function checkIdentity({ wizardId, adapter }: ControlCenterIdentity): void {
+  if (!ID_PATTERN.test(wizardId)) throw new Error('Control Center wizardId: lowercase letters, digits and dashes');
+  if (!ID_PATTERN.test(adapter.kind)) throw new Error('Control Center adapter.kind: lowercase letters, digits and dashes');
+  if (!text(adapter.name, 128)) throw new Error('Control Center adapter.name: 1 to 128 characters');
+  if (!VERSION_PATTERN.test(adapter.version)) throw new Error(`Control Center adapter.version: must match ${VERSION_PATTERN.source}`);
+}
+
+function checkNetworks(networks: { id: string; label: string }[]): void {
+  if (networks.length > MAX_NETWORKS) throw new Error(`Control Center networks: ${MAX_NETWORKS} at most`);
+  for (const n of networks) {
+    if (!NETWORK_ID_PATTERN.test(n.id)) throw new Error(`Control Center network ${n.id}: not a CAIP-2 id`);
+    if (!text(n.label, 128)) throw new Error(`Control Center network ${n.id}: label of 1 to 128 characters`);
+  }
+  if (new Set(networks.map((n) => n.id)).size !== networks.length) throw new Error('Control Center networks: declared twice');
+}
+
+/** A pattern Control Center would refuse is left out (and recorded in `left`); one that does not compile throws. */
 function manifestPattern(pattern: string, where: string, left: string[]): string | undefined {
   try {
     new RegExp(pattern, 'u'); // eslint-disable-line no-new
@@ -134,8 +111,7 @@ function manifestPattern(pattern: string, where: string, left: string[]): string
   return pattern;
 }
 
-/** The request schema of one input. Exported for tests. */
-export function inputSchema(input: ConfigurationInput, where: string, left: string[] = []): ControlCenterSchema {
+function inputSchema(input: ConfigurationInput, where: string, left: string[]): ControlCenterSchema {
   const described = { title: clip(input.label, MAX_ANNOTATION_LENGTH), ...(input.help ? { description: clip(input.help, MAX_ANNOTATION_LENGTH) } : {}) };
   const pattern = input.format ? manifestPattern(input.format.pattern, where, left) : undefined;
   switch (input.type) {
@@ -144,7 +120,7 @@ export function inputSchema(input: ConfigurationInput, where: string, left: stri
     case 'enum': {
       const values = (input.options ?? []).map((o) => o.value);
       if (!values.length) throw new Error(`configuration input ${where}: an enum needs options`);
-      return { type: 'string', enum: values, maxLength: Math.max(...values.map((v) => [...v].length)), ...described };
+      return { type: 'string', enum: values, maxLength: Math.max(...values.map((v) => v.length)), ...described };
     }
     case 'url':
       return { type: 'string', maxLength: URL_MAX, pattern: pattern ?? URL_PATTERN, ...described };
@@ -156,16 +132,16 @@ export function inputSchema(input: ConfigurationInput, where: string, left: stri
   }
 }
 
-/** Required in the manifest only when unconditionally required and not a secret (an empty secret keeps the stored one). */
+// an empty secret keeps the stored one, so a secret is never required
 const schemaRequired = (input: ConfigurationInput): boolean => input.required === true && input.classification !== 'secret';
 
 function stepSpec(step: ConfigurationStep, timeoutMs: number, left: string[], byWire: Map<string, string>): ControlCenterOperationSpec {
-  if (!STEP_ID.test(step.id)) throw new Error(`configuration step ${step.id}: the id must be lowercase letters, digits and dashes, 59 at most`);
+  if (!STEP_ID.test(step.id)) throw new Error(`configuration step ${step.id}: lowercase letters, digits and dashes, 59 at most`);
   if (step.inputs.length > MAX_INPUTS) throw new Error(`configuration step ${step.id}: more than ${MAX_INPUTS} inputs`);
   const properties: Record<string, ControlCenterSchema> = {};
   for (const input of step.inputs) {
     const where = `${step.id}/${input.id}`;
-    if (!INPUT_ID.test(input.id)) throw new Error(`configuration input ${where}: the id must be letters, digits, ., _ and -, 64 at most`);
+    if (!INPUT_ID.test(input.id)) throw new Error(`configuration input ${where}: letters, digits, ., _ and -, 64 at most`);
     const wire = wireId(input.id);
     const taken = byWire.get(wire);
     if (taken !== undefined) {
@@ -175,47 +151,33 @@ function stepSpec(step: ConfigurationStep, timeoutMs: number, left: string[], by
     properties[wire] = inputSchema(input, where, left);
     if (schemaRequired(input) && properties[wire].type === 'string') properties[wire].minLength = 1;
   }
-  // JSON can escape a character to 6 bytes; the envelope and keys get a fixed allowance
-  const inputBytes = Object.values(properties).reduce((sum, p) => sum + (p.type === 'integer' ? 32 : (p.maxLength ?? STRING_MAX) * 6), 0);
+  // a JSON escape takes up to 6 bytes per character
+  const inputBytes = Object.values(properties).reduce((sum, p) => sum + (p.type === 'integer' ? INTEGER_MAX : (p.maxLength ?? STRING_MAX) * 6), 0);
   return {
     request: object(properties, step.inputs.filter(schemaRequired).map((i) => wireId(i.id))),
     response: object({
       valid: { type: 'boolean' },
       message: { type: 'string', maxLength: MESSAGE_MAX },
-      details: {
-        type: 'array',
-        maxItems: CHECK_DETAILS_MAX,
-        items: object({ label: { type: 'string', minLength: 1, maxLength: LABEL_MAX }, value: { type: 'string', maxLength: VALUE_MAX } }, ['label', 'value']),
-      },
+      details: { type: 'array', maxItems: CHECK_DETAILS_MAX, items: rowSchema },
     }, ['valid', 'message']),
     secretFields: step.inputs.filter((i) => i.classification === 'secret').map((i) => `/${wireId(i.id)}`),
     idempotency: 'none',
-    limits: { maxBodyBytes: Math.min(HARD_BODY_CAP, 1024 + 128 * step.inputs.length + inputBytes), maxResponseBytes: 64 * 1024, timeoutMs },
+    limits: { maxBodyBytes: Math.min(BODY_CAP, 1024 + 128 * step.inputs.length + inputBytes), maxResponseBytes: 64 * 1024, timeoutMs },
   };
 }
 
-const noInput = object({});
+const rows = (items: Row[], secrets: string[]): Row[] => items.slice(0, CHECK_DETAILS_MAX).map((r) => ({
+  label: clip(scrub(r.label, secrets), LABEL_MAX) || '-',
+  value: clip(scrub(r.value, secrets), VALUE_MAX),
+}));
 
-type Row = { label: string; value: string };
-
-/** Check rows as a save answers them: at most 32, labels clipped to 1..64 and values to 128 UTF-16 units, scrubbed. */
-function checkRows(rows: Row[], secrets: string[]): Row[] {
-  return rows.slice(0, CHECK_DETAILS_MAX).map((r) => ({
-    label: clip(scrub(r.label, secrets), LABEL_MAX) || '-',
-    value: clip(scrub(r.value, secrets), VALUE_MAX),
-  }));
-}
-
-/**
- * What a save answers: the first check that failed or could not run, with its details; else the
- * first check's message and the details of every check, in order. `details` only when there are any.
- */
-export function saveAnswer(checks: StepCheck[], secrets: string[]): { valid: boolean; message: string; details?: Row[] } {
+/** The first check that failed or could not run, with its details; else every check's details. */
+function saveAnswer(checks: StepCheck[], secrets: string[]): { valid: boolean; message: string; details?: Row[] } {
   const failed = checks.find((c) => c.status !== 'valid');
   const message = (c: StepCheck): string => (c.status === 'missing' ? `Missing: ${c.missing.join(', ')}` : c.message);
   const rowsOf = (c: StepCheck): Row[] => (c.status === 'missing' ? [] : c.details ?? []);
   const chosen = failed ?? checks[0];
-  const details = checkRows(failed ? rowsOf(failed) : checks.flatMap(rowsOf), secrets);
+  const details = rows(failed ? rowsOf(failed) : checks.flatMap(rowsOf), secrets);
   return {
     valid: !failed,
     message: clip(scrub(chosen ? message(chosen) : 'Saved.', secrets), MESSAGE_MAX),
@@ -223,39 +185,63 @@ export function saveAnswer(checks: StepCheck[], secrets: string[]): { valid: boo
   };
 }
 
+/** A detail id Control Center takes, slugged if needed; undefined when none can be made. */
+const detailId = (id: string): string | undefined => {
+  if (ID_PATTERN.test(id)) return id;
+  const slug = id.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 64);
+  return ID_PATTERN.test(slug) ? slug : undefined;
+};
+
+/** Status details as Control Center's envelope takes them: the problem first, then the summary; 8 at most, ids unique. */
+export function statusDetails(summary: ConfigSummaryItem[], error: string | undefined, secrets: string[]): (Row & { id: string })[] {
+  const items = [...(error ? [{ id: 'problem', label: 'Problem', value: error }] : []), ...summary];
+  const seen = new Set<string>();
+  const details: (Row & { id: string })[] = [];
+  for (const item of items) {
+    if (details.length === STATUS_DETAILS_MAX) break;
+    const id = detailId(item.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    details.push({ id, label: clip(scrub(item.label, secrets), LABEL_MAX) || id, value: clip(scrub(item.value, secrets), VALUE_MAX) });
+  }
+  return details;
+}
+
 /**
- * The manifest and a handler per operation, derived from `service`. Steps and networks
- * are read once, here; a description the manifest cannot carry throws, so the adapter
- * does not start (fail closed).
+ * The manifest and its handlers. Steps and networks are read once, here; anything Control Center
+ * would refuse throws, except a format.pattern, which is left to the adapter's saveStep.
  */
 export function deriveControlCenter(service: ConfigurationService, identity: ControlCenterIdentity): {
   manifest: ControlCenterManifest;
   operations: Record<string, ControlCenterOperationHandler>;
-  /** Inputs (`<stepId>/<inputId>`) whose format.pattern was left out of the manifest; the adapter checks them in saveStep. */
+  /** `<stepId>/<inputId>` of each format.pattern left out of the manifest. */
   patternsLeftToAdapter: string[];
 } {
-  const patternsLeftToAdapter: string[] = [];
-  const timeoutMs = identity.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const steps = service.steps();
-  const inputValues = typeof service.inputValues === 'function';
-  const maxSteps = MAX_FLOW_OPERATIONS - 1 - (inputValues ? 1 : 0);
-  if (steps.length > maxSteps) throw new Error(`configuration: more than ${maxSteps} steps`);
-  const seen = new Set<string>();
-  for (const step of steps) {
-    if (seen.has(step.id)) throw new Error(`configuration step ${step.id}: declared twice`);
-    seen.add(step.id);
+  checkIdentity(identity);
+  const timeoutMs = identity.timeoutMs ?? TIMEOUT_RANGE[1];
+  if (!Number.isInteger(timeoutMs) || timeoutMs < TIMEOUT_RANGE[0] || timeoutMs > TIMEOUT_RANGE[1]) {
+    throw new Error(`Control Center timeoutMs: ${TIMEOUT_RANGE[0]} to ${TIMEOUT_RANGE[1]}`);
   }
+  const networks = service.networks();
+  checkNetworks(networks);
+  const steps = service.steps();
+  const withValues = typeof service.inputValues === 'function';
+  const maxSteps = MAX_FLOW_OPERATIONS - 1 - (withValues ? 1 : 0);
+  if (steps.length > maxSteps) throw new Error(`configuration: more than ${maxSteps} steps`);
+  if (new Set(steps.map((s) => s.id)).size !== steps.length) throw new Error('configuration: a step declared twice');
 
-  const operations: Record<string, ControlCenterOperationHandler> = {};
+  const patternsLeftToAdapter: string[] = [];
   const specs: Record<string, ControlCenterOperationSpec> = {};
+  const operations: Record<string, ControlCenterOperationHandler> = {};
+  const spec = (request: ControlCenterSchema, response: ControlCenterSchema, maxResponseBytes: number): ControlCenterOperationSpec =>
+    ({ request, response, secretFields: [], idempotency: 'none', limits: { maxBodyBytes: 1024, maxResponseBytes, timeoutMs } });
 
   for (const step of steps) {
     const op = saveOperation(step.id);
     const byWire = new Map<string, string>();
     specs[op] = stepSpec(step, timeoutMs, patternsLeftToAdapter, byWire);
-    operations[op] = async ({ input }) => {
-      // keys back to the adapter's input ids; the schema admits only strings and integers, and the
-      // service takes strings (an integer as its decimal string)
+    operations[op] = async (input) => {
+      // back to the adapter's ids, every value a string (an integer as its decimal string)
       const values = Object.fromEntries(Object.entries(input).map(([k, v]) => [byWire.get(k) ?? k, String(v)]));
       const result = await service.saveStep(step.id, values);
       if ('refused' in result) throw refuse('INVALID_CONFIG', { status: 422, ...(result.input ? { field: `/${wireId(result.input)}` } : {}) });
@@ -263,31 +249,25 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
     };
   }
 
-  if (inputValues) {
-    // what is stored, for a wizard reopened for editing: values of regular inputs, and of a
-    // secret only whether it is set. Never a secret's value, or any part of one.
-    const valueMax = (schema: ControlCenterSchema): number => (schema.type === 'integer' ? INTEGER_VALUE_MAX : schema.maxLength ?? STRING_MAX);
+  if (withValues) {
     const shapes = steps.map((step) => {
       const request = specs[saveOperation(step.id)].request.properties ?? {};
-      const regular = step.inputs.filter((i) => i.classification !== 'secret').map((i) => ({ id: i.id, wire: wireId(i.id), max: valueMax(request[wireId(i.id)]) }));
-      const secret = step.inputs.filter((i) => i.classification === 'secret').map((i) => ({ id: i.id, wire: wireId(i.id) }));
-      return { step, regular, secret };
+      const of = (secret: boolean) => step.inputs.filter((i) => (i.classification === 'secret') === secret).map((i) => {
+        const wire = wireId(i.id);
+        return { id: i.id, wire, max: request[wire].type === 'integer' ? INTEGER_MAX : request[wire].maxLength ?? STRING_MAX };
+      });
+      return { step, regular: of(false), secret: of(true) };
     });
-    specs[VALUES_OPERATION] = {
-      request: noInput,
-      response: object({
-        steps: object(Object.fromEntries(shapes.map(({ step, regular, secret }) => [step.id, object({
-          values: object(Object.fromEntries(regular.map((r) => [r.wire, { type: 'string', maxLength: r.max } as ControlCenterSchema]))),
-          secrets: object(
-            Object.fromEntries(secret.map((r) => [r.wire, { type: 'string', enum: ['set', 'not_set'], maxLength: 7 } as ControlCenterSchema])),
-            secret.map((r) => r.wire),
-          ),
-        }, ['values', 'secrets'])])), steps.map((step) => step.id)),
-      }, ['steps']),
-      secretFields: [],
-      idempotency: 'none',
-      limits: { maxBodyBytes: 1024, maxResponseBytes: 1024 * 1024, timeoutMs },
-    };
+    specs[VALUES_OPERATION] = spec(noInput, object({
+      steps: object(Object.fromEntries(shapes.map(({ step, regular, secret }) => [step.id, object({
+        values: object(Object.fromEntries(regular.map((r) => [r.wire, { type: 'string', maxLength: r.max } as ControlCenterSchema]))),
+        secrets: object(
+          Object.fromEntries(secret.map((r) => [r.wire, { type: 'string', enum: ['set', 'not_set'], maxLength: 7 } as ControlCenterSchema])),
+          secret.map((r) => r.wire),
+        ),
+      }, ['values', 'secrets'])])), steps.map((step) => step.id)),
+    }, ['steps']), 1024 * 1024);
+    // a secret goes out only as set or not set, even one handed over in the clear
     operations[VALUES_OPERATION] = async () => {
       const [stored, sealed] = await Promise.all([service.inputValues!(), service.sealedValues()]);
       return {
@@ -296,26 +276,16 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
           const values: Record<string, string> = {};
           for (const r of regular) {
             const v = held[r.id];
-            // a regular input answered sealed is left out rather than guessed at
             if (typeof v === 'string') values[r.wire] = clip(scrub(v, sealed), r.max);
           }
-          const secrets = Object.fromEntries(secret.map((r) => {
-            const v = held[r.id];
-            return [r.wire, v !== undefined && v !== null && v !== '' ? 'set' : 'not_set'];
-          }));
+          const secrets = Object.fromEntries(secret.map((r) => [r.wire, held[r.id] !== undefined && held[r.id] !== '' ? 'set' : 'not_set']));
           return [step.id, { values, secrets }];
         })),
       };
     };
   }
 
-  specs[ACTIVATE_OPERATION] = {
-    request: noInput,
-    response: object({ version: { type: 'integer' }, appliedAt: { type: 'string', maxLength: 64 } }, ['version', 'appliedAt']),
-    secretFields: [],
-    idempotency: 'none',
-    limits: { maxBodyBytes: 1024, maxResponseBytes: 1024, timeoutMs },
-  };
+  specs[ACTIVATE_OPERATION] = spec(noInput, object({ version: { type: 'integer' }, appliedAt: { type: 'string', maxLength: 64 } }, ['version', 'appliedAt']), 1024);
   operations[ACTIVATE_OPERATION] = async () => {
     const outcome = await service.apply();
     if (outcome.ok) return { version: outcome.applied.version, appliedAt: outcome.applied.appliedAt };
@@ -323,61 +293,48 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
     throw refuse('CONFIG_INCOMPLETE', { status: 409 });
   };
 
-  const networks = service.networks();
-  const stateSchema: ControlCenterSchema = { type: 'string', enum: Object.values(CONTROL_CENTER_STATE), maxLength: 32 };
-  const detail = object({
-    id: { type: 'string', maxLength: 64, pattern: ID_PATTERN.source },
-    label: { type: 'string', minLength: 1, maxLength: LABEL_MAX },
-    value: { type: 'string', maxLength: VALUE_MAX },
-  }, ['id', 'label', 'value']);
-  // Control Center's envelope (status-fault.ts). A network carries no details: they would sit at
-  // depth 6, past the 5 Control Center's schema compiler takes, and the envelope does not need them.
-  specs[STATUS_OPERATION] = {
-    request: noInput,
-    response: object({
-      integration: object({ state: stateSchema, details: { type: 'array', items: detail, maxItems: STATUS_DETAIL_LIMIT } }, ['state', 'details']),
-      networks: {
+  // networks carry no details: they would nest past the schema depth of 5 Control Center compiles
+  const state: ControlCenterSchema = { type: 'string', enum: Object.values(STATE), maxLength: 32 };
+  specs[STATUS_OPERATION] = spec(noInput, object({
+    integration: object({
+      state,
+      details: {
         type: 'array',
-        maxItems: Math.max(1, networks.length),
-        items: object({
-          id: { type: 'string', maxLength: 64, ...(networks.length ? { enum: networks.map((n) => n.id) } : {}) },
-          state: stateSchema,
-        }, ['id', 'state']),
+        maxItems: STATUS_DETAILS_MAX,
+        items: object({ id: { type: 'string', maxLength: 64, pattern: ID_PATTERN.source }, ...rowSchema.properties }, ['id', 'label', 'value']),
       },
-    }, ['integration', 'networks']),
-    secretFields: [],
-    idempotency: 'none',
-    limits: { maxBodyBytes: 1024, maxResponseBytes: 32 * 1024, timeoutMs },
-  };
-  const declared = new Set(networks.map((n) => n.id));
+    }, ['state', 'details']),
+    networks: {
+      type: 'array',
+      maxItems: Math.max(1, networks.length),
+      items: object({ id: { type: 'string', maxLength: 64, ...(networks.length ? { enum: networks.map((n) => n.id) } : {}) }, state }, ['id', 'state']),
+    },
+  }, ['integration', 'networks']), 32 * 1024);
   operations[STATUS_OPERATION] = async () => {
     const [status, summary, secrets] = await Promise.all([service.status(), service.summary(), service.sealedValues()]);
-    const state = CONTROL_CENTER_STATE[status.state] ?? CONTROL_CENTER_STATE.failed;
-    const output = {
-      integration: { state, details: statusDetails(summary, status.error, secrets) },
-      networks: networks.map((n) => ({ id: n.id, state })),
+    const current = STATE[status.state] ?? STATE.failed;
+    return {
+      integration: { state: current, details: statusDetails(summary, status.error, secrets) },
+      networks: networks.map((n) => ({ id: n.id, state: current })),
     };
-    // the host checks this envelope besides the declared schema: never send one it would refuse
-    const fault = statusFault(output, declared);
-    if (fault !== undefined) throw new Error(`status answer outside Control Center's envelope at ${fault}`);
-    return output;
   };
 
-  const manifest = checkManifest({
+  const manifest: ControlCenterManifest = {
     manifestVersion: 1,
     wizardId: identity.wizardId,
     adapter: identity.adapter,
     compatibility: { hostContract: HOST_CONTRACT },
     targets: { network: networks },
     flows: {
-      [CONFIGURE_FLOW]: {
+      configure: {
         title: 'Configure',
         scope: 'integration',
-        operations: [...(inputValues ? [VALUES_OPERATION] : []), ...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION],
+        operations: [...(withValues ? [VALUES_OPERATION] : []), ...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION],
       },
     },
     status: { operation: STATUS_OPERATION },
     operations: specs,
-  });
+  };
+  if (Buffer.byteLength(JSON.stringify(manifest), 'utf8') > 64 * 1024) throw new Error('Control Center manifest: larger than 64 KiB');
   return { manifest, operations, patternsLeftToAdapter };
 }

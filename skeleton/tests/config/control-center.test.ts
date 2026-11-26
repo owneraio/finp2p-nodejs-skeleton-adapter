@@ -1,7 +1,10 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import winston from 'winston';
-import { ConfigurationStep, ControlCenterSchema, deriveControlCenter, registerConfigRoutes, statusDetails, statusFault, URL_PATTERN } from '../../src/config';
+import { ConfigurationStep, registerConfigRoutes } from '../../src/config';
+import { deriveControlCenter, statusDetails, URL_PATTERN } from '../../src/config/control-center/derive';
+import { ControlCenterSchema } from '../../src/config/control-center/types';
+import { statusFault } from './support/status-fault';
 import { envelope, IDENTITY } from './support/control-center';
 import { serve } from './support/http';
 import { MemoryConfigurationService, SECRET } from './support/service';
@@ -139,19 +142,19 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
   });
 
   it.each([
-    ['a timeout over Control Center\'s 30 s ceiling', { timeoutMs: 30001 }, 'limits.timeoutMs'],
-    ['a timeout under its floor', { timeoutMs: 99 }, 'limits.timeoutMs'],
-    ['a version Control Center would refuse', { adapter: { ...IDENTITY.adapter, version: 'v 1' } }, 'adapter.version'],
-    ['a name longer than 128', { adapter: { ...IDENTITY.adapter, name: 'n'.repeat(129) } }, 'adapter.name'],
+    ['a timeout over Control Center\'s 30 s ceiling', { timeoutMs: 30001 }, 'Control Center timeoutMs'],
+    ['a timeout under its floor', { timeoutMs: 99 }, 'Control Center timeoutMs'],
+    ['a version Control Center would refuse', { adapter: { ...IDENTITY.adapter, version: 'v 1' } }, 'Control Center adapter.version'],
+    ['a name longer than 128', { adapter: { ...IDENTITY.adapter, name: 'n'.repeat(129) } }, 'Control Center adapter.name'],
   ])('refuses %s', (_, identity, message) => {
     expect(() => registerConfigRoutes(express(), new MemoryConfigurationService(), { logger: silent, controlCenter: { ...IDENTITY, ...identity } }))
       .toThrow(message);
   });
 
   it.each([
-    ['more than 50', Array.from({ length: 51 }, (_, i) => ({ id: `eip155:${i + 1}`, label: 'N' })), 'targets.network'],
-    ['a label longer than 128', [{ id: 'eip155:1', label: 'l'.repeat(129) }], 'targets.network.label'],
-    ['a duplicate', [{ id: 'eip155:1', label: 'A' }, { id: 'eip155:1', label: 'B' }], 'targets.network duplicate'],
+    ['more than 50', Array.from({ length: 51 }, (_, i) => ({ id: `eip155:${i + 1}`, label: 'N' })), '50 at most'],
+    ['a label longer than 128', [{ id: 'eip155:1', label: 'l'.repeat(129) }], 'label of 1 to 128'],
+    ['a duplicate', [{ id: 'eip155:1', label: 'A' }, { id: 'eip155:1', label: 'B' }], 'declared twice'],
   ])('refuses networks: %s', (_, networks, message) => {
     const service = new MemoryConfigurationService();
     service.networks = () => networks;
@@ -202,9 +205,9 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
   it('refuses an identity Control Center would refuse, and an undeclarable network', () => {
     const service = new MemoryConfigurationService();
     expect(() => registerConfigRoutes(express(), service, { logger: silent, controlCenter: { ...IDENTITY, wizardId: 'Test' } }))
-      .toThrow('the Control Center manifest is not valid: wizardId');
+      .toThrow('Control Center wizardId');
     service.networks = () => [{ id: 'not a network', label: 'x' }];
-    expect(() => registerConfigRoutes(express(), service, { logger: silent, controlCenter: IDENTITY })).toThrow('targets.network');
+    expect(() => registerConfigRoutes(express(), service, { logger: silent, controlCenter: IDENTITY })).toThrow('not a CAIP-2 id');
   });
 });
 

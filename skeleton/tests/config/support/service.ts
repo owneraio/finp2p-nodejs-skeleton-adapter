@@ -134,9 +134,9 @@ export class MemoryConfigurationService implements ConfigurationService {
   }
 
   /**
-   * custody: stores url, apiKey (empty keeps the stored one) and region, then checks the
-   * custody: refuses a url on refused.example with the input, a region 'zz-refused' without
-   * one; the check is missing without a key, invalid on a url with "bad" (echoing the key).
+   * custody refuses a url on refused.example (naming the input), region 'zz-refused' (naming it)
+   * and 'zz-derived' (naming none); otherwise it stores url, apiKey (empty keeps the stored one)
+   * and region. Its check is missing without a key, invalid on a url with "bad" (echoing the key).
    */
   async saveStep(stepId: string, input: Record<string, string>): Promise<StepSaveResult> {
     this.saves.push({ stepId, input });

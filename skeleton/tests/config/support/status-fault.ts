@@ -1,11 +1,10 @@
 // Copied from ownera-apps packages/backend/src/services/AdapterConfig/status.ts
 // (branch feature/demo, commit 8247b42b8): Control Center's own rules for a status answer, on top of
-// the declared response schema. Only the imports differ (ID_PATTERN, hasOnlyKeys, isPlainObject from
-// this module, AdapterConfigState inlined). Keep it in step with that file; it is the authority.
+// the declared response schema. Only the imports differ. The tests check every status answer with it.
 /* eslint-disable */
 type AdapterConfigState = 'not_configured' | 'active' | 'needs_attention';
-import { ID_PATTERN } from './types';
-import { hasOnlyKeys, isPlainObject } from './json';
+import { ID_PATTERN } from '../../../src/config/control-center/types';
+import { hasOnlyKeys, isPlainObject } from '../../../src/config/control-center/json';
 
 const STATES: ReadonlySet<AdapterConfigState> = new Set(['not_configured', 'active', 'needs_attention']);
 

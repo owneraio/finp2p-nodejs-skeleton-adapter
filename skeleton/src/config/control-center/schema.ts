@@ -1,14 +1,10 @@
-// Validation in the contract's JSON Schema subset. Answers the JSON pointer of the first
-// field at fault, never the value.
+// Checks a value against a ControlCenterSchema; answers the JSON pointer of the first fault, never the value.
 import { has, isPlainObject } from './json';
 import { ControlCenterSchema } from './types';
 
 const patterns = new WeakMap<ControlCenterSchema, RegExp>();
 
 const pointerToken = (token: string): string => token.replaceAll('~', '~0').replaceAll('/', '~1');
-
-const withinBounds = (schema: ControlCenterSchema, value: number): boolean =>
-  (schema.minimum === undefined || value >= schema.minimum) && (schema.maximum === undefined || value <= schema.maximum);
 
 function patternOf(schema: ControlCenterSchema): RegExp {
   let pattern = patterns.get(schema);
@@ -19,15 +15,12 @@ function patternOf(schema: ControlCenterSchema): RegExp {
   return pattern;
 }
 
-function stringFits(schema: ControlCenterSchema, value: unknown): boolean {
-  if (typeof value !== 'string') return false;
-  // code points, as JSON Schema counts them
-  const length = [...value].length;
-  if (schema.maxLength !== undefined && length > schema.maxLength) return false;
-  if (schema.minLength !== undefined && length < schema.minLength) return false;
-  if (schema.pattern !== undefined && !patternOf(schema).test(value)) return false;
-  return schema.enum === undefined || schema.enum.includes(value);
-}
+// lengths in UTF-16 units, as Control Center counts them
+const stringFits = (schema: ControlCenterSchema, value: unknown): boolean => typeof value === 'string'
+  && (schema.maxLength === undefined || value.length <= schema.maxLength)
+  && (schema.minLength === undefined || value.length >= schema.minLength)
+  && (schema.pattern === undefined || patternOf(schema).test(value))
+  && (schema.enum === undefined || schema.enum.includes(value));
 
 /** null when the value fits, else the JSON pointer of the first field at fault ('' is the root). */
 export function schemaFault(schema: ControlCenterSchema, value: unknown, pointer = ''): string | null {
@@ -46,8 +39,7 @@ export function schemaFault(schema: ControlCenterSchema, value: unknown, pointer
       return null;
     }
     case 'string': return stringFits(schema, value) ? null : pointer;
-    case 'number': return typeof value === 'number' && Number.isFinite(value) && withinBounds(schema, value) ? null : pointer;
-    case 'integer': return Number.isSafeInteger(value) && withinBounds(schema, value as number) ? null : pointer;
+    case 'integer': return Number.isSafeInteger(value) ? null : pointer;
     case 'boolean': return typeof value === 'boolean' ? null : pointer;
     case 'array': {
       if (!Array.isArray(value) || (schema.maxItems !== undefined && value.length > schema.maxItems)) return pointer;

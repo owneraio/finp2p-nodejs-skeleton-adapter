@@ -13,19 +13,12 @@
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "default": "./dist/plugin.js"
-    },
-    "./config": {
-      "types": "./dist/config/index.d.ts",
-      "default": "./dist/config/index.js"
     }
   },
   "typesVersions": {
     "*": {
       "plugin": [
         "dist/plugin.d.ts"
-      ],
-      "config": [
-        "dist/config/index.d.ts"
       ]
     }
   },
