@@ -29,6 +29,8 @@ export const MISCONFIGURED_BODY_PARSER =
 /** Call it before any app-wide body parser: Control Center operations read the raw body. */
 export function registerConfigRoutes(app: express.Application, service: ConfigurationService, opts: ConfigRoutesOptions = {}): void {
   const log = (opts.logger ?? defaultLogger) as winston.Logger;
+  // The skeleton's own logger is on syslog levels: it has `warning` and no `warn`.
+  const warn = (typeof log.warn === 'function' ? log.warn : log.warning).bind(log);
   const json = express.json({ limit: opts.jsonLimit ?? '1mb' });
   const router = express.Router();
 
@@ -43,7 +45,7 @@ export function registerConfigRoutes(app: express.Application, service: Configur
 
   if (opts.controlCenter) {
     const { manifest, operations, patternsLeftToAdapter } = deriveControlCenter(service, opts.controlCenter);
-    for (const input of patternsLeftToAdapter) log.warn(`configuration input ${input}: pattern left to the adapter`);
+    for (const input of patternsLeftToAdapter) warn(`configuration input ${input}: pattern left to the adapter`);
     mountControlCenterRoutes(router, manifest, operations, log);
   }
 
@@ -114,7 +116,7 @@ export function registerConfigRoutes(app: express.Application, service: Configur
       const secrets = await service.sealedValues();
       const problems = outcome.problems.map((p) => ({ ...p, message: scrub(p.message, secrets) }));
       const failed = problems.some((p) => p.kind === 'activation');
-      log.warn(failed ? 'configuration apply failed to start the adapter' : 'configuration apply refused', { problems: problems.map((p) => `${p.kind} ${p.ref}`) });
+      warn(failed ? 'configuration apply failed to start the adapter' : 'configuration apply refused', { problems: problems.map((p) => `${p.kind} ${p.ref}`) });
       res.status(failed ? 422 : 409).json({
         error: failed ? 'The adapter did not start on this configuration; the previous one stays applied.' : 'The configuration is not complete.',
         problems,

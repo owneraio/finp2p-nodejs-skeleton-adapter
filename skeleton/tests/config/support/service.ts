@@ -1,7 +1,7 @@
 // An in-memory ConfigurationService, the way an adapter's engine would answer. Generic on purpose:
 // one custody step and one tuning step, nothing named after a real integration.
 import {
-  ConfigApplyOutcome, ConfigAppliedVersion, ConfigCheckRun, ConfigStatus, ConfigSummaryItem, ConfigurationService, ConfigurationStep, StepCheck, StepSaveResult,
+  ConfigActionOutcome, ConfigApplyOutcome, ConfigAppliedVersion, ConfigurationAction, ConfigCheckRun, ConfigStatus, ConfigSummaryItem, ConfigurationService, ConfigurationStep, StepCheck, StepSaveResult,
 } from '../../../src/config';
 
 export const SECRET = 'sk_live_0123456789';
@@ -118,12 +118,27 @@ export class MemoryConfigurationService implements ConfigurationService {
   }
 
   /** Every runAction call, as the service received it. */
-  actions: { ref: string; input: Record<string, unknown> }[] = [];
+  actionCalls: { ref: string; input: Record<string, unknown> }[] = [];
 
-  /** `register-account`: done, echoing the stored key in its message and a detail; refused without a name. */
-  async runAction(ref: string, input: Record<string, unknown>) {
-    this.actions.push({ ref, input });
-    if (ref !== 'register-account') throw new Error(`no such action ${ref}`);
+  /** One action, in the custody step: register-account, with a required name and a secret token. */
+  actions(): ConfigurationAction[] {
+    return [{
+      ref: 'custody.register-account',
+      title: 'Register an account',
+      description: 'Opens an account with the custodian.',
+      step: 'custody',
+      inputs: [
+        { id: 'name', label: 'Name', type: 'string', classification: 'public', required: true },
+        { id: 'owner.address', label: 'Owner', type: 'address', classification: 'public' },
+        { id: 'token', label: 'Token', type: 'string', classification: 'secret' },
+      ],
+    }];
+  }
+
+  /** `register-account` (either ref): done, echoing the stored key in its message and a detail; refused without a name. */
+  async runAction(ref: string, input: Record<string, unknown>): Promise<ConfigActionOutcome> {
+    this.actionCalls.push({ ref, input });
+    if (ref !== 'register-account' && ref !== 'custody.register-account') throw new Error(`no such action ${ref}`);
     if (!input.name) return { status: 'refused' as const, message: 'A name is required.' };
     return {
       status: 'done' as const,
