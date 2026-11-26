@@ -1028,6 +1028,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GetAssetCapabilitiesResponse'
+        '404':
+          description: 'The asset is unknown to this adapter'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 0
+                    message: 'Asset bank-x:102:asset-1 not found'
+        '501':
+          description: 'The adapter does not report asset capabilities'
+          content:
+            application/json:
+              schema:
+                $ref: 'common-external-components.yaml#/components/schemas/APIErrors'
+              example:
+                errors:
+                  - code: 0
+                    message: 'asset capabilities are not supported by this adapter'
   /health:
     get:
       summary: 'Health check'
@@ -1494,7 +1514,7 @@ components:
       properties:
         instruction:
           type: 'string'
-          description: 'Instruction capability id (e.g. INSTRUCTION_TRANSFER). INSTRUCTION_AWAIT is a router step and is rejected.'
+          description: 'Instruction capability id. This is a string on purpose, so that the router can reject an invalid list with its own error instead of failing to decode the response. The valid ids are INSTRUCTION_HOLD, INSTRUCTION_TRANSFER, INSTRUCTION_RELEASE, INSTRUCTION_ISSUE, INSTRUCTION_REVERT_HOLD, INSTRUCTION_REDEEM, INSTRUCTION_MOVE and INSTRUCTION_SWAP. Any other value, and INSTRUCTION_AWAIT (a router step), makes the capability list invalid, and the router answers error 7361.'
           pattern: '.*\S.*'
           x-autoMinLength: true
         contracts:
@@ -1512,6 +1532,7 @@ components:
           description: 'The contract''s address, or the identifier the adapter uses for a service that is not an on-chain contract (an API, for example), with no leading or trailing spaces. It must be valid for addressFormat. The router stores it as sent and sends it back as `executionContext.contract`.'
           pattern: '^\S(.*\S)?$'
           x-autoMinLength: true
+          maxLength: 1024
         addressFormat:
           $ref: 'common-external-components.yaml#/components/schemas/contractAddressFormat'
         restrictions:
@@ -1893,9 +1914,12 @@ components:
           description: 'execution instruction sequence number'
         contract:
           type: 'string'
-          description: 'The contract the instruction must run through, its address as the asset''s list gives it under the instruction. A SWAP, and a settlement instruction the plan carries once for every leg, carry the first asset''s spelling, so compare it with your listed addresses after normalizing both by format. Sent only when the router chose one.'
+          description: 'The contract the instruction must run through, its address as the asset''s list gives it under the instruction. A SWAP, and a settlement instruction the plan carries once for every leg, carry the first asset''s spelling, so compare it with your listed addresses after normalizing both by the format in `contractFormat`. Sent only when the router chose one.'
           pattern: '.*\S.*'
           x-autoMinLength: true
+        contractFormat:
+          $ref: 'common-external-components.yaml#/components/schemas/contractAddressFormat'
+          description: 'The format of `contract`, so that an adapter can normalize and compare the address without guessing. Sent with `contract`; absent when `contract` is absent.'
     operationStatus:
       type: 'object'
       oneOf:
