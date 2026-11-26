@@ -211,6 +211,14 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     logger.warn = ((message: string) => { warnings.push(message); return logger; }) as typeof logger.warn;
     registerConfigRoutes(express(), service, { logger, controlCenter: IDENTITY });
     expect(warnings).toEqual(['a/list', 'a/nested', 'a/lookahead', 'a/long'].map((id) => `configuration input ${id}: pattern left to the adapter`));
+
+    // A logger on syslog levels, as the skeleton's default is, has `warning` and no `warn`.
+    const syslog = winston.createLogger({ levels: winston.config.syslog.levels, transports: [new winston.transports.Console({ silent: true })] });
+    const warned: string[] = [];
+    syslog.warning = ((message: string) => { warned.push(message); return syslog; }) as typeof syslog.warning;
+    expect(() => registerConfigRoutes(express(), service, { logger: syslog, controlCenter: IDENTITY })).not.toThrow();
+    expect(warned).toHaveLength(4);
+    expect(() => registerConfigRoutes(express(), service, { controlCenter: IDENTITY })).not.toThrow();
   });
 
   it('keeps its own url pattern, which Control Center takes', () => {
