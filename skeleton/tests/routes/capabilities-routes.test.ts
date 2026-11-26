@@ -51,8 +51,8 @@ describe('POST /api/assets/getCapabilities', () => {
 
   // axios rather than global fetch: tsconfig lib is es2021, which has no fetch.
   // validateStatus keeps 4xx/5xx as ordinary responses so status can be asserted.
-  const call = () =>
-    axios.post(`${base}/api/assets/getCapabilities`, body, { validateStatus: () => true })
+  const call = (payload: unknown = body) =>
+    axios.post(`${base}/api/assets/getCapabilities`, payload, { validateStatus: () => true })
       .then(r => ({ status: r.status, body: r.data }));
 
   const cases: { name: string; service: Partial<TokenService>; status: number; expected: unknown }[] = [
@@ -87,5 +87,25 @@ describe('POST /api/assets/getCapabilities', () => {
     const res = await call();
     expect(res.status).toBe(status);
     expect(res.body).toEqual(expected);
+  });
+
+  const malformed: { name: string; payload: unknown }[] = [
+    { name: 'body without asset', payload: {} },
+    { name: 'asset null', payload: { asset: null } },
+    { name: 'asset not an object', payload: { asset: 'bank-x:102:asset-1' } },
+    { name: 'asset without resourceId', payload: { asset: { type: 'finp2p' } } },
+    { name: 'asset with a numeric resourceId', payload: { asset: { type: 'finp2p', resourceId: 7 } } },
+    { name: 'ledgerIdentifier null', payload: { asset: { ...body.asset, ledgerIdentifier: null } } },
+  ];
+
+  test.each(malformed)('$name answers 400 and never reaches the service', async ({ payload }) => {
+    const getCapabilities = jest.fn(async () => listed);
+    await start({ getCapabilities });
+
+    const res = await call(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/asset/);
+    expect(getCapabilities).not.toHaveBeenCalled();
   });
 });

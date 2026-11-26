@@ -24,6 +24,7 @@ import {
   assetFromAPI,
   balanceToAPI,
   capabilitiesToAPI,
+  requiredAssetFromAPI,
   bindInfoOptFromAPI,
   createAssetOperationToAPI,
   depositAssetFromAPI,
@@ -187,7 +188,7 @@ export const register = (app: Application,
       if (typeof tokenService.getCapabilities !== 'function') {
         throw new NotSupportedError('asset capabilities are not supported by this adapter');
       }
-      const list = await tokenService.getCapabilities(assetFromAPI(req.body.asset));
+      const list = await tokenService.getCapabilities(requiredAssetFromAPI(req.body?.asset));
       res.send({ capabilities: capabilitiesToAPI(list) });
     });
 

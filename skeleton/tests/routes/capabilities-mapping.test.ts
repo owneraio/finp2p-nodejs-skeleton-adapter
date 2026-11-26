@@ -1,6 +1,6 @@
 import { assetCreateResultToAPI, executionContextFromAPI, executionContextOptToAPI } from '../../src/routes/mapping';
 import { components } from '../../src/routes/model-gen';
-import { AssetCreationResult, ExecutionContext, InstructionCapability } from '../../src/models';
+import { AssetCreationResult, ExecutionContext, InstructionCapability, ValidationError } from '../../src/models';
 
 const apiContext = (contract?: string): components['schemas']['executionContext'] => ({
   executionPlanId: 'plan-1',
@@ -26,6 +26,18 @@ describe('executionContextFromAPI contract', () => {
     expect('contract' in ctx).toBe(expected !== undefined);
     expect(ctx.planId).toBe('plan-1');
     expect(ctx.sequence).toBe(3);
+  });
+});
+
+describe('executionContextFromAPI contract of the wrong type', () => {
+  test.each([
+    { name: 'null', input: null },
+    { name: 'a number', input: 7 },
+    { name: 'an object', input: {} },
+  ])('rejects $name with a validation error', ({ input }) => {
+    const ep = { ...apiContext(), contract: input } as unknown as components['schemas']['executionContext'];
+
+    expect(() => executionContextFromAPI(ep)).toThrow(ValidationError);
   });
 });
 

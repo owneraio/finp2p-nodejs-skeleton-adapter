@@ -24,6 +24,20 @@ export const assetFromAPI = (asset: components['schemas']['asset'] | components[
   return { assetId, assetType: 'finp2p', ledgerIdentifier: asset.ledgerIdentifier };
 };
 
+/** The asset of a request body; a missing or malformed asset is a validation error, not a fault. */
+export const requiredAssetFromAPI = (asset: unknown): Asset => {
+  const fields = (typeof asset === 'object' && asset !== null ? asset : {}) as Record<string, unknown>;
+  const assetId = fields.resourceId ?? fields.id;
+  if (typeof assetId !== 'string' || assetId === '') {
+    throw new ValidationError('asset is required and must carry a resourceId');
+  }
+  const { ledgerIdentifier } = fields;
+  if (ledgerIdentifier !== undefined && (typeof ledgerIdentifier !== 'object' || ledgerIdentifier === null)) {
+    throw new ValidationError('asset.ledgerIdentifier must be an object');
+  }
+  return assetFromAPI(asset as components['schemas']['asset']);
+};
+
 export const depositAssetFromAPI = (asset: components['schemas']['depositAsset']): DepositAsset => {
   if (asset.type === 'custom') {
     return { assetType: 'custom' };
@@ -126,6 +140,9 @@ export const executionContextFromAPI = (
   counterpartySettlementId?: string,
 ): ExecutionContext => {
   const { executionPlanId, instructionSequenceNumber, contract } = ep;
+  if (contract !== undefined && typeof contract !== 'string') {
+    throw new ValidationError('executionContext.contract must be a string');
+  }
   return {
     planId: executionPlanId,
     sequence: instructionSequenceNumber,
