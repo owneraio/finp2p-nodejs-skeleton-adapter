@@ -6,8 +6,9 @@
 --
 -- IF NOT EXISTS because adapters created these tables under their own
 -- migration history before the skeleton had them: the columns are the same,
--- so their rows read as they are. Such an adapter drops its own migration
--- file when it switches, or a fresh database fails on its plain CREATE.
+-- so their rows read as they are. Such an adapter makes its own migration
+-- IF NOT EXISTS too, since it runs after this one: a plain CREATE would fail
+-- on a fresh database.
 
 -- +goose Up
 -- +goose StatementBegin
