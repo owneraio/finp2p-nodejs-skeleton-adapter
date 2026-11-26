@@ -12,6 +12,7 @@ import {
 } from '../service';
 import { JsonObject } from './json';
 import { checkManifest } from './manifest';
+import { isSafePattern } from './pattern-safety';
 import {
   ControlCenterManifest, ControlCenterOperationHandler, ControlCenterOperationSpec, ControlCenterRefusal, ControlCenterSchema, HOST_CONTRACT,
 } from './types';
@@ -65,22 +66,29 @@ const clip = (text: string, max: number): string => ([...text].length > max ? `$
 const object = (properties: Record<string, ControlCenterSchema>, required: string[] = []): ControlCenterSchema =>
   ({ type: 'object', additionalProperties: false, properties, required });
 
-function checkPattern(pattern: string, where: string): string {
-  // Control Center also refuses a pattern that could backtrack badly (nested or stacked quantifiers,
-  // backreferences, lookarounds); keep formats simple, or check the value in saveStep instead
-  if (pattern.length > MAX_PATTERN_LENGTH) throw new Error(`configuration input ${where}: format.pattern is longer than ${MAX_PATTERN_LENGTH}`);
+/**
+ * The pattern to put in the manifest, or undefined to leave it to the adapter: Control Center
+ * refuses the whole manifest over a pattern longer than 256 or one its isSafePattern refuses
+ * (pattern-safety.ts), so such a pattern is left out and `left` records the input. A pattern
+ * that does not compile is the adapter's bug and throws.
+ */
+function manifestPattern(pattern: string, where: string, left: string[]): string | undefined {
   try {
     new RegExp(pattern, 'u'); // eslint-disable-line no-new
   } catch {
     throw new Error(`configuration input ${where}: format.pattern is not a valid regular expression`);
   }
+  if (pattern.length > MAX_PATTERN_LENGTH || !isSafePattern(pattern)) {
+    left.push(where);
+    return undefined;
+  }
   return pattern;
 }
 
 /** The request schema of one input. Exported for tests. */
-export function inputSchema(input: ConfigurationInput, where: string): ControlCenterSchema {
+export function inputSchema(input: ConfigurationInput, where: string, left: string[] = []): ControlCenterSchema {
   const described = { title: clip(input.label, MAX_ANNOTATION_LENGTH), ...(input.help ? { description: clip(input.help, MAX_ANNOTATION_LENGTH) } : {}) };
-  const pattern = input.format ? checkPattern(input.format.pattern, where) : undefined;
+  const pattern = input.format ? manifestPattern(input.format.pattern, where, left) : undefined;
   switch (input.type) {
     case 'integer':
       return { type: 'integer', ...described };
@@ -102,7 +110,7 @@ export function inputSchema(input: ConfigurationInput, where: string): ControlCe
 /** Required in the manifest only when unconditionally required and not a secret (an empty secret keeps the stored one). */
 const schemaRequired = (input: ConfigurationInput): boolean => input.required === true && input.classification !== 'secret';
 
-function stepSpec(step: ConfigurationStep, timeoutMs: number): ControlCenterOperationSpec {
+function stepSpec(step: ConfigurationStep, timeoutMs: number, left: string[]): ControlCenterOperationSpec {
   if (!STEP_ID.test(step.id)) throw new Error(`configuration step ${step.id}: the id must be lowercase letters, digits and dashes, 59 at most`);
   if (step.inputs.length > MAX_INPUTS) throw new Error(`configuration step ${step.id}: more than ${MAX_INPUTS} inputs`);
   const properties: Record<string, ControlCenterSchema> = {};
@@ -110,7 +118,7 @@ function stepSpec(step: ConfigurationStep, timeoutMs: number): ControlCenterOper
     const where = `${step.id}/${input.id}`;
     if (!INPUT_ID.test(input.id)) throw new Error(`configuration input ${where}: the id must be letters, digits, ., _ and -, 64 at most`);
     if (properties[input.id]) throw new Error(`configuration input ${where}: declared twice`);
-    properties[input.id] = inputSchema(input, where);
+    properties[input.id] = inputSchema(input, where, left);
     if (schemaRequired(input) && properties[input.id].type === 'string') properties[input.id].minLength = 1;
   }
   // JSON can escape a character to 6 bytes; the envelope and keys get a fixed allowance
@@ -142,7 +150,10 @@ export function saveAnswer(checks: StepCheck[], secrets: string[]): { valid: boo
 export function deriveControlCenter(service: ConfigurationService, identity: ControlCenterIdentity): {
   manifest: ControlCenterManifest;
   operations: Record<string, ControlCenterOperationHandler>;
+  /** Inputs (`<stepId>/<inputId>`) whose format.pattern was left out of the manifest; the adapter checks them in saveStep. */
+  patternsLeftToAdapter: string[];
 } {
+  const patternsLeftToAdapter: string[] = [];
   const timeoutMs = identity.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const steps = service.steps();
   if (steps.length > MAX_STEPS) throw new Error(`configuration: more than ${MAX_STEPS} steps`);
@@ -157,7 +168,7 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
 
   for (const step of steps) {
     const op = saveOperation(step.id);
-    specs[op] = stepSpec(step, timeoutMs);
+    specs[op] = stepSpec(step, timeoutMs, patternsLeftToAdapter);
     operations[op] = async ({ input }) => {
       // the schema admits only strings and integers; the service takes strings (an integer as its decimal string)
       const values = Object.fromEntries(Object.entries(input).map(([k, v]) => [k, String(v)]));
@@ -218,5 +229,5 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
     status: { operation: STATUS_OPERATION },
     operations: specs,
   });
-  return { manifest, operations };
+  return { manifest, operations, patternsLeftToAdapter };
 }

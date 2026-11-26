@@ -71,7 +71,6 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     ['an input declared twice', [{ id: 'a', title: 'A', inputs: [input, input] }], 'declared twice'],
     ['a format that is no regular expression', [{ id: 'a', title: 'A', inputs: [{ ...input, format: { pattern: '(', message: 'm' } }] }], 'format.pattern'],
     ['an enum without options', [{ id: 'a', title: 'A', inputs: [{ ...input, type: 'enum' as const }] }], 'an enum needs options'],
-    ['a format longer than Control Center takes', [{ id: 'a', title: 'A', inputs: [{ ...input, format: { pattern: 'a'.repeat(257), message: 'm' } }] }], 'longer than 256'],
     ['more inputs than Control Center takes', [{ id: 'a', title: 'A', inputs: Array.from({ length: 33 }, (_, i) => ({ ...input, id: `x${i}` })) }], 'more than 32 inputs'],
     ['more steps than the flow takes', Array.from({ length: 32 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] })), 'more than 31 steps'],
   ])('refuses %s', (_, steps, message) => {
@@ -96,6 +95,41 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     const service = new MemoryConfigurationService();
     service.networks = () => networks;
     expect(() => registerConfigRoutes(express(), service, { logger: silent, controlCenter: IDENTITY })).toThrow(message);
+  });
+
+  it('leaves a pattern Control Center would refuse to the adapter, keeps a safe one, and logs which', () => {
+    const service = new MemoryConfigurationService();
+    const pattern = (p: string) => ({ ...input, format: { pattern: p, message: 'm' } });
+    service.steps = () => [{
+      id: 'a',
+      title: 'A',
+      inputs: [
+        { ...pattern('^\\s*(0x[0-9a-fA-F]{40}[\\s,]*)*$'), id: 'list' },
+        { ...pattern('^(a+)+$'), id: 'nested' },
+        { ...pattern('^(?=a)a$'), id: 'lookahead' },
+        { ...pattern('a'.repeat(257)), id: 'long' },
+        { ...pattern('^0x[0-9a-fA-F]{40}$'), id: 'address' },
+        { ...pattern('^[a-z]{2}-[a-z]+$'), id: 'region' },
+      ],
+    }];
+    const { manifest, patternsLeftToAdapter } = deriveControlCenter(service, IDENTITY);
+    const properties = manifest.operations['save-a'].request.properties!;
+    expect(patternsLeftToAdapter).toEqual(['a/list', 'a/nested', 'a/lookahead', 'a/long']);
+    for (const id of ['list', 'nested', 'lookahead', 'long']) expect(properties[id]).not.toHaveProperty('pattern');
+    expect(properties.address.pattern).toBe('^0x[0-9a-fA-F]{40}$');
+    expect(properties.region.pattern).toBe('^[a-z]{2}-[a-z]+$');
+    expect(manifest.operations['save-a'].request.properties!.list).toMatchObject({ type: 'string', maxLength: 4096 });
+
+    const warnings: string[] = [];
+    const logger = winston.createLogger({ transports: [new winston.transports.Console({ silent: true })] });
+    logger.warn = ((message: string) => { warnings.push(message); return logger; }) as typeof logger.warn;
+    registerConfigRoutes(express(), service, { logger, controlCenter: IDENTITY });
+    expect(warnings).toEqual(['a/list', 'a/nested', 'a/lookahead', 'a/long'].map((id) => `configuration input ${id}: pattern left to the adapter`));
+  });
+
+  it('keeps its own url pattern, which Control Center takes', () => {
+    const { patternsLeftToAdapter } = deriveControlCenter(new MemoryConfigurationService(), IDENTITY);
+    expect(patternsLeftToAdapter).toEqual([]);
   });
 
   it('accepts no networks at all', () => {
@@ -250,6 +284,21 @@ describe('Control Center routes', () => {
     const res = await step('save-tuning', { mode: 'fast' });
     expect(res).toMatchObject({ status: 500, body: { error: { code: 'INTERNAL_ERROR' } } });
     expect(res.text).not.toContain(SECRET);
+  });
+
+  it('logs the requested id of an unknown operation, masked and bounded', async () => {
+    const lines: string[] = [];
+    const logger = winston.createLogger({ transports: [new winston.transports.Console({ silent: true })] });
+    logger.info = ((message: string) => { lines.push(message); return logger; }) as typeof logger.info;
+    const app = express();
+    registerConfigRoutes(app, new MemoryConfigurationService(), { logger, controlCenter: IDENTITY });
+    const other = await serve(app);
+    try {
+      await other.request('POST', '/config/operations/save-nope', envelope({}), { 'content-type': 'application/json' });
+      await other.request('POST', `/config/operations/${encodeURIComponent('bad id\n')}${'x'.repeat(100)}`, envelope({}), { 'content-type': 'application/json' });
+    } finally { await other.close(); }
+    expect(lines[0]).toBe('control center POST save-nope 404 NOT_FOUND');
+    expect(lines[1]).toBe(`control center POST bad?id?${'x'.repeat(57)} 404 NOT_FOUND`);
   });
 
   it('refuses an unknown operation, another content type and a body over the limit', async () => {

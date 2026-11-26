@@ -89,7 +89,8 @@ export function mountControlCenterRoutes(
 
   router.post('/operations/:operationId', express.raw({ type: () => true, limit: HARD_BODY_CAP }), async (req, res) => {
     const requested = String(req.params.operationId);
-    if (!has(manifest.operations, requested)) { send(res, '-', refusal(404, 'NOT_FOUND')); return; }
+    // the id comes from the request: log a bounded copy with anything outside an id's characters masked
+    if (!has(manifest.operations, requested)) { send(res, requested.slice(0, 64).replace(/[^A-Za-z0-9._-]/g, '?'), refusal(404, 'NOT_FOUND')); return; }
     const op = requested;
     const spec = manifest.operations[op];
     // a copy, so nothing below reads a property off the request's own value (capped at HARD_BODY_CAP by the parser)

@@ -61,7 +61,8 @@ export function registerConfigRoutes(app: express.Application, service: Configur
   });
 
   if (opts.controlCenter) {
-    const { manifest, operations } = deriveControlCenter(service, opts.controlCenter);
+    const { manifest, operations, patternsLeftToAdapter } = deriveControlCenter(service, opts.controlCenter);
+    for (const input of patternsLeftToAdapter) log.warn(`configuration input ${input}: pattern left to the adapter`);
     mountControlCenterRoutes(router, manifest, operations, log);
   }
 
