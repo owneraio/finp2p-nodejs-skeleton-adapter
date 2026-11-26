@@ -2,10 +2,10 @@
 // (steps, networks, summary, status, apply). Adapters never write a manifest: this is the
 // only place that knows Control Center's flows, operation names, codes and status words.
 //
-//   flow `configure` (integration): get-fields (when the service has inputsSet), save-<stepId>
+//   flow `configure` (integration): get-values (when the service has inputValues), save-<stepId>
 //                                    for each step in order, then activate
-//   get-fields     {}                    -> { steps: { <stepId>: { set: [<wire id>] } } }  inputsSet, ids only
-//   save-<stepId>  { <inputId>: value }  -> { valid, message }   saveStep, then its checks
+//   get-values     {}                    -> { steps: { <stepId>: { values: { <wire id>: value }, secrets: { <wire id>: set | not_set } } } }
+//   save-<stepId>  { <wire id>: value }  -> { valid, message, details? }   saveStep, then its checks
 //   activate       {}                    -> { version, appliedAt } apply
 //   get-status     {}                    -> { integration: { state, details }, networks: [{ id, state }] }
 import { scrub } from '../scrub';
@@ -29,7 +29,7 @@ export interface ControlCenterIdentity {
 }
 
 export const STATUS_OPERATION = 'get-status';
-export const FIELDS_OPERATION = 'get-fields';
+export const VALUES_OPERATION = 'get-values';
 export const ACTIVATE_OPERATION = 'activate';
 export const CONFIGURE_FLOW = 'configure';
 export const saveOperation = (stepId: string): string => `save-${stepId}`;
@@ -44,10 +44,13 @@ const MESSAGE_MAX = 1024;
 const LABEL_MAX = 64;
 const VALUE_MAX = 128;
 const PROBLEM = { id: 'problem', label: 'Problem' };
+/** A save's check details: as many rows as a pool may list, bounded like the status details. */
+const CHECK_DETAILS_MAX = 32;
+const INTEGER_VALUE_MAX = 32;
 
 /** Control Center's own bounds (ownera-apps AdapterConfig schema.ts), checked here so a manifest it would refuse never starts. */
 const MAX_INPUTS = 32;
-const MAX_FLOW_OPERATIONS = 32; // Control Center's bound on a flow, activate and get-fields included
+const MAX_FLOW_OPERATIONS = 32; // Control Center's bound on a flow, activate and get-values included
 const MAX_PATTERN_LENGTH = 256;
 const MAX_ANNOTATION_LENGTH = 256;
 
@@ -73,10 +76,8 @@ export const CONTROL_CENTER_STATE: Record<ConfigState, string> = {
 const refuse = (code: string, extra: Omit<ControlCenterRefusal, 'code'> = {}): Error & ControlCenterRefusal =>
   Object.assign(new Error(code), { code, ...extra });
 
-const clip = (text: string, max: number): string => ([...text].length > max ? `${[...text].slice(0, max - 1).join('')}…` : text);
-
 /** Clipped to `max` UTF-16 units (Control Center counts `.length`), never splitting a surrogate pair. */
-const clipUnits = (text: string, max: number): string => {
+const clip = (text: string, max: number): string => {
   if (text.length <= max) return text;
   let end = max - 1;
   const last = text.charCodeAt(end - 1);
@@ -105,8 +106,8 @@ export function statusDetails(summary: ConfigSummaryItem[], error: string | unde
     const id = detailId(item.id);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    const label = clipUnits(scrub(item.label, secrets), LABEL_MAX) || id;
-    details.push({ id, label, value: clipUnits(scrub(item.value, secrets), VALUE_MAX) });
+    const label = clip(scrub(item.label, secrets), LABEL_MAX) || id;
+    details.push({ id, label, value: clip(scrub(item.value, secrets), VALUE_MAX) });
   }
   return details;
 }
@@ -178,21 +179,48 @@ function stepSpec(step: ConfigurationStep, timeoutMs: number, left: string[], by
   const inputBytes = Object.values(properties).reduce((sum, p) => sum + (p.type === 'integer' ? 32 : (p.maxLength ?? STRING_MAX) * 6), 0);
   return {
     request: object(properties, step.inputs.filter(schemaRequired).map((i) => wireId(i.id))),
-    response: object({ valid: { type: 'boolean' }, message: { type: 'string', maxLength: MESSAGE_MAX } }, ['valid', 'message']),
+    response: object({
+      valid: { type: 'boolean' },
+      message: { type: 'string', maxLength: MESSAGE_MAX },
+      details: {
+        type: 'array',
+        maxItems: CHECK_DETAILS_MAX,
+        items: object({ label: { type: 'string', minLength: 1, maxLength: LABEL_MAX }, value: { type: 'string', maxLength: VALUE_MAX } }, ['label', 'value']),
+      },
+    }, ['valid', 'message']),
     secretFields: step.inputs.filter((i) => i.classification === 'secret').map((i) => `/${wireId(i.id)}`),
     idempotency: 'none',
-    limits: { maxBodyBytes: Math.min(HARD_BODY_CAP, 1024 + 128 * step.inputs.length + inputBytes), maxResponseBytes: 4096, timeoutMs },
+    limits: { maxBodyBytes: Math.min(HARD_BODY_CAP, 1024 + 128 * step.inputs.length + inputBytes), maxResponseBytes: 64 * 1024, timeoutMs },
   };
 }
 
 const noInput = object({});
 
-/** What a save answers: the first check that failed or could not run, else the first check's message. */
-export function saveAnswer(checks: StepCheck[], secrets: string[]): { valid: boolean; message: string } {
+type Row = { label: string; value: string };
+
+/** Check rows as a save answers them: at most 32, labels clipped to 1..64 and values to 128 UTF-16 units, scrubbed. */
+function checkRows(rows: Row[], secrets: string[]): Row[] {
+  return rows.slice(0, CHECK_DETAILS_MAX).map((r) => ({
+    label: clip(scrub(r.label, secrets), LABEL_MAX) || '-',
+    value: clip(scrub(r.value, secrets), VALUE_MAX),
+  }));
+}
+
+/**
+ * What a save answers: the first check that failed or could not run, with its details; else the
+ * first check's message and the details of every check, in order. `details` only when there are any.
+ */
+export function saveAnswer(checks: StepCheck[], secrets: string[]): { valid: boolean; message: string; details?: Row[] } {
   const failed = checks.find((c) => c.status !== 'valid');
   const message = (c: StepCheck): string => (c.status === 'missing' ? `Missing: ${c.missing.join(', ')}` : c.message);
+  const rowsOf = (c: StepCheck): Row[] => (c.status === 'missing' ? [] : c.details ?? []);
   const chosen = failed ?? checks[0];
-  return { valid: !failed, message: clip(scrub(chosen ? message(chosen) : 'Saved.', secrets), MESSAGE_MAX) };
+  const details = checkRows(failed ? rowsOf(failed) : checks.flatMap(rowsOf), secrets);
+  return {
+    valid: !failed,
+    message: clip(scrub(chosen ? message(chosen) : 'Saved.', secrets), MESSAGE_MAX),
+    ...(details.length ? { details } : {}),
+  };
 }
 
 /**
@@ -209,8 +237,8 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
   const patternsLeftToAdapter: string[] = [];
   const timeoutMs = identity.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const steps = service.steps();
-  const inputsSet = service.inputsSet?.bind(service);
-  const maxSteps = MAX_FLOW_OPERATIONS - 1 - (inputsSet ? 1 : 0);
+  const inputValues = typeof service.inputValues === 'function';
+  const maxSteps = MAX_FLOW_OPERATIONS - 1 - (inputValues ? 1 : 0);
   if (steps.length > maxSteps) throw new Error(`configuration: more than ${maxSteps} steps`);
   const seen = new Set<string>();
   for (const step of steps) {
@@ -235,31 +263,47 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
     };
   }
 
-  if (inputsSet) {
-    // which inputs hold a stored value, as Control Center's wire ids; never a value
-    const wireIds = new Map(steps.map((step) => [step.id, new Map(step.inputs.map((i) => [i.id, wireId(i.id)]))]));
-    specs[FIELDS_OPERATION] = {
+  if (inputValues) {
+    // what is stored, for a wizard reopened for editing: values of regular inputs, and of a
+    // secret only whether it is set. Never a secret's value, or any part of one.
+    const valueMax = (schema: ControlCenterSchema): number => (schema.type === 'integer' ? INTEGER_VALUE_MAX : schema.maxLength ?? STRING_MAX);
+    const shapes = steps.map((step) => {
+      const request = specs[saveOperation(step.id)].request.properties ?? {};
+      const regular = step.inputs.filter((i) => i.classification !== 'secret').map((i) => ({ id: i.id, wire: wireId(i.id), max: valueMax(request[wireId(i.id)]) }));
+      const secret = step.inputs.filter((i) => i.classification === 'secret').map((i) => ({ id: i.id, wire: wireId(i.id) }));
+      return { step, regular, secret };
+    });
+    specs[VALUES_OPERATION] = {
       request: noInput,
       response: object({
-        steps: object(Object.fromEntries(steps.map((step) => {
-          const ids = step.inputs.map((i) => wireId(i.id));
-          return [step.id, object({
-            set: { type: 'array', maxItems: Math.max(1, ids.length), items: { type: 'string', maxLength: 64, ...(ids.length ? { enum: ids } : {}) } },
-          }, ['set'])];
-        })), steps.map((step) => step.id)),
+        steps: object(Object.fromEntries(shapes.map(({ step, regular, secret }) => [step.id, object({
+          values: object(Object.fromEntries(regular.map((r) => [r.wire, { type: 'string', maxLength: r.max } as ControlCenterSchema]))),
+          secrets: object(
+            Object.fromEntries(secret.map((r) => [r.wire, { type: 'string', enum: ['set', 'not_set'], maxLength: 7 } as ControlCenterSchema])),
+            secret.map((r) => r.wire),
+          ),
+        }, ['values', 'secrets'])])), steps.map((step) => step.id)),
       }, ['steps']),
       secretFields: [],
       idempotency: 'none',
-      limits: { maxBodyBytes: 1024, maxResponseBytes: 32 * 1024, timeoutMs },
+      limits: { maxBodyBytes: 1024, maxResponseBytes: 1024 * 1024, timeoutMs },
     };
-    operations[FIELDS_OPERATION] = async () => {
-      const stored = await inputsSet();
+    operations[VALUES_OPERATION] = async () => {
+      const [stored, sealed] = await Promise.all([service.inputValues!(), service.sealedValues()]);
       return {
-        steps: Object.fromEntries(steps.map((step) => {
-          const known = wireIds.get(step.id)!;
-          // only declared inputs, each once, in the step's order
-          const set = new Set((stored[step.id] ?? []).filter((id) => known.has(id)));
-          return [step.id, { set: step.inputs.filter((i) => set.has(i.id)).map((i) => known.get(i.id)!) }];
+        steps: Object.fromEntries(shapes.map(({ step, regular, secret }) => {
+          const held = stored[step.id] ?? {};
+          const values: Record<string, string> = {};
+          for (const r of regular) {
+            const v = held[r.id];
+            // a regular input answered sealed is left out rather than guessed at
+            if (typeof v === 'string') values[r.wire] = clip(scrub(v, sealed), r.max);
+          }
+          const secrets = Object.fromEntries(secret.map((r) => {
+            const v = held[r.id];
+            return [r.wire, v !== undefined && v !== null && v !== '' ? 'set' : 'not_set'];
+          }));
+          return [step.id, { values, secrets }];
         })),
       };
     };
@@ -329,7 +373,7 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
       [CONFIGURE_FLOW]: {
         title: 'Configure',
         scope: 'integration',
-        operations: [...(inputsSet ? [FIELDS_OPERATION] : []), ...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION],
+        operations: [...(inputValues ? [VALUES_OPERATION] : []), ...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION],
       },
     },
     status: { operation: STATUS_OPERATION },

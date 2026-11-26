@@ -106,14 +106,15 @@ export class MemoryConfigurationService implements ConfigurationService {
 
   async summary() { return this.summaryItems; }
 
-  /** Input ids with a stored value, by step: custody's from the custody.* fields, tuning's from tuning.*; plus ids no step declares. */
-  async inputsSet() {
-    const has = (field: string) => this.values[field] !== undefined;
-    return {
-      custody: [...(has('custody.url') ? ['url'] : []), ...(has('custody.apiKey') ? ['apiKey', 'apiKey'] : []), ...(has('custody.region') ? ['custody.region'] : []), 'undeclared'],
-      tuning: Object.keys(this.values).filter((f) => f.startsWith('tuning.')).map((f) => f.slice('tuning.'.length)),
-      nope: ['x'],
-    };
+  /** Stored values by step and input id, a secret only as sealed; plus an id and a step no step declares. */
+  async inputValues(): Promise<Record<string, Record<string, string | { sealed: true }>>> {
+    const at = (field: string) => this.values[field];
+    const custody: Record<string, string | { sealed: true }> = { undeclared: 'x' };
+    if (at('custody.url') !== undefined) custody.url = at('custody.url');
+    if (at('custody.apiKey') !== undefined) custody.apiKey = { sealed: true };
+    if (at('custody.region') !== undefined) custody['custody.region'] = at('custody.region');
+    const tuning = Object.fromEntries(Object.entries(this.values).filter(([f]) => f.startsWith('tuning.')).map(([f, v]) => [f.slice('tuning.'.length), v]));
+    return { custody, tuning, nope: { x: 'y' } };
   }
 
   /** Every runAction call, as the service received it. */
@@ -152,7 +153,7 @@ export class MemoryConfigurationService implements ConfigurationService {
         ? [{ ref: 'custody.url', status: 'missing', missing: ['custody.apiKey'] }]
         : [{ ref: 'custody.url', ...(input.url.includes('bad')
           ? { status: 'invalid' as const, message: `refused with key ${this.values['custody.apiKey']}` }
-          : { status: 'valid' as const, message: 'Connected.' }) }];
+          : { status: 'valid' as const, message: 'Connected.', details: [{ label: 'Endpoint', value: input.url }, { label: 'Key', value: this.values['custody.apiKey'] }] }) }];
       return { saved: true, checks };
     }
     if (stepId === 'tuning') {

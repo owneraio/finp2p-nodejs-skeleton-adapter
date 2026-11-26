@@ -22,10 +22,10 @@ describe('Control Center manifest, derived from the service', () => {
       adapter: { kind: 'custody', name: 'Test adapter', version: '1.0.0' },
       compatibility: { hostContract: 2 },
       targets: { network: [{ id: 'eip155:31337', label: 'Anvil' }] },
-      flows: { configure: { title: 'Configure', scope: 'integration', operations: ['get-fields', 'save-custody', 'save-tuning', 'activate'] } },
+      flows: { configure: { title: 'Configure', scope: 'integration', operations: ['get-values', 'save-custody', 'save-tuning', 'activate'] } },
       status: { operation: 'get-status' },
     });
-    expect(Object.keys(manifest.operations)).toEqual(['save-custody', 'save-tuning', 'get-fields', 'activate', 'get-status']);
+    expect(Object.keys(manifest.operations)).toEqual(['save-custody', 'save-tuning', 'get-values', 'activate', 'get-status']);
     expect(Object.values(manifest.operations).map((op) => op.idempotency)).toEqual(['none', 'none', 'none', 'none', 'none']);
     expect(Object.values(manifest.operations).map((op) => op.limits.timeoutMs)).toEqual([30000, 30000, 30000, 30000, 30000]);
   });
@@ -73,32 +73,38 @@ describe('Control Center manifest, derived from the service', () => {
     expect(faults).toEqual([]);
   });
 
-  it('declares get-fields: every step a property, set bounded to the step\'s wire ids', () => {
-    expect(manifest.operations['get-fields'].request).toEqual({ type: 'object', additionalProperties: false, properties: {}, required: [] });
-    expect(manifest.operations['get-fields'].response).toEqual({
+  it('declares get-values: every step, each regular input with its maxLength, every secret as set or not_set', () => {
+    expect(manifest.operations['get-values'].request).toEqual({ type: 'object', additionalProperties: false, properties: {}, required: [] });
+    const steps = manifest.operations['get-values'].response.properties!.steps;
+    expect(steps.required).toEqual(['custody', 'tuning']);
+    expect(steps.properties!.custody).toEqual({
       type: 'object',
       additionalProperties: false,
-      required: ['steps'],
+      required: ['values', 'secrets'],
       properties: {
-        steps: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['custody', 'tuning'],
-          properties: {
-            custody: { type: 'object', additionalProperties: false, required: ['set'], properties: { set: { type: 'array', maxItems: 3, items: { type: 'string', maxLength: 64, enum: ['url', 'apiKey', 'custody_region'] } } } },
-            tuning: { type: 'object', additionalProperties: false, required: ['set'], properties: { set: { type: 'array', maxItems: 3, items: { type: 'string', maxLength: 64, enum: ['mode', 'retries', 'owner'] } } } },
-          },
-        },
+        values: { type: 'object', additionalProperties: false, required: [], properties: { url: { type: 'string', maxLength: 2048 }, custody_region: { type: 'string', maxLength: 4096 } } },
+        secrets: { type: 'object', additionalProperties: false, required: ['apiKey'], properties: { apiKey: { type: 'string', enum: ['set', 'not_set'], maxLength: 7 } } },
       },
+    });
+    expect(steps.properties!.tuning.properties!.values.properties).toEqual({
+      mode: { type: 'string', maxLength: 4 }, retries: { type: 'string', maxLength: 32 }, owner: { type: 'string', maxLength: 4096 },
     });
   });
 
-  it('derives no get-fields when the service has no inputsSet, and allows one more step', () => {
+  it('declares check details on a save\'s answer, bounded like the status', () => {
+    expect(manifest.operations['save-custody'].response.properties!.details).toEqual({
+      type: 'array',
+      maxItems: 32,
+      items: { type: 'object', additionalProperties: false, required: ['label', 'value'], properties: { label: { type: 'string', minLength: 1, maxLength: 64 }, value: { type: 'string', maxLength: 128 } } },
+    });
+  });
+
+  it('derives no get-values when the service has no inputValues, and allows one more step', () => {
     const service = new MemoryConfigurationService();
-    (service as { inputsSet?: unknown }).inputsSet = undefined;
+    (service as { inputValues?: unknown }).inputValues = undefined;
     service.steps = () => Array.from({ length: 31 }, (_, i) => ({ id: `s${i}`, title: 'S', inputs: [] }));
     const { manifest: bare } = deriveControlCenter(service, IDENTITY);
-    expect(bare.operations).not.toHaveProperty('get-fields');
+    expect(bare.operations).not.toHaveProperty('get-values');
     expect(bare.flows.configure.operations[0]).toBe('save-s0');
     expect(bare.flows.configure.operations).toHaveLength(32);
   });
@@ -243,15 +249,55 @@ describe('Control Center routes', () => {
     ]);
   });
 
-  it('answers get-fields with the wire ids of stored inputs per step, never a value', async () => {
-    expect((await step('get-fields')).body).toEqual({ output: { steps: { custody: { set: [] }, tuning: { set: [] } } } });
+  it('answers get-values: regular values by wire id, secrets only as set or not set', async () => {
+    expect((await step('get-values')).body).toEqual({ output: {
+      steps: { custody: { values: {}, secrets: { apiKey: 'not_set' } }, tuning: { values: {}, secrets: {} } },
+    } });
     await step('save-custody', { url: 'https://custody.example', apiKey: SECRET, custody_region: 'eu-west' });
     await step('save-tuning', { mode: 'safe', retries: 3 });
-    const res = await step('get-fields');
-    expect(res).toMatchObject({ status: 200 });
-    // in the step's order, each once, unknown ids and steps dropped, dotted ids on the wire
-    expect(res.body).toEqual({ output: { steps: { custody: { set: ['url', 'apiKey', 'custody_region'] }, tuning: { set: ['mode', 'retries'] } } } });
-    for (const value of [SECRET, 'custody.example', 'eu-west', 'safe']) expect(res.text).not.toContain(value);
+    const res = await step('get-values');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ output: { steps: {
+      custody: { values: { url: 'https://custody.example', custody_region: 'eu-west' }, secrets: { apiKey: 'set' } },
+      tuning: { values: { mode: 'safe', retries: '3' }, secrets: {} },
+    } } });
+  });
+
+  it('never lets any part of a secret out of get-values, even one the service hands over in the clear', async () => {
+    await step('save-custody', { url: 'https://custody.example', apiKey: SECRET });
+    // a careless service: the secret in the clear, and inside a regular value too
+    service.inputValues = async () => ({ custody: { apiKey: SECRET, url: `https://x/${SECRET}` }, tuning: {} });
+    const res = await step('get-values');
+    expect(res.status).toBe(200);
+    expect(res.body.output.steps.custody).toEqual({ values: { url: 'https://x/••••' }, secrets: { apiKey: 'set' } });
+    for (const part of [SECRET, SECRET.slice(0, 8), SECRET.slice(-8)]) expect(res.text).not.toContain(part);
+  });
+
+  it('clips a stored value to its input\'s maxLength, and leaves out a regular input answered sealed', async () => {
+    service.inputValues = async () => ({ custody: { url: `https://${'x'.repeat(3000)}` }, tuning: { mode: { sealed: true }, owner: 'o' } });
+    const { output } = (await step('get-values')).body;
+    expect(output.steps.custody.values.url).toHaveLength(2048);
+    expect(output.steps.tuning.values).toEqual({ owner: 'o' });
+  });
+
+  it('answers a save\'s check details: every check\'s when valid, the failing one\'s when not, scrubbed and bounded', async () => {
+    const ok = await step('save-custody', { url: 'https://custody.example', apiKey: SECRET });
+    expect(ok.body.output).toEqual({ valid: true, message: 'Connected.', details: [{ label: 'Endpoint', value: 'https://custody.example' }, { label: 'Key', value: '••••' }] });
+    expect(ok.text).not.toContain(SECRET);
+
+    service.saveStep = async () => ({ saved: true, checks: [
+      { ref: 'a', status: 'valid', message: 'fine', details: [{ label: 'A', value: 'a' }] },
+      { ref: 'pool', status: 'invalid', message: 'bad address', details: Array.from({ length: 40 }, (_, i) => ({ label: i ? `0x${i}` : '', value: 'v'.repeat(200) })) },
+    ] });
+    const bad = (await step('save-tuning', { mode: 'fast' })).body.output;
+    expect(bad.valid).toBe(false);
+    expect(bad.message).toBe('bad address');
+    expect(bad.details).toHaveLength(32);
+    expect(bad.details[0]).toEqual({ label: '-', value: `${'v'.repeat(127)}…` });
+    expect(bad.details[1].label).toBe('0x1');
+
+    service.saveStep = async () => ({ saved: true, checks: [{ ref: 'a', status: 'missing', missing: ['x'] }] });
+    expect((await step('save-tuning', { mode: 'fast' })).body.output).toEqual({ valid: false, message: 'Missing: x' });
   });
 
   it('answers Saved. for a step with no checks, and hands an integer over as its decimal string', async () => {

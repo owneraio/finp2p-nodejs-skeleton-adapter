@@ -74,12 +74,13 @@ export interface ConfigurationService {
   runAction?(ref: string, input: Record<string, unknown>): Promise<ConfigActionOutcome>;
 
   /**
-   * Which inputs of each step already hold a stored value, by step id and input id: what a
-   * wizard reopened for editing shows as set. Ids only: a stored value never goes back out,
-   * secret or not. Optional: without it Control Center gets no `get-fields` operation, and an
-   * empty input keeps the stored value as always.
+   * The stored value of each step's inputs, by step id and input id, for a wizard reopened for
+   * editing: stored values only (no defaults), and a secret only ever as `{ sealed: true }`.
+   * The skeleton answers a secret input as set or not set and never sends any part of a secret.
+   * Optional: without it Control Center gets no `get-values` operation, and an empty input keeps
+   * the stored value as always.
    */
-  inputsSet?(): Promise<Record<string, string[]>>;
+  inputValues?(): Promise<Record<string, Record<string, string | { sealed: true }>>>;
 }
 
 export interface ConfigActionOutcome {
@@ -134,7 +135,8 @@ export interface ConfigurationStep {
 }
 
 export type StepCheck =
-  | { ref: string; status: 'valid' | 'invalid'; message: string }
+  /** `details` are labelled rows to show with the answer (one per pool entry, say), passed from the check record. */
+  | { ref: string; status: 'valid' | 'invalid'; message: string; details?: { label: string; value: string }[] }
   | { ref: string; status: 'missing'; missing: string[] };
 
 export type StepSaveResult =
