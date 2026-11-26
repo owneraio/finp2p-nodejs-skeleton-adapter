@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish-skeleton:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: ./skeleton
@@ -15,8 +15,8 @@ jobs:
       packages: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 20
           registry-url: "https://npm.pkg.github.com"
@@ -27,13 +27,15 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: npm run build
+      # `npm publish` with no --tag moves `latest`, so publishing a prerelease from a
+      # branch, which is the documented way to coordinate a change across repos, hands
+      # that branch build to everyone who installs the package fresh.
       - name: Publish
-        # prereleases (x.y.z-<tag>.n) go under their prerelease dist-tag, never latest
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          if [[ "$VERSION" == *-* ]]; then
-            TAG=$(echo "$VERSION" | sed -E 's/^[^-]+-([a-zA-Z]+).*/\1/')
-            npm publish --tag "$TAG"
+          version="$(node -p 'require("./package.json").version')"
+          if [[ "$version" == *-* ]]; then
+            echo "publishing prerelease $version under the 'next' tag"
+            npm publish --tag next
           else
             npm publish
           fi

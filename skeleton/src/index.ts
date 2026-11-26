@@ -5,3 +5,4 @@ export * from './plugins';
 export * from './helpers';
 export * as workflows from './workflows';
 export * as storage from './storage';
+export * as config from './config';

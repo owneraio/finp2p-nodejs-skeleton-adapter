@@ -542,6 +542,25 @@ export const pendingAuthorizeOperation = (correlationId: string, metadata: Opera
   metadata,
 });
 
+/**
+ * Names a move receipt's destination binding from the request when the adapter left it
+ * unset. `receiptToAPI` otherwise infers the destination from the source binding, which
+ * is right for transfer and swap and wrong for a move, where the two ends are different
+ * tokens; a direct move has no execution context to infer from at all and the router
+ * rejects the callback with `4001 Missing required field
+ * "operation.response.destination.asset.ledgerIdentifier"`.
+ *
+ * Deliberately narrow. It fills only a successful `move` receipt that has no
+ * `destinationAsset`, so an adapter that named one, including one deliberately unlike
+ * the request, keeps it. Everything else passes through untouched.
+ */
+export const withMoveDestinationAsset = (op: ReceiptOperation, destinationAsset: Asset): ReceiptOperation => {
+  if (op.type !== 'success') return op;
+  const { receipt } = op;
+  if (receipt === undefined || receipt.operationType !== 'move' || receipt.destinationAsset !== undefined) return op;
+  return { ...op, receipt: { ...receipt, destinationAsset } };
+};
+
 // -------------------------------------------------------------------
 
 export type SuccessSwapStatus = {
@@ -795,11 +814,18 @@ export type TradeDetails = {
   executionContext: ExecutionContext | undefined
 };
 
-export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue' | 'swap';
+export type OperationType = 'transfer' | 'redeem' | 'hold' | 'release' | 'issue' | 'swap' | 'move';
 
 export type Receipt = {
   id: string,
   asset: Asset
+  /** The binding the holding landed in, when it differs from `asset` by more than its
+   *  resource id. Set this on a `move` receipt: the two ends of a move are genuinely
+   *  different tokens, so the destination needs its own `ledgerIdentifier` and cannot
+   *  borrow the source's. When it is absent the destination binding is derived from
+   *  `tradeDetails.executionContext`, which is right for transfer and swap, where both
+   *  sides bind the same on-chain token. */
+  destinationAsset?: Asset,
   source: Source | undefined,
   destination: Destination | undefined,
   quantity: string,

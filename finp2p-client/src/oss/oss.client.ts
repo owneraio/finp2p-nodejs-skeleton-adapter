@@ -9,7 +9,8 @@ import LEDGERS from './graphql/ledgers.graphql';
 import APPROVAL_CONFIGS from './graphql/approval-configs.graphql';
 import PLANS from './graphql/plans.graphql';
 import RECEIPTS from './graphql/receipts.graphql';
-import { makeOssPage, OssApprovalConfigNodes, OssAsset, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssInvestorNetworkAccount, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssPage, OssPaginate, OssReceipt, OssReceiptNodes, OssUser, OssUserNodes } from './model';
+import AGREEMENTS from './graphql/agreements.graphql';
+import { makeOssPage, OssAgreement, OssAgreementNodes, OssAgreementOrder, OssAgreementStatus, OssApprovalConfigNodes, OssAsset, OssAssetNodes, OssCertificate, OssExecutionPlan, OssExecutionPlanNodes, OssInvestorNetworkAccount, OssLedgerBindingNodes, OssOrganizationNodes, OssOwnerNodes, OssPage, OssPaginate, OssReceipt, OssReceiptNodes, OssUser, OssUserNodes } from './model';
 import { ItemNotFoundError } from './errors';
 import { normalizeBaseUrl } from '../finapi/utils';
 
@@ -244,6 +245,83 @@ export class OssClient {
       throw new ItemNotFoundError(planId, 'ExecutionPlan');
     }
     return resp.plans.nodes[0];
+  }
+
+  // ── Agreements ──
+
+  /**
+   * Look up agreements (resource type 107). Ordered by id unless `orderBy`
+   * says otherwise.
+   *
+   * `filter` keys address **top-level fields of the record** — `id`,
+   * `organizationId`, `status`, `businessState`, `version`, `termsType`,
+   * `validFrom`, `validUntil`, `createdAt`, `updatedAt`. A key naming no field
+   * at all fails the whole query rather than returning nothing, so do not
+   * guess: to narrow on a nested field such as a bound party, filter on a
+   * top-level field here and match the rest client-side, as
+   * {@link findActiveAgreementsBetween} does.
+   */
+  async getAgreements(
+    filter?: OssFilter | OssFilter[],
+    paginate?: OssPaginate,
+    orderBy?: OssAgreementOrder,
+  ): Promise<OssPage<OssAgreement>> {
+    const variables: Record<string, any> = {};
+    if (filter) variables.filter = filter;
+    if (paginate) variables.paginate = paginate;
+    if (orderBy) variables.orderBy = orderBy;
+    const resp = await this.queryOss<OssAgreementNodes>(AGREEMENTS, variables);
+    return makeOssPage(resp.agreements.nodes ?? [], resp.agreements.pageInfo);
+  }
+
+  async getAgreement(agreementId: string): Promise<OssAgreement> {
+    const resp = await this.queryOss<OssAgreementNodes>(AGREEMENTS, {
+      filter: {
+        key: 'id',
+        operator: 'EQ',
+        value: agreementId,
+      },
+    });
+    const nodes = resp.agreements.nodes ?? [];
+    if (nodes.length == 0) {
+      throw new ItemNotFoundError(agreementId, 'Agreement');
+    }
+    return nodes[0];
+  }
+
+  /**
+   * Find the standing agreements that bind both parties, newest first.
+   *
+   * This is the "did we already set one up?" lookup: propose an agreement once
+   * and every later trade cites the id this returns.
+   *
+   * Only `status` and `termsType` are filtered server-side; the party match is
+   * client-side against `roles[].parties`, because a role binding is a nested
+   * field and the OSS filter addresses top-level fields of the record only.
+   * That means `paginate.limit` bounds the rows **scanned**, not the rows
+   * returned — raise it rather than assume an empty result is authoritative.
+   *
+   * A party is matched by exact string equality against the bound parties, so
+   * pass the identifiers exactly as the proposal bound them (finId or orgId,
+   * whichever the facade recorded) — not a mixture.
+   */
+  async findActiveAgreementsBetween(
+    partyA: string,
+    partyB: string,
+    options: { termsType?: string; status?: OssAgreementStatus; paginate?: OssPaginate } = {},
+  ): Promise<OssAgreement[]> {
+    const { termsType, status = 'AGREEMENT_STATUS_ACTIVE', paginate } = options;
+    const filter: OssFilter[] = [{ key: 'status', operator: 'EQ', value: status }];
+    if (termsType) {
+      filter.push({ key: 'termsType', operator: 'EQ', value: termsType });
+    }
+    const page = await this.getAgreements(filter, paginate, {
+      field: 'CREATED_AT',
+      direction: 'DESC',
+    });
+    const bound = (agreement: OssAgreement, party: string) =>
+      agreement.roles.some((binding) => binding.parties.includes(party));
+    return page.filter((agreement) => bound(agreement, partyA) && bound(agreement, partyB));
   }
 
   async queryOss<T>(queryDoc: DocumentNode, variables: Record<string, any>): Promise<T> {
