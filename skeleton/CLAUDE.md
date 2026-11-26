@@ -90,6 +90,16 @@ What backs a `ConfigurationService`: GCA's store, moved here so adapters stop ca
 - **Each sealed value is bound to its column** (`adapter_config_values.value`, `adapter_config_applied.field_values`), the same AAD `EncryptedColumns` uses, so rows written by an adapter's own copy over `EncryptedColumns` open unchanged.
 - **Adapters that created these tables themselves** (GCA, Canton) keep their rows: the migration is `CREATE TABLE IF NOT EXISTS` with the same columns. Such an adapter makes its own migration `CREATE TABLE IF NOT EXISTS` / `DROP TABLE IF EXISTS` too (goose keeps no checksum, so editing an applied file is safe): its migrations run after the skeleton's, and a plain `CREATE TABLE` would fail on a fresh database. Keeping the file, rather than deleting it, means goose never sees an applied migration go missing.
 
+### Data feed (`src/feed/`, exported as `feed`)
+
+Publishes asset data (an `assetHeader` first) to the router's `POST /data/assets/ingest`. A plugin implements `DataProvider` (`source`, `dataTypes`, `items()` a page at a time); the adapter builds a `FeedPublisher` (or `feedPublisherFromEnv`, on `DATA_FEED_ENABLED` and `DATA_FEED_INTERVAL_SECONDS`), calls `use(providers)` once its configuration is active and `stop()` on close.
+
+- **Only changes are sent.** Each item's marker (`FeedMarkers`, keyed by the router's upsert key: source, identifier type and value, data type) holds the hash of its data (canonical JSON, so key order does not count) and the timestamp it was sent with. An unchanged item is skipped; a changed one is stamped `max(now, marker + 1)`, because the router applies only a strictly newer timestamp. The marker is set only when the router accepts the item.
+- **Markers are in memory in v1** (`InMemoryFeedMarkers`): a restart sends everything again once. A Postgres store implements the same interface later.
+- **Rounds** run on the interval, in batches of 100, with a 60 s ingest timeout and a 120 s page timeout. A round that fails ends there for that source and the next comes sooner (1 min, doubling up to the interval). A batch the router refuses with a final 4xx is counted as rejected and the round goes on. It never throws into the adapter; `status()` reports each source's last round.
+- **What a provider lists.** An item of a data type the provider did not declare is rejected without being sent. An item listed twice in a round is sent once, the first time. `use()` throws on two providers with one source.
+- **Limits.** The router has no retract, so an item a provider drops stays on the router. It also reports a write with an equal or older timestamp as accepted without storing it; the `+1` rule avoids that within a process, but not across a restart on a clock that went back. A rejected item is sent again every round until its data changes.
+
 ### Workflow layer (`src/workflows/`)
 
 Provides **idempotent async operation persistence** backed by PostgreSQL:

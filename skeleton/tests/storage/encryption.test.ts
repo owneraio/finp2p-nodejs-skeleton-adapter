@@ -71,7 +71,10 @@ describe('cipher', () => {
   test('wrong key, bit flip, column swap all fail closed', () => {
     const stored = encrypt(ring, 'random', 'secret', AAD);
     expect(() => decrypt(Keyring.fromEnv(env(K2)), stored, AAD)).toThrow(/no key in keyring/);
-    const flipped = stored.slice(0, -1) + (stored.endsWith('A') ? 'B' : 'A');
+    // Flip a bit in the decoded body: the last base64url character also holds padding bits, so changing it may change no byte.
+    const [prefix, body] = [stored.slice(0, stored.lastIndexOf('.') + 1), Buffer.from(stored.slice(stored.lastIndexOf('.') + 1), 'base64url')];
+    body[body.length - 1] ^= 1;
+    const flipped = prefix + body.toString('base64url');
     expect(() => decrypt(ring, flipped, AAD)).toThrow();
     expect(() => decrypt(ring, stored, 'other.col')).toThrow();
   });
