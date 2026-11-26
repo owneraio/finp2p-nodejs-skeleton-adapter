@@ -5,16 +5,17 @@
 //   flow `configure` (integration): save-<stepId> for each step in order, then activate
 //   save-<stepId>  { <inputId>: value }  -> { valid, message }   saveStep, then its checks
 //   activate       {}                    -> { version, appliedAt } apply
-//   get-status     {}                    -> { state, details }    status + summary
+//   get-status     {}                    -> { integration: { state, details }, networks: [{ id, state }] }
 import { scrub } from '../scrub';
 import {
-  ConfigurationInput, ConfigurationService, ConfigurationStep, ConfigState, StepCheck,
+  ConfigSummaryItem, ConfigurationInput, ConfigurationService, ConfigurationStep, ConfigState, StepCheck,
 } from '../service';
 import { JsonObject } from './json';
 import { checkManifest } from './manifest';
 import { isSafePattern } from './pattern-safety';
+import { STATUS_DETAIL_LIMIT, statusFault } from './status-fault';
 import {
-  ControlCenterManifest, ControlCenterOperationHandler, ControlCenterOperationSpec, ControlCenterRefusal, ControlCenterSchema, HOST_CONTRACT,
+  ControlCenterManifest, ControlCenterOperationHandler, ControlCenterOperationSpec, ControlCenterRefusal, ControlCenterSchema, HOST_CONTRACT, ID_PATTERN,
 } from './types';
 
 export interface ControlCenterIdentity {
@@ -36,10 +37,10 @@ export const URL_MAX = 2048;
 export const URL_PATTERN = '^https?://\\S+$';
 const HARD_BODY_CAP = 64 * 1024;
 const MESSAGE_MAX = 1024;
-const DETAILS_MAX = 32;
-const DETAIL_ID_MAX = 64;
-const LABEL_MAX = 128;
-const VALUE_MAX = 512;
+/** Control Center's status envelope (status-fault.ts): 8 details, labels of 1 to 64 and values of 0 to 128 UTF-16 units. */
+const LABEL_MAX = 64;
+const VALUE_MAX = 128;
+const PROBLEM = { id: 'problem', label: 'Problem' };
 
 /** Control Center's own bounds (ownera-apps AdapterConfig schema.ts), checked here so a manifest it would refuse never starts. */
 const MAX_INPUTS = 32;
@@ -48,6 +49,14 @@ const MAX_PATTERN_LENGTH = 256;
 const MAX_ANNOTATION_LENGTH = 256;
 
 const STEP_ID = /^[a-z0-9][a-z0-9-]{0,58}$/;
+
+/**
+ * The id Control Center sees for an input: every '.' replaced by '_' (ledger.rpcUrl ->
+ * ledger_rpcUrl). Control Center's relay keeps a refusal's field only when it matches
+ * FIELD_POINTER_PATTERN, ^(\/[A-Za-z0-9_-]{1,64}){1,5}$, which has no dot; the adapter keeps
+ * its own ids, and the skeleton maps both ways.
+ */
+export const wireId = (inputId: string): string => inputId.replace(/\./g, '_');
 const INPUT_ID = /^[A-Za-z0-9._-]{1,64}$/;
 
 /** Control Center's status words for the adapter's states. */
@@ -62,6 +71,42 @@ const refuse = (code: string, extra: Omit<ControlCenterRefusal, 'code'> = {}): E
   Object.assign(new Error(code), { code, ...extra });
 
 const clip = (text: string, max: number): string => ([...text].length > max ? `${[...text].slice(0, max - 1).join('')}…` : text);
+
+/** Clipped to `max` UTF-16 units (Control Center counts `.length`), never splitting a surrogate pair. */
+const clipUnits = (text: string, max: number): string => {
+  if (text.length <= max) return text;
+  let end = max - 1;
+  const last = text.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return `${text.slice(0, end)}…`;
+};
+
+/** A detail id Control Center takes (ID_PATTERN), or undefined when nothing usable is left. */
+const detailId = (id: string): string | undefined => {
+  if (ID_PATTERN.test(id)) return id;
+  const slug = id.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 64);
+  return ID_PATTERN.test(slug) ? slug : undefined;
+};
+
+/**
+ * The status details as Control Center takes them: the problem line first, then the summary;
+ * ids made to fit ID_PATTERN and unique (an item whose id cannot be is dropped), labels clipped
+ * to 1..64, values to 128, scrubbed, and at most 8.
+ */
+export function statusDetails(summary: ConfigSummaryItem[], error: string | undefined, secrets: string[]): { id: string; label: string; value: string }[] {
+  const items = [...(error ? [{ ...PROBLEM, value: error }] : []), ...summary];
+  const seen = new Set<string>();
+  const details: { id: string; label: string; value: string }[] = [];
+  for (const item of items) {
+    if (details.length === STATUS_DETAIL_LIMIT) break;
+    const id = detailId(item.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const label = clipUnits(scrub(item.label, secrets), LABEL_MAX) || id;
+    details.push({ id, label, value: clipUnits(scrub(item.value, secrets), VALUE_MAX) });
+  }
+  return details;
+}
 
 const object = (properties: Record<string, ControlCenterSchema>, required: string[] = []): ControlCenterSchema =>
   ({ type: 'object', additionalProperties: false, properties, required });
@@ -110,23 +155,28 @@ export function inputSchema(input: ConfigurationInput, where: string, left: stri
 /** Required in the manifest only when unconditionally required and not a secret (an empty secret keeps the stored one). */
 const schemaRequired = (input: ConfigurationInput): boolean => input.required === true && input.classification !== 'secret';
 
-function stepSpec(step: ConfigurationStep, timeoutMs: number, left: string[]): ControlCenterOperationSpec {
+function stepSpec(step: ConfigurationStep, timeoutMs: number, left: string[], byWire: Map<string, string>): ControlCenterOperationSpec {
   if (!STEP_ID.test(step.id)) throw new Error(`configuration step ${step.id}: the id must be lowercase letters, digits and dashes, 59 at most`);
   if (step.inputs.length > MAX_INPUTS) throw new Error(`configuration step ${step.id}: more than ${MAX_INPUTS} inputs`);
   const properties: Record<string, ControlCenterSchema> = {};
   for (const input of step.inputs) {
     const where = `${step.id}/${input.id}`;
     if (!INPUT_ID.test(input.id)) throw new Error(`configuration input ${where}: the id must be letters, digits, ., _ and -, 64 at most`);
-    if (properties[input.id]) throw new Error(`configuration input ${where}: declared twice`);
-    properties[input.id] = inputSchema(input, where, left);
-    if (schemaRequired(input) && properties[input.id].type === 'string') properties[input.id].minLength = 1;
+    const wire = wireId(input.id);
+    const taken = byWire.get(wire);
+    if (taken !== undefined) {
+      throw new Error(taken === input.id ? `configuration input ${where}: declared twice` : `configuration input ${where}: Control Center id ${wire} is also ${step.id}/${taken}'s`);
+    }
+    byWire.set(wire, input.id);
+    properties[wire] = inputSchema(input, where, left);
+    if (schemaRequired(input) && properties[wire].type === 'string') properties[wire].minLength = 1;
   }
   // JSON can escape a character to 6 bytes; the envelope and keys get a fixed allowance
   const inputBytes = Object.values(properties).reduce((sum, p) => sum + (p.type === 'integer' ? 32 : (p.maxLength ?? STRING_MAX) * 6), 0);
   return {
-    request: object(properties, step.inputs.filter(schemaRequired).map((i) => i.id)),
+    request: object(properties, step.inputs.filter(schemaRequired).map((i) => wireId(i.id))),
     response: object({ valid: { type: 'boolean' }, message: { type: 'string', maxLength: MESSAGE_MAX } }, ['valid', 'message']),
-    secretFields: step.inputs.filter((i) => i.classification === 'secret').map((i) => `/${i.id}`),
+    secretFields: step.inputs.filter((i) => i.classification === 'secret').map((i) => `/${wireId(i.id)}`),
     idempotency: 'none',
     limits: { maxBodyBytes: Math.min(HARD_BODY_CAP, 1024 + 128 * step.inputs.length + inputBytes), maxResponseBytes: 4096, timeoutMs },
   };
@@ -168,12 +218,14 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
 
   for (const step of steps) {
     const op = saveOperation(step.id);
-    specs[op] = stepSpec(step, timeoutMs, patternsLeftToAdapter);
+    const byWire = new Map<string, string>();
+    specs[op] = stepSpec(step, timeoutMs, patternsLeftToAdapter, byWire);
     operations[op] = async ({ input }) => {
-      // the schema admits only strings and integers; the service takes strings (an integer as its decimal string)
-      const values = Object.fromEntries(Object.entries(input).map(([k, v]) => [k, String(v)]));
+      // keys back to the adapter's input ids; the schema admits only strings and integers, and the
+      // service takes strings (an integer as its decimal string)
+      const values = Object.fromEntries(Object.entries(input).map(([k, v]) => [byWire.get(k) ?? k, String(v)]));
       const result = await service.saveStep(step.id, values);
-      if ('refused' in result) throw refuse('INVALID_CONFIG', { status: 422, ...(result.input ? { field: `/${result.input}` } : {}) });
+      if ('refused' in result) throw refuse('INVALID_CONFIG', { status: 422, ...(result.input ? { field: `/${wireId(result.input)}` } : {}) });
       return saveAnswer(result.checks, await service.sealedValues());
     };
   }
@@ -192,29 +244,44 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
     throw refuse('CONFIG_INCOMPLETE', { status: 409 });
   };
 
+  const networks = service.networks();
+  const stateSchema: ControlCenterSchema = { type: 'string', enum: Object.values(CONTROL_CENTER_STATE), maxLength: 32 };
   const detail = object({
-    id: { type: 'string', maxLength: DETAIL_ID_MAX },
-    label: { type: 'string', maxLength: LABEL_MAX },
+    id: { type: 'string', maxLength: 64, pattern: ID_PATTERN.source },
+    label: { type: 'string', minLength: 1, maxLength: LABEL_MAX },
     value: { type: 'string', maxLength: VALUE_MAX },
   }, ['id', 'label', 'value']);
+  // Control Center's envelope (status-fault.ts). A network carries no details: they would sit at
+  // depth 6, past the 5 Control Center's schema compiler takes, and the envelope does not need them.
   specs[STATUS_OPERATION] = {
     request: noInput,
     response: object({
-      state: { type: 'string', enum: Object.values(CONTROL_CENTER_STATE), maxLength: 32 },
-      details: { type: 'array', items: detail, maxItems: DETAILS_MAX },
-    }, ['state', 'details']),
+      integration: object({ state: stateSchema, details: { type: 'array', items: detail, maxItems: STATUS_DETAIL_LIMIT } }, ['state', 'details']),
+      networks: {
+        type: 'array',
+        maxItems: Math.max(1, networks.length),
+        items: object({
+          id: { type: 'string', maxLength: 64, ...(networks.length ? { enum: networks.map((n) => n.id) } : {}) },
+          state: stateSchema,
+        }, ['id', 'state']),
+      },
+    }, ['integration', 'networks']),
     secretFields: [],
     idempotency: 'none',
     limits: { maxBodyBytes: 1024, maxResponseBytes: 32 * 1024, timeoutMs },
   };
+  const declared = new Set(networks.map((n) => n.id));
   operations[STATUS_OPERATION] = async () => {
     const [status, summary, secrets] = await Promise.all([service.status(), service.summary(), service.sealedValues()]);
-    const item = (id: string, label: string, value: string) => ({
-      id: clip(id, DETAIL_ID_MAX), label: clip(scrub(label, secrets), LABEL_MAX), value: clip(scrub(value, secrets), VALUE_MAX),
-    });
-    const problem = status.error ? [item('problem', 'Problem', status.error)] : [];
-    const details = [...summary.slice(0, DETAILS_MAX - problem.length).map((s) => item(s.id, s.label, s.value)), ...problem];
-    return { state: CONTROL_CENTER_STATE[status.state] ?? CONTROL_CENTER_STATE.failed, details };
+    const state = CONTROL_CENTER_STATE[status.state] ?? CONTROL_CENTER_STATE.failed;
+    const output = {
+      integration: { state, details: statusDetails(summary, status.error, secrets) },
+      networks: networks.map((n) => ({ id: n.id, state })),
+    };
+    // the host checks this envelope besides the declared schema: never send one it would refuse
+    const fault = statusFault(output, declared);
+    if (fault !== undefined) throw new Error(`status answer outside Control Center's envelope at ${fault}`);
+    return output;
   };
 
   const manifest = checkManifest({
@@ -222,7 +289,7 @@ export function deriveControlCenter(service: ConfigurationService, identity: Con
     wizardId: identity.wizardId,
     adapter: identity.adapter,
     compatibility: { hostContract: HOST_CONTRACT },
-    targets: { network: service.networks() },
+    targets: { network: networks },
     flows: {
       [CONFIGURE_FLOW]: { title: 'Configure', scope: 'integration', operations: [...steps.map((s) => saveOperation(s.id)), ACTIVATE_OPERATION] },
     },

@@ -1,13 +1,16 @@
 import express from 'express';
 import { randomUUID } from 'node:crypto';
 import winston from 'winston';
-import { ConfigurationStep, deriveControlCenter, registerConfigRoutes, URL_PATTERN } from '../../src/config';
+import { ConfigurationStep, ControlCenterSchema, deriveControlCenter, registerConfigRoutes, statusDetails, statusFault, URL_PATTERN } from '../../src/config';
 import { envelope, IDENTITY } from './support/control-center';
 import { serve } from './support/http';
 import { MemoryConfigurationService, SECRET } from './support/service';
 
 const silent = winston.createLogger({ silent: true });
 const NETWORK = { scope: 'network', targetKind: 'network', targetId: 'eip155:31337' };
+
+/** ownera-apps AdapterConfig constants.ts: Control Center's relay drops a refusal field that does not match it. */
+const FIELD_POINTER_PATTERN = /^(\/[A-Za-z0-9_-]{1,64}){1,5}$/;
 
 describe('Control Center manifest, derived from the service', () => {
   const { manifest } = deriveControlCenter(new MemoryConfigurationService(), IDENTITY);
@@ -36,10 +39,13 @@ describe('Control Center manifest, derived from the service', () => {
       properties: {
         url: { type: 'string', maxLength: 2048, pattern: URL_PATTERN, minLength: 1, title: 'Custody URL' },
         apiKey: { type: 'string', maxLength: 4096, title: 'API key' },
-        'custody.region': { type: 'string', maxLength: 4096, pattern: '^[a-z]{2}-[a-z]+$', title: 'Region' },
+        custody_region: { type: 'string', maxLength: 4096, pattern: '^[a-z]{2}-[a-z]+$', title: 'Region' },
       },
     });
     expect(custody.secretFields).toEqual(['/apiKey']);
+    for (const op of Object.values(manifest.operations)) {
+      for (const key of Object.keys(op.request.properties ?? {})) expect(`/${key}`).toMatch(FIELD_POINTER_PATTERN);
+    }
     expect(manifest.operations['save-tuning'].request.properties).toEqual({
       mode: { type: 'string', enum: ['fast', 'safe'], maxLength: 4, minLength: 1, title: 'Mode' },
       retries: { type: 'integer', title: 'Retries' },
@@ -47,6 +53,24 @@ describe('Control Center manifest, derived from the service', () => {
     });
     expect(manifest.operations['save-tuning'].request.required).toEqual(['mode']);
     expect(custody.limits.maxBodyBytes).toBeLessThanOrEqual(64 * 1024);
+  });
+
+  it('keeps every schema within Control Center\'s compiler: depth 5 at most, maxItems 1 at least', () => {
+    const faults: string[] = [];
+    const walk = (schema: ControlCenterSchema, depth: number, at: string) => {
+      if (depth > 5) faults.push(`${at} too deep`);
+      if (schema.type === 'array' && !(Number.isInteger(schema.maxItems) && schema.maxItems! >= 1 && schema.maxItems! <= 200)) faults.push(`${at} maxItems`);
+      if (schema.type === 'string' && !(Number.isInteger(schema.maxLength) && schema.maxLength! <= 4096)) faults.push(`${at} maxLength`);
+      for (const [key, child] of Object.entries(schema.properties ?? {})) walk(child, depth + 1, `${at}/${key}`);
+      if (schema.items) walk(schema.items, depth + 1, `${at}/items`);
+    };
+    for (const service of [new MemoryConfigurationService(), Object.assign(new MemoryConfigurationService(), { networks: () => [] })]) {
+      for (const [id, op] of Object.entries(deriveControlCenter(service, IDENTITY).manifest.operations)) {
+        walk(op.request, 1, `${id}.request`);
+        walk(op.response, 1, `${id}.response`);
+      }
+    }
+    expect(faults).toEqual([]);
   });
 
   it('keeps the timeout the adapter declares', () => {
@@ -69,6 +93,7 @@ describe('Control Center derivation refuses what the manifest cannot carry', () 
     ['a step declared twice', [{ id: 'a', title: 'A', inputs: [] }, { id: 'a', title: 'A', inputs: [] }], 'declared twice'],
     ['an input id that is no pointer token', [{ id: 'a', title: 'A', inputs: [{ ...input, id: 'a/b' }] }], 'configuration input a/a/b'],
     ['an input declared twice', [{ id: 'a', title: 'A', inputs: [input, input] }], 'declared twice'],
+    ['two inputs with one Control Center id', [{ id: 'a', title: 'A', inputs: [{ ...input, id: 'x.y' }, { ...input, id: 'x_y' }] }], 'Control Center id x_y is also a/x.y\'s'],
     ['a format that is no regular expression', [{ id: 'a', title: 'A', inputs: [{ ...input, format: { pattern: '(', message: 'm' } }] }], 'format.pattern'],
     ['an enum without options', [{ id: 'a', title: 'A', inputs: [{ ...input, type: 'enum' as const }] }], 'an enum needs options'],
     ['more inputs than Control Center takes', [{ id: 'a', title: 'A', inputs: Array.from({ length: 33 }, (_, i) => ({ ...input, id: `x${i}` })) }], 'more than 32 inputs'],
@@ -198,7 +223,9 @@ describe('Control Center routes', () => {
     expect(await step('save-custody', { url: 'ftp://x' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/url' } } });
     expect(await step('save-custody', { apiKey: SECRET })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/url' } } });
     expect(await step('save-custody', { url: '' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/url' } } });
-    expect(await step('save-custody', { url: 'https://c', 'custody.region': 'EU' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/custody.region' } } });
+    expect(await step('save-custody', { url: 'https://c', custody_region: 'EU' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/custody_region' } } });
+    // the adapter's dotted id is not a Control Center id
+    expect(await step('save-custody', { url: 'https://c', 'custody.region': 'eu-west' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT' } } });
     expect(await step('save-tuning', { mode: 'other' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/mode' } } });
     expect(await step('save-tuning', { mode: 'fast', retries: 1.5 })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/retries' } } });
     expect(await step('save-tuning', { mode: 'fast', extra: 'x' })).toMatchObject({ status: 400, body: { error: { code: 'INVALID_INPUT', field: '/extra' } } });
@@ -209,10 +236,11 @@ describe('Control Center routes', () => {
     const withInput = await step('save-custody', { url: 'https://refused.example' });
     expect(withInput).toMatchObject({ status: 422, body: { error: { code: 'INVALID_CONFIG', field: '/url' } } });
     expect(withInput.text).not.toContain('refused.example');
-    expect(await step('save-custody', { url: 'https://c', 'custody.region': 'zz-refused' })).toMatchObject({
-      status: 422, body: { error: { code: 'INVALID_CONFIG', field: '/custody.region' } },
-    });
-    const derived = await step('save-custody', { url: 'https://c', 'custody.region': 'zz-derived' });
+    const dotted = await step('save-custody', { url: 'https://c', custody_region: 'zz-refused' });
+    expect(dotted).toMatchObject({ status: 422, body: { error: { code: 'INVALID_CONFIG', field: '/custody_region' } } });
+    expect(dotted.body.error.field).toMatch(FIELD_POINTER_PATTERN);
+    expect(service.saves[1]).toEqual({ stepId: 'custody', input: { url: 'https://c', 'custody.region': 'zz-refused' } });
+    const derived = await step('save-custody', { url: 'https://c', custody_region: 'zz-derived' });
     expect(derived.body).toEqual({ error: { code: 'INVALID_CONFIG' } });
   });
 
@@ -227,32 +255,74 @@ describe('Control Center routes', () => {
     expect(await step('activate')).toEqual(expect.objectContaining({ status: 200, body: { output: { version: 1, appliedAt: '2026-11-25T00:00:00Z' } } }));
   });
 
-  it('answers the status in Control Center words, with the summary and a scrubbed problem line', async () => {
-    expect((await step('get-status')).body).toEqual({ output: { state: 'not_configured', details: [{ id: 'url', label: 'Custody', value: 'not set' }] } });
-    await step('activate');
-    expect((await step('get-status')).body.output.state).toBe('active');
+  const DECLARED = new Set(['eip155:31337']);
 
+  it('answers the status in Control Center\'s envelope: the integration and each declared network', async () => {
+    const first = (await step('get-status')).body.output;
+    expect(first).toEqual({
+      integration: { state: 'not_configured', details: [{ id: 'url', label: 'Custody', value: 'not set' }] },
+      networks: [{ id: 'eip155:31337', state: 'not_configured' }],
+    });
+    expect(statusFault(first, DECLARED)).toBeUndefined();
+    await step('activate');
+    const active = (await step('get-status')).body.output;
+    expect(active.integration.state).toBe('active');
+    expect(active.networks).toEqual([{ id: 'eip155:31337', state: 'active' }]);
+  });
+
+  it('puts a scrubbed problem line first when the adapter has failed', async () => {
     await step('save-custody', { url: 'https://c', apiKey: SECRET });
     service.state = 'failed';
     service.error = `login refused for ${SECRET}`;
-    const failed = await step('get-status');
-    expect(failed.body.output).toEqual({
+    const output = (await step('get-status')).body.output;
+    expect(output.integration).toEqual({
       state: 'needs_attention',
-      details: [{ id: 'url', label: 'Custody', value: 'not set' }, { id: 'problem', label: 'Problem', value: 'login refused for ••••' }],
+      details: [{ id: 'problem', label: 'Problem', value: 'login refused for ••••' }, { id: 'url', label: 'Custody', value: 'not set' }],
     });
+    expect(statusFault(output, DECLARED)).toBeUndefined();
   });
 
-  it('keeps the status inside its response schema: details clipped to 32 and their text to its limits', async () => {
-    service.summaryItems = Array.from({ length: 40 }, (_, i) => ({ id: `f${i}`, label: 'L'.repeat(200), value: 'v'.repeat(600) }));
+  it('answers networks: [] when none are declared', async () => {
+    const bare = new MemoryConfigurationService();
+    bare.networks = () => [];
+    const app = express();
+    registerConfigRoutes(app, bare, { logger: silent, controlCenter: IDENTITY });
+    const other = await serve(app);
+    try {
+      const output = (await other.request('POST', '/config/operations/get-status', envelope({}), { 'content-type': 'application/json' })).body.output;
+      expect(output.networks).toEqual([]);
+      expect(statusFault(output, new Set())).toBeUndefined();
+    } finally { await other.close(); }
+  });
+
+  it('fits any summary into the envelope instead of failing the status', async () => {
+    service.summaryItems = [
+      { id: 'Ledger RPC', label: 'L'.repeat(100), value: 'v'.repeat(600) },
+      { id: 'ledger-rpc', label: 'duplicate once slugged', value: 'x' },
+      { id: '***', label: 'no usable id', value: 'x' },
+      { id: 'emoji', label: '', value: `${'a'.repeat(126)}😀😀` },
+      ...Array.from({ length: 10 }, (_, i) => ({ id: `f${i}`, label: 'F', value: 'v' })),
+    ];
     service.state = 'failed';
-    service.error = 'broken';
+    service.error = 'e'.repeat(300);
     const res = await step('get-status');
     expect(res.status).toBe(200);
-    const { details } = res.body.output;
-    expect(details).toHaveLength(32);
-    expect(details[31]).toEqual({ id: 'problem', label: 'Problem', value: 'broken' });
-    expect([...details[0].label]).toHaveLength(128);
-    expect([...details[0].value]).toHaveLength(512);
+    const { output } = res.body;
+    expect(statusFault(output, DECLARED)).toBeUndefined();
+    const { details } = output.integration;
+    expect(details).toHaveLength(8);
+    expect(details.map((d: { id: string }) => d.id)).toEqual(['problem', 'ledger-rpc', 'emoji', 'f0', 'f1', 'f2', 'f3', 'f4']);
+    expect(details[0].value).toHaveLength(128);
+    expect(details[1].label).toHaveLength(64);
+    expect(details[2].label).toBe('emoji');
+    expect(details[2].value.length).toBeLessThanOrEqual(128);
+    expect(details[2].value.endsWith('…')).toBe(true);
+  });
+
+  it('keeps every derived status detail within Control Center\'s rules', () => {
+    const odd = statusDetails([{ id: 'A_B', label: 'x'.repeat(70), value: '' }, { id: '-lead', label: 'y', value: 'z' }], undefined, []);
+    expect(odd).toEqual([{ id: 'a-b', label: `${'x'.repeat(63)}…`, value: '' }, { id: 'lead', label: 'y', value: 'z' }]);
+    expect(statusFault({ integration: { state: 'active', details: odd }, networks: [] }, new Set())).toBeUndefined();
   });
 
   it('ignores an Idempotency-Key: a repeated key runs again, an invalid one is not refused', async () => {

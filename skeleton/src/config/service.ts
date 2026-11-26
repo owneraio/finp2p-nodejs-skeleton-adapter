@@ -96,7 +96,12 @@ export interface ConfigStatus {
 
 /** One thing a person enters in a step. */
 export interface ConfigurationInput {
-  /** Becomes a JSON pointer (`/<id>`) in refusals: letters, digits, `.`, `_` and `-`, 64 at most. */
+  /**
+   * Letters, digits, `.`, `_` and `-`, 64 at most. Control Center sees it with every `.` as `_`
+   * (`ledger.rpcUrl` -> `ledger_rpcUrl`, see wireId): its refusal pointers allow no dot. saveStep
+   * always receives and answers these ids; two inputs of a step that map to one Control Center id
+   * are refused at registration.
+   */
   id: string;
   label: string;
   type: 'string' | 'url' | 'enum' | 'integer' | 'address';
